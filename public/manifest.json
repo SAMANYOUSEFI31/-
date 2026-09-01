@@ -1,0 +1,58 @@
+{
+  "name": "بوشیدو - سامانه انضباط شخصی",
+  "short_name": "بوشیدو",
+  "description": "سامانه جامع ارزیابی، رصد روزانه و تسلط ۹۰ روزه بر انضباط فردی و تاب‌آوری ذهنی بوشیدو",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "window-controls-overlay"],
+  "orientation": "portrait-primary",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "lang": "fa-IR",
+  "dir": "rtl",
+  "categories": ["productivity", "lifestyle", "utilities"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "میدان نبرد امروز",
+      "short_name": "نبرد امروز",
+      "description": "ثبت و ارزیابی عادات ۵ گانه روز جاری",
+      "url": "/",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "داشبورد تحلیلی چرخه",
+      "short_name": "داشبورد",
+      "description": "مشاهده وضعیت زنجیره و امتیاز دیسیپلین",
+      "url": "/?tab=dashboard",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    }
+  ]
+}

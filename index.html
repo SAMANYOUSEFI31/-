@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>بوشیدو - سامانه انضباط فردی و تسلط ۹۰ روزه</title>
+    
+    <!-- غیرفعال کردن تغییر رنگ اجباری سامسونگ و پشتیبانی دارک‌مود -->
+    <meta name="color-scheme" content="dark" />
+    <meta name="supported-color-schemes" content="dark" />
+    <meta name="darkreader-lock" content="true" />
+
+    <!-- تنظیمات رنگ نوار بالای سیستم‌عامل در آیفون و اندروید -->
+    <meta name="theme-color" content="#09090b" />
+    <meta name="background-color" content="#09090b" />
+
+    <!-- تنظیمات PWA نیتیو (حذف status-bar-style برای حذف لایه تاری اجباری iOS) -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="بوشیدو" />
+    <meta name="application-name" content="بوشیدو - سامانه انضباط شخصی" />
+    <meta name="msapplication-TileColor" content="#09090b" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="description" content="سامانه ارزیابی و استمرار انضباط فردی و تسلط ۹۰ روزه سامورایی بوشیدو" />
+
+    <!-- آیکون‌ها و مانیفست PWA -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.svg" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- فونت‌ها -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#09090b] text-zinc-100 selection:bg-[#E11D48] selection:text-white font-sans antialiased overflow-x-hidden">
+    <div id="root">
+      <style>
+        @keyframes bushidoPulse {
+          0%, 100% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 16px rgba(225, 29, 72, 0.45)); }
+          50% { transform: scale(0.96); opacity: 0.85; filter: drop-shadow(0 0 8px rgba(225, 29, 72, 0.25)); }
+        }
+        @keyframes bushidoFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      </style>
+      <div style="min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #09090b; color: #f4f4f5; text-align: center; padding: 1.5rem; user-select: none; animation: bushidoFadeIn 0.3s ease-out;">
+        <div style="width: 58px; height: 58px; border-radius: 18px; background-color: #E11D48; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 900; color: #ffffff; margin-bottom: 1.25rem; animation: bushidoPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;">
+          武
+        </div>
+        <div style="font-size: 16px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.35rem; color: #f4f4f5;">بوشیدو</div>
+        <div style="font-size: 10px; color: #71717a; font-family: monospace; letter-spacing: 0.12em;">BUSHIDO DISCIPLINE OS</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

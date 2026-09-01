@@ -1,0 +1,168 @@
+// Prisma Schema for Bushido Discipline OS
+// Fully optimized for PostgreSQL (Vercel Postgres, Neon, Supabase, Cloud SQL)
+// Engineered according to BENCHMARKS.md for sub-10ms queries & zero data-orphan guarantee
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ------------------------------------------------------
+// Enums
+// ------------------------------------------------------
+
+enum UserRole {
+  FREE
+  VIP
+  ADMIN
+}
+
+enum UserTier {
+  FREE
+  VIP
+  MASTER
+}
+
+enum DayStatus {
+  STANDARD
+  FROZEN
+  BURNED
+}
+
+enum SubscriptionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+// ------------------------------------------------------
+// Models
+// ------------------------------------------------------
+
+model User {
+  id                 String         @id @default(cuid())
+  email              String?        @unique
+  phoneNumber        String?        @unique
+  name               String?
+  passwordHash       String?
+  role               UserRole       @default(FREE)
+  tier               String         @default("ronin_free") // ronin_free | vip_samurai | daimyo_master
+  isVip              Boolean        @default(false)
+  vipSince           DateTime?
+  vipExpiresAt       DateTime?
+  paymentRefId       String?
+  isAdmin            Boolean        @default(false)
+  nightOwlCutoffHour Int            @default(4)
+  accentTheme        String         @default("amber")
+  
+  cycles             Cycle[]
+  dailyLogs          DailyLog[]
+  subscriptions      Subscription[]
+  otpCodes           OtpCode[]
+  
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([email])
+  @@index([phoneNumber])
+  @@index([role])
+  @@index([isVip])
+}
+
+model Cycle {
+  id              String     @id @default(cuid())
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  startDate       String     // YYYY-MM-DD
+  endDate         String     // YYYY-MM-DD
+  targetTheme     String?
+  inheritedStreak Int        @default(0)
+  rules           String[]   @default([])
+  isArchived      Boolean    @default(false)
+  reportRead      Boolean    @default(false)
+  verdict         Json?
+  
+  dailyLogs       DailyLog[]
+  
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([userId, isArchived])
+  @@index([userId, startDate])
+}
+
+model DailyLog {
+  id             String     @id @default(cuid())
+  userId         String
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cycleId        String
+  cycle          Cycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  date           String     // YYYY-MM-DD
+  status         DayStatus  @default(STANDARD)
+  
+  wakeUp         Boolean    @default(false)
+  workout        Boolean    @default(false)
+  study          Boolean    @default(false)
+  journal        Boolean    @default(false)
+  hardTask       Boolean    @default(false)
+  specialMission Boolean    @default(false)
+  
+  failureReason  String?
+  failureTime    String?
+  autopsyNotes   String?
+  countermeasure String?
+  aiFeedback     String?
+  notes          String?
+  
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([cycleId, date])
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([cycleId])
+  @@index([userId, date])
+  @@index([userId, cycleId])
+}
+
+model OtpCode {
+  id         String    @id @default(cuid())
+  identifier String
+  code       String
+  expiresAt  DateTime
+  verified   Boolean   @default(false)
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+
+  @@index([identifier])
+  @@index([identifier, verified])
+}
+
+model Subscription {
+  id          String             @id @default(cuid())
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId      String
+  amount      Int
+  authority   String             @unique
+  refId       String?
+  cardPan     String?
+  status      SubscriptionStatus @default(PENDING)
+  description String?
+  expiresAt   DateTime?
+  
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([authority])
+  @@index([userId, status])
+}

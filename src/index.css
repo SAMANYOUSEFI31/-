@@ -1,0 +1,164 @@
+@import "tailwindcss";
+
+/* قفل کردن تغییر رنگ اجباری مرورگر سامسونگ و حالت کنتراست بالا */
+html, body, #root, header, nav {
+  forced-color-adjust: none !important;
+}
+
+/* استفاده از گرادیان یکدست به جای رنگ تک‌بُعدی برای خنثی‌سازی موتور تشخیص پس‌زمینه سامسونگ */
+html, body, #root, header {
+  background-image: linear-gradient(to bottom, #09090b, #09090b) !important;
+  background-color: #09090b !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root, html, body, #root {
+    color-scheme: dark !important;
+    supported-color-schemes: dark !important;
+    background-color: #09090b !important;
+    color: #f4f4f5 !important;
+  }
+}
+
+:root {
+  --accent-primary: #E11D48;
+  --accent-glow: rgba(225, 29, 72, 0.3);
+  --accent-subtle: rgba(225, 29, 72, 0.12);
+  --accent-border: rgba(225, 29, 72, 0.4);
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: auto;
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+  touch-action: manipulation;
+  width: 100%;
+  max-width: 100%;
+}
+
+body {
+  color-scheme: dark;
+  font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: "ss01" on, "tnum" on;
+  background-color: #09090b;
+  color: #f4f4f5;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: auto;
+  width: 100%;
+  max-width: 100%;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* iOS Retina SVG & Icon crisp rendering fixes */
+svg {
+  shape-rendering: geometricPrecision;
+}
+
+.crisp-blur {
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+.font-mono {
+  font-family: 'Vazirmatn', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-feature-settings: "ss01" on, "tnum" on;
+}
+
+.font-en {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Obsidian Design Tokens with AMOLED & APCA Luminance Calibration */
+.bg-card-obsidian {
+  background-color: #121215;
+}
+
+.bg-inner-obsidian {
+  background-color: #18181b;
+}
+
+.bg-elevated-obsidian {
+  background-color: #16161a;
+}
+
+.card-hover-ruby {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover-ruby:hover {
+  border-color: rgba(225, 29, 72, 0.22) !important;
+  box-shadow: 0 10px 30px -10px rgba(225, 29, 72, 0.08);
+}
+
+.theme-glow {
+  box-shadow: 0 0 25px var(--accent-glow);
+}
+
+.theme-glow-sm {
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.theme-border {
+  border-color: var(--accent-border) !important;
+}
+
+.theme-text {
+  color: var(--accent-primary) !important;
+}
+
+.theme-bg {
+  background-color: var(--accent-primary) !important;
+}
+
+.theme-bg-subtle {
+  background-color: var(--accent-subtle) !important;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* Standalone PWA Safe-Area Support (iOS Notch & Android Navigation Bars) */
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.modal-safe-h {
+  max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 1.5rem));
+}

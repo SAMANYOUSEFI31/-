@@ -1,0 +1,221 @@
+/**
+ * Bushido Discipline OS - Design System Tokens & Base Utility Classes
+ * Conforms to APCA Luminance Benchmarks, Obsidian Dark Theme & PWA Standards (Items C1 & F7)
+ */
+
+:root {
+  /* =========================================================================
+   * 1. OBSIDIAN NEUTRAL SURFACE PALETTE (Dark/Stoic Canvas)
+   * ========================================================================= */
+  --color-canvas-root: #09090b;        /* Main App Background (Obsidian Black) */
+  --color-card-elevated: #121215;      /* Elevated Card Containers (Level 1) */
+  --color-card-inner: #18181b;         /* Sub-Containers & Nested Boxes (Level 2) */
+  --color-card-floating: #16161a;      /* Floating Tooltips & Popups */
+  
+  --color-border-subtle: #27272a;      /* Standard Card & Component Borders */
+  --color-border-hover: #3f3f46;       /* Hover State Borders */
+  --color-border-muted: #1c1c20;       /* Muted Internal Dividers */
+
+  /* =========================================================================
+   * 2. SEMANTIC ACCENT PALETTE (Brand Truth & Status Tokens)
+   * ========================================================================= */
+  /* Bushido Crimson (Brand Core & Accent) */
+  --color-accent-primary: #E11D48;
+  --color-accent-primary-rgb: 225, 29, 72;
+  --color-accent-primary-hover: #BE123C;
+  --color-accent-primary-light: #FB7185;
+
+  /* Samurai Amber (Mastery 10/10, AI Sensei, Total Score, VIP) */
+  --color-accent-amber: #FBBF24;
+  --color-accent-amber-rgb: 251, 191, 36;
+  --color-accent-amber-bg: rgba(251, 191, 36, 0.1);
+  --color-accent-amber-border: rgba(251, 191, 36, 0.25);
+
+  /* Vitality Emerald (Standard Day 8/10, Checks, Habit Fidelity) */
+  --color-accent-emerald: #34D399;
+  --color-accent-emerald-rgb: 52, 211, 153;
+  --color-accent-emerald-bg: rgba(52, 211, 153, 0.1);
+  --color-accent-emerald-border: rgba(52, 211, 153, 0.25);
+
+  /* Fiery Rose (Pure Continuous Streak - Immutable Token) */
+  --color-accent-rose: #FB7185;
+  --color-accent-rose-rgb: 251, 113, 133;
+  --color-accent-rose-bg: rgba(251, 113, 133, 0.1);
+  --color-accent-rose-border: rgba(251, 113, 133, 0.25);
+
+  /* Honor Crimson / Alert Red (Open Debts, Behavior Locks, Failures) */
+  --color-accent-red: #F87171;
+  --color-accent-red-rgb: 248, 113, 113;
+  --color-accent-red-bg: rgba(127, 29, 29, 0.3);
+  --color-accent-red-border: rgba(248, 113, 113, 0.4);
+
+  /* Frost Blue (Personal Emergency Freeze) */
+  --color-accent-blue: #60A5FA;
+  --color-accent-blue-rgb: 96, 165, 250;
+  --color-accent-blue-bg: rgba(96, 165, 250, 0.1);
+  --color-accent-blue-border: rgba(96, 165, 250, 0.25);
+
+  /* Bushido Violet (Resolved Autopsy Cases, Deep Analysis) */
+  --color-accent-purple: #C084FC;
+  --color-accent-purple-rgb: 192, 132, 252;
+  --color-accent-purple-bg: rgba(192, 132, 252, 0.1);
+  --color-accent-purple-border: rgba(192, 132, 252, 0.25);
+
+  /* =========================================================================
+   * 3. TYPOGRAPHY & APCA LUMINANCE SCALE
+   * ========================================================================= */
+  --color-text-primary: #F4F4F5;       /* Headings & Values (APCA Lc = 104) */
+  --color-text-secondary: #A1A1AA;     /* Body & Subtitles (APCA Lc = 78) */
+  --color-text-muted: #71717A;         /* Captions & Phantom Labels (APCA Lc = 60) */
+  --color-text-disabled: #52525B;      /* Disabled States */
+
+  /* =========================================================================
+   * 4. GEOMETRIC RADIUS HIERARCHY (Nested Radius Rule)
+   * ========================================================================= */
+  --radius-outer-modal: 1.5rem;        /* 24px - Modals & Outer Canvas Cards */
+  --radius-card-level1: 1.25rem;       /* 20px - Main Bento & Section Cards */
+  --radius-card-level2: 1rem;          /* 16px - Inner Containers & Habit Cards */
+  --radius-button: 0.75rem;            /* 12px - Interactive Action Buttons */
+  --radius-badge: 0.5rem;              /* 8px - Status Badges & Chips */
+  --radius-pill: 9999px;              /* Full Capsule Pill */
+
+  /* =========================================================================
+   * 5. ELEVATION, GLOW & SHADOW EFFECTS
+   * ========================================================================= */
+  --glow-crimson: rgba(225, 29, 72, 0.3);
+  --glow-crimson-subtle: rgba(225, 29, 72, 0.12);
+  --glow-amber: rgba(251, 191, 36, 0.25);
+  --glow-emerald: rgba(52, 211, 153, 0.25);
+  
+  --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.8);
+  --shadow-dropdown: 0 20px 40px -15px rgba(0, 0, 0, 0.9);
+  --shadow-ruby-hover: 0 10px 30px -10px rgba(225, 29, 72, 0.15);
+
+  /* =========================================================================
+   * 6. Z-INDEX SCALE
+   * ========================================================================= */
+  --z-base: 0;
+  --z-card: 10;
+  --z-card-inner: 20;
+  --z-sticky-header: 40;
+  --z-mobile-nav: 40;
+  --z-toast: 50;
+  --z-modal-backdrop: 90;
+  --z-modal-content: 100;
+
+  /* =========================================================================
+   * 7. MOTION PHYSICS & ANIMATION TIMINGS
+   * ========================================================================= */
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-tactical: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* =========================================================================
+   * 8. PWA STANDALONE SAFE-AREA INSETS
+   * ========================================================================= */
+  --safe-area-top: max(0.5rem, env(safe-area-inset-top, 0px));
+  --safe-area-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* =========================================================================
+ * BASE UTILITY CLASSES & COMPONENT EXTENSIONS
+ * ========================================================================= */
+
+/* Obsidian Surface Backgrounds */
+.bg-card-obsidian {
+  background-color: var(--color-card-elevated) !important;
+}
+
+.bg-inner-obsidian {
+  background-color: var(--color-card-inner) !important;
+}
+
+.bg-floating-obsidian {
+  background-color: var(--color-card-floating) !important;
+}
+
+/* Interactive Ruby Hover Effect */
+.card-hover-ruby {
+  transition: all var(--duration-normal) var(--ease-tactical);
+}
+
+.card-hover-ruby:hover {
+  border-color: rgba(225, 29, 72, 0.3) !important;
+  box-shadow: var(--shadow-ruby-hover) !important;
+}
+
+/* Theme Glow Utilities */
+.theme-glow {
+  box-shadow: 0 0 25px var(--glow-crimson) !important;
+}
+
+.theme-glow-sm {
+  box-shadow: 0 0 12px var(--glow-crimson) !important;
+}
+
+.theme-border {
+  border-color: rgba(225, 29, 72, 0.4) !important;
+}
+
+.theme-text {
+  color: var(--color-accent-primary) !important;
+}
+
+.theme-bg {
+  background-color: var(--color-accent-primary) !important;
+}
+
+.theme-bg-subtle {
+  background-color: var(--glow-crimson-subtle) !important;
+}
+
+/* Glassmorphism Backdrop Blur */
+.crisp-blur {
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+/* Font Feature Settings for Numbers & Persian Typography */
+.font-mono {
+  font-family: 'Vazirmatn', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-feature-settings: "ss01" on, "tnum" on !important;
+}
+
+.font-en {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+
+/* PWA Safe-Area Spacing Utilities */
+.pt-safe {
+  padding-top: var(--safe-area-top) !important;
+}
+
+.pb-safe {
+  padding-bottom: var(--safe-area-bottom) !important;
+}
+
+.modal-safe-h {
+  max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 1.5rem)) !important;
+}
+
+/* Custom Tactical Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-canvas-root);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-hover);
+}
