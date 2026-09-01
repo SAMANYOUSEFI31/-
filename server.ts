@@ -894,7 +894,10 @@ app.get('/api/admin/subscriptions', adminMiddleware, async (req: AuthenticatedRe
  * SERVER BOOT & STATIC SERVING
  * ========================================================================= */
 
-const distPath = path.join(process.cwd(), 'dist');
+// حل مشکل پیدا نکردن index.html در محیط ورسل
+const distPath = process.env.VERCEL 
+  ? path.join(process.cwd()) // در ورسل محتوای پوشه dist در همان مسیر اصلی قرار می‌گیرد
+  : path.join(process.cwd(), 'dist'); // در سیستم شخصی و سایر محیط‌ها
 
 async function startServer() {
   await initializeDatabase();
