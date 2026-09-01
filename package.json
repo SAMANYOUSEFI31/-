@@ -9,6 +9,7 @@
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
+    "vercel-build": "npm run build",
     "test": "tsx --test \"tests/**/*.test.ts\""
   },
   "dependencies": {
