@@ -33,7 +33,6 @@ html {
   overscroll-behavior-x: none;
   overscroll-behavior-y: auto;
   scrollbar-gutter: stable;
-  overflow-y: scroll;
   touch-action: manipulation;
   width: 100%;
   max-width: 100%;
