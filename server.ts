@@ -23,7 +23,8 @@ import {
   adminCreateTestUser,
   adminGetAllSubscriptions,
   adminGetOverviewStats,
-  ensureDefaultAdminAndUsers
+  ensureDefaultAdminAndUsers,
+  isPrismaAvailable
 } from './server/db/index.js';
 import {
   generateToken,

@@ -210,26 +210,18 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
   // Touch swipe gesture handlers (smart touch-area: works across canvas with strict deliberate thresholds)
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
-  // 1. Guard against No Active Cycle / Empty State with Comprehensive Onboarding
-  // (Placed AFTER all hooks to strictly adhere to React Rules of Hooks)
-  if (!currentCycle || !metrics) {
-    return (
-      <OnboardingWelcomeView
-        onOpenCreateCycle={onOpenCreateCycle || onNavigateToArchives || (() => {})}
-        onNavigateToHabitsGuide={onNavigateToHabitsGuide || (() => {})}
-      />
-    );
-  }
+  const cycleStartDate = currentCycle?.startDate || '';
 
   const computed = useMemo(() => {
-    return computeDailyProperties(activeLog, logs, logicalToday, currentCycle.startDate);
-  }, [activeLog, logs, logicalToday, currentCycle.startDate]);
+    return computeDailyProperties(activeLog, logs, logicalToday, cycleStartDate);
+  }, [activeLog, logs, logicalToday, cycleStartDate]);
 
   // Find all unresolved past days that cause system lock (strictly before today) across the full timeline from cycle start
   const unresolvedPastLogs: DailyLog[] = useMemo(() => {
     const list: DailyLog[] = [];
-    if (currentCycle.startDate && currentCycle.startDate < logicalToday) {
-      let checkDate = currentCycle.startDate;
+    if (!currentCycle) return list;
+    if (cycleStartDate && cycleStartDate < logicalToday) {
+      let checkDate = cycleStartDate;
       while (checkDate < logicalToday) {
         let l = logs.find(item => item.date === checkDate);
         if (!l) {
@@ -246,7 +238,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
             specialMission: false
           };
         }
-        const c = computeDailyProperties(l, logs, logicalToday, currentCycle.startDate);
+        const c = computeDailyProperties(l, logs, logicalToday, cycleStartDate);
         if (c.statusType === 'burned_unresolved') {
           list.push(l);
         }
@@ -254,7 +246,18 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
       }
     }
     return list;
-  }, [currentCycle.startDate, currentCycle.id, logs, logicalToday]);
+  }, [currentCycle, cycleStartDate, logs, logicalToday]);
+
+  // 1. Guard against No Active Cycle / Empty State with Comprehensive Onboarding
+  // (Placed AFTER all hooks to strictly adhere to React Rules of Hooks)
+  if (!currentCycle || !metrics) {
+    return (
+      <OnboardingWelcomeView
+        onOpenCreateCycle={onOpenCreateCycle || onNavigateToArchives || (() => {})}
+        onNavigateToHabitsGuide={onNavigateToHabitsGuide || (() => {})}
+      />
+    );
+  }
 
   const isLocked = (unresolvedPastLogs.length > 0 && isToday) || isCycleArchived || isFuture;
 
