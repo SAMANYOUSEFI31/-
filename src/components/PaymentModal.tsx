@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, SubscriptionPlan } from '../types';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { 
   ShieldCheck, 
   Crown, 
@@ -71,6 +72,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onClose,
   onUpgradeSuccess
 }) => {
+  useBodyScrollLock(isOpen);
+
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>(PLANS[0]);
   const [step, setStep] = useState<'plans' | 'gateway' | 'success'>('plans');
   const [isLoading, setIsLoading] = useState(false);
@@ -230,13 +233,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="relative z-10 bg-zinc-900 border border-amber-500/40 rounded-2xl sm:rounded-3xl w-full max-w-2xl text-zinc-100 shadow-2xl overflow-hidden flex flex-col max-h-[92dvh] my-auto"
+        className="relative z-10 bg-[#1c1c21] border border-zinc-800 rounded-2xl sm:rounded-3xl w-full max-w-2xl text-zinc-100 shadow-2xl overflow-hidden flex flex-col max-h-[92dvh] my-auto"
       >
         {/* STEP 1: PLANS SELECTION */}
         {step === 'plans' && (
           <div className="flex flex-col flex-1 overflow-hidden min-h-0">
             {/* Header */}
-            <div className="p-4 sm:p-6 bg-gradient-to-r from-amber-950/60 via-zinc-900 to-zinc-950 border-b border-zinc-800 flex items-center justify-between shrink-0">
+            <div className="p-4 sm:p-6 bg-gradient-to-r from-amber-950/60 via-[#1c1c21] to-[#18181b] border-b border-zinc-800 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5 sm:gap-3">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shadow-lg shrink-0">
                   <Crown className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -272,7 +275,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       className={`rounded-2xl p-4 sm:p-5 border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
                         isSelected
                           ? 'bg-amber-950/30 border-amber-500 shadow-xl shadow-amber-500/10'
-                          : 'bg-[#09090b]/70 border-zinc-800 hover:border-zinc-700'
+                          : 'bg-[#18181b] border-zinc-800 hover:border-zinc-700'
                       }`}
                     >
                       {plan.isPopular && (
@@ -313,7 +316,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
 
               {/* Secure Payment Note */}
-              <div className="bg-[#09090b]/80 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex items-center justify-between text-xs text-zinc-400">
+              <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-3 sm:p-4 flex items-center justify-between text-xs text-zinc-400">
                 <div className="flex items-center gap-2">
                   <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span className="text-[11px] sm:text-xs">اتصال امن به درگاه پرداخت شاپرک</span>
@@ -580,7 +583,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
 
             {/* Official Digital Receipt */}
-            <div className="bg-[#09090b]/80 border border-zinc-800 rounded-2xl p-4 sm:p-5 max-w-md mx-auto text-xs space-y-3 font-mono text-zinc-300">
+            <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-4 sm:p-5 max-w-md mx-auto text-xs space-y-3 font-mono text-zinc-300">
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                 <span className="text-zinc-400">شماره پیگیری تراکنش (RefID):</span>
                 <span className="text-amber-400 font-bold">{receiptData.refId}</span>

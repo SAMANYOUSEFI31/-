@@ -202,7 +202,7 @@ export const BushidoCourtView: React.FC<BushidoCourtViewProps> = ({
           </div>
 
           {/* Verdict Text */}
-          <div className="bg-[#09090b]/80 rounded-2xl p-5 border border-zinc-800 space-y-2">
+          <div className="bg-[#18181b] rounded-2xl p-5 border border-zinc-800 space-y-2">
             <h4 className="font-bold text-sm text-amber-400 flex items-center gap-1.5">
               <FileBadge className="w-4 h-4" />
               بیانیه رسمی دادگاه بوشیدو:
@@ -246,7 +246,7 @@ export const BushidoCourtView: React.FC<BushidoCourtViewProps> = ({
           </div>
 
           {/* Next Cycle Tactical Plan */}
-          <div className="bg-[#09090b]/80 rounded-2xl p-5 border border-indigo-500/30 space-y-1">
+          <div className="bg-[#18181b] rounded-2xl p-5 border border-indigo-500/30 space-y-1">
             <h4 className="font-bold text-xs text-indigo-400 flex items-center gap-1.5">
               <Flame className="w-4 h-4" />
               فرمان عملیاتی برای چرخه ۹۰ روزه بعدی:

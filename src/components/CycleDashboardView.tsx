@@ -240,7 +240,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                   <span>پیشروی تقویمی دوره</span>
                   <span>{toPersianDigits(elapsedPercentage)}٪ سپری شده</span>
                 </div>
-                <div className="w-full bg-[#09090b] h-2 rounded-full overflow-hidden border border-zinc-800">
+                <div className="w-full bg-[#18181b] h-2 rounded-full overflow-hidden border border-zinc-800">
                   <div 
                     className="bg-gradient-to-l from-rose-500 to-rose-700 h-full rounded-full transition-all duration-500" 
                     style={{ width: `${elapsedPercentage}%` }}
@@ -250,7 +250,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
             </div>
 
             {/* Coach Voice Banner */}
-            <div className="w-full bg-[#09090b]/80 border border-zinc-800/90 rounded-2xl p-3.5 sm:p-4 flex items-start gap-3.5 mt-2 shadow-sm">
+            <div className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl p-3.5 sm:p-4 flex items-start gap-3.5 mt-2 shadow-sm">
               <div className="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0">
                 <Compass className="w-5 h-5 text-zinc-200" />
               </div>
@@ -264,7 +264,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
           </div>
 
           {/* Discipline Score Badge Column (Harmonized with Battlefield Daily Score Box) */}
-          <div className="lg:col-span-4 bg-[#09090b]/80 border border-zinc-800/90 rounded-2xl p-4 sm:p-5 text-center flex flex-col items-center justify-center space-y-2.5 shadow-sm transition-all w-full max-w-[280px] mx-auto lg:max-w-none lg:w-full">
+          <div className="lg:col-span-4 bg-[#18181b] border border-zinc-800 rounded-2xl p-4 sm:p-5 text-center flex flex-col items-center justify-center space-y-2.5 shadow-sm transition-all w-full max-w-[280px] mx-auto lg:max-w-none lg:w-full">
             <span className="text-xs text-zinc-400 font-medium inline-flex items-center gap-1.5">
               <TrendingUp className="w-4 h-4 text-zinc-400" />
               <span>شاخص انضباط سیستم (Discipline Score)</span>
@@ -429,7 +429,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-1">
                 {/* Record 1: All-Time Longest Streak (Fiery Rose/Flame) */}
-                <div className="bg-[#09090b]/70 border border-zinc-800 hover:border-zinc-750 rounded-2xl p-4 space-y-2.5 transition-all">
+                <div className="bg-[#18181b] border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 space-y-2.5 transition-all">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-zinc-300 font-medium">طولانی‌ترین زنجیره تاریخ</span>
                     <div className="w-8 h-8 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0">
@@ -442,14 +442,14 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                     </span>
                     <span className="text-xs text-zinc-400 font-mono">روز متوالی</span>
                   </div>
-                  <div className="text-[11px] text-zinc-400 flex items-center justify-between pt-1 border-t border-zinc-900">
+                  <div className="text-[11px] text-zinc-400 flex items-center justify-between pt-1 border-t border-zinc-800/80">
                     <span>در چرخه فعلی:</span>
                     <span className="font-bold text-rose-400 font-mono">{toPersianDigits(metrics.maxPureStreak)} روز</span>
                   </div>
                 </div>
 
                 {/* Record 2: Max Standard Days (Vitality Emerald) */}
-                <div className="bg-[#09090b]/70 border border-zinc-800 hover:border-zinc-750 rounded-2xl p-4 space-y-2.5 transition-all">
+                <div className="bg-[#18181b] border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 space-y-2.5 transition-all">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-zinc-300 font-medium">بیشترین روزهای استاندارد</span>
                     <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
@@ -462,14 +462,14 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                     </span>
                     <span className="text-xs text-zinc-400 font-mono">روز (۵/۵ کامل)</span>
                   </div>
-                  <div className="text-[11px] text-zinc-400 flex items-center justify-between pt-1 border-t border-zinc-900">
+                  <div className="text-[11px] text-zinc-400 flex items-center justify-between pt-1 border-t border-zinc-800/80">
                     <span>در چرخه فعلی:</span>
                     <span className="font-bold text-emerald-400 font-mono">{toPersianDigits(metrics.standardDaysCount)} روز</span>
                   </div>
                 </div>
 
                 {/* Record 3: Highest Score Accumulated (Imperial Amber) */}
-                <div className="bg-[#09090b]/70 border border-zinc-800 hover:border-zinc-750 rounded-2xl p-4 space-y-2.5 transition-all">
+                <div className="bg-[#18181b] border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 space-y-2.5 transition-all">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-zinc-300 font-medium">بالاترین امتیاز کسب‌شده</span>
                     <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
@@ -482,7 +482,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                     </span>
                     <span className="text-xs text-zinc-400 font-mono">امتیاز کل</span>
                   </div>
-                  <div className="text-[11px] text-zinc-400 flex items-center justify-between pt-1 border-t border-zinc-900">
+                  <div className="text-[11px] text-zinc-400 flex items-center justify-between pt-1 border-t border-zinc-800/80">
                     <span>در چرخه فعلی:</span>
                     <span className="font-bold text-amber-400 font-mono">{toPersianDigits(metrics.totalScore)}</span>
                   </div>
@@ -559,7 +559,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                   ) : (
                     <div className="space-y-2.5">
                       {metrics.vulnerableHabits.map(v => (
-                        <div key={v.key} className="bg-[#09090b]/60 border border-zinc-800 rounded-2xl p-3.5 flex items-center justify-between gap-3">
+                        <div key={v.key} className="bg-[#18181b] border border-zinc-800 rounded-2xl p-3.5 flex items-center justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="font-bold text-sm text-zinc-200 flex items-center gap-2 flex-wrap">
                               <span>{v.titleFa}</span>
@@ -600,7 +600,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                   </div>
 
                   <div className="space-y-3 flex-1 flex flex-col justify-center">
-                    <div className="bg-[#09090b]/60 border border-zinc-800 rounded-2xl p-4">
+                    <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-4">
                       <div className="text-xs text-zinc-400">غالب‌ترین دلیل شکست در این چرخه:</div>
                       <div className="text-base font-semibold text-zinc-100 mt-1 flex items-center gap-2">
                         <AlertOctagon className="w-4 h-4 text-zinc-400 shrink-0" />
@@ -608,7 +608,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                       </div>
                     </div>
 
-                    <div className="bg-[#09090b]/60 border border-zinc-800 rounded-2xl p-4">
+                    <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-4">
                       <div className="text-xs text-zinc-400">بحرانی‌ترین زمان افت دیسیپلین:</div>
                       <div className="text-base font-semibold text-zinc-100 mt-1 flex items-center gap-2">
                         <Clock className="w-4 h-4 text-zinc-400 shrink-0" />

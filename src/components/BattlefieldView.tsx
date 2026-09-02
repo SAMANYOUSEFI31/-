@@ -493,7 +493,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
 
         {/* Auxiliary Row: Night Owl Cutoff Badge (Centered & Stable) */}
         <div className="flex items-center justify-center pt-2 border-t border-zinc-800/80">
-          <div className="h-8 bg-[#09090b] px-3.5 rounded-xl border border-zinc-800 text-[11px] sm:text-xs text-zinc-400 inline-flex items-center justify-center gap-2 whitespace-nowrap shadow-xs">
+          <div className="h-8 bg-[#18181b] px-3.5 rounded-xl border border-zinc-800 text-[11px] sm:text-xs text-zinc-400 inline-flex items-center justify-center gap-2 whitespace-nowrap shadow-xs">
             <Clock className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
             <span className="leading-none">کات‌آف شبانه: {toPersianDigits(nightOwlCutoffHour)}:۰۰ بامداد</span>
           </div>
@@ -607,7 +607,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       سوابق قفل‌شده
                     </span>
                   </div>
-                  <p className="text-xs text-purple-200/90 mt-1 leading-relaxed">
+                  <p className="text-xs text-zinc-300 mt-1 leading-relaxed">
                     تمام ۹۰ روز این چرخه در دادگاه بوشیدو ارزیابی و بایگانی شده است.
                   </p>
                 </div>
@@ -629,7 +629,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       {toPersianDigits(unresolvedPastLogs.length)} روز بدهی باز
                     </span>
                   </div>
-                  <p className="text-xs text-red-200/90 mt-1 leading-relaxed">
+                  <p className="text-xs text-zinc-300 mt-1 leading-relaxed">
                     پیش از ثبت روز جاری، باید روزهای سوخته گذشته کالبدشکافی شده و علت شکست ثبت گردد.
                   </p>
                   
@@ -682,7 +682,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   </span>
 
                   {/* Habit Count Badge */}
-                  <span className="text-[11px] sm:text-xs text-zinc-300 bg-[#09090b]/80 px-2.5 py-1 rounded-xl border border-zinc-800 font-medium shrink-0">
+                  <span className="text-[11px] sm:text-xs text-zinc-300 bg-[#18181b] px-2.5 py-1 rounded-xl border border-zinc-800 font-medium shrink-0">
                     {toPersianDigits(computed.habitsCount)} از {toPersianDigits(5)} پایه
                   </span>
 
@@ -693,7 +693,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       : computed.statusType === 'personal_frozen'
                       ? 'bg-blue-500/15 border-blue-500/30 text-blue-300'
                       : isToday
-                      ? 'bg-[#09090b]/80 border border-zinc-800 text-zinc-400'
+                      ? 'bg-[#18181b] border border-zinc-800 text-zinc-400'
                       : 'bg-red-500/15 border-red-500/30 text-red-300'
                   }`}>
                     <Flame className={`w-3.5 h-3.5 ${
@@ -722,7 +722,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   ? 'bg-amber-950/40 border-amber-500/60 shadow-md shadow-amber-950/40 ring-1 ring-amber-500/40'
                   : computed.isStandard
                   ? 'bg-emerald-950/40 border-emerald-500/60 shadow-md shadow-emerald-950/40 ring-1 ring-emerald-500/40'
-                  : 'bg-[#09090b]/80 border-zinc-800'
+                  : 'bg-[#18181b] border-zinc-800'
               }`}>
                 {/* Score Header Label */}
                 <div className="text-[11px] sm:text-xs text-zinc-400 font-medium flex items-center justify-center gap-1.5">
@@ -756,8 +756,9 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       <span>روز استاندارد</span>
                     </div>
                   ) : (
-                    <div className="text-[11px] text-zinc-300 font-medium bg-zinc-900 px-3 py-1 rounded-xl border border-zinc-800">
-                      در انتظار ۵ پایه
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-zinc-300 bg-zinc-800/80 px-3 py-1 rounded-xl border border-zinc-700/60 shadow-2xs">
+                      <Clock className="w-3.5 h-3.5 text-zinc-400" />
+                      <span>در انتظار ۵ پایه</span>
                     </div>
                   )}
                 </div>
@@ -831,7 +832,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                         <div className="font-bold text-xs sm:text-sm text-zinc-100 flex items-center gap-1.5 leading-snug">
                           <span className="truncate">{h.titleFa}</span>
                         </div>
-                        <p className="text-[11px] text-zinc-400 leading-relaxed text-right line-clamp-2 sm:line-clamp-none">
+                        <p className="text-[11px] text-zinc-400 leading-relaxed text-right">
                           {h.subtitleFa}
                         </p>
                       </div>
@@ -981,7 +982,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               </label>
               <div className="flex items-center gap-2 text-[11px]">
                 {isFuture ? (
-                  <span className="text-zinc-500 bg-[#09090b] px-2 py-0.5 rounded-md border border-zinc-800">
+                  <span className="text-zinc-500 bg-[#18181b] px-2 py-0.5 rounded-md border border-zinc-800">
                     در روز موعود فعال می‌شود
                   </span>
                 ) : isCycleArchived ? (
@@ -1027,8 +1028,8 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               rows={2}
               className={`w-full rounded-xl p-3 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none transition-all leading-relaxed font-sans resize-none overflow-hidden ${
                 isFuture || isCycleArchived
-                  ? 'bg-[#09090b]/40 border border-zinc-800 opacity-60 cursor-not-allowed'
-                  : 'bg-[#09090b]/90 border border-zinc-800 hover:border-zinc-700 focus:border-rose-500/60 focus:ring-1 focus:ring-rose-500/30'
+                  ? 'bg-[#18181b]/50 border border-zinc-800 opacity-60 cursor-not-allowed'
+                  : 'bg-[#18181b] border border-zinc-800 hover:border-zinc-700 focus:border-rose-500/60 focus:ring-1 focus:ring-rose-500/30'
               }`}
             />
           </div>

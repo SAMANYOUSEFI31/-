@@ -4,6 +4,7 @@ import { computeDailyProperties, FOUNDATION_HABITS } from '../engine/bushidoCalc
 import { formatPersianDate, getLogicalTodayDate } from '../utils/dateUtils';
 import { toPersianDigits } from '../utils/numberUtils';
 import { soundFX } from '../utils/audioEffects';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { 
   Database, 
   Search, 
@@ -66,6 +67,8 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
   const [newTitle, setNewTitle] = useState('چرخه ۲ — ارتقای تمرکز عمیق');
   const [newStartDate, setNewStartDate] = useState(logicalToday);
   const [newTheme, setNewTheme] = useState('۱۵۰ ساعت کار عمیق و حفظ ثبات مطلق');
+
+  useBodyScrollLock(showNewCycleModal);
 
   const filteredLogs = logs
     .filter(l => l.cycleId === currentCycle.id || (l.date >= currentCycle.startDate && l.date <= currentCycle.endDate))
@@ -427,14 +430,14 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
 
       {/* New Cycle Creation Modal */}
       {showNewCycleModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-lg p-6 space-y-4">
-            <h3 className="font-bold text-lg text-zinc-100 flex items-center gap-2">
-              <Layers className="w-5 h-5 text-amber-400" />
-              تعریف چرخه ۹۰ روزه جدید
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]">
+          <div className="bg-[#1c1c21] border border-zinc-800 rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 my-auto">
+            <h3 className="font-bold text-base sm:text-lg text-zinc-100 flex items-center gap-2">
+              <Layers className="w-5 h-5 text-zinc-300" />
+              <span>تعریف چرخه ۹۰ روزه جدید</span>
             </h3>
 
-            <form onSubmit={handleCreateCycleSubmit} className="space-y-3">
+            <form onSubmit={handleCreateCycleSubmit} className="space-y-3.5">
               <div>
                 <label className="text-xs text-zinc-300 block mb-1">عنوان چرخه:</label>
                 <input
@@ -442,7 +445,7 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
                   required
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100"
+                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500/60 transition"
                 />
               </div>
 
@@ -453,7 +456,7 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
                   value={newStartDate}
                   onChange={e => setNewStartDate(e.target.value)}
                   required
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100"
+                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-500/60 transition"
                 />
               </div>
 
@@ -463,23 +466,24 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
                   type="text"
                   value={newTheme}
                   onChange={e => setNewTheme(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100"
+                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500/60 transition"
                 />
               </div>
 
-              <div className="pt-3 flex justify-end gap-2">
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setShowNewCycleModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs text-zinc-400 hover:text-white"
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
                 >
                   انصراف
                 </button>
                 <button
                   type="submit"
-                  className="bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs px-5 py-2 rounded-xl"
+                  className="bg-amber-500 hover:bg-amber-400 text-black font-black text-xs px-5 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition cursor-pointer active:scale-95"
                 >
-                  ایجاد چرخه
+                  <Layers className="w-4 h-4" />
+                  <span>ایجاد چرخه نبرد</span>
                 </button>
               </div>
             </form>

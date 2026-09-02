@@ -5,6 +5,7 @@ import { toPersianDigits } from '../utils/numberUtils';
 import { formatPersianDate, daysBetween } from '../utils/dateUtils';
 import { BUSHIDO_CRIMSON_THEME } from '../utils/themeUtils';
 import { soundFX } from '../utils/audioEffects';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { ResponsiveSubTabBar, SubTabItem } from './ResponsiveSubTabBar';
 import { BUSHIDO_HABITS_PHILOSOPHY, SUPPORT_CONTACT_CHANNELS } from '../data/moreTabData';
 import { 
@@ -85,6 +86,8 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
   const [expandedHabitKey, setExpandedHabitKey] = useState<HabitKey | null>('wakeUp');
+
+  useBodyScrollLock(isConfirmResetOpen);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -333,7 +336,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                   )}
 
                   {!userProfile.isVip && (
-                    <p className="text-[11px] text-zinc-400 leading-relaxed bg-[#121215] p-3 rounded-xl border border-zinc-800 text-right">
+                    <p className="text-[11px] text-zinc-400 leading-relaxed bg-zinc-900/60 p-3 rounded-xl border border-zinc-800 text-right">
                       با فعال‌سازی اشتراک VIP، امکان ایجاد چرخه‌های نامحدود و دسترسی به تحلیل‌های سنتسی فعال می‌شود.
                     </p>
                   )}
@@ -428,7 +431,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                 </div>
 
                 {/* Sub-Card 1: Cutoff Hour Configuration */}
-                <div className="bg-[#09090b]/80 border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-3.5">
+                <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-4 sm:p-5 space-y-3.5">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0">
                       <Moon className="w-4 h-4 text-zinc-300" />
@@ -453,8 +456,8 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                           onClick={() => handleSelectCutoffHour(item.hour)}
                           className={`px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between border transition cursor-pointer active:scale-[0.98] ${
                             isSelected
-                              ? 'bg-zinc-800 border-zinc-600 text-zinc-100 shadow-sm'
-                              : 'bg-[#121215] border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                              ? 'bg-zinc-800 border-zinc-600 text-zinc-100 shadow-xs ring-1 ring-zinc-500/30'
+                              : 'bg-zinc-800/40 hover:bg-zinc-800/70 border-zinc-750/70 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
                           }`}
                         >
                           <span className="whitespace-nowrap">{item.label}</span>
@@ -466,7 +469,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                 </div>
 
                 {/* Sub-Card 2: Backup & Database Vault */}
-                <div className="bg-[#09090b]/80 border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-3.5">
+                <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-4 sm:p-5 space-y-3.5">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0">
                       <Database className="w-4 h-4 text-zinc-300" />
@@ -490,7 +493,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                         onExportData();
                         showNotice('فایل پشتیبان داده‌های بوشیدو ذخیره شد.');
                       }}
-                      className="bg-[#121215] hover:bg-zinc-800/80 border border-zinc-800 hover:border-zinc-700 text-zinc-200 p-3.5 rounded-xl flex items-start gap-3 text-right transition cursor-pointer active:scale-[0.98] group"
+                      className="bg-zinc-800/50 hover:bg-zinc-800/80 border border-zinc-750/70 hover:border-zinc-700 text-zinc-200 p-3.5 rounded-xl flex items-start gap-3 text-right transition cursor-pointer active:scale-[0.98] group"
                     >
                       <div className="w-9 h-9 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 group-hover:text-zinc-100 transition shrink-0">
                         <Download className="w-4 h-4" />
@@ -504,7 +507,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                     </button>
 
                     {/* Import JSON Card */}
-                    <label className="bg-[#121215] hover:bg-zinc-800/80 border border-zinc-800 hover:border-zinc-700 text-zinc-200 p-3.5 rounded-xl flex items-start gap-3 text-right transition cursor-pointer active:scale-[0.98] group">
+                    <label className="bg-zinc-800/50 hover:bg-zinc-800/80 border border-zinc-750/70 hover:border-zinc-700 text-zinc-200 p-3.5 rounded-xl flex items-start gap-3 text-right transition cursor-pointer active:scale-[0.98] group">
                       <div className="w-9 h-9 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 group-hover:text-zinc-100 transition shrink-0">
                         <Upload className="w-4 h-4" />
                       </div>
@@ -619,23 +622,23 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
 
                         {isExpanded && (
                           <div className="px-4 pb-4 pt-1 space-y-3 text-xs border-t border-zinc-800/70">
-                            <div className="bg-[#121215] p-3 rounded-xl border border-zinc-800/80 space-y-1">
+                            <div className="bg-zinc-900/60 p-3 rounded-xl border border-zinc-800/80 space-y-1">
                               <span className="font-bold text-amber-400 text-[11px] block">چرا حیاتی است؟</span>
                               <p className="text-zinc-300 leading-relaxed text-right">{item.whyItMatters}</p>
                             </div>
 
-                            <div className="bg-[#121215] p-3 rounded-xl border border-zinc-800/80 space-y-1">
+                            <div className="bg-zinc-900/60 p-3 rounded-xl border border-zinc-800/80 space-y-1">
                               <span className="font-bold text-emerald-400 text-[11px] block">معیار استاندارد اجرا:</span>
                               <p className="text-zinc-300 leading-relaxed text-right">{item.dailyStandard}</p>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                              <div className="bg-[#121215] p-3 rounded-xl border border-zinc-800/80 space-y-1">
+                              <div className="bg-zinc-900/60 p-3 rounded-xl border border-zinc-800/80 space-y-1">
                                 <span className="font-bold text-rose-400 text-[11px] block">دام‌های رایج:</span>
                                 <p className="text-zinc-400 leading-relaxed text-right">{item.commonPitfalls}</p>
                               </div>
 
-                              <div className="bg-[#121215] p-3 rounded-xl border border-zinc-800/80 space-y-1">
+                              <div className="bg-zinc-900/60 p-3 rounded-xl border border-zinc-800/80 space-y-1">
                                 <span className="font-bold text-blue-400 text-[11px] block">تاکتیک و راهکار:</span>
                                 <p className="text-zinc-300 leading-relaxed text-right">{item.tacticalAdvice}</p>
                               </div>
@@ -745,12 +748,12 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
       {/* Confirmation Modal for Reset Factory Data */}
       <AnimatePresence>
         {isConfirmResetOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#121215] border-2 border-red-500/50 rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl space-y-4 text-right"
+              className="bg-[#1c1c21] border border-red-500/40 rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl space-y-4 text-right my-auto"
             >
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shrink-0">
@@ -762,7 +765,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                 </div>
               </div>
 
-              <p className="text-xs text-zinc-300 bg-red-950/20 border border-red-500/30 p-3 rounded-xl leading-relaxed">
+              <p className="text-xs text-zinc-300 bg-[#18181b] border border-red-500/30 p-3.5 rounded-2xl leading-relaxed">
                 این عملیات غیرقابل بازگشت است و تمام رکوردهای استریک، عادات ثبت‌شده و احکام دادگاه بوشیدو حذف خواهند شد.
               </p>
 

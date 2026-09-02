@@ -4,6 +4,7 @@ import { getLogicalTodayDate, addDaysToDate, formatPersianDate } from '../utils/
 import { toPersianDigits } from '../utils/numberUtils';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { 
   Sparkles, 
   Calendar, 
@@ -29,6 +30,8 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
   onClose,
   onCreateCycle
 }) => {
+  useBodyScrollLock(isOpen);
+
   const logicalToday = getLogicalTodayDate();
   const nonDemoCycles = existingCycles.filter(c => c.id !== 'cycle-1' && !c.title.includes('(نمونه)'));
   const defaultTitle = `چرخه نبرد ۹۰ روزه (دوره ${toPersianDigits(nonDemoCycles.length + 1)})`;
@@ -76,7 +79,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
       className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 overscroll-contain overflow-y-auto"
       dir="rtl"
     >
-      <div className="bg-[#121215] border border-amber-500/30 rounded-3xl w-full max-w-lg p-5 sm:p-7 space-y-5 shadow-2xl animate-in zoom-in-95 duration-200 relative my-auto">
+      <div className="bg-[#1c1c21] border border-zinc-800 rounded-3xl w-full max-w-lg p-5 sm:p-7 space-y-5 shadow-2xl animate-in zoom-in-95 duration-200 relative my-auto">
         {/* Close Button */}
         <button
           type="button"
@@ -126,7 +129,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
               }}
               placeholder="مثال: چرخه اول — تسلط بر سحرخیزی و کار عمیق"
               required
-              className="w-full bg-[#09090b] border border-zinc-800 focus:border-amber-500/60 rounded-xl p-3 text-xs sm:text-sm text-zinc-100 focus:outline-none transition"
+              className="w-full bg-[#18181b] border border-zinc-800 focus:border-amber-500/60 rounded-xl p-3 text-xs sm:text-sm text-zinc-100 focus:outline-none transition"
             />
           </div>
 
@@ -143,7 +146,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
                   if (overlapError) setOverlapError(null);
                 }}
                 required
-                className="w-full bg-[#09090b] border border-zinc-800 focus:border-amber-500/60 rounded-xl p-2.5 text-xs sm:text-sm text-zinc-100 font-mono focus:outline-none transition text-right"
+                className="w-full bg-[#18181b] border border-zinc-800 focus:border-amber-500/60 rounded-xl p-2.5 text-xs sm:text-sm text-zinc-100 font-mono focus:outline-none transition text-right"
               />
               <span className="text-[10px] text-zinc-400 mt-1 block">
                 معادل: {formatPersianDate(startDate)}
@@ -154,7 +157,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
               <label className="text-xs font-bold text-zinc-400 block mb-1.5">
                 پایان دوره (۹۰ روزه):
               </label>
-              <div className="w-full bg-[#09090b]/60 border border-zinc-800/80 rounded-xl p-2.5 text-xs sm:text-sm text-zinc-400 font-mono select-none flex items-center justify-between">
+              <div className="w-full bg-[#18181b]/60 border border-zinc-800 rounded-xl p-2.5 text-xs sm:text-sm text-zinc-400 font-mono select-none flex items-center justify-between">
                 <span>{endDate}</span>
                 <span className="text-[10px] text-amber-400 font-sans font-bold">۹۰ روز</span>
               </div>
@@ -173,11 +176,11 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
               onChange={e => setTargetTheme(e.target.value)}
               rows={2}
               placeholder="مثال: بدون بهانه، اراده آهنین در سحرخیزی و اتمام پروژه اصلی"
-              className="w-full bg-[#09090b] border border-zinc-800 focus:border-amber-500/60 rounded-xl p-3 text-xs sm:text-sm text-zinc-100 focus:outline-none transition resize-none leading-relaxed"
+              className="w-full bg-[#18181b] border border-zinc-800 focus:border-amber-500/60 rounded-xl p-3 text-xs sm:text-sm text-zinc-100 focus:outline-none transition resize-none leading-relaxed"
             />
           </div>
 
-          <div className="bg-[#09090b]/80 border border-zinc-800/90 rounded-2xl p-3 text-[11px] text-zinc-400 flex items-center gap-2.5">
+          <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-3 text-[11px] text-zinc-400 flex items-center gap-2.5">
             <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>چرخه جدید با ۵ رکن استاندارد بوشیدو و سیستم ردیابی رگه استمرار آغاز می‌شود.</span>
           </div>

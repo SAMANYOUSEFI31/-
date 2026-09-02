@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
 import { toPersianDigits } from '../utils/numberUtils';
 import { haptics } from '../utils/haptics';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { 
   ShieldCheck, 
   Smartphone, 
@@ -41,6 +42,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onAuthSuccess,
   onLogout
 }) => {
+  useBodyScrollLock(isOpen);
+
   const [activeTab, setActiveTab] = useState<AuthTab>('login');
   
   // Form fields
@@ -365,10 +368,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.5rem))] my-auto"
+        className="bg-[#1c1c21] border border-zinc-800 rounded-2xl sm:rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.5rem))] my-auto"
       >
         {/* Header */}
-        <div className="px-5 sm:px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-[#09090b]/80 shrink-0">
+        <div className="px-5 sm:px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-[#1c1c21] shrink-0">
           <div className="flex items-center gap-3">
             {/* 5-click easter egg on KeyRound icon for developer bypass */}
             <button
@@ -400,7 +403,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Navigation Tabs (Only when not logged in) */}
         {!currentUser?.id && (
-          <div className="px-5 sm:px-6 pt-4 pb-2 bg-[#09090b]/50 border-b border-zinc-800/50 flex gap-2">
+          <div className="px-5 sm:px-6 pt-4 pb-2 bg-[#18181b]/70 border-b border-zinc-800/50 flex gap-2">
             <button
               type="button"
               onClick={() => {
@@ -460,7 +463,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {currentUser?.id ? (
             /* Logged in state */
             <div className="space-y-5">
-              <div className="bg-[#09090b]/80 border border-zinc-800/80 rounded-2xl p-4 space-y-3">
+              <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-amber-400 font-bold">
@@ -487,14 +490,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
 
                 <div className="pt-2 border-t border-zinc-800/60 grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-[#121215]/90 rounded-xl p-2.5 text-center">
+                  <div className="bg-[#121215] rounded-xl p-2.5 text-center border border-zinc-800/50">
                     <span className="text-[10px] text-zinc-400 block mb-0.5">وضعیت داده‌ها</span>
                     <span className="text-emerald-400 font-bold flex items-center justify-center gap-1">
                       <Database className="w-3.5 h-3.5" />
                       دیتابیس ابری
                     </span>
                   </div>
-                  <div className="bg-[#121215]/90 rounded-xl p-2.5 text-center">
+                  <div className="bg-[#121215] rounded-xl p-2.5 text-center border border-zinc-800/50">
                     <span className="text-[10px] text-zinc-400 block mb-0.5">سطح دسترسی</span>
                     <span className="text-amber-400 font-bold">
                       {currentUser.isAdmin ? 'فرمانده ارشد (مدیر)' : (currentUser.isVip ? 'سامورایی ویژه VIP' : 'کاربر عادی')}
@@ -530,7 +533,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         value={identifier}
                         onChange={e => setIdentifier(e.target.value)}
                         placeholder="مثال: 09375454050 یا admin@bushido.app"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
+                        className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
                         dir="ltr"
                         autoFocus
                       />
@@ -560,7 +563,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                         placeholder="رمز عبور خود را وارد نمایید"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
+                        className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
                         dir="ltr"
                       />
                       <button
@@ -622,7 +625,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       value={identifier}
                       onChange={e => setIdentifier(e.target.value)}
                       placeholder="مثال: 09121234567 یا user@example.com"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
+                      className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
                       dir="ltr"
                       autoFocus
                     />
@@ -637,7 +640,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       value={name}
                       onChange={e => setName(e.target.value)}
                       placeholder="مثال: رستم، سهراب، یا نام شما"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
+                      className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
                     />
                   </div>
 
@@ -651,7 +654,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                         placeholder="رمز عبور دلخواه خود را تعیین کنید"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
+                        className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
                         dir="ltr"
                       />
                       <button
@@ -719,7 +722,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           value={identifier}
                           onChange={e => setIdentifier(e.target.value)}
                           placeholder="مثال: 09121234567 یا user@example.com"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
+                          className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
                           dir="ltr"
                           autoFocus
                         />
@@ -790,7 +793,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           value={otpCode}
                           onChange={e => setOtpCode(e.target.value)}
                           placeholder="_____ "
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-center text-lg tracking-[0.4em] font-mono text-amber-400 placeholder:text-zinc-700 focus:outline-none focus:border-amber-500 transition"
+                          className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-center text-lg tracking-[0.4em] font-mono text-amber-400 placeholder:text-zinc-700 focus:outline-none focus:border-amber-500 transition"
                           dir="ltr"
                           autoFocus
                         />
@@ -806,7 +809,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             value={newPassword}
                             onChange={e => setNewPassword(e.target.value)}
                             placeholder="رمز عبور جدید را وارد کنید"
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
+                            className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
                             dir="ltr"
                           />
                           <button

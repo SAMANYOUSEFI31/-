@@ -38,6 +38,7 @@ import { AutopsyModal } from './components/AutopsyModal';
 import { PaymentModal } from './components/PaymentModal';
 import { AuthModal } from './components/AuthModal';
 import { CreateCycleModal } from './components/CreateCycleModal';
+import { useBodyScrollLock } from './utils/useBodyScrollLock';
 import { Toast, ToastItem, ToastType } from './components/Toast';
 import { RotateCcw, AlertTriangle, Eye, ShieldCheck, RefreshCw } from 'lucide-react';
 import './styles/tokens.css';
@@ -131,6 +132,8 @@ export default function App() {
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+
+  useBodyScrollLock(isResetConfirmOpen);
 
   // UX Standard: Automatically reset scroll to top when switching main tabs
   useEffect(() => {
@@ -984,8 +987,8 @@ export default function App() {
 
         {/* Reset Confirmation Modal */}
         {isResetConfirmOpen && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]">
-            <div className="bg-[#121215] border border-red-500/40 rounded-2xl sm:rounded-3xl w-full max-w-md p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 my-auto">
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]">
+            <div className="bg-[#1c1c21] border border-red-500/40 rounded-3xl w-full max-w-md p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 my-auto">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shrink-0">
                   <RotateCcw className="w-6 h-6" />
@@ -1000,7 +1003,7 @@ export default function App() {
                 </div>
               </div>
 
-              <p className="text-xs text-zinc-300 leading-relaxed bg-[#09090b]/80 border border-zinc-800 rounded-2xl p-4">
+              <p className="text-xs text-zinc-300 leading-relaxed bg-[#18181b] border border-zinc-800 rounded-2xl p-4">
                 آیا از بازنشانی کلیه داده‌ها، لاگ‌ها و چرخه‌ها به اطلاعات نمونه اولیه سیستم بوشیدو اطمینان دارید؟ تمام تغییرات ثبت‌شده محلی پاک خواهند شد.
               </p>
 

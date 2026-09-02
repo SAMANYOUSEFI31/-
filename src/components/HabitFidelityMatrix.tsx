@@ -128,7 +128,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
         </div>
 
         {/* Aggregate Pillar Strength Badge */}
-        <div className="bg-[#09090b]/80 border border-zinc-800 rounded-2xl px-4 py-2.5 flex items-center gap-3 self-start sm:self-auto shadow-xs">
+        <div className="bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-2.5 flex items-center gap-3 self-start sm:self-auto shadow-xs">
           <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
             <ShieldCheck className="w-5 h-5 text-emerald-400" />
           </div>
@@ -146,7 +146,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
         {habitStats.map(habit => (
           <div 
             key={habit.key}
-            className="bg-[#09090b]/70 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4.5 space-y-3.5 transition-all shadow-xs"
+            className="bg-[#18181b] border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4.5 space-y-3.5 transition-all shadow-xs"
           >
             {/* Title Row */}
             <div className="flex items-start justify-between gap-3">
@@ -191,7 +191,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
         ))}
 
         {/* Special Mission Bonus Card (6th Card to complete the layout) */}
-        <div className="bg-[#09090b]/70 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4.5 space-y-3.5 transition-all shadow-xs">
+        <div className="bg-[#18181b] border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4.5 space-y-3.5 transition-all shadow-xs">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">

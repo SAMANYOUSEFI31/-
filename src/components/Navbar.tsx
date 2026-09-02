@@ -256,13 +256,13 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 {isCycleDropdownOpen && (
                   <div 
                     ref={cycleDropdownPanelRef}
-                    className="absolute right-0 mt-2 w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] bg-[#121215] border border-zinc-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150"
+                    className="absolute right-0 mt-2 w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] bg-[#1c1c21] border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150"
                   >
-                    <div className="px-3 py-1.5 text-[10px] text-zinc-400 font-bold border-b border-zinc-800 flex items-center justify-between">
+                    <div className="px-3.5 py-2.5 text-[10px] text-zinc-400 font-bold border-b border-zinc-800 flex items-center justify-between bg-[#18181b]/60">
                       <span>انتخاب و مدیریت چرخه‌های ۹۰ روزه:</span>
                       <span className="text-zinc-500 font-mono">{toPersianDigits(cycles.length)} چرخه</span>
                     </div>
-                    <div className="max-h-60 overflow-y-auto py-1">
+                    <div className="max-h-60 overflow-y-auto divide-y divide-zinc-800/40">
                       {cycles.length === 0 ? (
                         <div className="p-3 text-center text-xs text-zinc-400">
                           چرخه‌ای تعریف نشده است.
@@ -275,8 +275,8 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                           return (
                             <div
                               key={c.id}
-                              className={`w-full px-3 py-2.5 min-h-[44px] text-xs hover:bg-zinc-800/80 transition flex items-center justify-between gap-2 cursor-pointer border-b border-zinc-850 last:border-0 touch-manipulation ${
-                                isCurrent ? 'text-emerald-400 font-bold bg-zinc-800/50' : 'text-zinc-300'
+                              className={`w-full px-3.5 py-2.5 min-h-[44px] text-xs hover:bg-zinc-800/60 transition flex items-center justify-between gap-2 cursor-pointer touch-manipulation ${
+                                isCurrent ? 'text-emerald-400 font-bold bg-zinc-800/40' : 'text-zinc-300'
                               }`}
                               onClick={() => {
                                 onSelectCycle(c);
@@ -319,7 +319,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       )}
                     </div>
                     
-                    <div className="p-2 border-t border-zinc-800 space-y-1.5 bg-[#0e0e11] rounded-b-2xl">
+                    <div className="p-2.5 border-t border-zinc-800 space-y-2 bg-[#18181b]/70">
                       {onOpenNewCycleModal && (
                         <button
                           type="button"

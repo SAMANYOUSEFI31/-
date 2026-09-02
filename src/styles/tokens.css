@@ -5,14 +5,14 @@
 
 :root {
   /* =========================================================================
-   * 1. OBSIDIAN NEUTRAL SURFACE PALETTE (Dark/Stoic Canvas)
+   * 1. OBSIDIAN NEUTRAL SURFACE PALETTE (Z-Axis Dark/Stoic Canvas)
    * ========================================================================= */
-  --color-canvas-root: #09090b;        /* Main App Background (Obsidian Black) */
-  --color-card-elevated: #121215;      /* Elevated Card Containers (Level 1) */
-  --color-card-inner: #18181b;         /* Sub-Containers & Nested Boxes (Level 2) */
-  --color-card-floating: #16161a;      /* Floating Tooltips & Popups */
+  --color-canvas-root: #09090b;        /* Main App Background (Obsidian Black - Z0) */
+  --color-card-elevated: #121215;      /* Elevated Card Containers (Level 1 - Z1) */
+  --color-card-inner: #18181b;         /* Sub-Containers & Nested Boxes (Level 2 - Z2) */
+  --color-card-floating: #1c1c21;      /* Floating Modals & Dropdowns (Level 3 - Z3) */
   
-  --color-border-subtle: #27272a;      /* Standard Card & Component Borders */
+  --color-border-subtle: #27272a;      /* Standard Single Subtle Border (Anti-Wireframing) */
   --color-border-hover: #3f3f46;       /* Hover State Borders */
   --color-border-muted: #1c1c20;       /* Muted Internal Dividers */
 
@@ -80,12 +80,12 @@
   --radius-pill: 9999px;              /* Full Capsule Pill */
 
   /* =========================================================================
-   * 5. ELEVATION, GLOW & SHADOW EFFECTS
+   * 5. ELEVATION, GLOW & SHADOW EFFECTS (Stoic Obsidian Lighting)
    * ========================================================================= */
-  --glow-crimson: rgba(225, 29, 72, 0.3);
-  --glow-crimson-subtle: rgba(225, 29, 72, 0.12);
-  --glow-amber: rgba(251, 191, 36, 0.25);
-  --glow-emerald: rgba(52, 211, 153, 0.25);
+  --glow-crimson: rgba(225, 29, 72, 0.16);         /* Soft atmospheric ambient rather than harsh neon */
+  --glow-crimson-subtle: rgba(225, 29, 72, 0.08);
+  --glow-amber: rgba(251, 191, 36, 0.16);
+  --glow-emerald: rgba(52, 211, 153, 0.16);
   
   --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.8);
   --shadow-dropdown: 0 20px 40px -15px rgba(0, 0, 0, 0.9);

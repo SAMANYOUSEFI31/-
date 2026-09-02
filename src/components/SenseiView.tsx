@@ -190,7 +190,7 @@ export const SenseiView: React.FC<SenseiViewProps> = ({
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-[#09090b]/70 border border-zinc-800 rounded-2xl p-4">
+            <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-4">
               <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 mb-1">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 توصیه تاکتیکی ۲۴ ساعت آینده:
@@ -201,7 +201,7 @@ export const SenseiView: React.FC<SenseiViewProps> = ({
             </div>
 
             {coachData.strategicWarning && (
-              <div className="bg-[#09090b]/70 border border-zinc-800 rounded-2xl p-4">
+              <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-4">
                 <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5 mb-1">
                   <AlertTriangle className="w-4 h-4 text-amber-400" />
                   هشدار راهبردی داده‌ها:
@@ -214,7 +214,7 @@ export const SenseiView: React.FC<SenseiViewProps> = ({
           </div>
 
           {coachData.bushidoQuote && (
-            <div className="bg-[#09090b]/80 border-r-4 border-zinc-600 rounded-xl p-4 flex items-start gap-3">
+            <div className="bg-[#18181b] border-r-4 border-zinc-600 rounded-xl p-4 flex items-start gap-3">
               <Quote className="w-5 h-5 text-zinc-400 shrink-0 mt-0.5" />
               <p className="text-xs sm:text-sm text-zinc-200 italic font-serif leading-relaxed">
                 «{coachData.bushidoQuote}»
@@ -259,7 +259,7 @@ export const SenseiView: React.FC<SenseiViewProps> = ({
         </form>
 
         {customAdvice && (
-          <div className="mt-4 bg-[#09090b]/80 border border-zinc-800 rounded-2xl p-5 text-zinc-200 text-xs sm:text-sm leading-relaxed whitespace-pre-line animate-in fade-in duration-200">
+          <div className="mt-4 bg-[#18181b] border border-zinc-800 rounded-2xl p-5 text-zinc-200 text-xs sm:text-sm leading-relaxed whitespace-pre-line animate-in fade-in duration-200">
             <div className="font-bold text-zinc-100 mb-2 flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
               پاسخ سنسی بوشیدو:
