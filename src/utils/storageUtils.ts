@@ -193,8 +193,8 @@ export function loadStoredSystemState(): SystemState {
         parsed.userProfile = defaultFallback.userProfile;
       }
 
-      // 2. Cycles Array Protection (Strict Array.isArray check, preserving intentionally empty cycles)
-      if (!Array.isArray(parsed.cycles)) {
+      // 2. Cycles Array Protection (Strict Array.isArray check, preserving intentionally empty cycles only if demo consumed)
+      if (!Array.isArray(parsed.cycles) || (!isDemoConsumed && parsed.cycles.length === 0)) {
         parsed.cycles = defaultFallback.cycles;
       } else {
         parsed.cycles = parsed.cycles
@@ -205,8 +205,8 @@ export function loadStoredSystemState(): SystemState {
           }));
       }
 
-      // 3. Logs Array Protection (Strict Array.isArray check, preserving intentionally empty logs)
-      if (!Array.isArray(parsed.logs)) {
+      // 3. Logs Array Protection (Strict Array.isArray check, preserving intentionally empty logs only if demo consumed)
+      if (!Array.isArray(parsed.logs) || (!isDemoConsumed && parsed.cycles.length > 0 && parsed.cycles[0].id === 'cycle-1' && parsed.logs.length === 0)) {
         parsed.logs = defaultFallback.logs;
       } else {
         parsed.logs = parsed.logs

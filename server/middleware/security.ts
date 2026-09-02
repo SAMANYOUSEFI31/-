@@ -9,7 +9,7 @@ interface RateLimitEntry {
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
 // Periodic cleanup of expired window entries to prevent memory leaks
-setInterval(() => {
+const rateLimitInterval = setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of rateLimitStore.entries()) {
     if (now > entry.resetTime) {
@@ -17,6 +17,9 @@ setInterval(() => {
     }
   }
 }, 60000);
+if (typeof rateLimitInterval === 'object' && rateLimitInterval && 'unref' in rateLimitInterval) {
+  rateLimitInterval.unref();
+}
 
 /**
  * Smart Rate Limiter Middleware

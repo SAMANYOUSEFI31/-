@@ -276,10 +276,29 @@ export default function App() {
           const cyclesData = await cyclesRes.json();
           const cyclesList = Array.isArray(cyclesData) ? cyclesData : (cyclesData?.cycles || []);
           if (Array.isArray(cyclesList)) {
-            setSystemState(prev => ({
-              ...prev,
-              cycles: cyclesList
-            }));
+            const isDemoConsumed = safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
+            if (cyclesList.length > 0) {
+              // Real server cycles take precedence over any local state or demo seed
+              safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
+              setSystemState(prev => ({
+                ...prev,
+                cycles: cyclesList
+              }));
+              setActiveCycleId(prev => {
+                if (!prev || !cyclesList.some(c => c.id === prev)) {
+                  return cyclesList[0].id;
+                }
+                return prev;
+              });
+            } else if (isDemoConsumed) {
+              // Empty list from server is valid only if user has already consumed/deleted cycles
+              setSystemState(prev => ({
+                ...prev,
+                cycles: []
+              }));
+            }
+            // Note: If cyclesList is empty and demo is NOT consumed yet (first visit / new guest),
+            // we preserve the sample demo cycles so the onboarding preview remains stable.
           }
         }
 
@@ -289,10 +308,19 @@ export default function App() {
           const logsData = await logsRes.json();
           const logsList = Array.isArray(logsData) ? logsData : (logsData?.logs || []);
           if (Array.isArray(logsList)) {
-            setSystemState(prev => ({
-              ...prev,
-              logs: logsList
-            }));
+            const isDemoConsumed = safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
+            if (logsList.length > 0) {
+              setSystemState(prev => ({
+                ...prev,
+                logs: logsList
+              }));
+            } else if (isDemoConsumed) {
+              setSystemState(prev => ({
+                ...prev,
+                logs: []
+              }));
+            }
+            // If logsList is empty and demo is NOT consumed yet, preserve sample demo logs.
           }
         }
       } catch (err) {
@@ -456,10 +484,16 @@ export default function App() {
       reportRead: false
     };
 
-    setSystemState(prev => ({
-      ...prev,
-      cycles: [...prev.cycles, newCycle]
-    }));
+    setSystemState(prev => {
+      // Filter out starter demo cycle & logs so user starts on clean slate
+      const nonDemoCycles = prev.cycles.filter(c => c.id !== 'cycle-1' && !c.title.includes('(نمونه)'));
+      const nonDemoLogs = prev.logs.filter(l => l.cycleId !== 'cycle-1');
+      return {
+        ...prev,
+        cycles: [...nonDemoCycles, newCycle],
+        logs: nonDemoLogs
+      };
+    });
     setActiveCycleId(newCycle.id);
     setSelectedDate(startDate);
     setActiveTab('battlefield');

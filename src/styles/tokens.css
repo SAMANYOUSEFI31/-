@@ -180,12 +180,12 @@
 
 /* Font Feature Settings for Numbers & Persian Typography */
 .font-mono {
-  font-family: 'Vazirmatn', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-family: 'Vazirmatn', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace !important;
   font-feature-settings: "ss01" on, "tnum" on !important;
 }
 
 .font-en {
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
 /* PWA Safe-Area Spacing Utilities */

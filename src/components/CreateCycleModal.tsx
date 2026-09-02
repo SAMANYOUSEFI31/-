@@ -30,7 +30,8 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
   onCreateCycle
 }) => {
   const logicalToday = getLogicalTodayDate();
-  const defaultTitle = `چرخه نبرد ۹۰ روزه (دوره ${toPersianDigits(existingCycles.length + 1)})`;
+  const nonDemoCycles = existingCycles.filter(c => c.id !== 'cycle-1' && !c.title.includes('(نمونه)'));
+  const defaultTitle = `چرخه نبرد ۹۰ روزه (دوره ${toPersianDigits(nonDemoCycles.length + 1)})`;
   
   const [title, setTitle] = useState(defaultTitle);
   const [startDate, setStartDate] = useState(logicalToday);
@@ -48,8 +49,8 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
     const proposedStart = startDate;
     const proposedEnd = endDate;
 
-    // Check for overlap against existing non-deleted cycles
-    const overlappingCycle = existingCycles.find(c => {
+    // Check for overlap against existing non-demo cycles
+    const overlappingCycle = nonDemoCycles.find(c => {
       const cStart = c.startDate;
       const cEnd = c.endDate || addDaysToDate(c.startDate, 89);
       return proposedStart <= cEnd && proposedEnd >= cStart;

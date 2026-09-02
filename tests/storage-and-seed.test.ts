@@ -1,7 +1,7 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createInitialSystemState } from '../src/data/initialData.js';
-import { loadStoredSystemState, STORAGE_KEY } from '../src/utils/storageUtils.js';
+import { loadStoredSystemState, STORAGE_KEY, DEMO_CONSUMED_KEY } from '../src/utils/storageUtils.js';
 
 describe('Bushido Storage & Seed Preservation', () => {
   // Mock localStorage for Node environment tests
@@ -90,6 +90,48 @@ describe('Bushido Storage & Seed Preservation', () => {
       const loaded = loadStoredSystemState();
       assert.ok(loaded);
       assert.equal(loaded.cycles.length, 1);
+      assert.equal(loaded.logs.length, 25);
+    });
+
+    it('preserves empty cycles state when demo has been consumed/deleted intentionally', () => {
+      storageMock[DEMO_CONSUMED_KEY] = 'true';
+      const emptyState = {
+        cycles: [],
+        logs: [],
+        settings: {
+          id: 'system-main',
+          platformName: 'Bushido Discipline OS',
+          centralEngineName: 'موتور مرکزی',
+          allTimeMaxStreak: 0,
+          allTimeMaxScore: 0,
+          allTimeMaxStandardDays: 0,
+          nightOwlCutoffHour: 4
+        },
+        userProfile: {
+          id: 'user-1',
+          name: 'کاربر',
+          email: '',
+          phoneNumber: '',
+          tier: 'free',
+          isVip: false,
+          isAdmin: false,
+          activeCycleLimit: 1
+        }
+      };
+      storageMock[STORAGE_KEY] = JSON.stringify(emptyState);
+
+      const loaded = loadStoredSystemState();
+      assert.equal(loaded.cycles.length, 0);
+      assert.equal(loaded.logs.length, 0);
+    });
+
+    it('maintains demo seed on first visit when demo is not consumed', () => {
+      delete storageMock[DEMO_CONSUMED_KEY];
+      delete storageMock[STORAGE_KEY];
+
+      const loaded = loadStoredSystemState();
+      assert.equal(loaded.cycles.length, 1);
+      assert.equal(loaded.cycles[0].id, 'cycle-1');
       assert.equal(loaded.logs.length, 25);
     });
   });

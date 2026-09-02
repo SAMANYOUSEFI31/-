@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* پیکربندی فونت‌های سیستمی و فارسی برای Tailwind v4 جهت حذف پرش لود اول */
+@theme {
+  --font-sans: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Arabic', Roboto, 'Tahoma', 'Arial', sans-serif;
+  --font-mono: 'Vazirmatn', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-en: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 /* قفل کردن تغییر رنگ اجباری مرورگر سامسونگ و حالت کنتراست بالا */
 html, body, #root, header, nav {
   forced-color-adjust: none !important;
@@ -40,7 +47,7 @@ html {
 
 body {
   color-scheme: dark;
-  font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Arabic', Roboto, 'Tahoma', 'Arial', sans-serif;
   font-feature-settings: "ss01" on, "tnum" on;
   background-color: #09090b;
   color: #f4f4f5;
@@ -77,12 +84,12 @@ svg {
 }
 
 .font-mono {
-  font-family: 'Vazirmatn', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: 'Vazirmatn', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-feature-settings: "ss01" on, "tnum" on;
 }
 
 .font-en {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Obsidian Design Tokens with AMOLED & APCA Luminance Calibration */
