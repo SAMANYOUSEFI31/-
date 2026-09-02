@@ -58,12 +58,12 @@ interface ProfileSettingsViewProps {
 
 type SettingsSection = 'account' | 'settings' | 'habits' | 'support';
 
-const HABIT_ICONS_MAP: Record<HabitKey, React.ReactNode> = {
-  wakeUp: <Sun className="w-5 h-5" />,
-  workout: <Dumbbell className="w-5 h-5" />,
-  study: <BookOpen className="w-5 h-5" />,
-  journal: <PenTool className="w-5 h-5" />,
-  hardTask: <Briefcase className="w-5 h-5" />
+const HABIT_ICONS_MAP: Record<HabitKey, React.ComponentType<{ className?: string }>> = {
+  wakeUp: Sun,
+  workout: Dumbbell,
+  study: BookOpen,
+  journal: PenTool,
+  hardTask: Briefcase
 };
 
 export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
@@ -600,7 +600,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                                 ? 'bg-zinc-700/60 border-zinc-600 text-white'
                                 : 'bg-zinc-800 border-zinc-700 text-zinc-300 group-hover:text-zinc-100'
                             }`}>
-                              {HABIT_ICONS_MAP[item.key]}
+                              {React.createElement(HABIT_ICONS_MAP[item.key], { className: "w-5 h-5" })}
                             </div>
                             <div className="min-w-0">
                               <h4 className="text-xs sm:text-sm font-bold text-zinc-100">

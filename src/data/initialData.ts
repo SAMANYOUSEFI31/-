@@ -40,7 +40,7 @@ export function createInitialSystemState(): {
 
   const cycle1: Cycle = {
     id: 'cycle-1',
-    title: 'چرخه ۱ — فونداسیون اراده و دیسیپلین آهنین',
+    title: 'چرخه ۱ (نمونه) — فونداسیون اراده و دیسیپلین آهنین',
     startDate: cycle1StartDate,
     endDate: cycle1EndDate,
     targetTheme: 'تسلط بر سحرخیزی، ۱۰۰ ساعت کار عمیق و ثبات در ورزش روزانه',
@@ -181,3 +181,28 @@ export function createInitialSystemState(): {
     userProfile
   };
 }
+
+export function createEmptySystemState(userProfile?: UserProfile): {
+  cycles: Cycle[];
+  logs: DailyLog[];
+  settings: SystemSettings;
+  userProfile: UserProfile;
+} {
+  const settings: SystemSettings = {
+    id: 'system-main',
+    platformName: 'Bushido Discipline OS',
+    centralEngineName: 'موتور مرکزی بوشیدو',
+    allTimeMaxStreak: 0,
+    allTimeMaxScore: 0,
+    allTimeMaxStandardDays: 0,
+    nightOwlCutoffHour: 4
+  };
+
+  return {
+    cycles: [],
+    logs: [],
+    settings,
+    userProfile: userProfile || GUEST_USER_PROFILE
+  };
+}
+

@@ -6,6 +6,7 @@ import { formatPersianDate, getLogicalTodayDate, addDaysToDate, getRelativeDateL
 import { toPersianDigits } from '../utils/numberUtils';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
+import { safeGetLocalStorage, safeSetLocalStorage, DEMO_CONSUMED_KEY } from '../utils/storageUtils';
 import { OnboardingWelcomeView } from './OnboardingWelcomeView';
 import { 
   Sun, 
@@ -92,11 +93,14 @@ export const BattlefieldView: React.FC<BattlefieldViewProps> = ({
     } catch (e) {}
   };
 
-  // Demo data clarification banner state (per session)
-  const [hasDismissedDemoBanner, setHasDismissedDemoBanner] = useState<boolean>(false);
+  // Demo data clarification banner state (persisted)
+  const [hasDismissedDemoBanner, setHasDismissedDemoBanner] = useState<boolean>(() => {
+    return safeGetLocalStorage('bushido_demo_banner_dismissed') === 'true';
+  });
 
   const dismissDemoBanner = () => {
     setHasDismissedDemoBanner(true);
+    safeSetLocalStorage('bushido_demo_banner_dismissed', 'true');
   };
 
   // Find or construct memoized stable log for selected date

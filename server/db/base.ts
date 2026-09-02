@@ -213,7 +213,7 @@ export function seedUserData(userId: string): { cycle: DBCycle; logs: DBDailyLog
   const starterCycle: DBCycle = {
     id: `cycle-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     userId,
-    title: 'چرخه ۱ — فونداسیون اراده و دیسیپلین آهنین',
+    title: 'چرخه ۱ (نمونه) — فونداسیون اراده و دیسیپلین آهنین',
     startDate: cycleStart,
     endDate: cycleEnd,
     targetTheme: 'تسلط بر سحرخیزی، ۱۰۰ ساعت کار عمیق و ثبات در ورزش روزانه',

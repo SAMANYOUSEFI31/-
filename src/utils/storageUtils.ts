@@ -1,8 +1,9 @@
 import { SystemState } from '../types';
-import { createInitialSystemState } from '../data/initialData';
+import { createInitialSystemState, createEmptySystemState } from '../data/initialData';
 
 export const STORAGE_KEY = 'bushido_discipline_os_v1';
 export const TOKEN_KEY = 'bushido_auth_token';
+export const DEMO_CONSUMED_KEY = 'bushido_demo_consumed_v1';
 
 /**
  * Exception-safe wrapper for localStorage.getItem to prevent crashes in private/incognito mode
@@ -176,23 +177,25 @@ export function saveSystemStateDebounced(state: SystemState, delayMs: number = D
  * Correctly preserves empty cycles/logs arrays if the user deleted all data.
  */
 export function loadStoredSystemState(): SystemState {
-  const initial = createInitialSystemState();
+  const isDemoConsumed = safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
+  const defaultFallback = isDemoConsumed ? createEmptySystemState() : createInitialSystemState();
+
   try {
     const saved = safeGetLocalStorage(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (!parsed || typeof parsed !== 'object') {
-        return initial;
+        return defaultFallback;
       }
 
       // 1. User Profile Protection
       if (!parsed.userProfile || typeof parsed.userProfile !== 'object') {
-        parsed.userProfile = initial.userProfile;
+        parsed.userProfile = defaultFallback.userProfile;
       }
 
       // 2. Cycles Array Protection (Strict Array.isArray check, preserving intentionally empty cycles)
       if (!Array.isArray(parsed.cycles)) {
-        parsed.cycles = initial.cycles;
+        parsed.cycles = defaultFallback.cycles;
       } else {
         parsed.cycles = parsed.cycles
           .filter((c: any) => c && typeof c === 'object' && typeof c.id === 'string')
@@ -204,7 +207,7 @@ export function loadStoredSystemState(): SystemState {
 
       // 3. Logs Array Protection (Strict Array.isArray check, preserving intentionally empty logs)
       if (!Array.isArray(parsed.logs)) {
-        parsed.logs = initial.logs;
+        parsed.logs = defaultFallback.logs;
       } else {
         parsed.logs = parsed.logs
           .filter((l: any) => l && typeof l === 'object' && typeof l.date === 'string')
@@ -216,7 +219,7 @@ export function loadStoredSystemState(): SystemState {
 
       // 4. Settings Protection
       if (!parsed.settings || typeof parsed.settings !== 'object') {
-        parsed.settings = initial.settings;
+        parsed.settings = defaultFallback.settings;
       }
 
       return parsed as SystemState;
@@ -224,5 +227,5 @@ export function loadStoredSystemState(): SystemState {
   } catch (e) {
     console.warn('[Bushido Storage] Failed to load from localStorage, initializing fresh:', e);
   }
-  return initial;
+  return defaultFallback;
 }

@@ -21,6 +21,7 @@ import {
   saveSystemStateDebounced, 
   flushPendingStorageSave, 
   TOKEN_KEY,
+  DEMO_CONSUMED_KEY,
   safeGetLocalStorage,
   safeSetLocalStorage,
   safeRemoveLocalStorage,
@@ -30,6 +31,10 @@ import {
 } from './utils/storageUtils';
 import { Navbar } from './components/Navbar';
 import { BattlefieldView } from './components/BattlefieldView';
+import { CycleDashboardView } from './components/CycleDashboardView';
+import { ArchivesView } from './components/ArchivesView';
+import { ProfileSettingsView } from './components/ProfileSettingsView';
+import { AdminView } from './components/AdminView';
 import { AutopsyModal } from './components/AutopsyModal';
 import { PaymentModal } from './components/PaymentModal';
 import { AuthModal } from './components/AuthModal';
@@ -37,12 +42,6 @@ import { CreateCycleModal } from './components/CreateCycleModal';
 import { Toast, ToastItem, ToastType } from './components/Toast';
 import { RotateCcw, AlertTriangle, Eye, ShieldCheck, RefreshCw } from 'lucide-react';
 import './styles/tokens.css';
-
-// Lazy loading secondary views for optimized code splitting
-const CycleDashboardView = lazy(() => import('./components/CycleDashboardView').then(m => ({ default: m.CycleDashboardView })));
-const ArchivesView = lazy(() => import('./components/ArchivesView').then(m => ({ default: m.ArchivesView })));
-const ProfileSettingsView = lazy(() => import('./components/ProfileSettingsView').then(m => ({ default: m.ProfileSettingsView })));
-const AdminView = lazy(() => import('./components/AdminView').then(m => ({ default: m.AdminView })));
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -377,6 +376,9 @@ export default function App() {
   }, [authToken]);
 
   const handleDeleteCycle = useCallback(async (cycleId: string) => {
+    // Explicit deletion permanently marks starter demo as consumed to prevent re-seeding
+    safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
+
     // 1. Calculate remaining cycles first
     const remainingCycles = systemState.cycles.filter(c => c.id !== cycleId);
     const remainingLogs = systemState.logs.filter(l => l.cycleId !== cycleId);
@@ -440,6 +442,9 @@ export default function App() {
   }, [authToken]);
 
   const handleCreateNewCycle = useCallback(async (title: string, startDate: string, targetTheme: string) => {
+    // User created their own real cycle; demo is permanently consumed
+    safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
+
     const newCycle: Cycle = {
       id: `cycle-${Date.now()}`,
       title,
