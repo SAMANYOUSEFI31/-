@@ -58,7 +58,7 @@ const HABIT_ICONS: Record<HabitKey, React.ReactNode> = {
   hardTask: <Briefcase className="w-5 h-5" />
 };
 
-export const BattlefieldView: React.FC<BattlefieldViewProps> = ({
+const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
   currentCycle,
   metrics,
   logs,
@@ -221,35 +221,40 @@ export const BattlefieldView: React.FC<BattlefieldViewProps> = ({
     );
   }
 
-  const computed = computeDailyProperties(activeLog, logs, logicalToday, currentCycle.startDate);
+  const computed = useMemo(() => {
+    return computeDailyProperties(activeLog, logs, logicalToday, currentCycle.startDate);
+  }, [activeLog, logs, logicalToday, currentCycle.startDate]);
 
   // Find all unresolved past days that cause system lock (strictly before today) across the full timeline from cycle start
-  const unresolvedPastLogs: DailyLog[] = [];
-  if (currentCycle.startDate && currentCycle.startDate < logicalToday) {
-    let checkDate = currentCycle.startDate;
-    while (checkDate < logicalToday) {
-      let l = logs.find(item => item.date === checkDate);
-      if (!l) {
-        l = {
-          id: `virtual-${checkDate}`,
-          cycleId: currentCycle.id,
-          date: checkDate,
-          createdAt: new Date().toISOString(),
-          wakeUp: false,
-          workout: false,
-          study: false,
-          journal: false,
-          hardTask: false,
-          specialMission: false
-        };
+  const unresolvedPastLogs: DailyLog[] = useMemo(() => {
+    const list: DailyLog[] = [];
+    if (currentCycle.startDate && currentCycle.startDate < logicalToday) {
+      let checkDate = currentCycle.startDate;
+      while (checkDate < logicalToday) {
+        let l = logs.find(item => item.date === checkDate);
+        if (!l) {
+          l = {
+            id: `virtual-${checkDate}`,
+            cycleId: currentCycle.id,
+            date: checkDate,
+            createdAt: new Date().toISOString(),
+            wakeUp: false,
+            workout: false,
+            study: false,
+            journal: false,
+            hardTask: false,
+            specialMission: false
+          };
+        }
+        const c = computeDailyProperties(l, logs, logicalToday, currentCycle.startDate);
+        if (c.statusType === 'burned_unresolved') {
+          list.push(l);
+        }
+        checkDate = addDaysToDate(checkDate, 1);
       }
-      const c = computeDailyProperties(l, logs, logicalToday, currentCycle.startDate);
-      if (c.statusType === 'burned_unresolved') {
-        unresolvedPastLogs.push(l);
-      }
-      checkDate = addDaysToDate(checkDate, 1);
     }
-  }
+    return list;
+  }, [currentCycle.startDate, currentCycle.id, logs, logicalToday]);
 
   const isLocked = (unresolvedPastLogs.length > 0 && isToday) || isCycleArchived || isFuture;
 
@@ -1030,3 +1035,5 @@ export const BattlefieldView: React.FC<BattlefieldViewProps> = ({
     </div>
   );
 };
+
+export const BattlefieldView = React.memo(BattlefieldViewComponent);

@@ -35,7 +35,7 @@ interface NavbarProps {
   onDeleteCycle?: (cycleId: string) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({
+const NavbarComponent: React.FC<NavbarProps> = ({
   activeTab,
   onSelectTab,
   cycles,
@@ -532,3 +532,5 @@ export const Navbar: React.FC<NavbarProps> = ({
     </>
   );
 };
+
+export const Navbar = React.memo(NavbarComponent);

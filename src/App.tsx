@@ -32,13 +32,14 @@ import {
 import { Navbar } from './components/Navbar';
 import { BattlefieldView } from './components/BattlefieldView';
 import { CycleDashboardView } from './components/CycleDashboardView';
-import { ArchivesView } from './components/ArchivesView';
 import { ProfileSettingsView } from './components/ProfileSettingsView';
-import { AdminView } from './components/AdminView';
-import { AutopsyModal } from './components/AutopsyModal';
-import { PaymentModal } from './components/PaymentModal';
-import { AuthModal } from './components/AuthModal';
-import { CreateCycleModal } from './components/CreateCycleModal';
+
+const ArchivesView = lazy(() => import('./components/ArchivesView').then(m => ({ default: m.ArchivesView })));
+const AdminView = lazy(() => import('./components/AdminView').then(m => ({ default: m.AdminView })));
+const AutopsyModal = lazy(() => import('./components/AutopsyModal').then(m => ({ default: m.AutopsyModal })));
+const PaymentModal = lazy(() => import('./components/PaymentModal').then(m => ({ default: m.PaymentModal })));
+const AuthModal = lazy(() => import('./components/AuthModal').then(m => ({ default: m.AuthModal })));
+const CreateCycleModal = lazy(() => import('./components/CreateCycleModal').then(m => ({ default: m.CreateCycleModal })));
 import { Toast, ToastItem, ToastType } from './components/Toast';
 import { RotateCcw, AlertTriangle, Eye, ShieldCheck, RefreshCw } from 'lucide-react';
 import './styles/tokens.css';
@@ -197,130 +198,122 @@ export default function App() {
     applyAccentTheme(theme);
   }, [systemState]);
 
-  // Auto-login to Admin on first fresh session if no token and not explicitly logged out
+  // Fetch user profile and backend data on mount or token change (parallelized without duplicate waterfalls)
   useEffect(() => {
-    const initDefaultAdminIfNeeded = async () => {
-      const currentToken = safeGetLocalStorage(TOKEN_KEY);
-      const isExplicitLogout = safeGetSessionStorage('bushido_explicit_logout') === 'true';
-      if (!currentToken && !isExplicitLogout) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000);
-          const res = await fetch('/api/auth/quick-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: 'admin' }),
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.token && data.user) {
-              safeSetLocalStorage(TOKEN_KEY, data.token);
-              setAuthToken(data.token);
-              setSystemState(prev => ({
-                ...prev,
-                userProfile: {
-                  ...prev.userProfile,
-                  ...data.user,
-                  isVip: Boolean(data.user.isVip),
-                  isAdmin: Boolean(data.user.isAdmin)
-                }
-              }));
-            }
-          }
-        } catch (err) {
-          console.warn('Auto admin login fallback (running locally):', err);
-        }
-      }
-    };
+    let isCancelled = false;
 
-    initDefaultAdminIfNeeded();
-  }, []);
-
-  // Fetch user profile and backend data on mount or token change
-  useEffect(() => {
-    const fetchBackendData = async () => {
+    const syncBootData = async () => {
       try {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (authToken) {
-          headers['Authorization'] = `Bearer ${authToken}`;
+        let currentToken = authToken;
+        const isExplicitLogout = safeGetSessionStorage('bushido_explicit_logout') === 'true';
+
+        // 1. If no token and not explicitly logged out, perform quick-login first so we only fetch cycles/logs once with proper auth
+        if (!currentToken && !isExplicitLogout) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2500);
+            const res = await fetch('/api/auth/quick-login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ role: 'admin' }),
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.token && data.user) {
+                currentToken = data.token;
+                safeSetLocalStorage(TOKEN_KEY, data.token);
+                setAuthToken(data.token);
+              }
+            }
+          } catch (err) {
+            console.warn('Auto admin login fallback (running locally):', err);
+          }
         }
 
-        // Fetch User profile if logged in
-        if (authToken) {
-          const userRes = await fetch('/api/auth/me', { headers });
+        if (isCancelled) return;
+
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (currentToken) {
+          headers['Authorization'] = `Bearer ${currentToken}`;
+        }
+
+        // 2. Fetch User Profile, Cycles, and Logs CONCURRENTLY in parallel (Promise.all)
+        const [userRes, cyclesRes, logsRes] = await Promise.all([
+          currentToken ? fetch('/api/auth/me', { headers }).catch(() => null) : Promise.resolve(null),
+          fetch('/api/cycles', { headers }).catch(() => null),
+          fetch('/api/logs', { headers }).catch(() => null)
+        ]);
+
+        if (isCancelled) return;
+
+        let fetchedUserProfile: Partial<UserProfile> | null = null;
+        if (userRes) {
           if (userRes.ok) {
             const userData = await userRes.json();
-            if (userData.user) {
-              setSystemState(prev => ({
-                ...prev,
-                userProfile: {
-                  ...prev.userProfile,
-                  ...userData.user,
-                  isVip: !!userData.user.isVip,
-                  isAdmin: !!userData.user.isAdmin
-                }
-              }));
+            if (userData?.user) {
+              fetchedUserProfile = {
+                ...userData.user,
+                isVip: Boolean(userData.user.isVip),
+                isAdmin: Boolean(userData.user.isAdmin)
+              };
             }
-          } else {
-            // Token expired or invalid
+          } else if (userRes.status === 401) {
             safeRemoveLocalStorage(TOKEN_KEY);
             setAuthToken(null);
           }
         }
 
-        // Fetch Cycles
-        const cyclesRes = await fetch('/api/cycles', { headers });
-        if (cyclesRes.ok) {
+        let fetchedCycles: Cycle[] | null = null;
+        let nextActiveCycleId: string | null = null;
+        if (cyclesRes && cyclesRes.ok) {
           const cyclesData = await cyclesRes.json();
           const cyclesList = Array.isArray(cyclesData) ? cyclesData : (cyclesData?.cycles || []);
           if (Array.isArray(cyclesList)) {
             const isDemoConsumed = safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
             if (cyclesList.length > 0) {
-              // Real server cycles take precedence over any local state or demo seed
               safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
-              setSystemState(prev => ({
-                ...prev,
-                cycles: cyclesList
-              }));
-              setActiveCycleId(prev => {
-                if (!prev || !cyclesList.some(c => c.id === prev)) {
-                  return cyclesList[0].id;
-                }
-                return prev;
-              });
+              fetchedCycles = cyclesList;
+              nextActiveCycleId = cyclesList[0].id;
             } else if (isDemoConsumed) {
-              // Empty list from server is valid only if user has already consumed/deleted cycles
-              setSystemState(prev => ({
-                ...prev,
-                cycles: []
-              }));
+              fetchedCycles = [];
             }
-            // Note: If cyclesList is empty and demo is NOT consumed yet (first visit / new guest),
-            // we preserve the sample demo cycles so the onboarding preview remains stable.
           }
         }
 
-        // Fetch Daily Logs (properly updates even if logsList is empty [])
-        const logsRes = await fetch('/api/logs', { headers });
-        if (logsRes.ok) {
+        let fetchedLogs: DailyLog[] | null = null;
+        if (logsRes && logsRes.ok) {
           const logsData = await logsRes.json();
           const logsList = Array.isArray(logsData) ? logsData : (logsData?.logs || []);
           if (Array.isArray(logsList)) {
             const isDemoConsumed = safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
             if (logsList.length > 0) {
-              setSystemState(prev => ({
-                ...prev,
-                logs: logsList
-              }));
+              fetchedLogs = logsList;
             } else if (isDemoConsumed) {
-              setSystemState(prev => ({
-                ...prev,
-                logs: []
-              }));
+              fetchedLogs = [];
             }
-            // If logsList is empty and demo is NOT consumed yet, preserve sample demo logs.
+          }
+        }
+
+        if (isCancelled) return;
+
+        // 3. Batch apply all state updates simultaneously to avoid cascading re-renders
+        if (fetchedUserProfile || fetchedCycles !== null || fetchedLogs !== null) {
+          setSystemState(prev => ({
+            ...prev,
+            userProfile: fetchedUserProfile ? { ...prev.userProfile, ...fetchedUserProfile } : prev.userProfile,
+            cycles: fetchedCycles !== null ? fetchedCycles : prev.cycles,
+            logs: fetchedLogs !== null ? fetchedLogs : prev.logs
+          }));
+
+          if (nextActiveCycleId) {
+            setActiveCycleId(prev => {
+              if (!prev || (fetchedCycles && !fetchedCycles.some(c => c.id === prev))) {
+                return nextActiveCycleId!;
+              }
+              return prev;
+            });
           }
         }
       } catch (err) {
@@ -328,7 +321,11 @@ export default function App() {
       }
     };
 
-    fetchBackendData();
+    syncBootData();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [authToken]);
 
   const currentCycle = useMemo(() => {
@@ -945,52 +942,58 @@ export default function App() {
           </Suspense>
         </main>
 
-        {/* Autopsy Drawer/Modal */}
-        {autopsyTargetLog && (
-          <AutopsyModal
-            log={autopsyTargetLog}
-            cycleTheme={currentCycle?.targetTheme ?? 'amber'}
-            allUnresolvedLogs={systemState.logs.filter(l => {
-              if (l.date >= logicalToday) return false;
-              const habitKeys = ['wakeUp', 'workout', 'study', 'journal', 'hardTask'] as const;
-              const isStd = habitKeys.every(k => l[k]);
-              const isFrozen = l.failureReason === 'دلایل شخصی';
-              const isResolved = !!(l.failureReason && (isFrozen || l.failureTime));
-              return !isStd && !isResolved;
-            })}
-            onSelectLog={nextLog => setAutopsyTargetLog(nextLog)}
-            onSave={handleUpdateLog}
-            onClose={() => setAutopsyTargetLog(null)}
-          />
-        )}
+        {/* Lazy-loaded Modals Layer */}
+        <Suspense fallback={null}>
+          {/* Autopsy Drawer/Modal */}
+          {autopsyTargetLog && (
+            <AutopsyModal
+              log={autopsyTargetLog}
+              cycleTheme={currentCycle?.targetTheme ?? 'amber'}
+              allUnresolvedLogs={systemState.logs.filter(l => {
+                if (l.date >= logicalToday) return false;
+                const habitKeys = ['wakeUp', 'workout', 'study', 'journal', 'hardTask'] as const;
+                const isStd = habitKeys.every(k => l[k]);
+                const isFrozen = l.failureReason === 'دلایل شخصی';
+                const isResolved = !!(l.failureReason && (isFrozen || l.failureTime));
+                return !isStd && !isResolved;
+              })}
+              onSelectLog={nextLog => setAutopsyTargetLog(nextLog)}
+              onSave={handleUpdateLog}
+              onClose={() => setAutopsyTargetLog(null)}
+            />
+          )}
 
-        {/* Mock Payment / Subscription Modal */}
-        <PaymentModal
-          userProfile={systemState.userProfile}
-          isOpen={isPaymentModalOpen}
-          onClose={() => setIsPaymentModalOpen(false)}
-          onUpgradeSuccess={handleUpdateUserProfile}
-        />
+          {/* Mock Payment / Subscription Modal */}
+          {isPaymentModalOpen && (
+            <PaymentModal
+              userProfile={systemState.userProfile}
+              isOpen={isPaymentModalOpen}
+              onClose={() => setIsPaymentModalOpen(false)}
+              onUpgradeSuccess={handleUpdateUserProfile}
+            />
+          )}
 
-        {/* User Auth Modal */}
-        <AuthModal
-          isOpen={isAuthModalOpen}
-          onClose={() => setIsAuthModalOpen(false)}
-          currentUser={systemState.userProfile?.id ? systemState.userProfile : null}
-          onAuthSuccess={handleAuthSuccess}
-          onLogout={handleLogout}
-        />
+          {/* User Auth Modal */}
+          {isAuthModalOpen && (
+            <AuthModal
+              isOpen={isAuthModalOpen}
+              onClose={() => setIsAuthModalOpen(false)}
+              currentUser={systemState.userProfile?.id ? systemState.userProfile : null}
+              onAuthSuccess={handleAuthSuccess}
+              onLogout={handleLogout}
+            />
+          )}
 
-        {/* Global Micro-Toast Notification Layer */}
-        <Toast toasts={toasts} onDismiss={dismissToast} />
-
-        {/* Create Cycle Modal */}
-        <CreateCycleModal
-          isOpen={isCreateCycleModalOpen}
-          existingCycles={systemState.cycles}
-          onClose={() => setIsCreateCycleModalOpen(false)}
-          onCreateCycle={handleCreateNewCycle}
-        />
+          {/* Create Cycle Modal */}
+          {isCreateCycleModalOpen && (
+            <CreateCycleModal
+              isOpen={isCreateCycleModalOpen}
+              existingCycles={systemState.cycles}
+              onClose={() => setIsCreateCycleModalOpen(false)}
+              onCreateCycle={handleCreateNewCycle}
+            />
+          )}
+        </Suspense>
 
         {/* Reset Confirmation Modal */}
         {isResetConfirmOpen && (
