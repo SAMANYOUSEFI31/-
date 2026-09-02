@@ -10,7 +10,20 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator && (import.met
     navigator.serviceWorker
       .register('/sw.js')
       .then((registration) => {
-        console.log('[PWA] ServiceWorker registered with scope:', registration.scope);
+        // If an update is waiting, tell it to skip waiting immediately
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+        registration.addEventListener('updatefound', () => {
+          const installingWorker = registration.installing;
+          if (installingWorker) {
+            installingWorker.addEventListener('statechange', () => {
+              if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                installingWorker.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          }
+        });
       })
       .catch((error) => {
         console.warn('[PWA] ServiceWorker registration failed:', error);

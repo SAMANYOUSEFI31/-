@@ -4,8 +4,6 @@ import React, {
   useMemo, 
   useCallback, 
   useRef, 
-  Suspense, 
-  lazy, 
   Component, 
   ErrorInfo, 
   ReactNode 
@@ -32,14 +30,13 @@ import {
 import { Navbar } from './components/Navbar';
 import { BattlefieldView } from './components/BattlefieldView';
 import { CycleDashboardView } from './components/CycleDashboardView';
+import { ArchivesView } from './components/ArchivesView';
 import { ProfileSettingsView } from './components/ProfileSettingsView';
-
-const ArchivesView = lazy(() => import('./components/ArchivesView').then(m => ({ default: m.ArchivesView })));
-const AdminView = lazy(() => import('./components/AdminView').then(m => ({ default: m.AdminView })));
-const AutopsyModal = lazy(() => import('./components/AutopsyModal').then(m => ({ default: m.AutopsyModal })));
-const PaymentModal = lazy(() => import('./components/PaymentModal').then(m => ({ default: m.PaymentModal })));
-const AuthModal = lazy(() => import('./components/AuthModal').then(m => ({ default: m.AuthModal })));
-const CreateCycleModal = lazy(() => import('./components/CreateCycleModal').then(m => ({ default: m.CreateCycleModal })));
+import { AdminView } from './components/AdminView';
+import { AutopsyModal } from './components/AutopsyModal';
+import { PaymentModal } from './components/PaymentModal';
+import { AuthModal } from './components/AuthModal';
+import { CreateCycleModal } from './components/CreateCycleModal';
 import { Toast, ToastItem, ToastType } from './components/Toast';
 import { RotateCcw, AlertTriangle, Eye, ShieldCheck, RefreshCw } from 'lucide-react';
 import './styles/tokens.css';
@@ -104,13 +101,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     return this.props.children;
   }
 }
-
-const TabLoadingFallback: React.FC = () => (
-  <div className="flex-1 flex flex-col items-center justify-center min-h-[350px] w-full gap-3">
-    <div className="w-8 h-8 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
-    <span className="text-xs text-zinc-400 font-medium">در حال بارگذاری بخش بوشیدو...</span>
-  </div>
-);
 
 export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(() => {
@@ -794,8 +784,7 @@ export default function App() {
 
         {/* Main Content Area */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 pb-32 lg:pb-16 min-w-0">
-          <Suspense fallback={<TabLoadingFallback />}>
-            <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait">
               {activeTab === 'battlefield' && (
                 <motion.div
                   key="battlefield"
@@ -939,61 +928,58 @@ export default function App() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </Suspense>
         </main>
 
-        {/* Lazy-loaded Modals Layer */}
-        <Suspense fallback={null}>
-          {/* Autopsy Drawer/Modal */}
-          {autopsyTargetLog && (
-            <AutopsyModal
-              log={autopsyTargetLog}
-              cycleTheme={currentCycle?.targetTheme ?? 'amber'}
-              allUnresolvedLogs={systemState.logs.filter(l => {
-                if (l.date >= logicalToday) return false;
-                const habitKeys = ['wakeUp', 'workout', 'study', 'journal', 'hardTask'] as const;
-                const isStd = habitKeys.every(k => l[k]);
-                const isFrozen = l.failureReason === 'دلایل شخصی';
-                const isResolved = !!(l.failureReason && (isFrozen || l.failureTime));
-                return !isStd && !isResolved;
-              })}
-              onSelectLog={nextLog => setAutopsyTargetLog(nextLog)}
-              onSave={handleUpdateLog}
-              onClose={() => setAutopsyTargetLog(null)}
-            />
-          )}
+        {/* Modals Layer */}
+        {/* Autopsy Drawer/Modal */}
+        {autopsyTargetLog && (
+          <AutopsyModal
+            log={autopsyTargetLog}
+            cycleTheme={currentCycle?.targetTheme ?? 'amber'}
+            allUnresolvedLogs={systemState.logs.filter(l => {
+              if (l.date >= logicalToday) return false;
+              const habitKeys = ['wakeUp', 'workout', 'study', 'journal', 'hardTask'] as const;
+              const isStd = habitKeys.every(k => l[k]);
+              const isFrozen = l.failureReason === 'دلایل شخصی';
+              const isResolved = !!(l.failureReason && (isFrozen || l.failureTime));
+              return !isStd && !isResolved;
+            })}
+            onSelectLog={nextLog => setAutopsyTargetLog(nextLog)}
+            onSave={handleUpdateLog}
+            onClose={() => setAutopsyTargetLog(null)}
+          />
+        )}
 
-          {/* Mock Payment / Subscription Modal */}
-          {isPaymentModalOpen && (
-            <PaymentModal
-              userProfile={systemState.userProfile}
-              isOpen={isPaymentModalOpen}
-              onClose={() => setIsPaymentModalOpen(false)}
-              onUpgradeSuccess={handleUpdateUserProfile}
-            />
-          )}
+        {/* Mock Payment / Subscription Modal */}
+        {isPaymentModalOpen && (
+          <PaymentModal
+            userProfile={systemState.userProfile}
+            isOpen={isPaymentModalOpen}
+            onClose={() => setIsPaymentModalOpen(false)}
+            onUpgradeSuccess={handleUpdateUserProfile}
+          />
+        )}
 
-          {/* User Auth Modal */}
-          {isAuthModalOpen && (
-            <AuthModal
-              isOpen={isAuthModalOpen}
-              onClose={() => setIsAuthModalOpen(false)}
-              currentUser={systemState.userProfile?.id ? systemState.userProfile : null}
-              onAuthSuccess={handleAuthSuccess}
-              onLogout={handleLogout}
-            />
-          )}
+        {/* User Auth Modal */}
+        {isAuthModalOpen && (
+          <AuthModal
+            isOpen={isAuthModalOpen}
+            onClose={() => setIsAuthModalOpen(false)}
+            currentUser={systemState.userProfile?.id ? systemState.userProfile : null}
+            onAuthSuccess={handleAuthSuccess}
+            onLogout={handleLogout}
+          />
+        )}
 
-          {/* Create Cycle Modal */}
-          {isCreateCycleModalOpen && (
-            <CreateCycleModal
-              isOpen={isCreateCycleModalOpen}
-              existingCycles={systemState.cycles}
-              onClose={() => setIsCreateCycleModalOpen(false)}
-              onCreateCycle={handleCreateNewCycle}
-            />
-          )}
-        </Suspense>
+        {/* Create Cycle Modal */}
+        {isCreateCycleModalOpen && (
+          <CreateCycleModal
+            isOpen={isCreateCycleModalOpen}
+            existingCycles={systemState.cycles}
+            onClose={() => setIsCreateCycleModalOpen(false)}
+            onCreateCycle={handleCreateNewCycle}
+          />
+        )}
 
         {/* Reset Confirmation Modal */}
         {isResetConfirmOpen && (

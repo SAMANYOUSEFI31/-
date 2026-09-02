@@ -52,8 +52,56 @@
         </div>
         <div style="font-size: 16px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.35rem; color: #f4f4f5;">بوشیدو</div>
         <div style="font-size: 10px; color: #71717a; font-family: 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.12em;">BUSHIDO DISCIPLINE OS</div>
+        <div id="bushido-slow-loader" style="display: none; margin-top: 1.5rem; flex-direction: column; align-items: center; gap: 0.5rem;">
+          <p style="font-size: 11px; color: #a1a1aa; margin: 0;">بارگذاری بیش از حد معمول طول کشید</p>
+          <button id="bushido-force-reload" style="padding: 0.4rem 0.8rem; background: #27272a; border: 1px solid #3f3f46; color: #f4f4f5; border-radius: 8px; font-size: 11px; cursor: pointer; font-family: inherit;">
+            پاک‌سازی کَش و بارگذاری مجدد
+          </button>
+        </div>
       </div>
     </div>
+    <script>
+      (function() {
+        var slowTimer = setTimeout(function() {
+          var el = document.getElementById('bushido-slow-loader');
+          if (el) el.style.display = 'flex';
+        }, 5000);
+
+        function hardReset() {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(r) { r.unregister(); });
+            });
+          }
+          if ('caches' in window) {
+            caches.keys().then(function(keys) {
+              keys.forEach(function(k) { caches.delete(k); });
+            });
+          }
+          setTimeout(function() {
+            window.location.reload();
+          }, 200);
+        }
+
+        document.addEventListener('click', function(e) {
+          if (e.target && e.target.id === 'bushido-force-reload') {
+            hardReset();
+          }
+        });
+
+        // Catch stale chunk errors or syntax errors from HTML MIME-type mismatch
+        window.addEventListener('error', function(e) {
+          var msg = (e && e.message) ? e.message.toLowerCase() : '';
+          var isChunkOrSyntax = msg.indexOf('dynamically imported module') !== -1 ||
+                                msg.indexOf('unexpected token') !== -1 ||
+                                msg.indexOf('loading chunk') !== -1;
+          if (isChunkOrSyntax && !sessionStorage.getItem('bushido_auto_recovered')) {
+            sessionStorage.setItem('bushido_auto_recovered', 'true');
+            hardReset();
+          }
+        });
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,6 +1,6 @@
-// Bushido Discipline OS - Service Worker (Offline PWA Cache v2)
-const STATIC_CACHE_NAME = 'bushido-static-v2';
-const RUNTIME_CACHE_NAME = 'bushido-runtime-v2';
+// Bushido Discipline OS - Service Worker (Offline PWA Cache v3)
+const STATIC_CACHE_NAME = 'bushido-static-v3';
+const RUNTIME_CACHE_NAME = 'bushido-runtime-v3';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -43,6 +43,18 @@ self.addEventListener('activate', (event) => {
       );
     }).then(() => self.clients.claim())
   );
+});
+
+// Listen for messages from the page (e.g. SKIP_WAITING or CLEAR_CACHE)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  if (event.data && event.data.type === 'CLEAR_CACHE') {
+    caches.keys().then((keys) => {
+      return Promise.all(keys.map((k) => caches.delete(k)));
+    });
+  }
 });
 
 // Fetch: Multi-strategy caching dispatch
@@ -106,13 +118,22 @@ self.addEventListener('fetch', (event) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        return fetch(request).then((networkResponse) => {
-          if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
-            const copy = networkResponse.clone();
-            caches.open(RUNTIME_CACHE_NAME).then((cache) => cache.put(request, copy));
-          }
-          return networkResponse;
-        });
+        return fetch(request)
+          .then((networkResponse) => {
+            if (
+              networkResponse &&
+              networkResponse.status === 200 &&
+              !networkResponse.headers.get('content-type')?.includes('text/html')
+            ) {
+              const copy = networkResponse.clone();
+              caches.open(RUNTIME_CACHE_NAME).then((cache) => cache.put(request, copy));
+            }
+            return networkResponse;
+          })
+          .catch((err) => {
+            console.warn('[SW] Asset fetch failed, checking cache:', request.url, err);
+            return caches.match(request);
+          });
       })
     );
     return;
