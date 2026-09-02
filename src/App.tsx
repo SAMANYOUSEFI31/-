@@ -25,7 +25,8 @@ import {
   safeRemoveLocalStorage,
   safeGetSessionStorage,
   safeSetSessionStorage,
-  safeRemoveSessionStorage
+  safeRemoveSessionStorage,
+  resolveBackendSyncDecision
 } from './utils/storageUtils';
 import { Navbar } from './components/Navbar';
 import { BattlefieldView } from './components/BattlefieldView';
@@ -255,51 +256,51 @@ export default function App() {
           }
         }
 
-        let fetchedCycles: Cycle[] | null = null;
-        let nextActiveCycleId: string | null = null;
+        let apiCycles: Cycle[] | null = null;
         if (cyclesRes && cyclesRes.ok) {
           const cyclesData = await cyclesRes.json();
           const cyclesList = Array.isArray(cyclesData) ? cyclesData : (cyclesData?.cycles || []);
           if (Array.isArray(cyclesList)) {
-            const isDemoConsumed = safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
-            if (cyclesList.length > 0) {
-              safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
-              fetchedCycles = cyclesList;
-              nextActiveCycleId = cyclesList[0].id;
-            } else if (isDemoConsumed) {
-              fetchedCycles = [];
-            }
+            apiCycles = cyclesList;
           }
         }
 
-        let fetchedLogs: DailyLog[] | null = null;
+        let apiLogs: DailyLog[] | null = null;
         if (logsRes && logsRes.ok) {
           const logsData = await logsRes.json();
           const logsList = Array.isArray(logsData) ? logsData : (logsData?.logs || []);
           if (Array.isArray(logsList)) {
-            const isDemoConsumed = safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
-            if (logsList.length > 0) {
-              fetchedLogs = logsList;
-            } else if (isDemoConsumed) {
-              fetchedLogs = [];
-            }
+            apiLogs = logsList;
           }
         }
 
         if (isCancelled) return;
 
+        const isDemoConsumed = safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
+        const syncDecision = resolveBackendSyncDecision({
+          apiCycles,
+          apiLogs,
+          isDemoConsumed
+        });
+
+        if (syncDecision.shouldMarkDemoConsumed) {
+          safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
+        }
+
+        const { nextCycles, nextLogs, nextActiveCycleId } = syncDecision;
+
         // 3. Batch apply all state updates simultaneously to avoid cascading re-renders
-        if (fetchedUserProfile || fetchedCycles !== null || fetchedLogs !== null) {
+        if (fetchedUserProfile || nextCycles !== null || nextLogs !== null) {
           setSystemState(prev => ({
             ...prev,
             userProfile: fetchedUserProfile ? { ...prev.userProfile, ...fetchedUserProfile } : prev.userProfile,
-            cycles: fetchedCycles !== null ? fetchedCycles : prev.cycles,
-            logs: fetchedLogs !== null ? fetchedLogs : prev.logs
+            cycles: nextCycles !== null ? nextCycles : prev.cycles,
+            logs: nextLogs !== null ? nextLogs : prev.logs
           }));
 
           if (nextActiveCycleId) {
             setActiveCycleId(prev => {
-              if (!prev || (fetchedCycles && !fetchedCycles.some(c => c.id === prev))) {
+              if (!prev || (nextCycles && !nextCycles.some(c => c.id === prev))) {
                 return nextActiveCycleId!;
               }
               return prev;

@@ -32,7 +32,9 @@ import {
   TOKEN_KEY,
   DEMO_CONSUMED_KEY,
   safeGetLocalStorage,
-  safeSetLocalStorage
+  safeSetLocalStorage,
+  safeRemoveLocalStorage,
+  resolveBackendSyncDecision
 } from '../utils/storageUtils';
 
 const OFFLINE_QUEUE_KEY = 'bushido_offline_queue';
@@ -311,6 +313,8 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [authToken]);
 
   useEffect(() => {
+    let isCancelled = false;
+
     const fetchBackendData = async () => {
       try {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -318,48 +322,80 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
           headers['Authorization'] = `Bearer ${authToken}`;
         }
 
+        let fetchedUserProfile: Partial<UserProfile> | null = null;
         if (authToken) {
-          const userRes = await fetch('/api/auth/me', { headers });
-          if (userRes.ok) {
-            const userData = await userRes.json();
-            if (userData.user) {
-              setSystemState(prev => ({
-                ...prev,
-                userProfile: {
-                  ...prev.userProfile,
+          const userRes = await fetch('/api/auth/me', { headers }).catch(() => null);
+          if (userRes) {
+            if (userRes.ok) {
+              const userData = await userRes.json();
+              if (userData?.user) {
+                fetchedUserProfile = {
                   ...userData.user,
-                  isVip: !!userData.user.isVip,
-                  isAdmin: !!userData.user.isAdmin
-                }
-              }));
+                  isVip: Boolean(userData.user.isVip),
+                  isAdmin: Boolean(userData.user.isAdmin)
+                };
+              }
+            } else if (userRes.status === 401) {
+              localStorage.removeItem(TOKEN_KEY);
+              setAuthToken(null);
             }
-          } else {
-            localStorage.removeItem(TOKEN_KEY);
-            setAuthToken(null);
           }
         }
 
-        const cyclesRes = await fetch('/api/cycles', { headers });
-        if (cyclesRes.ok) {
+        if (isCancelled) return;
+
+        let apiCycles: Cycle[] | null = null;
+        const cyclesRes = await fetch('/api/cycles', { headers }).catch(() => null);
+        if (cyclesRes && cyclesRes.ok) {
           const cyclesData = await cyclesRes.json();
           const cyclesList = Array.isArray(cyclesData) ? cyclesData : (cyclesData?.cycles || []);
           if (Array.isArray(cyclesList)) {
-            setSystemState(prev => ({
-              ...prev,
-              cycles: cyclesList
-            }));
+            apiCycles = cyclesList;
           }
         }
 
-        const logsRes = await fetch('/api/logs', { headers });
-        if (logsRes.ok) {
+        if (isCancelled) return;
+
+        let apiLogs: DailyLog[] | null = null;
+        const logsRes = await fetch('/api/logs', { headers }).catch(() => null);
+        if (logsRes && logsRes.ok) {
           const logsData = await logsRes.json();
           const logsList = Array.isArray(logsData) ? logsData : (logsData?.logs || []);
           if (Array.isArray(logsList)) {
-            setSystemState(prev => ({
-              ...prev,
-              logs: logsList
-            }));
+            apiLogs = logsList;
+          }
+        }
+
+        if (isCancelled) return;
+
+        const isDemoConsumed = safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
+        const syncDecision = resolveBackendSyncDecision({
+          apiCycles,
+          apiLogs,
+          isDemoConsumed
+        });
+
+        if (syncDecision.shouldMarkDemoConsumed) {
+          safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
+        }
+
+        const { nextCycles, nextLogs, nextActiveCycleId } = syncDecision;
+
+        if (fetchedUserProfile || nextCycles !== null || nextLogs !== null) {
+          setSystemState(prev => ({
+            ...prev,
+            userProfile: fetchedUserProfile ? { ...prev.userProfile, ...fetchedUserProfile } : prev.userProfile,
+            cycles: nextCycles !== null ? nextCycles : prev.cycles,
+            logs: nextLogs !== null ? nextLogs : prev.logs
+          }));
+
+          if (nextActiveCycleId) {
+            setActiveCycleId(prev => {
+              if (!prev || (nextCycles && !nextCycles.some(c => c.id === prev))) {
+                return nextActiveCycleId!;
+              }
+              return prev;
+            });
           }
         }
       } catch (err) {
@@ -368,6 +404,9 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     };
 
     fetchBackendData();
+    return () => {
+      isCancelled = true;
+    };
   }, [authToken]);
 
   const currentCycle = useMemo(() => {
@@ -520,6 +559,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [authToken, activeCycleId, systemState.cycles]);
 
   const createNewCycle = useCallback(async (title: string, startDate: string, targetTheme: string) => {
+    safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
     const newCycle: Cycle = {
       id: `cycle-${Date.now()}`,
       title,
@@ -801,6 +841,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [systemState, logicalToday]);
 
   const confirmResetData = useCallback(() => {
+    safeRemoveLocalStorage(DEMO_CONSUMED_KEY);
     flushPendingStorageSave();
     const fresh = createInitialSystemState();
     setSystemState(fresh);
@@ -833,6 +874,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
           return;
         }
 
+        safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
         flushPendingStorageSave();
         setSystemState(parsed);
         setActiveCycleId(parsed.cycles[0].id);

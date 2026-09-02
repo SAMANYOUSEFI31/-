@@ -1,9 +1,64 @@
-import { SystemState } from '../types';
+import { SystemState, Cycle, DailyLog } from '../types';
 import { createInitialSystemState, createEmptySystemState } from '../data/initialData';
 
 export const STORAGE_KEY = 'bushido_discipline_os_v1';
 export const TOKEN_KEY = 'bushido_auth_token';
 export const DEMO_CONSUMED_KEY = 'bushido_demo_consumed_v1';
+
+export interface BackendSyncDecisionInput {
+  apiCycles: Cycle[] | null;
+  apiLogs: DailyLog[] | null;
+  isDemoConsumed: boolean;
+}
+
+export interface BackendSyncDecision {
+  nextCycles: Cycle[] | null;
+  nextLogs: DailyLog[] | null;
+  shouldMarkDemoConsumed: boolean;
+  nextActiveCycleId: string | null;
+}
+
+/**
+ * Pure decision function for merging remote backend data with local state.
+ *
+ * Contract:
+ * 1. If demo is NOT consumed and API returns empty cycles/logs, preserves local demo state (returns null for nextCycles/nextLogs).
+ * 2. If demo IS consumed (user cleared or opted out), empty API response returns empty arrays (never resurrects demo seed).
+ * 3. If API returns real cycles/logs, remote data takes precedence and marks demo as consumed.
+ * 4. If remote has real cycles but 0 logs, clears leftover phantom demo logs.
+ */
+export function resolveBackendSyncDecision(input: BackendSyncDecisionInput): BackendSyncDecision {
+  const { apiCycles, apiLogs, isDemoConsumed } = input;
+  let nextCycles: Cycle[] | null = null;
+  let nextLogs: DailyLog[] | null = null;
+  let shouldMarkDemoConsumed = false;
+  let nextActiveCycleId: string | null = null;
+
+  if (Array.isArray(apiCycles)) {
+    if (apiCycles.length > 0) {
+      shouldMarkDemoConsumed = true;
+      nextCycles = apiCycles;
+      nextActiveCycleId = apiCycles[0].id;
+    } else if (isDemoConsumed) {
+      nextCycles = [];
+    }
+  }
+
+  if (Array.isArray(apiLogs)) {
+    if (apiLogs.length > 0) {
+      nextLogs = apiLogs;
+    } else if (isDemoConsumed || (nextCycles && nextCycles.length > 0)) {
+      nextLogs = [];
+    }
+  }
+
+  return {
+    nextCycles,
+    nextLogs,
+    shouldMarkDemoConsumed,
+    nextActiveCycleId
+  };
+}
 
 /**
  * Exception-safe wrapper for localStorage.getItem to prevent crashes in private/incognito mode
