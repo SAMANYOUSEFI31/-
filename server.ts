@@ -956,7 +956,7 @@ if (process.env.VERCEL) {
     res.sendFile(path.join(distPath, 'index.html'));
   });
   app.use(errorHandler);
-} else {
+} else if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
   startServer();
 }
 

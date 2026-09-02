@@ -85,6 +85,7 @@ export async function createUser(data: {
   tier?: string;
   isVip?: boolean;
   isAdmin?: boolean;
+  withStarterCycle?: boolean;
 }): Promise<DBUser> {
   const now = new Date().toISOString();
   const id = `user-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -142,10 +143,12 @@ export async function createUser(data: {
 
   memoryStore.users.push(newUser);
 
-  // Automatically seed starter cycle and logs for new registered user in local fallback
-  const seed = seedUserData(newUser.id);
-  memoryStore.cycles.push(seed.cycle);
-  memoryStore.dailyLogs.push(...seed.logs);
+  // Seed starter cycle and logs only if explicitly requested (e.g. initial demo setup)
+  if (data.withStarterCycle) {
+    const seed = seedUserData(newUser.id);
+    memoryStore.cycles.push(seed.cycle);
+    memoryStore.dailyLogs.push(...seed.logs);
+  }
 
   saveLocalStore();
   return newUser;

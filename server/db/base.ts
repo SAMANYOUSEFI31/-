@@ -360,9 +360,6 @@ export function ensureDefaultAdminAndUsers() {
       updatedAt: nowStr
     };
     memoryStore.users.unshift(adminUser);
-    const seed = seedUserData(adminUser.id);
-    memoryStore.cycles.push(seed.cycle);
-    memoryStore.dailyLogs.push(...seed.logs);
   } else if (adminHashedPass && existingAdmin) {
     existingAdmin.id = 'admin-master-001';
     if (SUPER_ADMIN_PHONE) existingAdmin.phoneNumber = SUPER_ADMIN_PHONE;

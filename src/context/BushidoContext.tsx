@@ -29,7 +29,10 @@ import {
   saveSystemStateDebounced, 
   flushPendingStorageSave, 
   STORAGE_KEY, 
-  TOKEN_KEY 
+  TOKEN_KEY,
+  DEMO_CONSUMED_KEY,
+  safeGetLocalStorage,
+  safeSetLocalStorage
 } from '../utils/storageUtils';
 
 const OFFLINE_QUEUE_KEY = 'bushido_offline_queue';
@@ -241,19 +244,23 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   useEffect(() => {
     const initDefaultAdminIfNeeded = async () => {
-      const currentToken = localStorage.getItem(TOKEN_KEY);
+      const currentToken = safeGetLocalStorage(TOKEN_KEY);
       const isExplicitLogout = sessionStorage.getItem('bushido_explicit_logout') === 'true';
       if (!currentToken && !isExplicitLogout) {
         try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
           const res = await fetch('/api/auth/quick-login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: 'admin' })
+            body: JSON.stringify({ role: 'admin' }),
+            signal: controller.signal
           });
+          clearTimeout(timeoutId);
           if (res.ok) {
             const data = await res.json();
             if (data.token && data.user) {
-              localStorage.setItem(TOKEN_KEY, data.token);
+              safeSetLocalStorage(TOKEN_KEY, data.token);
               setAuthToken(data.token);
               setSystemState(prev => ({
                 ...prev,
@@ -267,7 +274,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
             }
           }
         } catch (err) {
-          console.warn('Auto admin login fallback:', err);
+          // In production or when test shortcuts are disabled, quick-login will fail gracefully without spinning
         }
       }
     };
@@ -336,7 +343,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
         if (cyclesRes.ok) {
           const cyclesData = await cyclesRes.json();
           const cyclesList = Array.isArray(cyclesData) ? cyclesData : (cyclesData?.cycles || []);
-          if (Array.isArray(cyclesList) && cyclesList.length > 0) {
+          if (Array.isArray(cyclesList)) {
             setSystemState(prev => ({
               ...prev,
               cycles: cyclesList
@@ -348,7 +355,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
         if (logsRes.ok) {
           const logsData = await logsRes.json();
           const logsList = Array.isArray(logsData) ? logsData : (logsData?.logs || []);
-          if (Array.isArray(logsList) && logsList.length > 0) {
+          if (Array.isArray(logsList)) {
             setSystemState(prev => ({
               ...prev,
               logs: logsList
@@ -484,6 +491,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [authToken]);
 
   const deleteCycle = useCallback(async (cycleId: string) => {
+    safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
     const remainingCycles = systemState.cycles.filter(c => c.id !== cycleId);
 
     setSystemState(prev => ({
