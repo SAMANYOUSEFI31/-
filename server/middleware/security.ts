@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { isProduction, allowTestShortcuts } from '../security.js';
 
 interface RateLimitEntry {
   count: number;
@@ -86,8 +87,8 @@ export const apiRateLimiter = createRateLimiter({
  * - Development / Test Shortcuts: Permissive embed headers for AI Studio live preview iframe
  */
 export function setSecurityHeaders(req: Request, res: Response, next: NextFunction): void {
-  const isProd = process.env.NODE_ENV === 'production';
-  const isDevOrTest = !isProd || process.env.ALLOW_TEST_SHORTCUTS === 'true';
+  const isProd = isProduction();
+  const isDevOrTest = allowTestShortcuts();
 
   // HTTP Strict Transport Security (HSTS)
   if (isProd) {
@@ -153,7 +154,7 @@ export class AppError extends Error {
  * Item B4 & A9: Standard error response format and Stack Trace censoring in Production
  */
 export function errorHandler(err: any, req: Request, res: Response, next: NextFunction): void {
-  const isProd = process.env.NODE_ENV === 'production';
+  const isProd = isProduction();
 
   const statusCode = err.statusCode || err.status || 500;
   const code = err.code || (statusCode === 500 ? 'INTERNAL_SERVER_ERROR' : 'API_ERROR');

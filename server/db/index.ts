@@ -11,14 +11,13 @@ import {
   SUPER_ADMIN_EMAIL,
   SUPER_ADMIN_PASS,
   SUPER_ADMIN_NAME,
-  hashPassword
+  hashPassword,
+  allowTestShortcuts,
+  isProduction
 } from '../security.js';
 
 export let prisma: any = null;
 export let isPrismaAvailable = false;
-
-const NODE_ENV = process.env.NODE_ENV || 'development';
-const isAllowTest = process.env.ALLOW_TEST_SHORTCUTS === 'true';
 const isOnVercel = Boolean(process.env.VERCEL);
 
 function wait(ms: number): Promise<void> {
@@ -122,7 +121,7 @@ export async function initializeDatabase(): Promise<void> {
   if (!isPrismaAvailable) {
     setPrismaState(null, false);
     try { loadLocalStore(); } catch {}
-    if (isAllowTest || NODE_ENV !== 'production') {
+    if (allowTestShortcuts()) {
       ensureDefaultAdminAndUsers();
     }
   }

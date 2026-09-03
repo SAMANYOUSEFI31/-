@@ -42,7 +42,13 @@ import {
   isSuperAdminIdentifier,
   hashPassword,
   verifyPassword,
-  allowTestShortcuts
+  allowTestShortcuts,
+  isProduction,
+  isQuickLoginEnabled,
+  isOtpDebugEnabled,
+  isMockOtpEnabled,
+  isMockPaymentEnabled,
+  getSecurityCapabilities
 } from './server/security.js';
 import {
   apiRateLimiter,
@@ -68,8 +74,6 @@ dotenv.config();
 
 const app = express();
 const PORT = 3000;
-const isProd = process.env.NODE_ENV === 'production';
-const testMode = allowTestShortcuts(); // روی Vercel با ALLOW_TEST_SHORTCUTS=true باز می‌ماند
 
 // Trust proxy required for Cloud Run / reverse proxies and IP-based rate limiting
 app.set('trust proxy', 1);
@@ -110,26 +114,29 @@ app.use('/api', apiRateLimiter);
 // Strict Authentication Limiter applied to auth routes
 app.use('/api/auth', authRateLimiter);
 
-// Health check endpoint (Container & PaaS Liveness/Readiness Probe)
+// Minimal public health check endpoint (Container & PaaS Liveness/Readiness Probe)
 app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Detailed system diagnostics for administrators
+app.get('/api/admin/diagnostics', adminMiddleware, (req: AuthenticatedRequest, res) => {
   const memory = process.memoryUsage();
   res.json({
     status: 'ok',
-    engine: 'Bushido Discipline OS (Production Grade)',
-    mode: isProd ? 'production' : 'development',
-    version: '3.0.0',
+    engine: 'Bushido Discipline OS',
+    capabilities: getSecurityCapabilities(),
+    nodeVersion: process.version,
     uptimeSeconds: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
-    nodeVersion: process.version,
     memoryRssMb: Math.round(memory.rss / 1024 / 1024),
     database: {
       driver: isPrismaAvailable ? 'postgresql_prisma' : 'local_file_fallback',
       isPrismaAvailable: Boolean(isPrismaAvailable),
       isServerlessVercel: Boolean(process.env.VERCEL)
-    },
-    security: {
-      testShortcutsEnabled: allowTestShortcuts(),
-      otpDebugEnabled: process.env.ENABLE_OTP_DEBUG === 'true'
     }
   });
 });
@@ -176,7 +183,7 @@ app.post('/api/auth/register', validateBody(registerSchema), async (req, res, ne
       isAdmin: Boolean(user.isAdmin)
     });
 
-    if (!isProd) {
+    if (!isProduction()) {
       console.log(`[Bushido Auth] User registered successfully: ${user.id}`);
     }
 
@@ -198,7 +205,7 @@ app.post('/api/auth/login', validateBody(loginSchema), async (req, res, next) =>
     const cleanId = identifier.trim().toLowerCase();
 
     // Development/Fallback Ensure
-    if (testMode) ensureDefaultAdminAndUsers();
+    if (allowTestShortcuts()) ensureDefaultAdminAndUsers();
 
     // Check Super Admin Hardened Shortcut
     const isMaster = isSuperAdminIdentifier(cleanId);
@@ -288,10 +295,17 @@ app.post('/api/auth/forgot-password', validateBody(otpRequestSchema), async (req
       return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'حساب کاربری با این مشخصات یافت نشد.' });
     }
 
+    if (!isMockOtpEnabled()) {
+      return res.status(503).json({
+        code: 'SMS_SERVICE_UNAVAILABLE',
+        messageFa: 'سامانه پیامکی در حال حاضر متصل نیست. لطفاً با پشتیبانی یا مدیر سامانه تماس بگیرید.'
+      });
+    }
+
     const generatedCode = Math.floor(10000 + Math.random() * 90000).toString();
     await saveOtpCode(cleanId, generatedCode);
 
-    if (!isProd) {
+    if (allowTestShortcuts()) {
       console.log(`[Bushido Auth] Password Recovery OTP for ${cleanId}: [ ${generatedCode} ]`);
     }
 
@@ -300,7 +314,7 @@ app.post('/api/auth/forgot-password', validateBody(otpRequestSchema), async (req
       messageFa: `کد تایید ۵ رقمی بازیابی رمز عبور برای ${cleanId} ارسال شد.`
     };
 
-    if (!isProd && process.env.ENABLE_OTP_DEBUG === 'true') {
+    if (isOtpDebugEnabled()) {
       responsePayload.debugCode = generatedCode;
     }
 
@@ -316,6 +330,13 @@ app.post('/api/auth/reset-password', validateBody(resetPasswordSchema), async (r
     const { identifier, code, newPassword } = req.body;
     const cleanId = identifier.trim().toLowerCase();
     
+    if (!isMockOtpEnabled()) {
+      return res.status(503).json({
+        code: 'SMS_SERVICE_UNAVAILABLE',
+        messageFa: 'سامانه پیامکی در حال حاضر متصل نیست.'
+      });
+    }
+
     const isValid = await verifyOtpCode(cleanId, String(code));
     if (!isValid) {
       return res.status(400).json({ code: 'INVALID_OTP', messageFa: 'کد تایید نامعتبر یا منقضی شده است.' });
@@ -354,11 +375,18 @@ app.post('/api/auth/send-otp', validateBody(otpRequestSchema), async (req, res, 
   try {
     const { identifier } = req.body;
     const cleanId = identifier.trim().toLowerCase();
-    const generatedCode = Math.floor(10000 + Math.random() * 90000).toString();
 
+    if (!isMockOtpEnabled()) {
+      return res.status(503).json({
+        code: 'SMS_SERVICE_UNAVAILABLE',
+        messageFa: 'سامانه پیامکی در حال حاضر متصل نیست. لطفاً با رمز عبور وارد شوید یا با مدیر سامانه تماس بگیرید.'
+      });
+    }
+
+    const generatedCode = Math.floor(10000 + Math.random() * 90000).toString();
     await saveOtpCode(cleanId, generatedCode);
 
-    if (testMode) {
+    if (allowTestShortcuts()) {
       console.log(`[Bushido Auth] OTP for ${cleanId}: [ ${generatedCode} ]`);
     }
 
@@ -367,7 +395,7 @@ app.post('/api/auth/send-otp', validateBody(otpRequestSchema), async (req, res, 
       messageFa: `کد تایید ۵ رقمی برای ${cleanId} ارسال شد.`
     };
 
-    if (testMode && process.env.ENABLE_OTP_DEBUG === 'true') {
+    if (isOtpDebugEnabled()) {
       responsePayload.debugCode = generatedCode;
     }
 
@@ -383,6 +411,13 @@ app.post('/api/auth/verify-otp', async (req, res, next) => {
     const { identifier, code, name } = req.body;
     if (!identifier || !code) {
       return res.status(400).json({ code: 'BAD_REQUEST', messageFa: 'شناسه کاربری و کد تایید الزامی است.' });
+    }
+
+    if (!isMockOtpEnabled()) {
+      return res.status(503).json({
+        code: 'SMS_SERVICE_UNAVAILABLE',
+        messageFa: 'سرویس تایید پیامکی در حال حاضر فعال نیست.'
+      });
     }
 
     const cleanId = identifier.trim().toLowerCase();
@@ -432,10 +467,10 @@ app.post('/api/auth/verify-otp', async (req, res, next) => {
 // 7. Quick Direct Login (Locked in Production)
 app.post('/api/auth/quick-login', async (req, res, next) => {
   try {
-    if (!testMode) {
+    if (!isQuickLoginEnabled()) {
       return res.status(403).json({
         code: 'FORBIDDEN',
-        messageFa: 'ورود سریع فقط در حالت تست فعال است.'
+        messageFa: 'ورود سریع در این محیط غیرفعال است.'
       });
     }
 
@@ -705,6 +740,13 @@ app.post('/api/payment/request', optionalAuthMiddleware, validateBody(paymentReq
     const merchantId = process.env.ZARINPAL_MERCHANT_ID?.trim();
     const isLiveZarinpal = merchantId && merchantId.length >= 30;
 
+    if (!isLiveZarinpal && !isMockPaymentEnabled()) {
+      return res.status(503).json({
+        code: 'PAYMENT_UNAVAILABLE',
+        messageFa: 'درگاه پرداخت در حال حاضر در دسترس نیست.'
+      });
+    }
+
     const authority = 'A' + Date.now().toString() + Math.floor(Math.random() * 1000).toString().padStart(4, '0');
 
     await createSubscriptionRecord({
@@ -746,11 +788,20 @@ app.post('/api/payment/verify', validateBody(paymentVerifySchema), async (req, r
       });
     }
 
+    const merchantId = process.env.ZARINPAL_MERCHANT_ID?.trim();
+    const isLiveZarinpal = merchantId && merchantId.length >= 30;
+
+    if (!isLiveZarinpal && !isMockPaymentEnabled()) {
+      return res.status(503).json({
+        code: 'PAYMENT_UNAVAILABLE',
+        messageFa: 'امکان تایید تراکنش شبیه‌سازی‌شده در این محیط وجود ندارد.'
+      });
+    }
+
     let refId = 'REF-' + Math.floor(10000000 + Math.random() * 90000000);
     let cardPan = '6037-99**-****-' + Math.floor(1000 + Math.random() * 9000);
 
-    const merchantId = process.env.ZARINPAL_MERCHANT_ID?.trim();
-    if (merchantId && merchantId.length >= 30) {
+    if (isLiveZarinpal) {
       const zRes = await fetch('https://api.zarinpal.com/pg/v4/payment/verify.json', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -913,7 +964,7 @@ const distPath = process.env.VERCEL
 async function startServer() {
   await initializeDatabase();
 
-  if (!isProd && !process.env.VERCEL) {
+  if (!isProduction() && !process.env.VERCEL) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },

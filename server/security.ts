@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+
 /**
  * تبدیل خودکار اعداد فارسی و عربی به اعداد انگلیسی استاندارد
  */
@@ -8,23 +9,91 @@ export function toEnglishDigits(str: string = ''): string {
     .replace(/[۰-۹]/g, (d) => (d.charCodeAt(0) - 1776).toString())
     .replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString());
 }
-const NODE_ENV = process.env.NODE_ENV || 'development';
 
-/** حالت تست روی Vercel بدون OTP/زرین‌پال واقعی */
-export function allowTestShortcuts(): boolean {
-  if (NODE_ENV !== 'production') return true;
-  return process.env.ALLOW_TEST_SHORTCUTS === 'true';
+/**
+ * تجزیه سخت‌گیرانه مقادیر بولی از متغیرهای محیطی
+ * فقط رشته نرمال‌شده "true" مقدار true برمی‌گرداند؛
+ * مقادیر خالی، false، 1، yes، یا ناامن مقدار false خواهند بود.
+ */
+export function parseStrictBoolean(val?: string | null): boolean {
+  if (!val || typeof val !== 'string') return false;
+  return val.trim().toLowerCase() === 'true';
 }
 
-function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
+/** بررسی اینکه آیا محیط فعلی پروداکشن است */
+export function isProduction(): boolean {
+  return (process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
+}
+
+/**
+ * حالت تست و میانبرها:
+ * در محیط توسعه/تست همیشه فعال است.
+ * در محیط پروداکشن (مانند Vercel) صرفاً با ALLOW_TEST_SHORTCUTS=true فعال می‌گردد.
+ */
+export function allowTestShortcuts(): boolean {
+  if (!isProduction()) return true;
+  return parseStrictBoolean(process.env.ALLOW_TEST_SHORTCUTS);
+}
+
+/** بررسی فعال بودن قابلیت ورود سریع */
+export function isQuickLoginEnabled(): boolean {
+  if (!allowTestShortcuts()) return false;
+  if (process.env.ENABLE_QUICK_LOGIN !== undefined) {
+    return parseStrictBoolean(process.env.ENABLE_QUICK_LOGIN);
+  }
+  return true;
+}
+
+/** بررسی فعال بودن حالت دیباگ OTP */
+export function isOtpDebugEnabled(): boolean {
+  if (!allowTestShortcuts()) return false;
+  return parseStrictBoolean(process.env.ENABLE_OTP_DEBUG);
+}
+
+/** بررسی فعال بودن OTP شبیه‌سازی‌شده (بدون درگاه پیامکی زنده) */
+export function isMockOtpEnabled(): boolean {
+  return allowTestShortcuts();
+}
+
+/** بررسی فعال بودن پرداخت شبیه‌سازی‌شده (بدون درگاه زرین‌پال زنده) */
+export function isMockPaymentEnabled(): boolean {
+  return allowTestShortcuts();
+}
+
+/** ساختار جامع قابلیت‌های امنیتی و محیطی سرور */
+export interface SecurityCapabilities {
+  isProduction: boolean;
+  testShortcutsEnabled: boolean;
+  quickLoginEnabled: boolean;
+  otpDebugEnabled: boolean;
+  mockOtpEnabled: boolean;
+  mockPaymentEnabled: boolean;
+}
+
+/** دریافت وضعیت متمرکز تمامی قابلیت‌های امنیتی */
+export function getSecurityCapabilities(): SecurityCapabilities {
+  return {
+    isProduction: isProduction(),
+    testShortcutsEnabled: allowTestShortcuts(),
+    quickLoginEnabled: isQuickLoginEnabled(),
+    otpDebugEnabled: isOtpDebugEnabled(),
+    mockOtpEnabled: isMockOtpEnabled(),
+    mockPaymentEnabled: isMockPaymentEnabled()
+  };
+}
+
+export function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET?.trim();
+  const prod = isProduction();
+  const testAllowed = allowTestShortcuts();
+
   if (!secret) {
-    if (NODE_ENV === 'production' && !allowTestShortcuts()) {
+    if (prod && !testAllowed) {
       throw new Error('FATAL: JWT_SECRET is required in production.');
     }
     return 'dev-fallback-insecure-secret-key-change-in-production-32b';
   }
-  if (NODE_ENV === 'production' && secret.length < 32 && !allowTestShortcuts()) {
+  if (prod && secret.length < 32 && !testAllowed) {
     throw new Error('FATAL: JWT_SECRET must be at least 32 characters.');
   }
   return secret;
@@ -110,3 +179,4 @@ export const SUPER_ADMIN_NAME = process.env.SUPER_ADMIN_NAME || 'فرمانده 
 
 /** برای سازگاری با importهای قدیمی — دیگر در production مقدار ثابت ندارد */
 export const JWT_SECRET = process.env.JWT_SECRET || 'dev-fallback-insecure-secret-key-change-in-production-32b';
+

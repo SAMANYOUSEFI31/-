@@ -613,11 +613,11 @@ export default function App() {
         }));
         showAppToast(role === 'admin' ? 'به عنوان مدیر ارشد سیستم وارد شدید.' : 'به عنوان کاربر تستی وارد شدید.');
       } else {
-        showAppToast(data.error || 'خطا در ورود سریع');
+        showAppToast(data.messageFa || data.error || 'ورود سریع در این محیط غیرفعال است.', 'error');
       }
     } catch (e) {
       console.error('Quick login error:', e);
-      showAppToast('خطا در برقراری ارتباط');
+      showAppToast('خطا در برقراری ارتباط با سرور', 'error');
     }
   };
 
