@@ -82,6 +82,7 @@ import {
   upsertDailyLogSchema,
   updateDailyLogSchema,
   autopsySchema,
+  updateProfileSchema,
   paymentRequestSchema,
   paymentVerifySchema
 } from './server/utils/validation.js';
@@ -702,7 +703,7 @@ app.get('/api/auth/me', authMiddleware, async (req: AuthenticatedRequest, res, n
   }
 });
 
-// Update profile
+// Update profile (Phase 3A.3 Profile Allow-List & Privilege Boundary Integrity)
 const handleProfileUpdate = async (req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) => {
   try {
     const userId = req.user!.userId;
@@ -712,7 +713,7 @@ const handleProfileUpdate = async (req: AuthenticatedRequest, res: express.Respo
     if (typeof name === 'string' && name.trim()) {
       updatePayload.name = name.trim().slice(0, 80);
     }
-    if (typeof nightOwlCutoffHour === 'number' && nightOwlCutoffHour >= 0 && nightOwlCutoffHour <= 23) {
+    if (typeof nightOwlCutoffHour === 'number' && Number.isInteger(nightOwlCutoffHour) && nightOwlCutoffHour >= 0 && nightOwlCutoffHour <= 23) {
       updatePayload.nightOwlCutoffHour = nightOwlCutoffHour;
     }
     if (typeof accentTheme === 'string' && ['amber', 'emerald', 'crimson', 'cyan'].includes(accentTheme)) {
@@ -726,8 +727,8 @@ const handleProfileUpdate = async (req: AuthenticatedRequest, res: express.Respo
   }
 };
 
-app.put('/api/auth/profile', authMiddleware, handleProfileUpdate);
-app.put('/api/user/profile', authMiddleware, handleProfileUpdate);
+app.put('/api/auth/profile', authMiddleware, validateBody(updateProfileSchema), handleProfileUpdate);
+app.put('/api/user/profile', authMiddleware, validateBody(updateProfileSchema), handleProfileUpdate);
 
 /* =========================================================================
  * CYCLES ENDPOINTS

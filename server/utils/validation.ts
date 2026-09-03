@@ -248,6 +248,21 @@ export const autopsySchema = z.object({
 });
 
 /**
+ * User Profile Update Schema (Phase 3A.3 Allow-List)
+ * Allows ONLY safe, client-editable preferences:
+ * - name (string, max 80)
+ * - nightOwlCutoffHour (integer, 0..23)
+ * - accentTheme (enum: 'amber' | 'emerald' | 'crimson' | 'cyan')
+ *
+ * All privilege-bearing, identity, and internal fields are stripped or rejected.
+ */
+export const updateProfileSchema = z.object({
+  name: z.string().max(80, { message: 'نام کاربری حداکثر ۸۰ کاراکتر می‌باشد.' }).optional(),
+  nightOwlCutoffHour: z.number().int({ message: 'ساعت کات‌آف باید عدد صحیح باشد.' }).min(0).max(23, { message: 'ساعت کات‌آف شبانه باید عددی بین ۰ تا ۲۳ باشد.' }).optional(),
+  accentTheme: z.enum(['amber', 'emerald', 'crimson', 'cyan'], { message: 'تم انتخابی نامعتبر است.' }).optional(),
+});
+
+/**
  * Payment Request Schema
  * Client may request a planId. Amount is optional and validated server-side against authoritative catalog.
  */

@@ -225,6 +225,12 @@ export async function updateUser(
     safeData.tier = 'vip_samurai';
   }
 
+  // Hardened Identity & Creation Immutability:
+  // Explicitly prevent mutation of id, userId, or createdAt under all circumstances
+  delete safeData.id;
+  delete safeData.userId;
+  delete safeData.createdAt;
+
   if (isPrismaAvailable && prisma) {
     try {
       const prismaUpdatePayload: any = { ...safeData, updatedAt: new Date() };
@@ -250,6 +256,8 @@ export async function updateUser(
   memoryStore.users[idx] = {
     ...memoryStore.users[idx],
     ...safeData,
+    id: existingUser.id,
+    createdAt: existingUser.createdAt,
     updatedAt: now
   };
 
