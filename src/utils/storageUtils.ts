@@ -223,6 +223,19 @@ export function writeStateDirect(state: SystemState, userId?: string | null): bo
   }
 }
 
+export function cancelPendingStorageSave(): void {
+  if (debounceTimer) {
+    clearTimeout(debounceTimer as NodeJS.Timeout);
+    debounceTimer = null;
+  }
+  if (idleCallbackId !== null && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+    window.cancelIdleCallback(idleCallbackId);
+    idleCallbackId = null;
+  }
+  pendingStateToSave = null;
+  pendingOwnerId = null;
+}
+
 /**
  * Flush any pending debounced writes immediately to disk.
  * Must be called before page unload, logout, or account switches.
@@ -354,11 +367,16 @@ export function loadStoredSystemState(userId?: string | null): SystemState {
       }
 
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') {
-          const sanitized = sanitizeSystemState(parsed, guestFallback, GUEST_USER_PROFILE);
-          sanitized.userProfile.id = GUEST_USER_PROFILE.id;
-          return sanitized;
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') {
+            const sanitized = sanitizeSystemState(parsed, guestFallback, GUEST_USER_PROFILE);
+            sanitized.userProfile.id = GUEST_USER_PROFILE.id;
+            return sanitized;
+          }
+        } catch {
+          console.warn('[Bushido Storage] Corrupted JSON in guest partition, falling back safely');
+          return guestFallback;
         }
       }
     } catch (e) {
@@ -388,23 +406,28 @@ export function loadStoredSystemState(userId?: string | null): SystemState {
             saved = legacyRaw;
           }
         } catch {
-          // ignore
+          // ignore corrupted legacy JSON
         }
       }
     }
 
     if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed && typeof parsed === 'object') {
-        // Strict boundary: A mismatched userProfile.id in stored JSON must never transfer Cycles or DailyLogs into another authenticated account
-        if (parsed.userProfile?.id && parsed.userProfile.id !== normId && parsed.userProfile.id !== GUEST_USER_PROFILE.id) {
-          console.warn(`[Bushido Storage] Rejecting mismatched user state (expected ${normId}, found ${parsed.userProfile.id})`);
-          return authFallback;
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          // Strict boundary: A mismatched userProfile.id in stored JSON must never transfer Cycles or DailyLogs into another authenticated account
+          if (parsed.userProfile?.id && parsed.userProfile.id !== normId && parsed.userProfile.id !== GUEST_USER_PROFILE.id) {
+            console.warn(`[Bushido Storage] Rejecting mismatched user state (expected ${normId}, found ${parsed.userProfile.id})`);
+            return authFallback;
+          }
+          const sanitized = sanitizeSystemState(parsed, authFallback, authFallbackUser);
+          // Strict boundary: ensure userProfile.id matches the requested authenticated normId
+          sanitized.userProfile.id = normId;
+          return sanitized;
         }
-        const sanitized = sanitizeSystemState(parsed, authFallback, authFallbackUser);
-        // Strict boundary: ensure userProfile.id matches the requested authenticated normId
-        sanitized.userProfile.id = normId;
-        return sanitized;
+      } catch {
+        console.warn(`[Bushido Storage] Corrupted JSON in user partition (${normId}), falling back safely`);
+        return authFallback;
       }
     }
   } catch (e) {
@@ -428,7 +451,7 @@ export interface AccountTransitionResult {
 /**
  * Pure transition helper for login, logout, account-switching, and impersonation.
  * Guarantees:
- * 1. Flushes any pending debounced writes for the active owner before transitioning.
+ * 1. Cancels pending debounced writes and deterministically writes the outgoing state once.
  * 2. Updates the active local account pointer.
  * 3. Loads the target account's scoped state from localStorage without cross-contamination.
  * 4. Overlays authenticated profile data onto the loaded state.
@@ -436,11 +459,14 @@ export interface AccountTransitionResult {
 export function transitionAccountState(options: AccountTransitionOptions): AccountTransitionResult {
   const { currentSystemState, targetUserId, targetUserProfile } = options;
 
-  // 1. Flush any pending write for current in-memory state
+  // 1. Deterministic persistence of outgoing account state (persisted exactly once)
   if (currentSystemState) {
-    writeStateDirect(currentSystemState, currentSystemState.userProfile?.id);
+    cancelPendingStorageSave();
+    const outgoingOwnerId = normalizeUserId(currentSystemState.userProfile?.id);
+    writeStateDirect(currentSystemState, outgoingOwnerId);
+  } else {
+    flushPendingStorageSave();
   }
-  flushPendingStorageSave();
 
   // 2. Set the active account pointer
   const normTargetId = normalizeUserId(targetUserId);
@@ -464,6 +490,113 @@ export function transitionAccountState(options: AccountTransitionOptions): Accou
     nextState: loadedState,
     nextActiveCycleId
   };
+}
+
+/**
+ * Resets the system state for a given user or guest to initial Bushido values.
+ * Immediately purges pending debounced writes and writes the fresh state to storage.
+ */
+export function resetAccountState(currentUserProfile?: UserProfile | null): { freshState: SystemState; activeCycleId: string } {
+  const ownerId = normalizeUserId(currentUserProfile?.id);
+  const scopedDemoKey = getScopedDemoConsumedKey(ownerId);
+
+  // 1. Cancel any pending un-reset debounced writes so they cannot overwrite the reset
+  cancelPendingStorageSave();
+
+  // 2. Clear demo-consumed state
+  safeRemoveLocalStorage(scopedDemoKey);
+  if (!ownerId) {
+    safeRemoveLocalStorage(LEGACY_DEMO_CONSUMED_KEY);
+    safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
+  }
+
+  // 3. Create fresh initial state
+  const freshState = ownerId
+    ? createInitialSystemState({ ...GUEST_USER_PROFILE, id: ownerId, name: currentUserProfile?.name || 'کاربر سامورایی' })
+    : createInitialSystemState(currentUserProfile || GUEST_USER_PROFILE);
+
+  // 4. Directly persist fresh state under the designated owner
+  writeStateDirect(freshState, ownerId);
+
+  const activeCycleId = freshState.cycles[0]?.id || 'cycle-1';
+  return { freshState, activeCycleId };
+}
+
+export interface ImportStateResult {
+  success: boolean;
+  state?: SystemState;
+  activeCycleId?: string;
+  errorMessage?: string;
+}
+
+/**
+ * Validates, sanitizes, and imports system state from a JSON string under the active user's ownership.
+ * Guarantees that:
+ * 1. Imported data is scoped strictly to the current active user (overwriting/correcting userProfile.id).
+ * 2. Mismatched userProfile.id in imported JSON is neutralized and bound to the current user (or guest).
+ * 3. Scoped demo-consumed flag is marked true so demo seed is not resurrected.
+ * 4. Stale pending debounced writes are canceled and imported state is written to storage.
+ */
+export function importAccountState(dataStr: string, currentUserId?: string | null): ImportStateResult {
+  try {
+    const parsed = JSON.parse(dataStr);
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      !Array.isArray(parsed.cycles) ||
+      !Array.isArray(parsed.logs) ||
+      !parsed.settings ||
+      typeof parsed.settings !== 'object'
+    ) {
+      return { success: false, errorMessage: 'فرمت فایل پشتیبان معتبر نیست.' };
+    }
+
+    const ownerId = normalizeUserId(currentUserId);
+
+    // Mismatched userProfile.id in imported JSON must never transfer ownership or leak across accounts
+    if (!parsed.userProfile || typeof parsed.userProfile !== 'object') {
+      parsed.userProfile = ownerId
+        ? { ...GUEST_USER_PROFILE, id: ownerId, name: 'کاربر سامورایی' }
+        : createInitialSystemState().userProfile;
+    } else if (ownerId) {
+      parsed.userProfile.id = ownerId;
+    } else {
+      parsed.userProfile.id = GUEST_USER_PROFILE.id;
+    }
+
+    parsed.cycles = parsed.cycles
+      .filter((c: any) => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.startDate === 'string')
+      .map((c: any) => ({
+        ...c,
+        isSynced: c.isSynced !== undefined ? Boolean(c.isSynced) : false
+      }));
+
+    parsed.logs = parsed.logs
+      .filter((l: any) => l && typeof l === 'object' && typeof l.date === 'string')
+      .map((l: any) => ({
+        ...l,
+        isSynced: l.isSynced !== undefined ? Boolean(l.isSynced) : false
+      }));
+
+    if (parsed.cycles.length === 0) {
+      return { success: false, errorMessage: 'حداقل یک نبرد در فایل پشتیبان الزامی است.' };
+    }
+
+    // Cancel any pending debounced writes and persist the imported state directly
+    cancelPendingStorageSave();
+    const scopedDemoKey = getScopedDemoConsumedKey(ownerId);
+    safeSetLocalStorage(scopedDemoKey, 'true');
+    writeStateDirect(parsed, ownerId);
+
+    const activeCycleId = parsed.cycles[0].id;
+    return {
+      success: true,
+      state: parsed as SystemState,
+      activeCycleId
+    };
+  } catch {
+    return { success: false, errorMessage: 'خطا در تجزیه فایل JSON.' };
+  }
 }
 
 /**

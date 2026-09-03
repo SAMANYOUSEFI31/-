@@ -18,6 +18,7 @@ import {
   loadStoredSystemState, 
   saveSystemStateDebounced, 
   flushPendingStorageSave, 
+  cancelPendingStorageSave,
   TOKEN_KEY,
   DEMO_CONSUMED_KEY,
   LEGACY_DEMO_CONSUMED_KEY,
@@ -28,6 +29,8 @@ import {
   setActiveAccountId,
   normalizeUserId,
   transitionAccountState,
+  resetAccountState,
+  importAccountState,
   safeGetLocalStorage,
   safeSetLocalStorage,
   safeRemoveLocalStorage,
@@ -553,64 +556,22 @@ export default function App() {
   };
 
   const handleConfirmReset = () => {
-    const ownerId = normalizeUserId(systemState.userProfile?.id);
-    const scopedDemoKey = getScopedDemoConsumedKey(ownerId);
-    safeRemoveLocalStorage(scopedDemoKey);
-    if (!ownerId) {
-      safeRemoveLocalStorage(LEGACY_DEMO_CONSUMED_KEY);
-      safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
-    }
-    flushPendingStorageSave();
-    const fresh = ownerId
-      ? createInitialSystemState({ ...GUEST_USER_PROFILE, id: ownerId, name: systemState.userProfile?.name || 'کاربر سامورایی' })
-      : createInitialSystemState();
-    setSystemState(fresh);
-    setActiveCycleId(fresh.cycles[0]?.id || 'cycle-1');
+    const { freshState, activeCycleId } = resetAccountState(systemState.userProfile);
+    setSystemState(freshState);
+    setActiveCycleId(activeCycleId);
     setSelectedDate(getLogicalTodayDate());
     setIsResetConfirmOpen(false);
     showAppToast('داده‌های سامانه با موفقیت به مقادیر اولیه بوشیدو بازنشانی شد.');
   };
 
   const handleImportData = (dataStr: string) => {
-    try {
-      const parsed = JSON.parse(dataStr);
-      if (
-        parsed &&
-        typeof parsed === 'object' &&
-        Array.isArray(parsed.cycles) &&
-        Array.isArray(parsed.logs) &&
-        parsed.settings &&
-        typeof parsed.settings === 'object'
-      ) {
-        const ownerId = normalizeUserId(systemState.userProfile?.id);
-        if (!parsed.userProfile || typeof parsed.userProfile !== 'object') {
-          parsed.userProfile = ownerId
-            ? { ...GUEST_USER_PROFILE, id: ownerId, name: 'کاربر سامورایی' }
-            : createInitialSystemState().userProfile;
-        } else if (ownerId) {
-          parsed.userProfile.id = ownerId;
-        }
-
-        // Sanitize imported cycles and logs to guarantee structural integrity
-        parsed.cycles = parsed.cycles.filter((c: any) => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.startDate === 'string');
-        parsed.logs = parsed.logs.filter((l: any) => l && typeof l === 'object' && typeof l.date === 'string');
-
-        if (parsed.cycles.length === 0) {
-          showAppToast('فایل پشتیبان باید حداقل دارای یک چرخه معتبر باشد.', 'error');
-          return;
-        }
-
-        const scopedDemoKey = getScopedDemoConsumedKey(ownerId);
-        safeSetLocalStorage(scopedDemoKey, 'true');
-        flushPendingStorageSave();
-        setSystemState(parsed);
-        setActiveCycleId(parsed.cycles[0].id);
-        showAppToast('اطلاعات پشتیبان با موفقیت بازیابی شد.');
-      } else {
-        showAppToast('فرمت ساختار فایل پشتیبان نامعتبر است.', 'error');
-      }
-    } catch {
-      showAppToast('خطا در تجزیه فایل JSON.', 'error');
+    const result = importAccountState(dataStr, systemState.userProfile?.id);
+    if (result.success && result.state) {
+      setSystemState(result.state);
+      setActiveCycleId(result.activeCycleId || result.state.cycles[0]?.id || 'cycle-1');
+      showAppToast('اطلاعات پشتیبان با موفقیت بازیابی شد.');
+    } else {
+      showAppToast(result.errorMessage || 'خطا در بازیابی داده‌ها.', 'error');
     }
   };
 
