@@ -3,88 +3,9 @@ import {
   isPrismaAvailable,
   memoryStore,
   saveLocalStore,
-  DBSubscription,
-  DBOtpCode
+  DBSubscription
 } from './base';
 import { findUserById, updateUser } from './users';
-
-// -------------------------------------------------------------
-// OTP Codes
-// -------------------------------------------------------------
-export async function saveOtpCode(
-  identifier: string,
-  code: string,
-  userId?: string
-): Promise<DBOtpCode> {
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + 10 * 60000).toISOString(); // 10 minutes valid
-  const normalized = identifier.trim().toLowerCase();
-
-  const otp: DBOtpCode = {
-    id: `otp-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    identifier: normalized,
-    code,
-    expiresAt,
-    verified: false,
-    userId: userId || null,
-    createdAt: now.toISOString()
-  };
-
-  if (isPrismaAvailable && prisma) {
-    try {
-      return await prisma.otpCode.create({
-        data: otp
-      });
-    } catch (e) {
-      console.warn('[Database] Prisma saveOtpCode failed, saving to local store:', e);
-    }
-  }
-
-  // Invalidate previous OTPs for this identifier
-  memoryStore.otpCodes = memoryStore.otpCodes.filter(o => o.identifier !== normalized);
-  memoryStore.otpCodes.push(otp);
-  saveLocalStore();
-  return otp;
-}
-
-export async function verifyOtpCode(identifier: string, code: string): Promise<DBOtpCode | null> {
-  const normalized = identifier.trim().toLowerCase();
-  const nowStr = new Date().toISOString();
-
-  if (isPrismaAvailable && prisma) {
-    try {
-      const match = await prisma.otpCode.findFirst({
-        where: {
-          identifier: normalized,
-          code,
-          verified: false,
-          expiresAt: { gt: nowStr }
-        }
-      });
-      if (match) {
-        await prisma.otpCode.update({
-          where: { id: match.id },
-          data: { verified: true }
-        });
-        return match;
-      }
-    } catch (e) {
-      console.warn('[Database] Prisma verifyOtpCode failed, checking local store:', e);
-    }
-  }
-
-  const match = memoryStore.otpCodes.find(
-    o => o.identifier === normalized && o.code === code && !o.verified && o.expiresAt > nowStr
-  );
-
-  if (match) {
-    match.verified = true;
-    saveLocalStore();
-    return match;
-  }
-
-  return null;
-}
 
 // -------------------------------------------------------------
 // Subscriptions & Payment Transactions

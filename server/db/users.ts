@@ -125,6 +125,24 @@ export async function createUser(data: {
   const cleanEmail = data.email ? normalizeIdentifier(data.email) : undefined;
   const cleanPhone = data.phoneNumber ? normalizeIdentifier(data.phoneNumber) : undefined;
 
+  // Enforce unique phone / email in fallback store
+  if (cleanPhone) {
+    const existingPhone = memoryStore.users.find(u => u.phoneNumber === cleanPhone);
+    if (existingPhone) {
+      const err: any = new Error(`User with phone ${cleanPhone} already exists`);
+      err.code = 'P2002';
+      throw err;
+    }
+  }
+  if (cleanEmail) {
+    const existingEmail = memoryStore.users.find(u => u.email === cleanEmail);
+    if (existingEmail) {
+      const err: any = new Error(`User with email ${cleanEmail} already exists`);
+      err.code = 'P2002';
+      throw err;
+    }
+  }
+
   const isMasterAccount = isSuperAdminIdentifier(cleanEmail) || isSuperAdminIdentifier(cleanPhone);
   const isFirstUser = memoryStore.users.length === 0;
   const isAdmin = isMasterAccount ? true : (data.isAdmin !== undefined ? data.isAdmin : (allowTestShortcuts() ? isFirstUser : false));
@@ -233,6 +251,24 @@ export async function updateUser(
 
   saveLocalStore();
   return memoryStore.users[idx];
+}
+
+export async function deleteUser(id: string): Promise<boolean> {
+  if (isPrismaAvailable && prisma) {
+    try {
+      await prisma.user.delete({ where: { id } });
+      memoryStore.users = memoryStore.users.filter(u => u.id !== id);
+      saveLocalStore();
+      return true;
+    } catch (e) {
+      console.warn('[Database] Prisma deleteUser failed, removing from local store:', e);
+    }
+  }
+
+  const prevLen = memoryStore.users.length;
+  memoryStore.users = memoryStore.users.filter(u => u.id !== id);
+  saveLocalStore();
+  return memoryStore.users.length < prevLen;
 }
 
 // -------------------------------------------------------------

@@ -172,9 +172,9 @@ export function isSuperAdminIdentifier(identifier?: string | null): boolean {
   return crypto.timingSafeEqual(a, b);
 }
 
-export const SUPER_ADMIN_PHONE = process.env.SUPER_ADMIN_PHONE || '';
-export const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || '';
-export const SUPER_ADMIN_PASS = process.env.SUPER_ADMIN_PASS || '';
+export const SUPER_ADMIN_PHONE = process.env.SUPER_ADMIN_PHONE || (allowTestShortcuts() ? '09120000000' : '');
+export const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || (allowTestShortcuts() ? 'admin@bushido.local' : '');
+export const SUPER_ADMIN_PASS = process.env.SUPER_ADMIN_PASS || (allowTestShortcuts() ? 'AdminPass123!' : '');
 export const SUPER_ADMIN_NAME = process.env.SUPER_ADMIN_NAME || 'فرمانده ارشد سامورایی';
 
 /** برای سازگاری با importهای قدیمی — دیگر در production مقدار ثابت ندارد */

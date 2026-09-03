@@ -137,7 +137,6 @@ export async function createOtpChallenge(
     id: `otp-${nowTime}-${Math.floor(Math.random() * 1000)}`,
     identifier: normalizedPhone,
     purpose: options.purpose,
-    code: isProduction() ? undefined : code,
     codeHash,
     expiresAt,
     verified: false,

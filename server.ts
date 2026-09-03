@@ -10,14 +10,13 @@ import {
   findUserByPhoneNumber,
   createUser,
   updateUser,
+  deleteUser,
   getUserCycles,
   createCycle,
   updateCycle,
   deleteCycle,
   getUserDailyLogs,
   upsertDailyLog,
-  saveOtpCode,
-  verifyOtpCode,
   createSubscriptionRecord,
   completeSubscription,
   markSubscriptionFailed,
@@ -259,19 +258,41 @@ const handleRegisterVerifyOtp = async (req: express.Request, res: express.Respon
     // GAP 4: Public registration ALWAYS creates free unprivileged user:
     // isAdmin = false, isVip = false, tier = 'free'
     // Super Admin must never be created through ordinary public registration privilege logic.
-    const user = await createUser({
-      phoneNumber: canonicalPhone,
-      email: undefined, // Public email registration is not supported
-      name: name?.trim() || `کاربر ${canonicalPhone.slice(-4)}`,
-      passwordHash: hashedPassword,
-      tier: 'free',
-      isVip: false,
-      isAdmin: false
-    });
+    let user;
+    try {
+      user = await createUser({
+        phoneNumber: canonicalPhone,
+        email: undefined, // Public email registration is not supported
+        name: name?.trim() || `کاربر ${canonicalPhone.slice(-4)}`,
+        passwordHash: hashedPassword,
+        tier: 'free',
+        isVip: false,
+        isAdmin: false
+      });
+    } catch (createErr: any) {
+      if (createErr.message?.includes('already exists') || createErr.code === 'P2002') {
+        return res.status(400).json({
+          code: 'USER_EXISTS',
+          messageFa: 'کاربری با این شماره موبایل قبلاً ثبت‌نام نموده است.'
+        });
+      }
+      throw createErr;
+    }
 
     // Account creation succeeded: NOW consume the OTP challenge
+    let challengeConsumed = false;
     if (verifyRes.challengeId) {
-      await consumeOtpChallenge(verifyRes.challengeId);
+      challengeConsumed = await consumeOtpChallenge(verifyRes.challengeId);
+    }
+
+    // Registration Completion Consistency Invariant:
+    // If post-account OTP finalization fails, safely compensate by removing the unfinalized user.
+    if (!challengeConsumed && verifyRes.challengeId) {
+      await deleteUser(user.id);
+      return res.status(500).json({
+        code: 'OTP_FINALIZATION_FAILED',
+        messageFa: 'خطا در نهایی‌سازی تایید شماره. لطفاً مجدداً درخواست کد فرمایید.'
+      });
     }
 
     const token = generateToken({
@@ -609,59 +630,12 @@ app.post('/api/auth/send-otp', async (req, res, next) => {
   }
 });
 
-// 7. Verify OTP (Restricted Validation Adapter - NO auto-registration, NO auto-login)
-app.post('/api/auth/verify-otp', async (req, res, next) => {
-  try {
-    const rawId = req.body.phoneNumber || req.body.identifier || '';
-    const { code, purpose } = req.body;
-
-    if (!rawId || !code) {
-      return res.status(400).json({
-        code: 'BAD_REQUEST',
-        messageFa: 'شماره موبایل و کد تایید الزامی است.'
-      });
-    }
-
-    if (purpose !== 'PHONE_REGISTRATION' && purpose !== 'PASSWORD_RESET') {
-      return res.status(400).json({
-        code: 'INVALID_PURPOSE',
-        messageFa: 'اعتبارسنجی فقط برای مقاصد PHONE_REGISTRATION یا PASSWORD_RESET مجاز است.'
-      });
-    }
-
-    const canonicalPhone = normalizePhoneNumber(rawId);
-    if (!canonicalPhone) {
-      return res.status(400).json({
-        code: 'INVALID_PHONE_NUMBER',
-        messageFa: 'شماره موبایل نامعتبر است.'
-      });
-    }
-
-    const verifyRes = await verifyOtpChallenge({
-      phoneNumber: canonicalPhone,
-      code: String(code),
-      purpose
-    });
-
-    if (!verifyRes.success) {
-      return res.status(400).json({
-        code: verifyRes.code,
-        messageFa: verifyRes.messageFa,
-        remainingAttempts: verifyRes.remainingAttempts
-      });
-    }
-
-    // Strictly validation result ONLY. No token, no user creation.
-    res.json({
-      success: true,
-      verified: true,
-      phoneNumber: canonicalPhone,
-      purpose,
-      messageFa: 'کد تایید با موفقیت اعتبارسنجی شد. جهت ورود یا ثبت‌نام طبق روال استاندارد اقدام فرمایید.'
-    });
-  } catch (error) {
-    next(error);
-  }
+// 7. Verify OTP (Deprecated Generic Route - Rejected to prevent invalid challenge consumption)
+app.post('/api/auth/verify-otp', (req, res) => {
+  return res.status(400).json({
+    code: 'DEPRECATED_ROUTE',
+    messageFa: 'این مسیر اعتبارسنجی عمومی منسوخ شده است. لطفاً از مسیر اختصاصی ثبت‌نام (/api/auth/register/verify-otp) یا بازیابی رمز عبور (/api/auth/reset-password) استفاده فرمایید.'
+  });
 });
 
 // 7. Quick Direct Login (Locked in Production)
@@ -1252,4 +1226,5 @@ if (process.env.VERCEL) {
   startServer();
 }
 
+export { app };
 export default app;
