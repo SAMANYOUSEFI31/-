@@ -211,6 +211,8 @@ export interface AdminUserItem {
   createdAt: string;
 }
 
+export type SubscriptionStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
+
 export interface AdminSubscriptionItem {
   id: string;
   userId: string;
@@ -219,7 +221,7 @@ export interface AdminSubscriptionItem {
   authority: string;
   refId?: string | null;
   cardPan?: string | null;
-  status: string;
+  status: SubscriptionStatus;
   description?: string | null;
   expiresAt?: string | null;
   createdAt: string;

@@ -110,6 +110,8 @@ export interface DBOtpCode {
   createdAt: string;
 }
 
+export type DBSubscriptionStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
+
 export interface DBSubscription {
   id: string;
   userId: string;
@@ -118,7 +120,7 @@ export interface DBSubscription {
   authority: string;
   refId?: string | null;
   cardPan?: string | null;
-  status: string;
+  status: DBSubscriptionStatus;
   description?: string | null;
   expiresAt?: string | null;
   createdAt: string;

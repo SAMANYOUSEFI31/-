@@ -19,6 +19,7 @@ import {
   verifyOtpCode,
   createSubscriptionRecord,
   completeSubscription,
+  markSubscriptionFailed,
   getUserSubscriptions,
   adminGetAllUsers,
   adminUpdateUser,
@@ -778,7 +779,7 @@ app.post('/api/payment/verify', validateBody(paymentVerifySchema), async (req, r
     const existingSub = allSubs.find(s => s.authority === authority);
     
     // Idempotency check: Don't process twice
-    if (existingSub && existingSub.status === 'COMPLETED') {
+    if (existingSub && existingSub.status === 'SUCCESS') {
       return res.json({
         status: 101,
         refId: existingSub.refId,
@@ -814,6 +815,7 @@ app.post('/api/payment/verify', validateBody(paymentVerifySchema), async (req, r
         refId = zData.data.ref_id.toString();
         cardPan = zData.data.card_pan || cardPan;
       } else {
+        await markSubscriptionFailed(authority, 'تراکنش توسط درگاه زرین‌پال تایید نشد.');
         return res.status(400).json({
           code: 'PAYMENT_FAILED',
           messageFa: 'تراکنش توسط درگاه زرین‌پال تایید نشد.',

@@ -395,7 +395,7 @@ describe('Phase 1 Core Compliance & Acceptance Criteria Verification', () => {
       // Complete User A subscription
       const completedSub = await completeSubscription('AUTH-USER-A-001', 'REF-A-12345', '6037-99**-****-1234');
       assert.ok(completedSub);
-      assert.equal(completedSub?.status, 'COMPLETED');
+      assert.equal(completedSub?.status, 'SUCCESS');
 
       // Verify User A elevated to VIP
       const updatedUserA = await findUserById(userAId);

@@ -146,7 +146,7 @@ export async function completeSubscription(
         sub = await prisma.subscription.update({
           where: { authority },
           data: {
-            status: 'COMPLETED',
+            status: 'SUCCESS',
             refId,
             cardPan,
             expiresAt: nextYearStr,
@@ -164,7 +164,7 @@ export async function completeSubscription(
     if (idx !== -1) {
       memoryStore.subscriptions[idx] = {
         ...memoryStore.subscriptions[idx],
-        status: 'COMPLETED',
+        status: 'SUCCESS',
         refId,
         cardPan,
         expiresAt: nextYearStr,
@@ -184,6 +184,50 @@ export async function completeSubscription(
       vipExpiresAt: nextYearStr,
       paymentRefId: refId
     });
+  }
+
+  return sub;
+}
+
+export async function markSubscriptionFailed(
+  authority: string,
+  reason?: string
+): Promise<DBSubscription | null> {
+  const nowStr = new Date().toISOString();
+  let sub: DBSubscription | null = null;
+
+  if (isPrismaAvailable && prisma) {
+    try {
+      const match = await prisma.subscription.findUnique({
+        where: { authority }
+      });
+      if (match) {
+        sub = await prisma.subscription.update({
+          where: { authority },
+          data: {
+            status: 'FAILED',
+            description: reason ? `[ناموفق] ${reason}` : match.description,
+            updatedAt: nowStr
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('[Database] Prisma markSubscriptionFailed failed, updating local store:', e);
+    }
+  }
+
+  if (!sub) {
+    const idx = memoryStore.subscriptions.findIndex(s => s.authority === authority);
+    if (idx !== -1) {
+      memoryStore.subscriptions[idx] = {
+        ...memoryStore.subscriptions[idx],
+        status: 'FAILED',
+        description: reason ? `[ناموفق] ${reason}` : memoryStore.subscriptions[idx].description,
+        updatedAt: nowStr
+      };
+      saveLocalStore();
+      sub = memoryStore.subscriptions[idx];
+    }
   }
 
   return sub;
@@ -263,7 +307,7 @@ export async function adminGetOverviewStats(): Promise<{
         prisma.user.count(),
         prisma.user.count({ where: { isVip: true } }),
         prisma.dailyLog.findMany({ where: { date: todayIso }, select: { userId: true } }),
-        prisma.subscription.findMany({ where: { status: 'COMPLETED' }, select: { amount: true } }),
+        prisma.subscription.findMany({ where: { status: 'SUCCESS' }, select: { amount: true } }),
         prisma.dailyLog.count(),
         prisma.cycle.count({ where: { isArchived: false } })
       ]);
@@ -288,7 +332,7 @@ export async function adminGetOverviewStats(): Promise<{
   const vipUsers = users.filter(u => u.isVip).length;
   const logsToday = memoryStore.dailyLogs.filter(l => l.date === todayIso);
   const activeUserIds = new Set(logsToday.map(l => l.userId));
-  const completedSubs = memoryStore.subscriptions.filter(s => s.status === 'COMPLETED');
+  const completedSubs = memoryStore.subscriptions.filter(s => s.status === 'SUCCESS');
   const totalRevenueToman = completedSubs.reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
   return {

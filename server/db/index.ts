@@ -141,7 +141,9 @@ export {
   saveLocalStore,
   loadLocalStore,
   ensureDefaultAdminAndUsers,
-  setPrismaState
+  setPrismaState,
+  DBSubscriptionStatus,
+  DBSubscription
 } from './base.js';
 
 export * from './users.js';

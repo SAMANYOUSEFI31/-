@@ -737,10 +737,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
                           {sub.cardPan || '—'}
                         </td>
                         <td className="py-3.5 px-4">
-                          {sub.status === 'success' ? (
+                          {sub.status === 'SUCCESS' ? (
                             <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-sans font-bold">
                               <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                               موفق
+                            </span>
+                          ) : sub.status === 'FAILED' ? (
+                            <span className="inline-flex items-center gap-1 bg-red-500/20 text-red-300 border border-red-500/30 px-2 py-0.5 rounded-full text-[10px] font-sans font-bold">
+                              <AlertCircle className="w-3 h-3 text-red-400" />
+                              ناموفق
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full text-[10px] font-sans font-bold">
