@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { ShieldAlert, RotateCcw, RefreshCw, AlertTriangle, Home } from 'lucide-react';
+import { clearUserLocalState, getActiveAccountId, safeRemoveLocalStorage } from '../utils/storageUtils';
 
 interface Props {
   children: ReactNode;
@@ -33,8 +34,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleResetLocal = () => {
     try {
-      localStorage.removeItem('bushido_discipline_os_v1');
-      localStorage.removeItem('bushido_system_state_v1');
+      const activeId = getActiveAccountId();
+      clearUserLocalState(activeId);
+      clearUserLocalState(null); // Clear guest storage too
+      safeRemoveLocalStorage('bushido_discipline_os_v1');
+      safeRemoveLocalStorage('bushido_system_state_v1');
+      safeRemoveLocalStorage('bushido_active_account_id');
+      safeRemoveLocalStorage('bushido_auth_token');
       sessionStorage.clear();
     } catch (e) {
       console.warn('Failed to clear storage:', e);

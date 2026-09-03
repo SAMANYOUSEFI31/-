@@ -31,9 +31,16 @@ import {
   STORAGE_KEY, 
   TOKEN_KEY,
   DEMO_CONSUMED_KEY,
+  getScopedStorageKey,
+  getScopedDemoConsumedKey,
+  getActiveAccountId,
+  setActiveAccountId,
   safeGetLocalStorage,
   safeSetLocalStorage,
   safeRemoveLocalStorage,
+  safeGetSessionStorage,
+  safeSetSessionStorage,
+  safeRemoveSessionStorage,
   resolveBackendSyncDecision
 } from '../utils/storageUtils';
 
@@ -181,7 +188,11 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     logs: DailyLog[];
     settings: SystemSettings;
     userProfile: UserProfile;
-  }>(() => loadStoredSystemState());
+  }>(() => {
+    const token = safeGetLocalStorage(TOKEN_KEY);
+    const activeAcc = getActiveAccountId();
+    return loadStoredSystemState(token ? activeAcc : null);
+  });
 
   const [activeCycleId, setActiveCycleId] = useState<string>(() => {
     return systemState.cycles[0]?.id || 'cycle-1';
@@ -239,7 +250,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [systemState.cycles, activeCycleId]);
 
   useEffect(() => {
-    saveSystemStateDebounced(systemState, 350);
+    saveSystemStateDebounced(systemState, systemState.userProfile?.id, 350);
     const theme = systemState.userProfile?.accentTheme || systemState.settings?.accentTheme || 'amber';
     applyAccentTheme(theme);
   }, [systemState]);
@@ -263,6 +274,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
             const data = await res.json();
             if (data.token && data.user) {
               safeSetLocalStorage(TOKEN_KEY, data.token);
+              setActiveAccountId(data.user.id);
               setAuthToken(data.token);
               setSystemState(prev => ({
                 ...prev,
@@ -329,6 +341,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
             if (userRes.ok) {
               const userData = await userRes.json();
               if (userData?.user) {
+                setActiveAccountId(userData.user.id);
                 fetchedUserProfile = {
                   ...userData.user,
                   isVip: Boolean(userData.user.isVip),
@@ -336,7 +349,8 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
                 };
               }
             } else if (userRes.status === 401) {
-              localStorage.removeItem(TOKEN_KEY);
+              safeRemoveLocalStorage(TOKEN_KEY);
+              setActiveAccountId(null);
               setAuthToken(null);
             }
           }
@@ -368,7 +382,9 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
 
         if (isCancelled) return;
 
-        const isDemoConsumed = safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
+        const activeUserId = fetchedUserProfile?.id || (authToken ? getActiveAccountId() : null);
+        const scopedDemoKey = getScopedDemoConsumedKey(activeUserId);
+        const isDemoConsumed = safeGetLocalStorage(scopedDemoKey) === 'true';
         const syncDecision = resolveBackendSyncDecision({
           apiCycles,
           apiLogs,
@@ -376,7 +392,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
         });
 
         if (syncDecision.shouldMarkDemoConsumed) {
-          safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
+          safeSetLocalStorage(scopedDemoKey, 'true');
         }
 
         const { nextCycles, nextLogs, nextActiveCycleId } = syncDecision;
@@ -888,19 +904,27 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [showAppToast]);
 
   const handleAuthSuccess = useCallback((token: string, user: UserProfile) => {
-    sessionStorage.removeItem('bushido_explicit_logout');
-    localStorage.setItem(TOKEN_KEY, token);
+    flushPendingStorageSave();
+    safeRemoveSessionStorage('bushido_explicit_logout');
+    safeSetLocalStorage(TOKEN_KEY, token);
+    setActiveAccountId(user.id);
     setAuthToken(token);
-    setSystemState(prev => ({
-      ...prev,
+
+    const userLocalState = loadStoredSystemState(user.id);
+    setSystemState({
+      ...userLocalState,
       userProfile: user
-    }));
+    });
+    if (userLocalState.cycles.length > 0) {
+      setActiveCycleId(userLocalState.cycles[0].id);
+    }
     showAppToast(`با موفقیت وارد حساب «${user.name || 'کاربر'}» شدید.`);
   }, [showAppToast]);
 
   const handleQuickLogin = useCallback(async (role: 'admin' | 'test_user') => {
     try {
-      sessionStorage.removeItem('bushido_explicit_logout');
+      flushPendingStorageSave();
+      safeRemoveSessionStorage('bushido_explicit_logout');
       let data: any = null;
       let isExplicitlyRejected = false;
 
@@ -928,17 +952,22 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       if (isExplicitlyRejected) return;
 
       if (data && data.token && data.user) {
-        localStorage.setItem(TOKEN_KEY, data.token);
+        safeSetLocalStorage(TOKEN_KEY, data.token);
+        setActiveAccountId(data.user.id);
         setAuthToken(data.token);
-        setSystemState(prev => ({
-          ...prev,
+        const userLocalState = loadStoredSystemState(data.user.id);
+        setSystemState({
+          ...userLocalState,
           userProfile: {
-            ...prev.userProfile,
+            ...userLocalState.userProfile,
             ...data.user,
             isVip: Boolean(data.user.isVip),
             isAdmin: Boolean(data.user.isAdmin)
           }
-        }));
+        });
+        if (userLocalState.cycles.length > 0) {
+          setActiveCycleId(userLocalState.cycles[0].id);
+        }
         showAppToast(role === 'admin' ? 'به عنوان مدیر ارشد سیستم وارد شدید.' : 'به عنوان کاربر تستی وارد شدید.');
         return;
       }
@@ -975,12 +1004,17 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
         activeCycleLimit: 1
       };
 
-      localStorage.setItem(TOKEN_KEY, fallbackToken);
+      safeSetLocalStorage(TOKEN_KEY, fallbackToken);
+      setActiveAccountId(fallbackUser.id);
       setAuthToken(fallbackToken);
-      setSystemState(prev => ({
-        ...prev,
+      const fallbackLocalState = loadStoredSystemState(fallbackUser.id);
+      setSystemState({
+        ...fallbackLocalState,
         userProfile: fallbackUser
-      }));
+      });
+      if (fallbackLocalState.cycles.length > 0) {
+        setActiveCycleId(fallbackLocalState.cycles[0].id);
+      }
       showAppToast(role === 'admin' ? 'به عنوان مدیر ارشد سیستم وارد شدید.' : 'به عنوان کاربر تستی وارد شدید.');
     } catch (e) {
       console.error('Quick login error:', e);
@@ -990,8 +1024,10 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const handleImpersonateUser = useCallback(async (targetUser: AdminUserItem) => {
     try {
-      const currentToken = authToken || localStorage.getItem(TOKEN_KEY);
+      const currentToken = authToken || safeGetLocalStorage(TOKEN_KEY);
       if (!currentToken) return;
+
+      flushPendingStorageSave();
 
       const res = await fetch('/api/admin/impersonate', {
         method: 'POST',
@@ -1007,17 +1043,22 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
         if (data.token && data.user) {
           setImpersonatorAdminToken(currentToken);
           setImpersonatingUser(targetUser);
-          localStorage.setItem(TOKEN_KEY, data.token);
+          safeSetLocalStorage(TOKEN_KEY, data.token);
+          setActiveAccountId(data.user.id);
           setAuthToken(data.token);
-          setSystemState(prev => ({
-            ...prev,
+          const targetLocalState = loadStoredSystemState(data.user.id);
+          setSystemState({
+            ...targetLocalState,
             userProfile: {
-              ...prev.userProfile,
+              ...targetLocalState.userProfile,
               ...data.user,
               isVip: Boolean(data.user.isVip),
               isAdmin: Boolean(data.user.isAdmin)
             }
-          }));
+          });
+          if (targetLocalState.cycles.length > 0) {
+            setActiveCycleId(targetLocalState.cycles[0].id);
+          }
           setActiveTab('battlefield');
           showAppToast(`در حال شبیه‌سازی و مشاهده سامانه از دید: «${data.user.name}»`);
         } else {
@@ -1036,7 +1077,8 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   const handleExitImpersonation = useCallback(async () => {
     if (!impersonatorAdminToken) return;
     try {
-      localStorage.setItem(TOKEN_KEY, impersonatorAdminToken);
+      flushPendingStorageSave();
+      safeSetLocalStorage(TOKEN_KEY, impersonatorAdminToken);
       setAuthToken(impersonatorAdminToken);
       setImpersonatingUser(null);
       const res = await fetch('/api/auth/me', {
@@ -1048,15 +1090,20 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       if (res.ok) {
         const data = await res.json();
         if (data.user) {
-          setSystemState(prev => ({
-            ...prev,
+          setActiveAccountId(data.user.id);
+          const adminLocalState = loadStoredSystemState(data.user.id);
+          setSystemState({
+            ...adminLocalState,
             userProfile: {
-              ...prev.userProfile,
+              ...adminLocalState.userProfile,
               ...data.user,
               isVip: Boolean(data.user.isVip),
               isAdmin: Boolean(data.user.isAdmin)
             }
-          }));
+          });
+          if (adminLocalState.cycles.length > 0) {
+            setActiveCycleId(adminLocalState.cycles[0].id);
+          }
         }
       }
       setImpersonatorAdminToken(null);
@@ -1068,15 +1115,16 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [impersonatorAdminToken, showAppToast]);
 
   const handleLogout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
-    sessionStorage.setItem('bushido_explicit_logout', 'true');
+    flushPendingStorageSave();
+    safeRemoveLocalStorage(TOKEN_KEY);
+    setActiveAccountId(null);
+    safeSetSessionStorage('bushido_explicit_logout', 'true');
     setAuthToken(null);
     setImpersonatingUser(null);
     setImpersonatorAdminToken(null);
-    setSystemState(prev => ({
-      ...prev,
-      userProfile: GUEST_USER_PROFILE
-    }));
+    const guestState = loadStoredSystemState(null);
+    setSystemState(guestState);
+    setActiveCycleId(guestState.cycles[0]?.id || 'cycle-1');
     setIsAuthModalOpen(false);
     showAppToast('با موفقیت از حساب کاربری خارج شدید.');
   }, [showAppToast]);

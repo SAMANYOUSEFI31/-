@@ -20,6 +20,10 @@ import {
   flushPendingStorageSave, 
   TOKEN_KEY,
   DEMO_CONSUMED_KEY,
+  getScopedStorageKey,
+  getScopedDemoConsumedKey,
+  getActiveAccountId,
+  setActiveAccountId,
   safeGetLocalStorage,
   safeSetLocalStorage,
   safeRemoveLocalStorage,
@@ -117,7 +121,11 @@ export default function App() {
     logs: DailyLog[];
     settings: SystemSettings;
     userProfile: UserProfile;
-  }>(() => loadStoredSystemState());
+  }>(() => {
+    const token = safeGetLocalStorage(TOKEN_KEY);
+    const activeAcc = getActiveAccountId();
+    return loadStoredSystemState(token ? activeAcc : null);
+  });
 
   const [activeCycleId, setActiveCycleId] = useState<string>(() => {
     return systemState.cycles[0]?.id || 'cycle-1';
@@ -185,9 +193,9 @@ export default function App() {
     }
   }, [systemState.cycles, activeCycleId]);
 
-  // Debounced non-blocking async persistence to eliminate main thread freeze on mobile
+  // Debounced non-blocking async persistence scoped to active account
   useEffect(() => {
-    saveSystemStateDebounced(systemState, 350);
+    saveSystemStateDebounced(systemState, systemState.userProfile?.id, 350);
     const theme = systemState.userProfile?.accentTheme || systemState.settings?.accentTheme || 'amber';
     applyAccentTheme(theme);
   }, [systemState]);
@@ -218,6 +226,7 @@ export default function App() {
               if (data.token && data.user) {
                 currentToken = data.token;
                 safeSetLocalStorage(TOKEN_KEY, data.token);
+                setActiveAccountId(data.user.id);
                 setAuthToken(data.token);
               }
             }
@@ -247,6 +256,7 @@ export default function App() {
           if (userRes.ok) {
             const userData = await userRes.json();
             if (userData?.user) {
+              setActiveAccountId(userData.user.id);
               fetchedUserProfile = {
                 ...userData.user,
                 isVip: Boolean(userData.user.isVip),
@@ -255,6 +265,7 @@ export default function App() {
             }
           } else if (userRes.status === 401) {
             safeRemoveLocalStorage(TOKEN_KEY);
+            setActiveAccountId(null);
             setAuthToken(null);
           }
         }
@@ -279,7 +290,9 @@ export default function App() {
 
         if (isCancelled) return;
 
-        const isDemoConsumed = safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
+        const activeUserId = fetchedUserProfile?.id || (currentToken ? getActiveAccountId() : null);
+        const scopedDemoKey = getScopedDemoConsumedKey(activeUserId);
+        const isDemoConsumed = safeGetLocalStorage(scopedDemoKey) === 'true';
         const syncDecision = resolveBackendSyncDecision({
           apiCycles,
           apiLogs,
@@ -287,7 +300,7 @@ export default function App() {
         });
 
         if (syncDecision.shouldMarkDemoConsumed) {
-          safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
+          safeSetLocalStorage(scopedDemoKey, 'true');
         }
 
         const { nextCycles, nextLogs, nextActiveCycleId } = syncDecision;
@@ -580,18 +593,26 @@ export default function App() {
   };
 
   const handleAuthSuccess = (token: string, user: UserProfile) => {
+    flushPendingStorageSave();
     safeRemoveSessionStorage('bushido_explicit_logout');
     safeSetLocalStorage(TOKEN_KEY, token);
+    setActiveAccountId(user.id);
     setAuthToken(token);
-    setSystemState(prev => ({
-      ...prev,
+
+    const userLocalState = loadStoredSystemState(user.id);
+    setSystemState({
+      ...userLocalState,
       userProfile: user
-    }));
+    });
+    if (userLocalState.cycles.length > 0) {
+      setActiveCycleId(userLocalState.cycles[0].id);
+    }
     showAppToast(`با موفقیت وارد حساب «${user.name || 'کاربر'}» شدید.`);
   };
 
   const handleQuickLogin = async (role: 'admin' | 'test_user') => {
     try {
+      flushPendingStorageSave();
       safeRemoveSessionStorage('bushido_explicit_logout');
       const res = await fetch('/api/auth/quick-login', {
         method: 'POST',
@@ -601,16 +622,21 @@ export default function App() {
       const data = await res.json();
       if (res.ok && data.token && data.user) {
         safeSetLocalStorage(TOKEN_KEY, data.token);
+        setActiveAccountId(data.user.id);
         setAuthToken(data.token);
-        setSystemState(prev => ({
-          ...prev,
+        const userLocalState = loadStoredSystemState(data.user.id);
+        setSystemState({
+          ...userLocalState,
           userProfile: {
-            ...prev.userProfile,
+            ...userLocalState.userProfile,
             ...data.user,
             isVip: Boolean(data.user.isVip),
             isAdmin: Boolean(data.user.isAdmin)
           }
-        }));
+        });
+        if (userLocalState.cycles.length > 0) {
+          setActiveCycleId(userLocalState.cycles[0].id);
+        }
         showAppToast(role === 'admin' ? 'به عنوان مدیر ارشد سیستم وارد شدید.' : 'به عنوان کاربر تستی وارد شدید.');
       } else {
         showAppToast(data.messageFa || data.error || 'ورود سریع در این محیط غیرفعال است.', 'error');
@@ -626,6 +652,8 @@ export default function App() {
       const currentToken = authToken || safeGetLocalStorage(TOKEN_KEY);
       if (!currentToken) return;
 
+      flushPendingStorageSave();
+
       const res = await fetch('/api/admin/impersonate', {
         method: 'POST',
         headers: {
@@ -640,16 +668,21 @@ export default function App() {
         setImpersonatorAdminToken(currentToken);
         setImpersonatingUser(targetUser);
         safeSetLocalStorage(TOKEN_KEY, data.token);
+        setActiveAccountId(data.user.id);
         setAuthToken(data.token);
-        setSystemState(prev => ({
-          ...prev,
+        const targetLocalState = loadStoredSystemState(data.user.id);
+        setSystemState({
+          ...targetLocalState,
           userProfile: {
-            ...prev.userProfile,
+            ...targetLocalState.userProfile,
             ...data.user,
             isVip: Boolean(data.user.isVip),
             isAdmin: Boolean(data.user.isAdmin)
           }
-        }));
+        });
+        if (targetLocalState.cycles.length > 0) {
+          setActiveCycleId(targetLocalState.cycles[0].id);
+        }
         setActiveTab('battlefield');
         showAppToast(`در حال شبیه‌سازی و مشاهده سامانه از دید: «${data.user.name}»`);
       } else {
@@ -664,6 +697,7 @@ export default function App() {
   const handleExitImpersonation = async () => {
     if (!impersonatorAdminToken) return;
     try {
+      flushPendingStorageSave();
       safeSetLocalStorage(TOKEN_KEY, impersonatorAdminToken);
       setAuthToken(impersonatorAdminToken);
       setImpersonatingUser(null);
@@ -676,15 +710,20 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         if (data.user) {
-          setSystemState(prev => ({
-            ...prev,
+          setActiveAccountId(data.user.id);
+          const adminLocalState = loadStoredSystemState(data.user.id);
+          setSystemState({
+            ...adminLocalState,
             userProfile: {
-              ...prev.userProfile,
+              ...adminLocalState.userProfile,
               ...data.user,
               isVip: Boolean(data.user.isVip),
               isAdmin: Boolean(data.user.isAdmin)
             }
-          }));
+          });
+          if (adminLocalState.cycles.length > 0) {
+            setActiveCycleId(adminLocalState.cycles[0].id);
+          }
         }
       }
       setImpersonatorAdminToken(null);
@@ -696,15 +735,19 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    // 1. Flush any pending changes to current authenticated user's scoped storage
+    flushPendingStorageSave();
+    // 2. Clear authentication tokens and active account pointer
     safeRemoveLocalStorage(TOKEN_KEY);
+    setActiveAccountId(null);
     safeSetSessionStorage('bushido_explicit_logout', 'true');
     setAuthToken(null);
     setImpersonatingUser(null);
     setImpersonatorAdminToken(null);
-    setSystemState(prev => ({
-      ...prev,
-      userProfile: GUEST_USER_PROFILE
-    }));
+    // 3. Clear in-memory authenticated data and reload clean guest state
+    const guestState = loadStoredSystemState(null);
+    setSystemState(guestState);
+    setActiveCycleId(guestState.cycles[0]?.id || 'cycle-1');
     setIsAuthModalOpen(false);
     showAppToast('با موفقیت از حساب کاربری خارج شدید.');
   };

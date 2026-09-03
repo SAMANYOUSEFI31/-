@@ -1,9 +1,65 @@
-import { SystemState, Cycle, DailyLog } from '../types';
-import { createInitialSystemState, createEmptySystemState } from '../data/initialData';
+import { SystemState, Cycle, DailyLog, UserProfile } from '../types';
+import { createInitialSystemState, createEmptySystemState, GUEST_USER_PROFILE } from '../data/initialData';
 
 export const STORAGE_KEY = 'bushido_discipline_os_v1';
-export const TOKEN_KEY = 'bushido_auth_token';
+export const LEGACY_STORAGE_KEY = 'bushido_discipline_os_v1';
+export const STORAGE_PREFIX = 'bushido_state_';
 export const DEMO_CONSUMED_KEY = 'bushido_demo_consumed_v1';
+export const LEGACY_DEMO_CONSUMED_KEY = 'bushido_demo_consumed_v1';
+export const DEMO_CONSUMED_PREFIX = 'bushido_demo_consumed_';
+export const TOKEN_KEY = 'bushido_auth_token';
+export const ACTIVE_ACCOUNT_KEY = 'bushido_active_account_id';
+export const GUEST_USER_ID = '__guest__';
+
+/**
+ * Normalizes an account identifier to a stable, canonical ownership key.
+ * Only stable unique user IDs are accepted (e.g. 'admin-master-001', 'usr_...', UUID).
+ * Returns null for anonymous/guest sessions, empty strings, or undefined.
+ */
+export function normalizeUserId(userId?: string | null): string | null {
+  if (!userId || typeof userId !== 'string') return null;
+  const trimmed = userId.trim();
+  if (trimmed === '' || trimmed === GUEST_USER_ID || trimmed === 'null' || trimmed === 'undefined') {
+    return null;
+  }
+  return trimmed;
+}
+
+/**
+ * Generates an account-scoped storage key for system state.
+ * Guarantees cryptographic / storage separation between anonymous/guest state and authenticated accounts.
+ */
+export function getScopedStorageKey(userId?: string | null): string {
+  const normId = normalizeUserId(userId);
+  return normId ? `${STORAGE_PREFIX}user_${normId}` : `${STORAGE_PREFIX}guest`;
+}
+
+/**
+ * Generates an account-scoped storage key for the demo consumption flag.
+ */
+export function getScopedDemoConsumedKey(userId?: string | null): string {
+  const normId = normalizeUserId(userId);
+  return normId ? `${DEMO_CONSUMED_PREFIX}user_${normId}` : `${DEMO_CONSUMED_PREFIX}guest`;
+}
+
+/**
+ * Gets the active local account identifier.
+ */
+export function getActiveAccountId(): string | null {
+  return normalizeUserId(safeGetLocalStorage(ACTIVE_ACCOUNT_KEY));
+}
+
+/**
+ * Sets or clears the active local account identifier.
+ */
+export function setActiveAccountId(userId: string | null): void {
+  const normId = normalizeUserId(userId);
+  if (normId) {
+    safeSetLocalStorage(ACTIVE_ACCOUNT_KEY, normId);
+  } else {
+    safeRemoveLocalStorage(ACTIVE_ACCOUNT_KEY);
+  }
+}
 
 export interface BackendSyncDecisionInput {
   apiCycles: Cycle[] | null;
@@ -143,17 +199,20 @@ export function safeRemoveSessionStorage(key: string): boolean {
 }
 
 let pendingStateToSave: SystemState | null = null;
+let pendingOwnerId: string | null = null;
 let debounceTimer: NodeJS.Timeout | number | null = null;
 let idleCallbackId: number | null = null;
 
 const DEBOUNCE_DELAY_MS = 350;
 
 /**
- * Directly writes state to localStorage safely
+ * Directly writes state to localStorage under the designated account scope.
  */
-function writeStateDirect(state: SystemState): boolean {
+export function writeStateDirect(state: SystemState, userId?: string | null): boolean {
   try {
-    return safeSetLocalStorage(STORAGE_KEY, JSON.stringify(state));
+    const ownerId = normalizeUserId(userId || state.userProfile?.id);
+    const targetKey = getScopedStorageKey(ownerId);
+    return safeSetLocalStorage(targetKey, JSON.stringify(state));
   } catch (err) {
     console.error('[Bushido Storage] Failed to save state to localStorage:', err);
     return false;
@@ -162,7 +221,7 @@ function writeStateDirect(state: SystemState): boolean {
 
 /**
  * Flush any pending debounced writes immediately to disk.
- * Must be called before page unload or critical resets.
+ * Must be called before page unload, logout, or account switches.
  */
 export function flushPendingStorageSave(): void {
   if (debounceTimer) {
@@ -174,8 +233,9 @@ export function flushPendingStorageSave(): void {
     idleCallbackId = null;
   }
   if (pendingStateToSave) {
-    writeStateDirect(pendingStateToSave);
+    writeStateDirect(pendingStateToSave, pendingOwnerId);
     pendingStateToSave = null;
+    pendingOwnerId = null;
   }
 }
 
@@ -191,11 +251,36 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * Asynchronously persists system state to localStorage with debouncing & requestIdleCallback
+ * Asynchronously persists system state to account-scoped localStorage with debouncing & requestIdleCallback
  * to completely eliminate main thread blocking and frame drops on rapid habit toggling.
  */
-export function saveSystemStateDebounced(state: SystemState, delayMs: number = DEBOUNCE_DELAY_MS): void {
+export function saveSystemStateDebounced(
+  state: SystemState, 
+  userIdOrDelay?: string | null | number, 
+  delayMsArg?: number
+): void {
+  let targetUserId: string | null | undefined;
+  let delayMs = DEBOUNCE_DELAY_MS;
+
+  if (typeof userIdOrDelay === 'number') {
+    delayMs = userIdOrDelay;
+    targetUserId = state.userProfile?.id;
+  } else {
+    targetUserId = userIdOrDelay;
+    if (typeof delayMsArg === 'number') {
+      delayMs = delayMsArg;
+    }
+  }
+
+  const ownerId = normalizeUserId(targetUserId || state.userProfile?.id);
+
+  // If the owner changed before previous debounced write flushed, flush old owner immediately
+  if (pendingStateToSave && pendingOwnerId !== ownerId) {
+    flushPendingStorageSave();
+  }
+
   pendingStateToSave = state;
+  pendingOwnerId = ownerId;
 
   if (debounceTimer) {
     clearTimeout(debounceTimer as NodeJS.Timeout);
@@ -212,75 +297,176 @@ export function saveSystemStateDebounced(state: SystemState, delayMs: number = D
         () => {
           idleCallbackId = null;
           if (pendingStateToSave) {
-            writeStateDirect(pendingStateToSave);
+            writeStateDirect(pendingStateToSave, pendingOwnerId);
             pendingStateToSave = null;
+            pendingOwnerId = null;
           }
         },
         { timeout: 1000 }
       );
     } else {
       if (pendingStateToSave) {
-        writeStateDirect(pendingStateToSave);
+        writeStateDirect(pendingStateToSave, pendingOwnerId);
         pendingStateToSave = null;
+        pendingOwnerId = null;
       }
     }
   }, delayMs);
 }
 
 /**
- * Loads system state from localStorage with fallback and schema migration checks.
- * Correctly preserves empty cycles/logs arrays if the user deleted all data.
+ * Loads account-scoped system state from localStorage with fallback and schema migration checks.
+ * Guarantees that User A's stored cycles/logs are NEVER loaded for User B or anonymous sessions.
  */
-export function loadStoredSystemState(): SystemState {
-  const isDemoConsumed = safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
-  const defaultFallback = isDemoConsumed ? createEmptySystemState() : createInitialSystemState();
+export function loadStoredSystemState(userId?: string | null): SystemState {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedStorageKey(normId);
+  const scopedDemoKey = getScopedDemoConsumedKey(normId);
+
+  // 1. ANONYMOUS / GUEST SESSION
+  if (!normId) {
+    const isDemoConsumed = 
+      safeGetLocalStorage(scopedDemoKey) === 'true' || 
+      safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
+
+    const guestFallback = isDemoConsumed ? createEmptySystemState(GUEST_USER_PROFILE) : createInitialSystemState();
+
+    try {
+      let saved = safeGetLocalStorage(scopedKey);
+      // Migration fallback for initial legacy guest key if present
+      if (!saved && safeGetLocalStorage(LEGACY_STORAGE_KEY)) {
+        const legacyRaw = safeGetLocalStorage(LEGACY_STORAGE_KEY);
+        if (legacyRaw) {
+          try {
+            const legacyParsed = JSON.parse(legacyRaw);
+            // Only migrate if legacy data belongs to guest or default initial admin
+            if (!legacyParsed.userProfile?.id || legacyParsed.userProfile?.id === GUEST_USER_PROFILE.id) {
+              saved = legacyRaw;
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return sanitizeSystemState(parsed, guestFallback, GUEST_USER_PROFILE);
+        }
+      }
+    } catch (e) {
+      console.warn('[Bushido Storage] Failed to load guest state from localStorage, initializing fresh:', e);
+    }
+    return guestFallback;
+  }
+
+  // 2. AUTHENTICATED USER SESSION
+  const authFallbackUser: UserProfile = {
+    ...GUEST_USER_PROFILE,
+    id: normId,
+    name: 'کاربر سامورایی'
+  };
+  const authFallback = createEmptySystemState(authFallbackUser);
 
   try {
-    const saved = safeGetLocalStorage(STORAGE_KEY);
+    let saved = safeGetLocalStorage(scopedKey);
+
+    // Backward-compat check for initial admin master profile if stored under legacy key
+    if (!saved && normId === 'admin-master-001') {
+      const legacyRaw = safeGetLocalStorage(LEGACY_STORAGE_KEY);
+      if (legacyRaw) {
+        try {
+          const legacyParsed = JSON.parse(legacyRaw);
+          if (legacyParsed.userProfile?.id === 'admin-master-001') {
+            saved = legacyRaw;
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (!parsed || typeof parsed !== 'object') {
-        return defaultFallback;
+      if (parsed && typeof parsed === 'object') {
+        const sanitized = sanitizeSystemState(parsed, authFallback, authFallbackUser);
+        // Strict boundary: ensure userProfile.id matches the requested authenticated normId
+        sanitized.userProfile.id = normId;
+        return sanitized;
       }
-
-      // 1. User Profile Protection
-      if (!parsed.userProfile || typeof parsed.userProfile !== 'object') {
-        parsed.userProfile = defaultFallback.userProfile;
-      }
-
-      // 2. Cycles Array Protection (Strict Array.isArray check, preserving intentionally empty cycles only if demo consumed)
-      if (!Array.isArray(parsed.cycles) || (!isDemoConsumed && parsed.cycles.length === 0)) {
-        parsed.cycles = defaultFallback.cycles;
-      } else {
-        parsed.cycles = parsed.cycles
-          .filter((c: any) => c && typeof c === 'object' && typeof c.id === 'string')
-          .map((c: any) => ({
-            ...c,
-            isSynced: c.isSynced !== undefined ? c.isSynced : false
-          }));
-      }
-
-      // 3. Logs Array Protection (Strict Array.isArray check, preserving intentionally empty logs only if demo consumed)
-      if (!Array.isArray(parsed.logs) || (!isDemoConsumed && parsed.cycles.length > 0 && parsed.cycles[0].id === 'cycle-1' && parsed.logs.length === 0)) {
-        parsed.logs = defaultFallback.logs;
-      } else {
-        parsed.logs = parsed.logs
-          .filter((l: any) => l && typeof l === 'object' && typeof l.date === 'string')
-          .map((l: any) => ({
-            ...l,
-            isSynced: l.isSynced !== undefined ? l.isSynced : false
-          }));
-      }
-
-      // 4. Settings Protection
-      if (!parsed.settings || typeof parsed.settings !== 'object') {
-        parsed.settings = defaultFallback.settings;
-      }
-
-      return parsed as SystemState;
     }
   } catch (e) {
-    console.warn('[Bushido Storage] Failed to load from localStorage, initializing fresh:', e);
+    console.warn(`[Bushido Storage] Failed to load state for user ${normId}:`, e);
   }
-  return defaultFallback;
+
+  return authFallback;
 }
+
+/**
+ * Sanitizes and validates a parsed raw JSON object into a structurally sound SystemState
+ */
+function sanitizeSystemState(
+  parsed: any, 
+  fallbackState: SystemState, 
+  defaultProfile: UserProfile
+): SystemState {
+  const result = { ...fallbackState };
+
+  // 1. User Profile Protection
+  if (parsed.userProfile && typeof parsed.userProfile === 'object') {
+    result.userProfile = {
+      ...defaultProfile,
+      ...parsed.userProfile
+    };
+  } else {
+    result.userProfile = defaultProfile;
+  }
+
+  // 2. Cycles Array Protection
+  if (Array.isArray(parsed.cycles)) {
+    result.cycles = parsed.cycles
+      .filter((c: any) => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.startDate === 'string')
+      .map((c: any) => ({
+        ...c,
+        isSynced: c.isSynced !== undefined ? Boolean(c.isSynced) : false
+      }));
+  }
+
+  // 3. Logs Array Protection
+  if (Array.isArray(parsed.logs)) {
+    result.logs = parsed.logs
+      .filter((l: any) => l && typeof l === 'object' && typeof l.date === 'string')
+      .map((l: any) => ({
+        ...l,
+        isSynced: l.isSynced !== undefined ? Boolean(l.isSynced) : false
+      }));
+  }
+
+  // 4. Settings Protection
+  if (parsed.settings && typeof parsed.settings === 'object') {
+    result.settings = {
+      ...fallbackState.settings,
+      ...parsed.settings
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Clears local state partition for a specific user.
+ * Does NOT touch server-side data or other users' storage.
+ */
+export function clearUserLocalState(userId?: string | null): void {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedStorageKey(normId);
+  const scopedDemoKey = getScopedDemoConsumedKey(normId);
+  safeRemoveLocalStorage(scopedKey);
+  safeRemoveLocalStorage(scopedDemoKey);
+  if (!normId) {
+    safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
+    safeRemoveLocalStorage(LEGACY_DEMO_CONSUMED_KEY);
+  }
+}
+
