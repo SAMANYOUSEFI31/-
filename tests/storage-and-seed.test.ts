@@ -5,6 +5,7 @@ import {
   loadStoredSystemState, 
   STORAGE_KEY, 
   DEMO_CONSUMED_KEY, 
+  getScopedStorageKey,
   resolveBackendSyncDecision 
 } from '../src/utils/storageUtils.js';
 
@@ -78,9 +79,9 @@ describe('Bushido Storage & Seed Preservation', () => {
         }
       };
 
-      storageMock[STORAGE_KEY] = JSON.stringify(customState);
+      storageMock[getScopedStorageKey('user-custom-1')] = JSON.stringify(customState);
 
-      const loaded = loadStoredSystemState();
+      const loaded = loadStoredSystemState('user-custom-1');
       assert.equal(loaded.cycles.length, 1);
       assert.equal(loaded.cycles[0].id, 'my-custom-cycle');
       assert.equal(loaded.cycles[0].title, 'چرخه اختصاصی من');

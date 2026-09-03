@@ -12,11 +12,16 @@ import {
   updateUser,
   deleteUser,
   getUserCycles,
+  getCycleById,
   createCycle,
   updateCycle,
+  archiveCycle,
+  restoreCycle,
   deleteCycle,
   getUserDailyLogs,
+  getDailyLogById,
   upsertDailyLog,
+  deleteDailyLog,
   createSubscriptionRecord,
   completeSubscription,
   markSubscriptionFailed,
@@ -736,6 +741,20 @@ app.get('/api/cycles', authMiddleware, async (req: AuthenticatedRequest, res, ne
   }
 });
 
+app.get('/api/cycles/:id', authMiddleware, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const userId = req.user!.userId;
+    const cycleId = req.params.id;
+    const cycle = await getCycleById(userId, cycleId);
+    if (!cycle) {
+      return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'چرخه مورد نظر یافت نشد.' });
+    }
+    res.json({ cycle });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post('/api/cycles', authMiddleware, validateBody(createCycleSchema), async (req: AuthenticatedRequest, res, next) => {
   try {
     const userId = req.user!.userId;
@@ -756,6 +775,34 @@ app.put('/api/cycles/:id', authMiddleware, validateBody(updateCycleSchema), asyn
       return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'چرخه مورد نظر یافت نشد.' });
     }
     res.json({ cycle: updated });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/cycles/:id/archive', authMiddleware, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const userId = req.user!.userId;
+    const cycleId = req.params.id;
+    const updated = await archiveCycle(userId, cycleId);
+    if (!updated) {
+      return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'چرخه مورد نظر یافت نشد.' });
+    }
+    res.json({ cycle: updated, success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/cycles/:id/restore', authMiddleware, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const userId = req.user!.userId;
+    const cycleId = req.params.id;
+    const updated = await restoreCycle(userId, cycleId);
+    if (!updated) {
+      return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'چرخه مورد نظر یافت نشد.' });
+    }
+    res.json({ cycle: updated, success: true });
   } catch (error) {
     next(error);
   }
@@ -785,7 +832,13 @@ const handleUpsertDailyLog = async (req: AuthenticatedRequest, res: express.Resp
     const userId = req.user!.userId;
     const log = await upsertDailyLog(userId, req.body);
     res.json({ log, success: true });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'CYCLE_NOT_FOUND' || error?.message?.includes('Cycle not found')) {
+      return res.status(404).json({
+        code: 'CYCLE_NOT_FOUND',
+        messageFa: 'چرخه مشخص شده یافت نشد یا متعلق به کاربر دیگری است.'
+      });
+    }
     next(error);
   }
 };
@@ -801,11 +854,44 @@ const handleGetDailyLogs = async (req: AuthenticatedRequest, res: express.Respon
   }
 };
 
+const handleGetSingleDailyLog = async (req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const logId = req.params.id;
+    const log = await getDailyLogById(userId, logId);
+    if (!log) {
+      return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'گزارش روزانه یافت نشد.' });
+    }
+    res.json({ log, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const handleDeleteDailyLog = async (req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const logId = req.params.id;
+    const success = await deleteDailyLog(userId, logId);
+    if (!success) {
+      return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'گزارش روزانه برای حذف یافت نشد.' });
+    }
+    res.json({ success: true, messageFa: 'گزارش روزانه با موفقیت حذف شد.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 app.get('/api/logs', authMiddleware, handleGetDailyLogs);
+app.get('/api/logs/:id', authMiddleware, handleGetSingleDailyLog);
 app.post('/api/logs', authMiddleware, validateBody(upsertDailyLogSchema), handleUpsertDailyLog);
 app.post('/api/logs/upsert', authMiddleware, validateBody(upsertDailyLogSchema), handleUpsertDailyLog);
+app.delete('/api/logs/:id', authMiddleware, handleDeleteDailyLog);
+
 app.get('/api/daily-logs', authMiddleware, handleGetDailyLogs);
+app.get('/api/daily-logs/:id', authMiddleware, handleGetSingleDailyLog);
 app.post('/api/daily-logs', authMiddleware, validateBody(upsertDailyLogSchema), handleUpsertDailyLog);
+app.delete('/api/daily-logs/:id', authMiddleware, handleDeleteDailyLog);
 
 /* =========================================================================
  * DETERMINISTIC REASONING ENGINE

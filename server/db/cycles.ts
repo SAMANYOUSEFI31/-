@@ -27,13 +27,33 @@ export async function getUserCycles(userId: string): Promise<DBCycle[]> {
   return cycles.sort((a, b) => a.startDate.localeCompare(b.startDate));
 }
 
+export async function getCycleById(userId: string, cycleId: string): Promise<DBCycle | null> {
+  if (isPrismaAvailable && prisma) {
+    try {
+      const cycle = await prisma.cycle.findFirst({
+        where: { id: cycleId, userId }
+      });
+      if (!cycle) return null;
+      return {
+        ...cycle,
+        rules: Array.isArray(cycle.rules) ? cycle.rules : []
+      };
+    } catch (e) {
+      console.warn('[Database] Prisma getCycleById failed, checking local store:', e);
+    }
+  }
+
+  const cycle = memoryStore.cycles.find(c => c.id === cycleId && c.userId === userId);
+  return cycle ? { ...cycle } : null;
+}
+
 export async function createCycle(
   userId: string,
   data: {
     title: string;
     startDate: string;
     endDate: string;
-    targetTheme?: string;
+    targetTheme?: string | null;
     inheritedStreak?: number;
     rules?: string[];
   }
@@ -91,6 +111,18 @@ export async function updateCycle(
 ): Promise<DBCycle | null> {
   const now = new Date().toISOString();
 
+  // Explicitly sanitize update payload to prevent foreign userId or immutable field mutations
+  const safeData: any = {};
+  if (typeof data.title === 'string') safeData.title = data.title;
+  if (typeof data.startDate === 'string') safeData.startDate = data.startDate;
+  if (typeof data.endDate === 'string') safeData.endDate = data.endDate;
+  if (data.targetTheme !== undefined) safeData.targetTheme = data.targetTheme;
+  if (typeof data.inheritedStreak === 'number') safeData.inheritedStreak = data.inheritedStreak;
+  if (Array.isArray(data.rules)) safeData.rules = data.rules;
+  if (typeof data.isArchived === 'boolean') safeData.isArchived = data.isArchived;
+  if (typeof data.reportRead === 'boolean') safeData.reportRead = data.reportRead;
+  if (data.verdict !== undefined) safeData.verdict = data.verdict;
+
   if (isPrismaAvailable && prisma) {
     try {
       const existing = await prisma.cycle.findFirst({
@@ -101,7 +133,7 @@ export async function updateCycle(
       const updated = await prisma.cycle.update({
         where: { id: cycleId },
         data: {
-          ...data,
+          ...safeData,
           updatedAt: new Date()
         }
       });
@@ -117,14 +149,26 @@ export async function updateCycle(
   const idx = memoryStore.cycles.findIndex(c => c.id === cycleId && c.userId === userId);
   if (idx === -1) return null;
 
+  const existing = memoryStore.cycles[idx];
   memoryStore.cycles[idx] = {
-    ...memoryStore.cycles[idx],
-    ...data,
+    ...existing,
+    ...safeData,
+    id: existing.id,
+    userId: existing.userId,
+    createdAt: existing.createdAt,
     updatedAt: now
   };
 
   saveLocalStore();
   return memoryStore.cycles[idx];
+}
+
+export async function archiveCycle(userId: string, cycleId: string): Promise<DBCycle | null> {
+  return updateCycle(userId, cycleId, { isArchived: true });
+}
+
+export async function restoreCycle(userId: string, cycleId: string): Promise<DBCycle | null> {
+  return updateCycle(userId, cycleId, { isArchived: false });
 }
 
 export async function deleteCycle(userId: string, cycleId: string): Promise<boolean> {
@@ -143,13 +187,11 @@ export async function deleteCycle(userId: string, cycleId: string): Promise<bool
     }
   }
 
-  const initialCycleCount = memoryStore.cycles.length;
-  memoryStore.cycles = memoryStore.cycles.filter(c => !(c.id === cycleId && c.userId === userId));
-  memoryStore.dailyLogs = memoryStore.dailyLogs.filter(l => !(l.cycleId === cycleId && l.userId === userId));
+  const existingIdx = memoryStore.cycles.findIndex(c => c.id === cycleId && c.userId === userId);
+  if (existingIdx === -1) return false;
 
-  if (memoryStore.cycles.length < initialCycleCount) {
-    saveLocalStore();
-    return true;
-  }
-  return false;
+  memoryStore.cycles.splice(existingIdx, 1);
+  memoryStore.dailyLogs = memoryStore.dailyLogs.filter(l => !(l.cycleId === cycleId && l.userId === userId));
+  saveLocalStore();
+  return true;
 }
