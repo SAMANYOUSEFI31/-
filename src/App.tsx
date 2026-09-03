@@ -37,7 +37,11 @@ import {
   safeGetSessionStorage,
   safeSetSessionStorage,
   safeRemoveSessionStorage,
-  resolveBackendSyncDecision
+  resolveBackendSyncDecision,
+  migrateLegacyGlobalQueue,
+  enqueueOfflineMutation,
+  replayAccountOfflineQueue,
+  isGuestQueueOwner
 } from './utils/storageUtils';
 import { Navbar } from './components/Navbar';
 import { BattlefieldView } from './components/BattlefieldView';
@@ -51,6 +55,7 @@ import { AuthModal } from './components/AuthModal';
 import { CreateCycleModal } from './components/CreateCycleModal';
 import { useBodyScrollLock } from './utils/useBodyScrollLock';
 import { Toast, ToastItem, ToastType } from './components/Toast';
+import { toPersianDigits } from './utils/numberUtils';
 import { RotateCcw, AlertTriangle, Eye, ShieldCheck, RefreshCw } from 'lucide-react';
 import './styles/tokens.css';
 
@@ -178,6 +183,7 @@ export default function App() {
 
   // Cleanup toast timer on unmount
   useEffect(() => {
+    migrateLegacyGlobalQueue();
     return () => {
       if (toastTimeoutRef.current) {
         clearTimeout(toastTimeoutRef.current as NodeJS.Timeout);
@@ -355,6 +361,57 @@ export default function App() {
     return computeCycleMetrics(currentCycle, systemState.logs, systemState.cycles, logicalToday);
   }, [currentCycle, systemState.logs, systemState.cycles, logicalToday, emptyMetrics]);
 
+  const activeAccountRef = useRef<string | null>(systemState.userProfile?.id || null);
+  useEffect(() => {
+    activeAccountRef.current = systemState.userProfile?.id || null;
+  }, [systemState.userProfile?.id]);
+
+  const syncOfflineDataToServer = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return;
+    }
+
+    const ownerId = systemState.userProfile?.id;
+    const currentToken = authToken || safeGetLocalStorage(TOKEN_KEY);
+
+    if (!ownerId || !currentToken || isGuestQueueOwner(ownerId)) {
+      return;
+    }
+
+    const result = await replayAccountOfflineQueue({
+      activeAccountId: ownerId,
+      authToken: currentToken,
+      getCurrentActiveAccountId: () => activeAccountRef.current,
+      onItemSuccess: (item) => {
+        if (item.type === 'UPDATE_LOG') {
+          setSystemState(prev => ({
+            ...prev,
+            logs: prev.logs.map(l => l.date === item.payload.date ? { ...l, isSynced: true } : l)
+          }));
+        } else if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
+          setSystemState(prev => ({
+            ...prev,
+            cycles: prev.cycles.map(c => c.id === item.payload.id ? { ...c, isSynced: true } : c)
+          }));
+        }
+      }
+    });
+
+    if (result.syncedCount > 0) {
+      showAppToast(`همگام‌سازی ابری با موفقیت انجام شد (${toPersianDigits(result.syncedCount)} تغییر ذخیره شد).`, 'success');
+    }
+  }, [authToken, systemState.userProfile?.id, showAppToast]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      syncOfflineDataToServer();
+    };
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [syncOfflineDataToServer]);
+
   const handleUpdateLog = useCallback(async (updatedLog: DailyLog) => {
     // 1. Optimistic UI update
     setSystemState(prev => {
@@ -372,14 +429,20 @@ export default function App() {
       };
     });
 
-    // 2. Background sync with backend
+    // 2. Offline / Server sync with backend
+    const ownerId = systemState.userProfile?.id;
+    if (!authToken || isGuestQueueOwner(ownerId) || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
+      return;
+    }
+
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
 
-      await fetch('/api/logs', {
+      const res = await fetch('/api/logs', {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -387,10 +450,19 @@ export default function App() {
           cycleId: updatedLog.cycleId || activeCycleId
         })
       });
+      if (res.ok) {
+        setSystemState(prev => ({
+          ...prev,
+          logs: prev.logs.map(l => l.date === updatedLog.date ? { ...l, isSynced: true } : l)
+        }));
+      } else {
+        enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
+      }
     } catch (e) {
-      console.warn('Failed to sync log to server backend (saved locally):', e);
+      console.warn('Failed to sync log to server backend (added to offline queue):', e);
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
     }
-  }, [authToken, activeCycleId]);
+  }, [authToken, activeCycleId, systemState.userProfile?.id]);
 
   const handleUpdateCycle = useCallback(async (updatedCycle: Cycle) => {
     setSystemState(prev => ({
@@ -398,21 +470,31 @@ export default function App() {
       cycles: prev.cycles.map(c => c.id === updatedCycle.id ? updatedCycle : c)
     }));
 
+    const ownerId = systemState.userProfile?.id;
+    if (!authToken || isGuestQueueOwner(ownerId) || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
+      return;
+    }
+
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
 
-      await fetch(`/api/cycles/${updatedCycle.id}`, {
+      const res = await fetch(`/api/cycles/${updatedCycle.id}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify(updatedCycle)
       });
+      if (!res.ok) {
+        enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
+      }
     } catch (e) {
       console.warn('Failed to sync cycle update to server:', e);
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
     }
-  }, [authToken]);
+  }, [authToken, systemState.userProfile?.id]);
 
   const handleDeleteCycle = useCallback(async (cycleId: string) => {
     // Explicit deletion permanently marks starter demo as consumed to prevent re-seeding
@@ -445,19 +527,29 @@ export default function App() {
       showAppToast('چرخه مورد نظر با موفقیت حذف شد.', 'success');
     }
 
+    const ownerId = systemState.userProfile?.id;
+    if (!authToken || isGuestQueueOwner(ownerId) || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
+      return;
+    }
+
     try {
       const headers: Record<string, string> = {};
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
-      await fetch(`/api/cycles/${cycleId}`, {
+      const res = await fetch(`/api/cycles/${cycleId}`, {
         method: 'DELETE',
         headers
       });
+      if (!res.ok && res.status !== 404) {
+        enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
+      }
     } catch (e) {
       console.warn('Failed to sync cycle deletion to server:', e);
+      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
     }
-  }, [authToken, activeCycleId, systemState.cycles, systemState.logs, showAppToast]);
+  }, [authToken, activeCycleId, systemState.cycles, systemState.logs, systemState.userProfile?.id, showAppToast]);
 
   const handleUpdateUserProfile = useCallback(async (updatedProfile: UserProfile) => {
     setSystemState(prev => ({
@@ -465,21 +557,31 @@ export default function App() {
       userProfile: updatedProfile
     }));
 
+    const ownerId = systemState.userProfile?.id;
+    if (!authToken || isGuestQueueOwner(ownerId) || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
+      return;
+    }
+
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
 
-      await fetch('/api/user/profile', {
+      const res = await fetch('/api/user/profile', {
         method: 'PUT',
         headers,
         body: JSON.stringify(updatedProfile)
       });
+      if (!res.ok) {
+        enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
+      }
     } catch (e) {
       console.warn('Failed to sync user profile:', e);
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
     }
-  }, [authToken]);
+  }, [authToken, systemState.userProfile?.id]);
 
   const handleCreateNewCycle = useCallback(async (title: string, startDate: string, targetTheme: string) => {
     // User created their own real cycle; demo is permanently consumed
@@ -511,21 +613,31 @@ export default function App() {
     setSelectedDate(startDate);
     setActiveTab('battlefield');
 
+    const ownerId = systemState.userProfile?.id;
+    if (!authToken || isGuestQueueOwner(ownerId) || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+      enqueueOfflineMutation(ownerId, { type: 'CREATE_CYCLE', payload: newCycle });
+      return;
+    }
+
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
 
-      await fetch('/api/cycles', {
+      const res = await fetch('/api/cycles', {
         method: 'POST',
         headers,
         body: JSON.stringify(newCycle)
       });
+      if (!res.ok) {
+        enqueueOfflineMutation(ownerId, { type: 'CREATE_CYCLE', payload: newCycle });
+      }
     } catch (e) {
       console.warn('Failed to save cycle to server:', e);
+      enqueueOfflineMutation(ownerId, { type: 'CREATE_CYCLE', payload: newCycle });
     }
-  }, [authToken, cycleMetrics?.pureStreak]);
+  }, [authToken, cycleMetrics?.pureStreak, systemState.userProfile?.id]);
 
   const handleUpdateSettings = useCallback(async (updatedSettings: SystemSettings) => {
     setSystemState(prev => ({
@@ -590,6 +702,9 @@ export default function App() {
       setActiveCycleId(transition.nextActiveCycleId);
     }
     showAppToast(`با موفقیت وارد حساب «${user.name || 'کاربر'}» شدید.`);
+    setTimeout(() => {
+      syncOfflineDataToServer();
+    }, 100);
   };
 
   const handleQuickLogin = async (role: 'admin' | 'test_user') => {
@@ -618,6 +733,9 @@ export default function App() {
           setActiveCycleId(transition.nextActiveCycleId);
         }
         showAppToast(role === 'admin' ? 'به عنوان مدیر ارشد سیستم وارد شدید.' : 'به عنوان کاربر تستی وارد شدید.');
+        setTimeout(() => {
+          syncOfflineDataToServer();
+        }, 100);
       } else {
         showAppToast(data.messageFa || data.error || 'ورود سریع در این محیط غیرفعال است.', 'error');
       }

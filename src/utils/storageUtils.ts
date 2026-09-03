@@ -1,5 +1,6 @@
 import { SystemState, Cycle, DailyLog, UserProfile } from '../types';
 import { createInitialSystemState, createEmptySystemState, GUEST_USER_PROFILE } from '../data/initialData';
+import { clearOfflineQueue } from './offlineQueueUtils';
 
 export const STORAGE_KEY = 'bushido_discipline_os_v1';
 export const LEGACY_STORAGE_KEY = 'bushido_discipline_os_v1';
@@ -258,13 +259,17 @@ export function flushPendingStorageSave(): void {
 
 // Auto-register unload and pagehide listeners to ensure zero data loss
 if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', flushPendingStorageSave, { capture: true });
-  window.addEventListener('pagehide', flushPendingStorageSave, { capture: true });
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      flushPendingStorageSave();
-    }
-  });
+  if (typeof window.addEventListener === 'function') {
+    window.addEventListener('beforeunload', flushPendingStorageSave, { capture: true });
+    window.addEventListener('pagehide', flushPendingStorageSave, { capture: true });
+  }
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        flushPendingStorageSave();
+      }
+    });
+  }
 }
 
 /**
@@ -503,11 +508,13 @@ export function resetAccountState(currentUserProfile?: UserProfile | null): { fr
   // 1. Cancel any pending un-reset debounced writes so they cannot overwrite the reset
   cancelPendingStorageSave();
 
-  // 2. Clear demo-consumed state
+  // 2. Clear demo-consumed state and scoped offline queue
   safeRemoveLocalStorage(scopedDemoKey);
+  clearOfflineQueue(ownerId);
   if (!ownerId) {
     safeRemoveLocalStorage(LEGACY_DEMO_CONSUMED_KEY);
     safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
+    clearOfflineQueue(null);
   }
 
   // 3. Create fresh initial state
@@ -660,9 +667,13 @@ export function clearUserLocalState(userId?: string | null): void {
   const scopedDemoKey = getScopedDemoConsumedKey(normId);
   safeRemoveLocalStorage(scopedKey);
   safeRemoveLocalStorage(scopedDemoKey);
+  clearOfflineQueue(normId);
   if (!normId) {
     safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
     safeRemoveLocalStorage(LEGACY_DEMO_CONSUMED_KEY);
+    clearOfflineQueue(null);
   }
 }
+
+export * from './offlineQueueUtils';
 

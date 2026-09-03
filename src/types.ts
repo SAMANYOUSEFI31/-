@@ -276,3 +276,22 @@ export interface PaymentVerifyResponse {
   tier: UserSubscriptionTier;
 }
 
+export type OfflineMutationType = 
+  | 'UPDATE_LOG' 
+  | 'UPDATE_CYCLE' 
+  | 'CREATE_CYCLE' 
+  | 'DELETE_CYCLE'
+  | 'UPDATE_PROFILE'
+  | 'UPDATE_SETTINGS';
+
+export interface OfflineQueueItem {
+  id: string;
+  ownerId: string; // Canonical user ID (e.g. 'admin-master-001', 'user-123') or 'guest'
+  type: OfflineMutationType;
+  payload: any;
+  timestamp: number;
+  retryCount?: number;
+  lastError?: string;
+  dedupKey?: string;
+}
+

@@ -50,43 +50,16 @@ import {
   safeRemoveSessionStorage,
   resolveBackendSyncDecision
 } from '../utils/storageUtils';
-
-const OFFLINE_QUEUE_KEY = 'bushido_offline_queue';
-
-interface OfflineQueueItem {
-  id: string;
-  type: 'UPDATE_LOG' | 'UPDATE_CYCLE' | 'CREATE_CYCLE';
-  payload: any;
-  timestamp: number;
-}
-
-const getOfflineQueue = (): OfflineQueueItem[] => {
-  try {
-    const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveOfflineQueue = (queue: OfflineQueueItem[]) => {
-  try {
-    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
-  } catch (err) {
-    console.warn('Failed to persist offline queue:', err);
-  }
-};
-
-const addToOfflineQueue = (item: Omit<OfflineQueueItem, 'id' | 'timestamp'>) => {
-  const queue = getOfflineQueue();
-  const newItem: OfflineQueueItem = {
-    ...item,
-    id: `queue_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    timestamp: Date.now()
-  };
-  queue.push(newItem);
-  saveOfflineQueue(queue);
-};
+import {
+  enqueueOfflineMutation,
+  getOfflineQueue,
+  saveOfflineQueue,
+  clearOfflineQueue,
+  replayAccountOfflineQueue,
+  migrateLegacyGlobalQueue,
+  normalizeQueueOwner,
+  isGuestQueueOwner
+} from '../utils/offlineQueueUtils';
 
 const parseApiError = async (res: Response): Promise<string> => {
   try {
@@ -213,6 +186,16 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [appToastMessage, setAppToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+  const activeAccountRef = useRef<string | null>(systemState.userProfile?.id || null);
+
+  useEffect(() => {
+    activeAccountRef.current = systemState.userProfile?.id || null;
+  }, [systemState.userProfile?.id]);
+
+  useEffect(() => {
+    // Phase 3B: Safely migrate legacy global queue on startup
+    migrateLegacyGlobalQueue();
+  }, []);
 
   const showAppToast = useCallback((msg: string) => {
     if (toastTimeoutRef.current) {
@@ -464,6 +447,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [unresolvedAutopsyLog]);
 
   const updateLog = useCallback(async (updatedLog: DailyLog) => {
+    const ownerId = systemState.userProfile?.id;
     const optimisticLog: DailyLog = { ...updatedLog, isSynced: false };
     setSystemState(prev => {
       const existingIdx = prev.logs.findIndex(l => l.date === updatedLog.date);
@@ -481,7 +465,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     });
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      addToOfflineQueue({ type: 'UPDATE_LOG', payload: updatedLog });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
       return;
     }
 
@@ -508,15 +492,16 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       } else {
         const errorMsg = await parseApiError(res);
         console.warn('API Error updating log:', errorMsg);
-        addToOfflineQueue({ type: 'UPDATE_LOG', payload: updatedLog });
+        enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
       }
     } catch (e) {
       console.warn('Failed to sync log to server backend, added to offline queue:', e);
-      addToOfflineQueue({ type: 'UPDATE_LOG', payload: updatedLog });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
     }
-  }, [authToken, activeCycleId]);
+  }, [authToken, activeCycleId, systemState.userProfile?.id]);
 
   const updateCycle = useCallback(async (updatedCycle: Cycle) => {
+    const ownerId = systemState.userProfile?.id;
     const optimisticCycle: Cycle = { ...updatedCycle, isSynced: false };
     setSystemState(prev => ({
       ...prev,
@@ -524,7 +509,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     }));
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      addToOfflineQueue({ type: 'UPDATE_CYCLE', payload: updatedCycle });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
       return;
     }
 
@@ -548,16 +533,17 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       } else {
         const errorMsg = await parseApiError(res);
         console.warn('API Error updating cycle:', errorMsg);
-        addToOfflineQueue({ type: 'UPDATE_CYCLE', payload: updatedCycle });
+        enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
       }
     } catch (e) {
       console.warn('Failed to sync cycle update to server, added to offline queue:', e);
-      addToOfflineQueue({ type: 'UPDATE_CYCLE', payload: updatedCycle });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
     }
-  }, [authToken]);
+  }, [authToken, systemState.userProfile?.id]);
 
   const deleteCycle = useCallback(async (cycleId: string) => {
-    const scopedDemoKey = getScopedDemoConsumedKey(systemState.userProfile?.id);
+    const ownerId = systemState.userProfile?.id;
+    const scopedDemoKey = getScopedDemoConsumedKey(ownerId);
     safeSetLocalStorage(scopedDemoKey, 'true');
     const remainingCycles = systemState.cycles.filter(c => c.id !== cycleId);
 
@@ -572,22 +558,32 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       setSelectedDate(remainingCycles[0].startDate);
     }
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
+      return;
+    }
+
     try {
       const headers: Record<string, string> = {};
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
-      await fetch(`/api/cycles/${cycleId}`, {
+      const res = await fetch(`/api/cycles/${cycleId}`, {
         method: 'DELETE',
         headers
       });
+      if (!res.ok) {
+        enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
+      }
     } catch (e) {
-      console.warn('Failed to sync cycle deletion to server:', e);
+      console.warn('Failed to sync cycle deletion to server, added to offline queue:', e);
+      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
     }
-  }, [authToken, activeCycleId, systemState.cycles]);
+  }, [authToken, activeCycleId, systemState.cycles, systemState.userProfile?.id]);
 
   const createNewCycle = useCallback(async (title: string, startDate: string, targetTheme: string) => {
-    const scopedDemoKey = getScopedDemoConsumedKey(systemState.userProfile?.id);
+    const ownerId = systemState.userProfile?.id;
+    const scopedDemoKey = getScopedDemoConsumedKey(ownerId);
     safeSetLocalStorage(scopedDemoKey, 'true');
     const newCycle: Cycle = {
       id: `cycle-${Date.now()}`,
@@ -610,7 +606,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     setActiveTab('battlefield');
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      addToOfflineQueue({ type: 'CREATE_CYCLE', payload: newCycle });
+      enqueueOfflineMutation(ownerId, { type: 'CREATE_CYCLE', payload: newCycle });
       return;
     }
 
@@ -634,101 +630,50 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       } else {
         const errorMsg = await parseApiError(res);
         console.warn('API Error creating cycle:', errorMsg);
-        addToOfflineQueue({ type: 'CREATE_CYCLE', payload: newCycle });
+        enqueueOfflineMutation(ownerId, { type: 'CREATE_CYCLE', payload: newCycle });
       }
     } catch (e) {
       console.warn('Failed to save cycle to server, added to offline queue:', e);
-      addToOfflineQueue({ type: 'CREATE_CYCLE', payload: newCycle });
+      enqueueOfflineMutation(ownerId, { type: 'CREATE_CYCLE', payload: newCycle });
     }
-  }, [authToken, cycleMetrics?.pureStreak]);
+  }, [authToken, cycleMetrics?.pureStreak, systemState.userProfile?.id]);
 
   const syncOfflineDataToServer = useCallback(async () => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       return;
     }
 
-    const currentToken = authToken || localStorage.getItem(TOKEN_KEY);
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (currentToken) {
-      headers['Authorization'] = `Bearer ${currentToken}`;
+    const ownerId = systemState.userProfile?.id;
+    const currentToken = authToken || safeGetLocalStorage(TOKEN_KEY);
+
+    // Guard: Replay is strictly authenticated for non-guest users
+    if (!ownerId || !currentToken || isGuestQueueOwner(ownerId)) {
+      return;
     }
 
-    let syncedItemsCount = 0;
-
-    const queue = getOfflineQueue();
-    if (queue.length > 0) {
-      const remainingQueue: OfflineQueueItem[] = [];
-      for (const item of queue) {
-        try {
-          if (item.type === 'UPDATE_LOG') {
-            const res = await fetch('/api/logs', {
-              method: 'POST',
-              headers,
-              body: JSON.stringify(item.payload)
-            });
-            if (res.ok) {
-              syncedItemsCount++;
-              setSystemState(prev => ({
-                ...prev,
-                logs: prev.logs.map(l => l.date === item.payload.date ? { ...l, isSynced: true } : l)
-              }));
-            } else {
-              remainingQueue.push(item);
-            }
-          } else if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
-            const endpoint = item.type === 'CREATE_CYCLE' ? '/api/cycles' : `/api/cycles/${item.payload.id}`;
-            const method = item.type === 'CREATE_CYCLE' ? 'POST' : 'PUT';
-            const res = await fetch(endpoint, {
-              method,
-              headers,
-              body: JSON.stringify(item.payload)
-            });
-            if (res.ok) {
-              syncedItemsCount++;
-              setSystemState(prev => ({
-                ...prev,
-                cycles: prev.cycles.map(c => c.id === item.payload.id ? { ...c, isSynced: true } : c)
-              }));
-            } else {
-              remainingQueue.push(item);
-            }
-          }
-        } catch (err) {
-          remainingQueue.push(item);
+    const result = await replayAccountOfflineQueue({
+      activeAccountId: ownerId,
+      authToken: currentToken,
+      getCurrentActiveAccountId: () => activeAccountRef.current,
+      onItemSuccess: (item) => {
+        if (item.type === 'UPDATE_LOG') {
+          setSystemState(prev => ({
+            ...prev,
+            logs: prev.logs.map(l => l.date === item.payload.date ? { ...l, isSynced: true } : l)
+          }));
+        } else if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
+          setSystemState(prev => ({
+            ...prev,
+            cycles: prev.cycles.map(c => c.id === item.payload.id ? { ...c, isSynced: true } : c)
+          }));
         }
       }
-      saveOfflineQueue(remainingQueue);
-    }
+    });
 
-    const unsyncedLogs = systemState.logs.filter(l => l.isSynced === false);
-    if (unsyncedLogs.length > 0) {
-      for (const log of unsyncedLogs) {
-        try {
-          const res = await fetch('/api/logs', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              ...log,
-              cycleId: log.cycleId || activeCycleId
-            })
-          });
-          if (res.ok) {
-            syncedItemsCount++;
-            setSystemState(prev => ({
-              ...prev,
-              logs: prev.logs.map(l => l.date === log.date ? { ...l, isSynced: true } : l)
-            }));
-          }
-        } catch (err) {
-          console.warn('[Sync Queue] Failed to push offline log:', log.date, err);
-        }
-      }
+    if (result.syncedCount > 0) {
+      showAppToast(`همگام‌سازی ابری با موفقیت انجام شد (${toPersianDigits(result.syncedCount)} تغییر ذخیره شد).`);
     }
-
-    if (syncedItemsCount > 0) {
-      showAppToast(`همگام‌سازی ابری با موفقیت انجام شد (${toPersianDigits(syncedItemsCount)} تغییر ذخیره شد).`);
-    }
-  }, [authToken, activeCycleId, systemState.logs, showAppToast]);
+  }, [authToken, systemState.userProfile?.id, showAppToast]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -743,10 +688,16 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [syncOfflineDataToServer]);
 
   const updateUserProfile = useCallback(async (updatedProfile: UserProfile) => {
+    const ownerId = systemState.userProfile?.id;
     setSystemState(prev => ({
       ...prev,
       userProfile: updatedProfile
     }));
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
+      return;
+    }
 
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -754,22 +705,28 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
         headers['Authorization'] = `Bearer ${authToken}`;
       }
 
-      await fetch('/api/user/profile', {
+      const res = await fetch('/api/user/profile', {
         method: 'PUT',
         headers,
         body: JSON.stringify(updatedProfile)
       });
+      if (!res.ok) {
+        enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
+      }
     } catch (e) {
       console.warn('Failed to sync user profile:', e);
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
     }
-  }, [authToken]);
+  }, [authToken, systemState.userProfile?.id]);
 
   const updateSettings = useCallback(async (updatedSettings: SystemSettings) => {
+    const ownerId = systemState.userProfile?.id;
     setSystemState(prev => ({
       ...prev,
       settings: updatedSettings
     }));
-  }, []);
+    enqueueOfflineMutation(ownerId, { type: 'UPDATE_SETTINGS', payload: updatedSettings });
+  }, [systemState.userProfile?.id]);
 
   const toggleHabit = useCallback(async (date: string, habitKey: HabitKey) => {
     const existingLog = systemState.logs.find(l => l.date === date) || {
