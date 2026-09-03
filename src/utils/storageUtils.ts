@@ -329,7 +329,7 @@ export function loadStoredSystemState(userId?: string | null): SystemState {
       safeGetLocalStorage(scopedDemoKey) === 'true' || 
       safeGetLocalStorage(DEMO_CONSUMED_KEY) === 'true';
 
-    const guestFallback = isDemoConsumed ? createEmptySystemState(GUEST_USER_PROFILE) : createInitialSystemState();
+    const guestFallback = isDemoConsumed ? createEmptySystemState(GUEST_USER_PROFILE) : createInitialSystemState(GUEST_USER_PROFILE);
 
     try {
       let saved = safeGetLocalStorage(scopedKey);
@@ -339,7 +339,7 @@ export function loadStoredSystemState(userId?: string | null): SystemState {
         if (legacyRaw) {
           try {
             const legacyParsed = JSON.parse(legacyRaw);
-            // Only migrate if legacy data belongs to guest or default initial admin
+            // Only migrate if legacy data belongs to guest
             if (!legacyParsed.userProfile?.id || legacyParsed.userProfile?.id === GUEST_USER_PROFILE.id) {
               saved = legacyRaw;
             }
@@ -352,7 +352,9 @@ export function loadStoredSystemState(userId?: string | null): SystemState {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
-          return sanitizeSystemState(parsed, guestFallback, GUEST_USER_PROFILE);
+          const sanitized = sanitizeSystemState(parsed, guestFallback, GUEST_USER_PROFILE);
+          sanitized.userProfile.id = GUEST_USER_PROFILE.id;
+          return sanitized;
         }
       }
     } catch (e) {
@@ -390,6 +392,11 @@ export function loadStoredSystemState(userId?: string | null): SystemState {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && typeof parsed === 'object') {
+        // Strict boundary: A mismatched userProfile.id in stored JSON must never transfer Cycles or DailyLogs into another authenticated account
+        if (parsed.userProfile?.id && parsed.userProfile.id !== normId && parsed.userProfile.id !== GUEST_USER_PROFILE.id) {
+          console.warn(`[Bushido Storage] Rejecting mismatched user state (expected ${normId}, found ${parsed.userProfile.id})`);
+          return authFallback;
+        }
         const sanitized = sanitizeSystemState(parsed, authFallback, authFallbackUser);
         // Strict boundary: ensure userProfile.id matches the requested authenticated normId
         sanitized.userProfile.id = normId;
@@ -401,6 +408,58 @@ export function loadStoredSystemState(userId?: string | null): SystemState {
   }
 
   return authFallback;
+}
+
+export interface AccountTransitionOptions {
+  currentSystemState?: SystemState | null;
+  targetUserId: string | null;
+  targetUserProfile?: Partial<UserProfile> | null;
+}
+
+export interface AccountTransitionResult {
+  nextState: SystemState;
+  nextActiveCycleId: string;
+}
+
+/**
+ * Pure transition helper for login, logout, account-switching, and impersonation.
+ * Guarantees:
+ * 1. Flushes any pending debounced writes for the active owner before transitioning.
+ * 2. Updates the active local account pointer.
+ * 3. Loads the target account's scoped state from localStorage without cross-contamination.
+ * 4. Overlays authenticated profile data onto the loaded state.
+ */
+export function transitionAccountState(options: AccountTransitionOptions): AccountTransitionResult {
+  const { currentSystemState, targetUserId, targetUserProfile } = options;
+
+  // 1. Flush any pending write for current in-memory state
+  if (currentSystemState) {
+    writeStateDirect(currentSystemState, currentSystemState.userProfile?.id);
+  }
+  flushPendingStorageSave();
+
+  // 2. Set the active account pointer
+  const normTargetId = normalizeUserId(targetUserId);
+  setActiveAccountId(normTargetId);
+
+  // 3. Load target user's partition
+  const loadedState = loadStoredSystemState(normTargetId);
+
+  // 4. Overlay targetUserProfile if provided
+  if (targetUserProfile) {
+    loadedState.userProfile = {
+      ...loadedState.userProfile,
+      ...targetUserProfile,
+      id: normTargetId || loadedState.userProfile.id
+    };
+  }
+
+  const nextActiveCycleId = loadedState.cycles[0]?.id || 'cycle-1';
+
+  return {
+    nextState: loadedState,
+    nextActiveCycleId
+  };
 }
 
 /**

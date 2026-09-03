@@ -26,7 +26,7 @@ export const DEFAULT_ADMIN_USER_PROFILE: UserProfile = {
   activeCycleLimit: 99
 };
 
-export function createInitialSystemState(): {
+export function createInitialSystemState(customProfile?: UserProfile): {
   cycles: Cycle[];
   logs: DailyLog[];
   settings: SystemSettings;
@@ -160,7 +160,7 @@ export function createInitialSystemState(): {
     nightOwlCutoffHour: 4
   };
 
-  const userProfile: UserProfile = {
+  const userProfile: UserProfile = customProfile || {
     id: 'admin-master-001',
     name: 'فرمانده ارشد سامورایی (مدیر)',
     email: 'admin@bushido.app',

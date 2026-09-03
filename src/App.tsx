@@ -409,7 +409,8 @@ export default function App() {
 
   const handleDeleteCycle = useCallback(async (cycleId: string) => {
     // Explicit deletion permanently marks starter demo as consumed to prevent re-seeding
-    safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
+    const scopedDemoKey = getScopedDemoConsumedKey(systemState.userProfile?.id);
+    safeSetLocalStorage(scopedDemoKey, 'true');
 
     // 1. Calculate remaining cycles first
     const remainingCycles = systemState.cycles.filter(c => c.id !== cycleId);
@@ -475,7 +476,8 @@ export default function App() {
 
   const handleCreateNewCycle = useCallback(async (title: string, startDate: string, targetTheme: string) => {
     // User created their own real cycle; demo is permanently consumed
-    safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
+    const scopedDemoKey = getScopedDemoConsumedKey(systemState.userProfile?.id);
+    safeSetLocalStorage(scopedDemoKey, 'true');
 
     const newCycle: Cycle = {
       id: `cycle-${Date.now()}`,
@@ -547,6 +549,11 @@ export default function App() {
   };
 
   const handleConfirmReset = () => {
+    const scopedDemoKey = getScopedDemoConsumedKey(systemState.userProfile?.id);
+    safeRemoveLocalStorage(scopedDemoKey);
+    if (!systemState.userProfile?.id || systemState.userProfile.id === GUEST_USER_PROFILE.id) {
+      safeRemoveLocalStorage(DEMO_CONSUMED_KEY);
+    }
     flushPendingStorageSave();
     const fresh = createInitialSystemState();
     setSystemState(fresh);
@@ -580,6 +587,8 @@ export default function App() {
           return;
         }
 
+        const scopedDemoKey = getScopedDemoConsumedKey(systemState.userProfile?.id);
+        safeSetLocalStorage(scopedDemoKey, 'true');
         flushPendingStorageSave();
         setSystemState(parsed);
         setActiveCycleId(parsed.cycles[0].id);

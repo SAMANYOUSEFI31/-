@@ -276,15 +276,19 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
               safeSetLocalStorage(TOKEN_KEY, data.token);
               setActiveAccountId(data.user.id);
               setAuthToken(data.token);
-              setSystemState(prev => ({
-                ...prev,
+              const userLocalState = loadStoredSystemState(data.user.id);
+              setSystemState({
+                ...userLocalState,
                 userProfile: {
-                  ...prev.userProfile,
+                  ...userLocalState.userProfile,
                   ...data.user,
                   isVip: Boolean(data.user.isVip),
                   isAdmin: Boolean(data.user.isAdmin)
                 }
-              }));
+              });
+              if (userLocalState.cycles.length > 0) {
+                setActiveCycleId(userLocalState.cycles[0].id);
+              }
             }
           }
         } catch (err) {
@@ -546,7 +550,8 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [authToken]);
 
   const deleteCycle = useCallback(async (cycleId: string) => {
-    safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
+    const scopedDemoKey = getScopedDemoConsumedKey(systemState.userProfile?.id);
+    safeSetLocalStorage(scopedDemoKey, 'true');
     const remainingCycles = systemState.cycles.filter(c => c.id !== cycleId);
 
     setSystemState(prev => ({
@@ -575,7 +580,8 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [authToken, activeCycleId, systemState.cycles]);
 
   const createNewCycle = useCallback(async (title: string, startDate: string, targetTheme: string) => {
-    safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
+    const scopedDemoKey = getScopedDemoConsumedKey(systemState.userProfile?.id);
+    safeSetLocalStorage(scopedDemoKey, 'true');
     const newCycle: Cycle = {
       id: `cycle-${Date.now()}`,
       title,
@@ -857,7 +863,11 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [systemState, logicalToday]);
 
   const confirmResetData = useCallback(() => {
-    safeRemoveLocalStorage(DEMO_CONSUMED_KEY);
+    const scopedDemoKey = getScopedDemoConsumedKey(systemState.userProfile?.id);
+    safeRemoveLocalStorage(scopedDemoKey);
+    if (!systemState.userProfile?.id || systemState.userProfile.id === GUEST_USER_PROFILE.id) {
+      safeRemoveLocalStorage(DEMO_CONSUMED_KEY);
+    }
     flushPendingStorageSave();
     const fresh = createInitialSystemState();
     setSystemState(fresh);
@@ -865,7 +875,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     setSelectedDate(getLogicalTodayDate());
     setIsResetConfirmOpen(false);
     showAppToast('داده‌های سامانه با موفقیت به مقادیر اولیه بوشیدو بازنشانی شد.');
-  }, [showAppToast]);
+  }, [showAppToast, systemState.userProfile?.id]);
 
   const importData = useCallback((dataStr: string) => {
     try {
@@ -890,7 +900,8 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
           return;
         }
 
-        safeSetLocalStorage(DEMO_CONSUMED_KEY, 'true');
+        const scopedDemoKey = getScopedDemoConsumedKey(systemState.userProfile?.id);
+        safeSetLocalStorage(scopedDemoKey, 'true');
         flushPendingStorageSave();
         setSystemState(parsed);
         setActiveCycleId(parsed.cycles[0].id);
