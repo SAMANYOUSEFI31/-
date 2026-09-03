@@ -31,6 +31,7 @@ function mapPrismaUser(user: any): DBUser {
   if (!user) return user;
   return {
     ...user,
+    tokenVersion: user.tokenVersion !== undefined && user.tokenVersion !== null ? user.tokenVersion : 0,
     vipSince: user.vipSince instanceof Date ? user.vipSince.toISOString() : user.vipSince,
     vipExpiresAt: user.vipExpiresAt instanceof Date ? user.vipExpiresAt.toISOString() : user.vipExpiresAt,
     createdAt: user.createdAt instanceof Date ? user.createdAt.toISOString() : user.createdAt,
@@ -117,6 +118,7 @@ export async function createUser(data: {
   tier?: string;
   isVip?: boolean;
   isAdmin?: boolean;
+  tokenVersion?: number;
   withStarterCycle?: boolean;
 }): Promise<DBUser> {
   const now = new Date().toISOString();
@@ -157,6 +159,7 @@ export async function createUser(data: {
     tier: isMasterAccount ? 'vip_samurai' : (data.tier || (isVip ? 'vip_samurai' : 'free')),
     isVip,
     isAdmin,
+    tokenVersion: data.tokenVersion !== undefined && data.tokenVersion !== null ? data.tokenVersion : 0,
     nightOwlCutoffHour: 4,
     accentTheme: 'amber',
     vipSince: isVip ? now : null,
@@ -178,6 +181,7 @@ export async function createUser(data: {
           tier: newUser.tier,
           isVip: newUser.isVip,
           isAdmin: newUser.isAdmin,
+          tokenVersion: newUser.tokenVersion,
           nightOwlCutoffHour: newUser.nightOwlCutoffHour,
           accentTheme: newUser.accentTheme,
           vipSince: newUser.vipSince ? new Date(newUser.vipSince) : null,

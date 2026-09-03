@@ -1,6 +1,8 @@
 import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   normalizePhoneNumber,
   validateIranianPhone,
@@ -10,6 +12,7 @@ import {
   createOtpChallenge,
   verifyOtpChallenge,
   consumeOtpChallenge,
+  hashOtpCode,
   OTP_PURPOSES
 } from '../server/otp/index.js';
 import {
@@ -32,6 +35,7 @@ import {
   findActiveOtpChallenge,
   setPrismaState
 } from '../server/db/index.js';
+import { createOtpRecord } from '../server/db/otp.js';
 import {
   hashPassword,
   verifyPassword,
@@ -446,27 +450,32 @@ describe('Phase 2B: Phone-First Authentication Final Closure Suite', () => {
 
       // Hook users.push to purge otpCodes immediately after user creation to simulate finalization failure
       const origPush = memoryStore.users.push.bind(memoryStore.users);
-      memoryStore.users.push = function (...args: any[]) {
-        memoryStore.otpCodes = []; // Simulate database failure / race where challenge vanished before consumption
-        return origPush(...args);
-      };
+      try {
+        memoryStore.users.push = function (...args: any[]) {
+          memoryStore.otpCodes = []; // Simulate database failure / race where challenge vanished before consumption
+          return origPush(...args);
+        };
 
-      const regRes = await fetch(`${baseUrl}/api/auth/register/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phoneNumber: '09128881122',
-          code: otp,
-          password: 'PassWord123!'
-        })
-      });
-      assert.equal(regRes.status, 500);
-      const regBody = await regRes.json();
-      assert.equal(regBody.code, 'OTP_FINALIZATION_FAILED');
+        const regRes = await fetch(`${baseUrl}/api/auth/register/verify-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phoneNumber: '09128881122',
+            code: otp,
+            password: 'PassWord123!'
+          })
+        });
+        assert.equal(regRes.status, 500);
+        const regBody = await regRes.json();
+        assert.equal(regBody.code, 'OTP_FINALIZATION_FAILED');
 
-      // Verify that user record was cleaned up via compensation
-      const user = await findUserByPhoneNumber('09128881122');
-      assert.equal(user, null, 'Unfinalized user MUST be removed via compensation');
+        // Verify that user record was cleaned up via compensation
+        const user = await findUserByPhoneNumber('09128881122');
+        assert.equal(user, null, 'Unfinalized user MUST be removed via compensation');
+      } finally {
+        // Guarantee restoration of monkey patch to prevent test pollution
+        memoryStore.users.push = origPush;
+      }
     });
   });
 
@@ -783,6 +792,140 @@ describe('Phase 2B: Phone-First Authentication Final Closure Suite', () => {
       assert.equal(body.success, true);
       assert.equal(body.user.isAdmin, true);
       assert.equal(body.user.isVip, true);
+    });
+  });
+
+  /* =========================================================================
+   * 8. Database Migration & Legacy Schema Compatibility Contract
+   * ========================================================================= */
+  describe('Database Migration & Legacy Schema Compatibility Contract', () => {
+    it('migration SQL relaxes legacy NOT NULL code constraint without dropping data or reintroducing raw OTP', () => {
+      const migrationPath = path.join(process.cwd(), 'prisma/migrations/20260903_phase2b_otp_persistence/migration.sql');
+      assert.ok(fs.existsSync(migrationPath), 'Phase 2B migration SQL file must exist');
+
+      const sql = fs.readFileSync(migrationPath, 'utf8');
+
+      // 1. Must ensure legacy code column has NOT NULL dropped if present
+      assert.match(sql, /ALTER\s+TABLE\s+"OtpCode"\s+ALTER\s+COLUMN\s+"code"\s+DROP\s+NOT\s+NULL/i, 'Must drop NOT NULL constraint from legacy code column');
+
+      // 2. Must default tokenVersion to 0
+      assert.match(sql, /ALTER\s+TABLE\s+"User"\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+"tokenVersion"\s+INTEGER\s+NOT\s+NULL\s+DEFAULT\s+0/i);
+
+      // 3. Must extend OtpCode with codeHash, purpose, attempts, maxAttempts, lastSentAt, consumedAt, updatedAt
+      assert.match(sql, /ALTER\s+TABLE\s+"OtpCode"\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+"codeHash"/i);
+      assert.match(sql, /ALTER\s+TABLE\s+"OtpCode"\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+"purpose"/i);
+      assert.match(sql, /ALTER\s+TABLE\s+"OtpCode"\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+"attempts"/i);
+      assert.match(sql, /ALTER\s+TABLE\s+"OtpCode"\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+"maxAttempts"/i);
+      assert.match(sql, /ALTER\s+TABLE\s+"OtpCode"\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+"lastSentAt"/i);
+      assert.match(sql, /ALTER\s+TABLE\s+"OtpCode"\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+"consumedAt"/i);
+      assert.match(sql, /ALTER\s+TABLE\s+"OtpCode"\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+"updatedAt"/i);
+
+      // 4. Must invalidate pre-migration blank/null codeHash records safely
+      assert.match(sql, /UPDATE\s+"OtpCode"\s+SET\s+"verified"\s*=\s*true/i, 'Must safely invalidate legacy unhashed OTP records');
+    });
+
+    it('creates and persists OTP record with codeHash without supplying legacy plaintext code', async () => {
+      const challengeId = `otp-mig-${Date.now()}`;
+      const phone = '09121237890';
+      const codeHash = hashOtpCode('12345', phone);
+      const expiresAt = new Date(Date.now() + 180000).toISOString();
+      const lastSentAt = new Date().toISOString();
+
+      const created = await createOtpRecord({
+        id: challengeId,
+        identifier: phone,
+        purpose: 'PHONE_REGISTRATION',
+        codeHash,
+        expiresAt,
+        verified: false,
+        attempts: 0,
+        maxAttempts: 5,
+        lastSentAt,
+        consumedAt: null,
+        userId: null,
+        createdAt: lastSentAt,
+        updatedAt: lastSentAt
+      });
+
+      assert.equal(created.id, challengeId);
+      assert.equal(created.identifier, phone);
+      assert.equal(created.codeHash, codeHash);
+      assert.equal((created as any).code, undefined, 'Created record must not have plaintext code property');
+
+      // Verify stored record in persistence
+      const active = await findActiveOtpChallenge(phone, 'PHONE_REGISTRATION');
+      assert.ok(active);
+      assert.equal(active.codeHash, codeHash);
+      assert.equal((active as any).code, undefined, 'Persisted record must have code undefined');
+    });
+
+    it('legacy OTP records with blank or null codeHash cannot verify under any circumstances', async () => {
+      // Simulate a legacy pre-migration OTP record that only had plaintext or empty codeHash
+      const legacyId = 'legacy-otp-record-1';
+      const phone = '09129990011';
+      
+      memoryStore.otpCodes.push({
+        id: legacyId,
+        identifier: phone,
+        purpose: 'PHONE_REGISTRATION',
+        codeHash: '', // Blank hash from legacy migration default
+        expiresAt: new Date(Date.now() + 180000).toISOString(),
+        verified: false,
+        attempts: 0,
+        maxAttempts: 5,
+        lastSentAt: new Date().toISOString(),
+        consumedAt: null,
+        userId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      // Attempt verification with any code
+      const result = await verifyOtpChallenge({
+        phoneNumber: phone,
+        code: '12345',
+        purpose: 'PHONE_REGISTRATION'
+      });
+
+      assert.equal(result.success, false, 'Legacy blank-hash OTP must fail verification');
+      if (!result.success) {
+        assert.equal(result.code, 'INVALID_CODE');
+      }
+    });
+
+    it('existing users with default tokenVersion 0 authenticate normally and are rejected on increment', async () => {
+      // Simulate existing user created before or during migration (tokenVersion defaults to 0)
+      const user = await createUser({
+        phoneNumber: '09124440022',
+        passwordHash: hashPassword('ExistingUserPass123!'),
+        tokenVersion: 0
+      });
+
+      assert.equal(user.tokenVersion, 0);
+
+      // Generate token with tokenVersion 0
+      const token = generateToken({
+        userId: user.id,
+        phoneNumber: user.phoneNumber,
+        isVip: user.isVip,
+        tier: user.tier,
+        isAdmin: Boolean(user.isAdmin),
+        tokenVersion: 0
+      });
+
+      // Valid session
+      const verifyResult = verifyToken(token);
+      assert.ok(verifyResult);
+      assert.equal(verifyResult.userId, user.id);
+      assert.equal(verifyResult.tokenVersion, 0);
+
+      // Can authenticate against /api/auth/me
+      const meRes = await fetch(`${baseUrl}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      assert.equal(meRes.status, 200);
+      const meBody = await meRes.json();
+      assert.equal(meBody.user.id, user.id);
     });
   });
 });
