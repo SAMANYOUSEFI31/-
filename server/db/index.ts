@@ -140,7 +140,8 @@ export {
   memoryStore,
   saveLocalStore,
   loadLocalStore,
-  ensureDefaultAdminAndUsers
+  ensureDefaultAdminAndUsers,
+  setPrismaState
 } from './base.js';
 
 export * from './users.js';

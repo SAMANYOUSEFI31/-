@@ -19,6 +19,7 @@ import {
   verifyOtpCode,
   createSubscriptionRecord,
   completeSubscription,
+  getUserSubscriptions,
   adminGetAllUsers,
   adminUpdateUser,
   adminCreateTestUser,
@@ -840,6 +841,19 @@ app.post('/api/payment/verify', validateBody(paymentVerifySchema), async (req, r
     next(error);
   }
 });
+
+const handleGetUserSubscriptions = async (req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const subscriptions = await getUserSubscriptions(userId);
+    res.json({ subscriptions, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+app.get('/api/user/subscriptions', authMiddleware, handleGetUserSubscriptions);
+app.get('/api/subscriptions/my', authMiddleware, handleGetUserSubscriptions);
 
 /* =========================================================================
  * ADMIN PANEL ENDPOINTS

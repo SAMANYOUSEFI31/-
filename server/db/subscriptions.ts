@@ -189,6 +189,28 @@ export async function completeSubscription(
   return sub;
 }
 
+export async function getUserSubscriptions(userId: string): Promise<DBSubscription[]> {
+  let subs: DBSubscription[] = [];
+
+  if (isPrismaAvailable && prisma) {
+    try {
+      subs = await prisma.subscription.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' }
+      });
+      return subs;
+    } catch (e) {
+      console.warn('[Database] Prisma getUserSubscriptions failed, reading local store:', e);
+    }
+  }
+
+  subs = memoryStore.subscriptions
+    .filter(s => s.userId === userId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  return subs;
+}
+
 export async function adminGetAllSubscriptions(): Promise<
   (DBSubscription & { userName?: string; userEmail?: string; userPhone?: string })[]
 > {
