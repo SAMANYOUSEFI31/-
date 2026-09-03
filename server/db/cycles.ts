@@ -50,6 +50,8 @@ export async function getCycleById(userId: string, cycleId: string): Promise<DBC
 export async function createCycle(
   userId: string,
   data: {
+    id?: string;
+    clientOperationId?: string;
     title: string;
     startDate: string;
     endDate: string;
@@ -58,9 +60,17 @@ export async function createCycle(
     rules?: string[];
   }
 ): Promise<DBCycle> {
+  const targetId = data.id || data.clientOperationId;
+  if (targetId) {
+    const existing = await getCycleById(userId, targetId);
+    if (existing) {
+      return existing;
+    }
+  }
+
   const now = new Date().toISOString();
   const newCycle: DBCycle = {
-    id: `cycle-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    id: targetId || `cycle-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     userId,
     title: data.title,
     startDate: data.startDate,

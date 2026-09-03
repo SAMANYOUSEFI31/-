@@ -1,47 +1,28 @@
 import { SystemState, Cycle, DailyLog, UserProfile } from '../types';
 import { createInitialSystemState, createEmptySystemState, GUEST_USER_PROFILE } from '../data/initialData';
 import { clearOfflineQueue } from './offlineQueueUtils';
+import {
+  safeGetLocalStorage,
+  safeSetLocalStorage,
+  safeRemoveLocalStorage,
+  safeGetSessionStorage,
+  safeSetSessionStorage,
+  safeRemoveSessionStorage,
+  ACTIVE_ACCOUNT_KEY,
+  STORAGE_KEY,
+  LEGACY_STORAGE_KEY,
+  DEMO_CONSUMED_KEY,
+  LEGACY_DEMO_CONSUMED_KEY,
+  normalizeUserId,
+  getScopedStorageKey,
+  getScopedDemoConsumedKey,
+  getScopedOfflineQueueKey,
+  isGuestQueueOwner,
+  shouldQueueOfflineMutation
+} from './storageCore';
 
-export const STORAGE_KEY = 'bushido_discipline_os_v1';
-export const LEGACY_STORAGE_KEY = 'bushido_discipline_os_v1';
-export const STORAGE_PREFIX = 'bushido_state_';
-export const DEMO_CONSUMED_KEY = 'bushido_demo_consumed_v1';
-export const LEGACY_DEMO_CONSUMED_KEY = 'bushido_demo_consumed_v1';
-export const DEMO_CONSUMED_PREFIX = 'bushido_demo_consumed_';
-export const TOKEN_KEY = 'bushido_auth_token';
-export const ACTIVE_ACCOUNT_KEY = 'bushido_active_account_id';
-export const GUEST_USER_ID = '__guest__';
-
-/**
- * Normalizes an account identifier to a stable, canonical ownership key.
- * Only stable unique user IDs are accepted (e.g. 'admin-master-001', 'usr_...', UUID).
- * Returns null for anonymous/guest sessions, empty strings, or undefined.
- */
-export function normalizeUserId(userId?: string | null): string | null {
-  if (!userId || typeof userId !== 'string') return null;
-  const trimmed = userId.trim();
-  if (trimmed === '' || trimmed === GUEST_USER_ID || trimmed === 'null' || trimmed === 'undefined') {
-    return null;
-  }
-  return trimmed;
-}
-
-/**
- * Generates an account-scoped storage key for system state.
- * Guarantees cryptographic / storage separation between anonymous/guest state and authenticated accounts.
- */
-export function getScopedStorageKey(userId?: string | null): string {
-  const normId = normalizeUserId(userId);
-  return normId ? `${STORAGE_PREFIX}user_${normId}` : `${STORAGE_PREFIX}guest`;
-}
-
-/**
- * Generates an account-scoped storage key for the demo consumption flag.
- */
-export function getScopedDemoConsumedKey(userId?: string | null): string {
-  const normId = normalizeUserId(userId);
-  return normId ? `${DEMO_CONSUMED_PREFIX}user_${normId}` : `${DEMO_CONSUMED_PREFIX}guest`;
-}
+// Re-export all dependency-neutral storage primitives and constants
+export * from './storageCore';
 
 /**
  * Gets the active local account identifier.
@@ -115,88 +96,6 @@ export function resolveBackendSyncDecision(input: BackendSyncDecisionInput): Bac
     shouldMarkDemoConsumed,
     nextActiveCycleId
   };
-}
-
-/**
- * Exception-safe wrapper for localStorage.getItem to prevent crashes in private/incognito mode
- */
-export function safeGetLocalStorage(key: string): string | null {
-  try {
-    if (typeof window === 'undefined' || !window.localStorage) return null;
-    return window.localStorage.getItem(key);
-  } catch (e) {
-    console.warn(`[Bushido Storage] safeGetLocalStorage failed for key "${key}":`, e);
-    return null;
-  }
-}
-
-/**
- * Exception-safe wrapper for localStorage.setItem
- */
-export function safeSetLocalStorage(key: string, value: string): boolean {
-  try {
-    if (typeof window === 'undefined' || !window.localStorage) return false;
-    window.localStorage.setItem(key, value);
-    return true;
-  } catch (e) {
-    console.warn(`[Bushido Storage] safeSetLocalStorage failed for key "${key}":`, e);
-    return false;
-  }
-}
-
-/**
- * Exception-safe wrapper for localStorage.removeItem
- */
-export function safeRemoveLocalStorage(key: string): boolean {
-  try {
-    if (typeof window === 'undefined' || !window.localStorage) return false;
-    window.localStorage.removeItem(key);
-    return true;
-  } catch (e) {
-    console.warn(`[Bushido Storage] safeRemoveLocalStorage failed for key "${key}":`, e);
-    return false;
-  }
-}
-
-/**
- * Exception-safe wrapper for sessionStorage.getItem
- */
-export function safeGetSessionStorage(key: string): string | null {
-  try {
-    if (typeof window === 'undefined' || !window.sessionStorage) return null;
-    return window.sessionStorage.getItem(key);
-  } catch (e) {
-    console.warn(`[Bushido Storage] safeGetSessionStorage failed for key "${key}":`, e);
-    return null;
-  }
-}
-
-/**
- * Exception-safe wrapper for sessionStorage.setItem
- */
-export function safeSetSessionStorage(key: string, value: string): boolean {
-  try {
-    if (typeof window === 'undefined' || !window.sessionStorage) return false;
-    window.sessionStorage.setItem(key, value);
-    return true;
-  } catch (e) {
-    console.warn(`[Bushido Storage] safeSetSessionStorage failed for key "${key}":`, e);
-    return false;
-  }
-}
-
-/**
- * Exception-safe wrapper for sessionStorage.removeItem
- */
-export function safeRemoveSessionStorage(key: string): boolean {
-  try {
-    if (typeof window === 'undefined' || !window.sessionStorage) return false;
-    window.sessionStorage.removeItem(key);
-    return true;
-  } catch (e) {
-    console.warn(`[Bushido Storage] safeRemoveSessionStorage failed for key "${key}":`, e);
-    return false;
-  }
 }
 
 let pendingStateToSave: SystemState | null = null;

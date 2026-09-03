@@ -172,6 +172,8 @@ export const resetPasswordSchema = z.object({
  * Create Cycle Schema
  */
 export const createCycleSchema = z.object({
+  id: z.string().max(120).optional(),
+  clientOperationId: z.string().max(120).optional(),
   title: z
     .string()
     .min(1, { message: 'عنوان چرخه الزامی است.' })

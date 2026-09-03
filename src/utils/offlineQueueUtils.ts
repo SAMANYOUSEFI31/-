@@ -1,41 +1,40 @@
 import { OfflineMutationType, OfflineQueueItem } from '../types';
 import { 
   normalizeUserId, 
+  normalizeQueueOwner,
+  isGuestQueueOwner,
+  getScopedOfflineQueueKey,
   safeGetLocalStorage, 
   safeSetLocalStorage, 
-  safeRemoveLocalStorage 
-} from './storageUtils';
+  safeRemoveLocalStorage,
+  GUEST_QUEUE_OWNER,
+  OFFLINE_QUEUE_PREFIX,
+  LEGACY_OFFLINE_QUEUE_KEY
+} from './storageCore';
 
-export const LEGACY_OFFLINE_QUEUE_KEY = 'bushido_offline_queue';
-export const OFFLINE_QUEUE_PREFIX = 'bushido_offline_queue_';
+export {
+  normalizeQueueOwner,
+  isGuestQueueOwner,
+  getScopedOfflineQueueKey,
+  GUEST_QUEUE_OWNER,
+  OFFLINE_QUEUE_PREFIX,
+  LEGACY_OFFLINE_QUEUE_KEY
+};
+
+export const OFFLINE_QUARANTINE_PREFIX = 'bushido_quarantine_';
+export const LEGACY_AMBIGUOUS_QUARANTINE_KEY = 'bushido_quarantine_legacy_ambiguous';
+export const LEGACY_OFFLINE_QUARANTINE_KEY = 'bushido_offline_queue_quarantine';
 export const OFFLINE_QUARANTINE_KEY = 'bushido_offline_queue_quarantine';
-export const GUEST_QUEUE_OWNER = 'guest';
 
 /**
- * Normalizes an account identifier to a stable offline queue owner string.
- * Returns 'guest' for null/empty/anonymous users, or trimmed canonical ID for authenticated users.
+ * Generates an account-scoped storage key for quarantined queue items.
+ * Guarantees sensitive payloads from different users are never intermingled.
  */
-export function normalizeQueueOwner(ownerId?: string | null): string {
-  const norm = normalizeUserId(ownerId);
-  return norm ? norm : GUEST_QUEUE_OWNER;
-}
-
-/**
- * Checks whether an owner ID represents the guest/anonymous partition.
- */
-export function isGuestQueueOwner(ownerId?: string | null): boolean {
-  return normalizeQueueOwner(ownerId) === GUEST_QUEUE_OWNER;
-}
-
-/**
- * Generates an account-scoped storage key for the offline queue.
- * Guarantees cryptographic / partition separation between guest and authenticated accounts.
- */
-export function getScopedOfflineQueueKey(ownerId?: string | null): string {
+export function getScopedQuarantineKey(ownerId?: string | null): string {
   const norm = normalizeQueueOwner(ownerId);
   return norm === GUEST_QUEUE_OWNER
-    ? `${OFFLINE_QUEUE_PREFIX}guest`
-    : `${OFFLINE_QUEUE_PREFIX}user_${norm}`;
+    ? `${OFFLINE_QUARANTINE_PREFIX}guest`
+    : `${OFFLINE_QUARANTINE_PREFIX}user_${norm}`;
 }
 
 export interface EnqueueMutationInput {
@@ -318,30 +317,108 @@ export function clearOfflineQueue(ownerId?: string | null): void {
 }
 
 /**
- * Quarantines items to prevent data loss while keeping active partitions clean.
+ * Quarantines items to prevent data loss while keeping active partitions clean and isolated.
+ * Sensitive mutation payloads are stored in the target owner's partition key.
+ * Ambiguous or unverifiable items are routed to the ambiguous legacy quarantine partition.
  */
-export function quarantineQueueItems(items: any[], reason: string): void {
+export function quarantineQueueItems(items: any[], reason: string, defaultOwnerId?: string | null): void {
+  if (!items || items.length === 0) return;
   try {
-    const raw = safeGetLocalStorage(OFFLINE_QUARANTINE_KEY);
-    const existing = raw ? JSON.parse(raw) : [];
-    const entry = {
+    const ownerGroups: Record<string, any[]> = {};
+    const ambiguousItems: any[] = [];
+
+    for (const item of items) {
+      const explicitOwner = defaultOwnerId !== undefined ? defaultOwnerId : item?.ownerId;
+      const normalized = normalizeUserId(explicitOwner);
+      if (normalized) {
+        if (!ownerGroups[normalized]) ownerGroups[normalized] = [];
+        ownerGroups[normalized].push(item);
+      } else if (explicitOwner === GUEST_QUEUE_OWNER) {
+        if (!ownerGroups[GUEST_QUEUE_OWNER]) ownerGroups[GUEST_QUEUE_OWNER] = [];
+        ownerGroups[GUEST_QUEUE_OWNER].push(item);
+      } else {
+        ambiguousItems.push(item);
+      }
+    }
+
+    // Write owner-scoped quarantines
+    for (const [owner, groupItems] of Object.entries(ownerGroups)) {
+      const key = getScopedQuarantineKey(owner);
+      const raw = safeGetLocalStorage(key);
+      const existing = raw ? JSON.parse(raw) : [];
+      existing.push({
+        quarantinedAt: new Date().toISOString(),
+        ownerId: owner,
+        reason,
+        items: groupItems
+      });
+      safeSetLocalStorage(key, JSON.stringify(existing));
+    }
+
+    // Write ambiguous quarantine for items without verified owner
+    if (ambiguousItems.length > 0) {
+      const raw = safeGetLocalStorage(LEGACY_AMBIGUOUS_QUARANTINE_KEY);
+      const existing = raw ? JSON.parse(raw) : [];
+      existing.push({
+        quarantinedAt: new Date().toISOString(),
+        reason,
+        items: ambiguousItems
+      });
+      safeSetLocalStorage(LEGACY_AMBIGUOUS_QUARANTINE_KEY, JSON.stringify(existing));
+    }
+
+    // Write global quarantine ledger for auditing and backwards compatibility
+    const globalRaw = safeGetLocalStorage(OFFLINE_QUARANTINE_KEY);
+    const globalExisting = globalRaw ? JSON.parse(globalRaw) : [];
+    globalExisting.push({
       quarantinedAt: new Date().toISOString(),
+      ownerId: defaultOwnerId || items[0]?.ownerId || null,
       reason,
       items
-    };
-    existing.push(entry);
-    safeSetLocalStorage(OFFLINE_QUARANTINE_KEY, JSON.stringify(existing));
+    });
+    safeSetLocalStorage(OFFLINE_QUARANTINE_KEY, JSON.stringify(globalExisting));
   } catch (err) {
     console.warn('[Offline Queue] Failed to write quarantine:', err);
   }
 }
 
 /**
- * Returns all quarantined items.
+ * Preserves unparseable or corrupted raw string data in quarantine before clearing storage keys.
  */
-export function getQuarantinedItems(): any[] {
+export function quarantineCorruptedRawData(raw: string, reason: string, error?: any): void {
   try {
-    const raw = safeGetLocalStorage(OFFLINE_QUARANTINE_KEY);
+    const entry = {
+      quarantinedAt: new Date().toISOString(),
+      reason,
+      rawCorruptedData: raw,
+      parseError: error ? String(error) : undefined
+    };
+
+    const existingAmbiguousRaw = safeGetLocalStorage(LEGACY_AMBIGUOUS_QUARANTINE_KEY);
+    const existingAmbiguous = existingAmbiguousRaw ? JSON.parse(existingAmbiguousRaw) : [];
+    existingAmbiguous.push(entry);
+    safeSetLocalStorage(LEGACY_AMBIGUOUS_QUARANTINE_KEY, JSON.stringify(existingAmbiguous));
+
+    const existingGlobalRaw = safeGetLocalStorage(OFFLINE_QUARANTINE_KEY);
+    const existingGlobal = existingGlobalRaw ? JSON.parse(existingGlobalRaw) : [];
+    existingGlobal.push(entry);
+    safeSetLocalStorage(OFFLINE_QUARANTINE_KEY, JSON.stringify(existingGlobal));
+  } catch (err) {
+    console.warn('[Offline Queue] Failed to quarantine corrupted raw data:', err);
+  }
+}
+
+/**
+ * Returns quarantined items for a specific owner, or ambiguous legacy items if no owner specified.
+ */
+export function getQuarantinedItems(ownerId?: string | null): any[] {
+  try {
+    if (ownerId !== undefined && ownerId !== null) {
+      const key = getScopedQuarantineKey(ownerId);
+      const raw = safeGetLocalStorage(key);
+      return raw ? JSON.parse(raw) : [];
+    }
+    const raw = safeGetLocalStorage(OFFLINE_QUARANTINE_KEY) || safeGetLocalStorage(LEGACY_AMBIGUOUS_QUARANTINE_KEY) || safeGetLocalStorage(LEGACY_OFFLINE_QUARANTINE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -349,17 +426,24 @@ export function getQuarantinedItems(): any[] {
 }
 
 /**
- * Clears the quarantine storage.
+ * Clears the quarantine storage partition for a specific owner, or legacy ambiguous quarantine.
  */
-export function clearQuarantine(): void {
-  safeRemoveLocalStorage(OFFLINE_QUARANTINE_KEY);
+export function clearQuarantine(ownerId?: string | null): void {
+  if (ownerId !== undefined && ownerId !== null) {
+    safeRemoveLocalStorage(getScopedQuarantineKey(ownerId));
+  } else {
+    safeRemoveLocalStorage(LEGACY_AMBIGUOUS_QUARANTINE_KEY);
+    safeRemoveLocalStorage(LEGACY_OFFLINE_QUARANTINE_KEY);
+    safeRemoveLocalStorage(OFFLINE_QUARANTINE_KEY);
+  }
 }
 
 /**
  * Migrates legacy global offline queue ('bushido_offline_queue') into account-scoped queues.
  * - Items with verifiable ownerId are safely routed to that owner's partition.
- * - Items with no ownerId or ambiguous structure are quarantined.
- * - Legacy global key is completely cleared after migration.
+ * - Items with no ownerId or ambiguous structure are quarantined in LEGACY_AMBIGUOUS_QUARANTINE_KEY.
+ * - Corrupted raw data is preserved in quarantine BEFORE removing the legacy key.
+ * - Quarantined items are NEVER automatically replayed.
  */
 export function migrateLegacyGlobalQueue(): { migratedCount: number; quarantinedCount: number } {
   const raw = safeGetLocalStorage(LEGACY_OFFLINE_QUEUE_KEY);
@@ -384,7 +468,8 @@ export function migrateLegacyGlobalQueue(): { migratedCount: number; quarantined
         item.type &&
         item.payload &&
         item.ownerId &&
-        typeof item.ownerId === 'string'
+        typeof item.ownerId === 'string' &&
+        normalizeUserId(item.ownerId)
       ) {
         const owner = normalizeQueueOwner(item.ownerId);
         enqueueOfflineMutation(owner, {
@@ -405,7 +490,8 @@ export function migrateLegacyGlobalQueue(): { migratedCount: number; quarantined
 
     safeRemoveLocalStorage(LEGACY_OFFLINE_QUEUE_KEY);
   } catch (err) {
-    console.warn('[Offline Queue] Failed during legacy migration:', err);
+    console.warn('[Offline Queue] Failed during legacy migration, preserving raw data in quarantine:', err);
+    quarantineCorruptedRawData(raw, 'Corrupted legacy raw data encountered during migration', err);
     safeRemoveLocalStorage(LEGACY_OFFLINE_QUEUE_KEY);
   }
 
@@ -522,6 +608,14 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
         case 'CREATE_CYCLE': {
           endpoint = '/api/cycles';
           method = 'POST';
+          // At-Least-Once replay contract with deterministic idempotency:
+          // Stable operation ID (item.id) and cycle ID survive across all retries.
+          const cycleId = item.payload?.id || item.id;
+          body = {
+            ...item.payload,
+            id: cycleId,
+            clientOperationId: item.id
+          };
           break;
         }
         case 'DELETE_CYCLE': {
@@ -537,9 +631,12 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
           break;
         }
         case 'UPDATE_SETTINGS': {
-          endpoint = '/api/user/profile';
-          method = 'PUT';
-          break;
+          // SystemSettings are declared local-only client preferences (records/central engine).
+          // Profile settings (nightOwlCutoffHour, accentTheme) are synced via UPDATE_PROFILE.
+          // Safely resolve and remove from queue without calling the server.
+          removeReplayedQueueItems(initialOwner, [item.id]);
+          syncedCount++;
+          continue;
         }
         default: {
           continue;

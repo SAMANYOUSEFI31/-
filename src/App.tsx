@@ -41,7 +41,8 @@ import {
   migrateLegacyGlobalQueue,
   enqueueOfflineMutation,
   replayAccountOfflineQueue,
-  isGuestQueueOwner
+  isGuestQueueOwner,
+  shouldQueueOfflineMutation
 } from './utils/storageUtils';
 import { Navbar } from './components/Navbar';
 import { BattlefieldView } from './components/BattlefieldView';
@@ -213,6 +214,59 @@ export default function App() {
     applyAccentTheme(theme);
   }, [systemState]);
 
+  const activeAccountRef = useRef<string | null>(systemState.userProfile?.id || null);
+  useEffect(() => {
+    activeAccountRef.current = systemState.userProfile?.id || null;
+  }, [systemState.userProfile?.id]);
+
+  const syncOfflineDataToServer = useCallback(async (targetOwnerId?: string | null, targetToken?: string | null) => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return;
+    }
+
+    const ownerId = targetOwnerId !== undefined ? targetOwnerId : systemState.userProfile?.id;
+    const currentToken = targetToken !== undefined ? targetToken : (authToken || safeGetLocalStorage(TOKEN_KEY));
+
+    // Strengthen replay identity binding:
+    // Replay strictly allowed for authenticated accounts with non-empty tokens
+    if (!ownerId || !currentToken || isGuestQueueOwner(ownerId)) {
+      return;
+    }
+
+    const result = await replayAccountOfflineQueue({
+      activeAccountId: ownerId,
+      authToken: currentToken,
+      getCurrentActiveAccountId: () => activeAccountRef.current,
+      onItemSuccess: (item) => {
+        if (item.type === 'UPDATE_LOG') {
+          setSystemState(prev => ({
+            ...prev,
+            logs: prev.logs.map(l => l.date === item.payload.date ? { ...l, isSynced: true } : l)
+          }));
+        } else if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
+          setSystemState(prev => ({
+            ...prev,
+            cycles: prev.cycles.map(c => c.id === item.payload.id ? { ...c, isSynced: true } : c)
+          }));
+        }
+      }
+    });
+
+    if (result.syncedCount > 0) {
+      showAppToast(`همگام‌سازی ابری با موفقیت انجام شد (${toPersianDigits(result.syncedCount)} تغییر ذخیره شد).`, 'success');
+    }
+  }, [authToken, systemState.userProfile?.id, showAppToast]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      syncOfflineDataToServer();
+    };
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [syncOfflineDataToServer]);
+
   // Fetch user profile and backend data on mount or token change (parallelized without duplicate waterfalls)
   useEffect(() => {
     let isCancelled = false;
@@ -336,6 +390,11 @@ export default function App() {
             });
           }
         }
+
+        // Replay identity binding: Replay starts after verified auth identity from /api/auth/me
+        if (fetchedUserProfile?.id && currentToken) {
+          syncOfflineDataToServer(fetchedUserProfile.id, currentToken);
+        }
       } catch (err) {
         console.warn('Backend sync warning (running in offline/local fallback):', err);
       }
@@ -346,7 +405,7 @@ export default function App() {
     return () => {
       isCancelled = true;
     };
-  }, [authToken]);
+  }, [authToken, syncOfflineDataToServer]);
 
   const currentCycle = useMemo(() => {
     return systemState.cycles.find(c => c.id === activeCycleId) || systemState.cycles[0] || null;
@@ -360,57 +419,6 @@ export default function App() {
     if (!currentCycle) return emptyMetrics;
     return computeCycleMetrics(currentCycle, systemState.logs, systemState.cycles, logicalToday);
   }, [currentCycle, systemState.logs, systemState.cycles, logicalToday, emptyMetrics]);
-
-  const activeAccountRef = useRef<string | null>(systemState.userProfile?.id || null);
-  useEffect(() => {
-    activeAccountRef.current = systemState.userProfile?.id || null;
-  }, [systemState.userProfile?.id]);
-
-  const syncOfflineDataToServer = useCallback(async () => {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      return;
-    }
-
-    const ownerId = systemState.userProfile?.id;
-    const currentToken = authToken || safeGetLocalStorage(TOKEN_KEY);
-
-    if (!ownerId || !currentToken || isGuestQueueOwner(ownerId)) {
-      return;
-    }
-
-    const result = await replayAccountOfflineQueue({
-      activeAccountId: ownerId,
-      authToken: currentToken,
-      getCurrentActiveAccountId: () => activeAccountRef.current,
-      onItemSuccess: (item) => {
-        if (item.type === 'UPDATE_LOG') {
-          setSystemState(prev => ({
-            ...prev,
-            logs: prev.logs.map(l => l.date === item.payload.date ? { ...l, isSynced: true } : l)
-          }));
-        } else if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
-          setSystemState(prev => ({
-            ...prev,
-            cycles: prev.cycles.map(c => c.id === item.payload.id ? { ...c, isSynced: true } : c)
-          }));
-        }
-      }
-    });
-
-    if (result.syncedCount > 0) {
-      showAppToast(`همگام‌سازی ابری با موفقیت انجام شد (${toPersianDigits(result.syncedCount)} تغییر ذخیره شد).`, 'success');
-    }
-  }, [authToken, systemState.userProfile?.id, showAppToast]);
-
-  useEffect(() => {
-    const handleOnline = () => {
-      syncOfflineDataToServer();
-    };
-    window.addEventListener('online', handleOnline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-    };
-  }, [syncOfflineDataToServer]);
 
   const handleUpdateLog = useCallback(async (updatedLog: DailyLog) => {
     // 1. Optimistic UI update
@@ -429,22 +437,26 @@ export default function App() {
       };
     });
 
-    // 2. Offline / Server sync with backend
+    // 2. Authoritative ownership & auth guard
     const ownerId = systemState.userProfile?.id;
-    if (!authToken || isGuestQueueOwner(ownerId) || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+    if (!guard.canSendToServer && !guard.shouldQueue) {
+      // Guest or tokenless: strictly local client partition. Never queued for server replay.
+      return;
+    }
+
+    if (guard.shouldQueue) {
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
       return;
     }
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-
       const res = await fetch('/api/logs', {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify({
           ...updatedLog,
           cycleId: updatedLog.cycleId || activeCycleId
@@ -471,20 +483,23 @@ export default function App() {
     }));
 
     const ownerId = systemState.userProfile?.id;
-    if (!authToken || isGuestQueueOwner(ownerId) || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+    if (!guard.canSendToServer && !guard.shouldQueue) {
+      return;
+    }
+
+    if (guard.shouldQueue) {
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
       return;
     }
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-
       const res = await fetch(`/api/cycles/${updatedCycle.id}`, {
         method: 'PUT',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify(updatedCycle)
       });
       if (!res.ok) {
@@ -528,19 +543,22 @@ export default function App() {
     }
 
     const ownerId = systemState.userProfile?.id;
-    if (!authToken || isGuestQueueOwner(ownerId) || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+    if (!guard.canSendToServer && !guard.shouldQueue) {
+      return;
+    }
+
+    if (guard.shouldQueue) {
       enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
       return;
     }
 
     try {
-      const headers: Record<string, string> = {};
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
       const res = await fetch(`/api/cycles/${cycleId}`, {
         method: 'DELETE',
-        headers
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
       });
       if (!res.ok && res.status !== 404) {
         enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
@@ -558,20 +576,23 @@ export default function App() {
     }));
 
     const ownerId = systemState.userProfile?.id;
-    if (!authToken || isGuestQueueOwner(ownerId) || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+    if (!guard.canSendToServer && !guard.shouldQueue) {
+      return;
+    }
+
+    if (guard.shouldQueue) {
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
       return;
     }
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-
       const res = await fetch('/api/user/profile', {
         method: 'PUT',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify(updatedProfile)
       });
       if (!res.ok) {
@@ -614,20 +635,23 @@ export default function App() {
     setActiveTab('battlefield');
 
     const ownerId = systemState.userProfile?.id;
-    if (!authToken || isGuestQueueOwner(ownerId) || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+    if (!guard.canSendToServer && !guard.shouldQueue) {
+      return;
+    }
+
+    if (guard.shouldQueue) {
       enqueueOfflineMutation(ownerId, { type: 'CREATE_CYCLE', payload: newCycle });
       return;
     }
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-
       const res = await fetch('/api/cycles', {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify(newCycle)
       });
       if (!res.ok) {
@@ -702,9 +726,8 @@ export default function App() {
       setActiveCycleId(transition.nextActiveCycleId);
     }
     showAppToast(`با موفقیت وارد حساب «${user.name || 'کاربر'}» شدید.`);
-    setTimeout(() => {
-      syncOfflineDataToServer();
-    }, 100);
+    // Explicit binding: Replay verified target user queue with target token (no setTimeout)
+    syncOfflineDataToServer(user.id, token);
   };
 
   const handleQuickLogin = async (role: 'admin' | 'test_user') => {
@@ -733,9 +756,8 @@ export default function App() {
           setActiveCycleId(transition.nextActiveCycleId);
         }
         showAppToast(role === 'admin' ? 'به عنوان مدیر ارشد سیستم وارد شدید.' : 'به عنوان کاربر تستی وارد شدید.');
-        setTimeout(() => {
-          syncOfflineDataToServer();
-        }, 100);
+        // Explicit binding: Replay verified target user queue with target token (no setTimeout)
+        syncOfflineDataToServer(data.user.id, data.token);
       } else {
         showAppToast(data.messageFa || data.error || 'ورود سریع در این محیط غیرفعال است.', 'error');
       }
@@ -780,6 +802,8 @@ export default function App() {
         }
         setActiveTab('battlefield');
         showAppToast(`در حال شبیه‌سازی و مشاهده سامانه از دید: «${data.user.name}»`);
+        // Explicit binding: Replay target user's queue with target token
+        syncOfflineDataToServer(data.user.id, data.token);
       } else {
         showAppToast(data.error || 'خطا در سوییچ به کاربر');
       }
@@ -817,6 +841,8 @@ export default function App() {
           if (transition.nextState.cycles.length > 0) {
             setActiveCycleId(transition.nextActiveCycleId);
           }
+          // Explicit binding: Replay admin's own queue with admin token (NEVER target user queue)
+          syncOfflineDataToServer(data.user.id, impersonatorAdminToken);
         }
       }
       setImpersonatorAdminToken(null);

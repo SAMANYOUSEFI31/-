@@ -48,7 +48,8 @@ import {
   safeGetSessionStorage,
   safeSetSessionStorage,
   safeRemoveSessionStorage,
-  resolveBackendSyncDecision
+  resolveBackendSyncDecision,
+  shouldQueueOfflineMutation
 } from '../utils/storageUtils';
 import {
   enqueueOfflineMutation,
@@ -446,6 +447,13 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     return unresolvedAutopsyLog !== null;
   }, [unresolvedAutopsyLog]);
 
+  /**
+   * Authoritative Mutation Handlers:
+   * Both App.tsx and BushidoContext.tsx share identical ownership and auth guards (shouldQueueOfflineMutation).
+   * - Guests / tokenless sessions are strictly local and never queued for server replay.
+   * - Authenticated offline sessions enqueue mutations into the owner's partition.
+   * - Authenticated online sessions attempt direct API call with automatic queue fallback on network/server error.
+   */
   const updateLog = useCallback(async (updatedLog: DailyLog) => {
     const ownerId = systemState.userProfile?.id;
     const optimisticLog: DailyLog = { ...updatedLog, isSynced: false };
@@ -464,20 +472,23 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       };
     });
 
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+    if (!guard.canSendToServer && !guard.shouldQueue) {
+      return;
+    }
+
+    if (guard.shouldQueue) {
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
       return;
     }
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-
       const res = await fetch('/api/logs', {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify({
           ...updatedLog,
           cycleId: updatedLog.cycleId || activeCycleId
@@ -508,20 +519,23 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       cycles: prev.cycles.map(c => (c.id === updatedCycle.id ? optimisticCycle : c))
     }));
 
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+    if (!guard.canSendToServer && !guard.shouldQueue) {
+      return;
+    }
+
+    if (guard.shouldQueue) {
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
       return;
     }
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-
       const res = await fetch(`/api/cycles/${updatedCycle.id}`, {
         method: 'PUT',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify(updatedCycle)
       });
 
@@ -558,19 +572,22 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       setSelectedDate(remainingCycles[0].startDate);
     }
 
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+    if (!guard.canSendToServer && !guard.shouldQueue) {
+      return;
+    }
+
+    if (guard.shouldQueue) {
       enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
       return;
     }
 
     try {
-      const headers: Record<string, string> = {};
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
       const res = await fetch(`/api/cycles/${cycleId}`, {
         method: 'DELETE',
-        headers
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
       });
       if (!res.ok) {
         enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
@@ -605,20 +622,23 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     setSelectedDate(startDate);
     setActiveTab('battlefield');
 
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+    if (!guard.canSendToServer && !guard.shouldQueue) {
+      return;
+    }
+
+    if (guard.shouldQueue) {
       enqueueOfflineMutation(ownerId, { type: 'CREATE_CYCLE', payload: newCycle });
       return;
     }
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-
       const res = await fetch('/api/cycles', {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify(newCycle)
       });
 
@@ -638,15 +658,16 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   }, [authToken, cycleMetrics?.pureStreak, systemState.userProfile?.id]);
 
-  const syncOfflineDataToServer = useCallback(async () => {
+  const syncOfflineDataToServer = useCallback(async (targetOwnerId?: string | null, targetToken?: string | null) => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       return;
     }
 
-    const ownerId = systemState.userProfile?.id;
-    const currentToken = authToken || safeGetLocalStorage(TOKEN_KEY);
+    const ownerId = targetOwnerId !== undefined ? targetOwnerId : systemState.userProfile?.id;
+    const currentToken = targetToken !== undefined ? targetToken : (authToken || safeGetLocalStorage(TOKEN_KEY));
 
-    // Guard: Replay is strictly authenticated for non-guest users
+    // Strengthen replay identity binding:
+    // Replay strictly allowed for authenticated accounts with non-empty tokens
     if (!ownerId || !currentToken || isGuestQueueOwner(ownerId)) {
       return;
     }
@@ -677,7 +698,6 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   useEffect(() => {
     const handleOnline = () => {
-      console.log('[Bushido Sync] Device is back online. Syncing pending offline queues...');
       syncOfflineDataToServer();
     };
 
@@ -694,20 +714,23 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       userProfile: updatedProfile
     }));
 
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+    if (!guard.canSendToServer && !guard.shouldQueue) {
+      return;
+    }
+
+    if (guard.shouldQueue) {
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
       return;
     }
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-
       const res = await fetch('/api/user/profile', {
         method: 'PUT',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify(updatedProfile)
       });
       if (!res.ok) {
@@ -720,13 +743,15 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [authToken, systemState.userProfile?.id]);
 
   const updateSettings = useCallback(async (updatedSettings: SystemSettings) => {
-    const ownerId = systemState.userProfile?.id;
+    // Architecture Decision (Requirement 3):
+    // SystemSettings (such as all-time records, central engine name) are declared local-only client state.
+    // User profile settings (nightOwlCutoffHour, accentTheme) are synced via UPDATE_PROFILE.
+    // We intentionally DO NOT enqueue UPDATE_SETTINGS into the offline queue to avoid unnecessary / failing sync calls.
     setSystemState(prev => ({
       ...prev,
       settings: updatedSettings
     }));
-    enqueueOfflineMutation(ownerId, { type: 'UPDATE_SETTINGS', payload: updatedSettings });
-  }, [systemState.userProfile?.id]);
+  }, []);
 
   const toggleHabit = useCallback(async (date: string, habitKey: HabitKey) => {
     const existingLog = systemState.logs.find(l => l.date === date) || {
@@ -861,7 +886,9 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       setActiveCycleId(transition.nextActiveCycleId);
     }
     showAppToast(`با موفقیت وارد حساب «${user.name || 'کاربر'}» شدید.`);
-  }, [systemState, showAppToast]);
+    // Explicit binding: Replay verified target user queue with target token
+    syncOfflineDataToServer(user.id, token);
+  }, [systemState, showAppToast, syncOfflineDataToServer]);
 
   const handleQuickLogin = useCallback(async (role: 'admin' | 'test_user') => {
     try {
@@ -909,6 +936,8 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
           setActiveCycleId(transition.nextActiveCycleId);
         }
         showAppToast(role === 'admin' ? 'به عنوان مدیر ارشد سیستم وارد شدید.' : 'به عنوان کاربر تستی وارد شدید.');
+        // Explicit binding: Replay verified target user queue with target token
+        syncOfflineDataToServer(data.user.id, data.token);
         return;
       }
 
@@ -956,11 +985,12 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
         setActiveCycleId(transition.nextActiveCycleId);
       }
       showAppToast(role === 'admin' ? 'به عنوان مدیر ارشد سیستم وارد شدید.' : 'به عنوان کاربر تستی وارد شدید.');
+      syncOfflineDataToServer(fallbackUser.id, fallbackToken);
     } catch (e) {
       console.error('Quick login error:', e);
       showAppToast('ورود با تنظیمات پیش‌فرض انجام شد.');
     }
-  }, [systemState, showAppToast]);
+  }, [systemState, showAppToast, syncOfflineDataToServer]);
 
   const handleImpersonateUser = useCallback(async (targetUser: AdminUserItem) => {
     try {
@@ -998,6 +1028,8 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
           }
           setActiveTab('battlefield');
           showAppToast(`در حال شبیه‌سازی و مشاهده سامانه از دید: «${data.user.name}»`);
+          // Explicit binding: Replay impersonated user queue with impersonated token
+          syncOfflineDataToServer(data.user.id, data.token);
         } else {
           showAppToast('خطا در دریافت اطلاعات شبیه‌سازی کاربر');
         }
@@ -1009,7 +1041,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       console.error('Impersonate user error:', e);
       showAppToast('خطا در برقراری ارتباط با سرور');
     }
-  }, [authToken, systemState, showAppToast]);
+  }, [authToken, systemState, showAppToast, syncOfflineDataToServer]);
 
   const handleExitImpersonation = useCallback(async () => {
     if (!impersonatorAdminToken) return;
@@ -1039,6 +1071,8 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
           if (transition.nextState.cycles.length > 0) {
             setActiveCycleId(transition.nextActiveCycleId);
           }
+          // Explicit binding: Replay admin's own queue with admin token (NEVER target user queue)
+          syncOfflineDataToServer(data.user.id, impersonatorAdminToken);
         }
       }
       setImpersonatorAdminToken(null);
@@ -1047,7 +1081,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     } catch (e) {
       console.error('Exit impersonation error:', e);
     }
-  }, [impersonatorAdminToken, systemState, showAppToast]);
+  }, [impersonatorAdminToken, systemState, showAppToast, syncOfflineDataToServer]);
 
   const handleLogout = useCallback(() => {
     safeRemoveLocalStorage(TOKEN_KEY);

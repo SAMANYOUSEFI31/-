@@ -13,12 +13,14 @@ import {
   quarantineQueueItems,
   getQuarantinedItems,
   clearQuarantine,
+  getScopedQuarantineKey,
   isGuestQueueOwner,
   normalizeQueueOwner,
   OFFLINE_QUEUE_PREFIX,
   LEGACY_OFFLINE_QUEUE_KEY,
   OFFLINE_QUARANTINE_KEY
 } from '../src/utils/offlineQueueUtils.js';
+import { shouldQueueOfflineMutation } from '../src/utils/storageCore.js';
 import { OfflineQueueItem } from '../src/types.js';
 
 describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => {
@@ -430,6 +432,353 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
       assert.equal(result.migratedCount, 0);
       assert.equal(result.quarantinedCount, 0);
       assert.equal(storageMock[LEGACY_OFFLINE_QUEUE_KEY], undefined);
+    });
+  });
+
+  // ===========================================================================
+  // 6. PHASE 3B HARDENING: EXPLICIT AUTH TRANSITIONS, GUARD ALIGNMENT & ISOLATION INVARIANTS
+  // ===========================================================================
+  describe('6. Phase 3B Hardening: Explicit Transitions, Guard Alignment & Isolation Invariants', () => {
+    it('Scenario 1: Guest -> User A replays ONLY User A queue and leaves Guest queue strictly untouched', async () => {
+      // 1. Queue an item in Guest partition
+      enqueueOfflineMutation(null, {
+        type: 'UPDATE_LOG',
+        payload: { date: '1405-01-01', score: 6 }
+      });
+
+      // 2. Queue an item in User A partition
+      enqueueOfflineMutation('user-alpha', {
+        type: 'UPDATE_LOG',
+        payload: { date: '1405-01-02', score: 9 }
+      });
+
+      assert.equal(getOfflineQueue(null).length, 1);
+      assert.equal(getOfflineQueue('user-alpha').length, 1);
+
+      // Track all HTTP requests made during replay
+      const sentRequests: { url: string; authHeader: string; body: any }[] = [];
+      const mockFetch = async (url: any, init?: any) => {
+        sentRequests.push({
+          url: String(url),
+          authHeader: init?.headers?.Authorization || '',
+          body: JSON.parse(init?.body || '{}')
+        });
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true })
+        } as any;
+      };
+
+      // 3. Replay triggered explicitly for User A after login
+      const result = await replayAccountOfflineQueue({
+        activeAccountId: 'user-alpha',
+        authToken: 'token-alpha-123',
+        fetchFn: mockFetch
+      });
+
+      // Assertions:
+      assert.equal(result.syncedCount, 1);
+      assert.equal(sentRequests.length, 1);
+      assert.equal(sentRequests[0].authHeader, 'Bearer token-alpha-123');
+      assert.equal(sentRequests[0].body.date, '1405-01-02');
+
+      // User A queue must be empty, Guest queue must remain completely untouched
+      assert.equal(getOfflineQueue('user-alpha').length, 0, 'User A queue must be fully drained');
+      assert.equal(getOfflineQueue(null).length, 1, 'Guest queue must NEVER be touched or replayed');
+      assert.equal(getOfflineQueue(null)[0].payload.date, '1405-01-01');
+    });
+
+    it('Scenario 2: User A -> User B replays ONLY User B queue with User B token, never User A queue', async () => {
+      enqueueOfflineMutation('user-alpha', {
+        type: 'UPDATE_PROFILE',
+        payload: { name: 'Alpha Warrior' }
+      });
+
+      enqueueOfflineMutation('user-beta', {
+        type: 'UPDATE_PROFILE',
+        payload: { name: 'Beta Champion' }
+      });
+
+      const sentRequests: { url: string; authHeader: string; body: any }[] = [];
+      const mockFetch = async (url: any, init?: any) => {
+        sentRequests.push({
+          url: String(url),
+          authHeader: init?.headers?.Authorization || '',
+          body: JSON.parse(init?.body || '{}')
+        });
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true })
+        } as any;
+      };
+
+      // Replay triggered explicitly for User B
+      const result = await replayAccountOfflineQueue({
+        activeAccountId: 'user-beta',
+        authToken: 'token-beta-456',
+        fetchFn: mockFetch
+      });
+
+      assert.equal(result.syncedCount, 1);
+      assert.equal(sentRequests.length, 1);
+      assert.equal(sentRequests[0].authHeader, 'Bearer token-beta-456');
+      assert.equal(sentRequests[0].body.name, 'Beta Champion');
+
+      // User B queue drained, User A queue untouched
+      assert.equal(getOfflineQueue('user-beta').length, 0);
+      assert.equal(getOfflineQueue('user-alpha').length, 1);
+      assert.equal(getOfflineQueue('user-alpha')[0].payload.name, 'Alpha Warrior');
+    });
+
+    it('Scenario 3: Impersonation entry replays ONLY target-user queue with target token', async () => {
+      const adminId = 'admin-super-001';
+      const targetUserId = 'client-vip-888';
+
+      enqueueOfflineMutation(adminId, {
+        type: 'UPDATE_CYCLE',
+        payload: { id: 'admin-cycle-1', title: 'Admin Master Cycle' }
+      });
+
+      enqueueOfflineMutation(targetUserId, {
+        type: 'UPDATE_CYCLE',
+        payload: { id: 'client-cycle-1', title: 'Client Custom Cycle' }
+      });
+
+      const sentRequests: { authHeader: string; body: any }[] = [];
+      const mockFetch = async (url: any, init?: any) => {
+        sentRequests.push({
+          authHeader: init?.headers?.Authorization || '',
+          body: JSON.parse(init?.body || '{}')
+        });
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true })
+        } as any;
+      };
+
+      // Admin impersonates target user -> explicit replay for target user with target token
+      const result = await replayAccountOfflineQueue({
+        activeAccountId: targetUserId,
+        authToken: 'impersonation-token-888',
+        fetchFn: mockFetch
+      });
+
+      assert.equal(result.syncedCount, 1);
+      assert.equal(sentRequests.length, 1);
+      assert.equal(sentRequests[0].authHeader, 'Bearer impersonation-token-888');
+      assert.equal(sentRequests[0].body.id, 'client-cycle-1');
+
+      // Target user queue drained, admin queue untouched
+      assert.equal(getOfflineQueue(targetUserId).length, 0);
+      assert.equal(getOfflineQueue(adminId).length, 1);
+    });
+
+    it('Scenario 4: Impersonation exit never replays target-user queue', async () => {
+      const adminId = 'admin-super-001';
+      const targetUserId = 'client-vip-888';
+
+      // Suppose target user still has an item
+      enqueueOfflineMutation(targetUserId, {
+        type: 'UPDATE_LOG',
+        payload: { date: '1405-06-20', score: 10 }
+      });
+
+      // Admin exits impersonation -> triggers explicit replay for admin
+      let fetchCalls = 0;
+      const mockFetch = async () => {
+        fetchCalls++;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true })
+        } as any;
+      };
+
+      const result = await replayAccountOfflineQueue({
+        activeAccountId: adminId,
+        authToken: 'admin-original-token',
+        fetchFn: mockFetch
+      });
+
+      // Admin had no items, target user queue is NEVER touched or sent with admin token
+      assert.equal(result.syncedCount, 0);
+      assert.equal(fetchCalls, 0);
+      assert.equal(getOfflineQueue(targetUserId).length, 1, 'Target user queue remains untouched');
+    });
+
+    it('Scenario 5: Tokenless or Guest sessions strictly blocked from sending replay mutations', async () => {
+      enqueueOfflineMutation(null, {
+        type: 'UPDATE_LOG',
+        payload: { date: '1405-01-01', score: 7 }
+      });
+
+      let fetchAttempted = false;
+      const mockFetch = async () => {
+        fetchAttempted = true;
+        assert.fail('Should never invoke fetch for tokenless or guest sessions');
+      };
+
+      // 1. Guest session replay
+      const guestResult = await replayAccountOfflineQueue({
+        activeAccountId: null,
+        authToken: null,
+        fetchFn: mockFetch
+      });
+      assert.equal(guestResult.syncedCount, 0);
+      assert.equal(guestResult.stoppedDueToAuth, false);
+      assert.equal(fetchAttempted, false);
+      assert.equal(getOfflineQueue(null).length, 1);
+
+      // 2. Authenticated user without auth token
+      enqueueOfflineMutation('user-gamma', {
+        type: 'UPDATE_LOG',
+        payload: { date: '1405-01-02', score: 8 }
+      });
+
+      const unauthResult = await replayAccountOfflineQueue({
+        activeAccountId: 'user-gamma',
+        authToken: null,
+        fetchFn: mockFetch
+      });
+      assert.equal(unauthResult.syncedCount, 0);
+      assert.equal(unauthResult.stoppedDueToAuth, true);
+      assert.equal(fetchAttempted, false);
+      assert.equal(getOfflineQueue('user-gamma').length, 1);
+    });
+
+    it('Scenario 6: Mutation queuing guard (shouldQueueOfflineMutation) provides authoritative checks', () => {
+      // Guest sessions are always queued locally
+      assert.equal(shouldQueueOfflineMutation(null, null), true);
+      assert.equal(shouldQueueOfflineMutation('guest', null), true);
+      assert.equal(shouldQueueOfflineMutation(null, 'any-token'), true);
+      assert.equal(shouldQueueOfflineMutation('guest', 'any-token'), true);
+
+      // Authenticated users without token are queued locally
+      assert.equal(shouldQueueOfflineMutation('user-alpha', null), true);
+      assert.equal(shouldQueueOfflineMutation('user-alpha', ''), true);
+
+      // Authenticated users with token when online are NOT queued
+      assert.equal(shouldQueueOfflineMutation('user-alpha', 'valid-token'), false);
+      assert.equal(shouldQueueOfflineMutation('admin-001', 'admin-token'), false);
+
+      // Offline network status always forces queueing
+      const originalOnLine = globalThis.navigator?.onLine;
+      Object.defineProperty(globalThis.navigator, 'onLine', { value: false, configurable: true, writable: true });
+      assert.equal(shouldQueueOfflineMutation('user-alpha', 'valid-token'), true);
+
+      // Restore online
+      Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true, writable: true });
+      assert.equal(shouldQueueOfflineMutation('user-alpha', 'valid-token'), false);
+
+      // Reset to original if needed
+      if (originalOnLine !== undefined) {
+        Object.defineProperty(globalThis.navigator, 'onLine', { value: originalOnLine, configurable: true, writable: true });
+      }
+    });
+
+    it('Scenario 7: Account switch mid-replay immediately aborts and preserves remaining queue', async () => {
+      // --- Case 7A: Account switch between items (caught by pre-flight check before item 2) ---
+      enqueueOfflineMutation('user-alpha', {
+        type: 'UPDATE_LOG',
+        payload: { date: '1405-01-01', score: 10 }
+      });
+      enqueueOfflineMutation('user-alpha', {
+        type: 'UPDATE_LOG',
+        payload: { date: '1405-01-02', score: 10 }
+      });
+
+      let activeAccountA = 'user-alpha';
+      let callCountA = 0;
+
+      const mockFetchA = async () => {
+        callCountA++;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true })
+        } as any;
+      };
+
+      const resultA = await replayAccountOfflineQueue({
+        activeAccountId: 'user-alpha',
+        authToken: 'token-alpha',
+        fetchFn: mockFetchA,
+        getCurrentActiveAccountId: () => activeAccountA,
+        onItemSuccess: () => {
+          // Switch account right after item 1 commits
+          activeAccountA = 'user-beta';
+        }
+      });
+
+      assert.equal(resultA.syncedCount, 1, 'First item committed before account switch');
+      assert.equal(resultA.stoppedDueToAccountChange, true, 'Stopped due to account change');
+      assert.equal(callCountA, 1, 'Only 1 request should have been made before pre-flight check caught switch');
+
+      // Remaining item for user-alpha must still be preserved in user-alpha's queue
+      const remainingAlpha = getOfflineQueue('user-alpha');
+      assert.equal(remainingAlpha.length, 1);
+      assert.equal(remainingAlpha[0].payload.date, '1405-01-02');
+
+      // --- Case 7B: Account switch in-flight during request (caught by post-flight check before commit) ---
+      enqueueOfflineMutation('user-delta', {
+        type: 'UPDATE_LOG',
+        payload: { date: '1405-01-03', score: 8 }
+      });
+
+      let activeAccountB = 'user-delta';
+      const mockFetchB = async () => {
+        // Account changes while HTTP request is in-flight on the wire
+        activeAccountB = 'user-epsilon';
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true })
+        } as any;
+      };
+
+      const resultB = await replayAccountOfflineQueue({
+        activeAccountId: 'user-delta',
+        authToken: 'token-delta',
+        fetchFn: mockFetchB,
+        getCurrentActiveAccountId: () => activeAccountB
+      });
+
+      assert.equal(resultB.syncedCount, 0, 'In-flight switch prevented committing unverified success');
+      assert.equal(resultB.stoppedDueToAccountChange, true);
+      assert.equal(getOfflineQueue('user-delta').length, 1, 'Item remains safely in delta queue');
+    });
+
+    it('Scenario 8: Quarantine entries for corrupted/foreign items are partition-isolated and preserved across cleans', () => {
+      clearQuarantine();
+
+      // Quarantine an item for user-alpha
+      quarantineQueueItems([{
+        id: 'foreign-1',
+        ownerId: 'user-alpha',
+        type: 'UPDATE_LOG',
+        payload: { date: '1405-01-01', score: 1 }
+      }], 'Corrupted signature', 'user-alpha');
+
+      // Quarantine an item for user-beta
+      quarantineQueueItems([{
+        id: 'foreign-2',
+        ownerId: 'user-beta',
+        type: 'UPDATE_LOG',
+        payload: { date: '1405-01-02', score: 2 }
+      }], 'Security violation', 'user-beta');
+
+      // Alpha quarantine has 1, Beta quarantine has 1
+      assert.equal(getQuarantinedItems('user-alpha').length, 1);
+      assert.equal(getQuarantinedItems('user-beta').length, 1);
+
+      // Clearing User Beta's quarantine must NEVER affect User Alpha's quarantine
+      clearQuarantine('user-beta');
+
+      assert.equal(getQuarantinedItems('user-beta').length, 0);
+      assert.equal(getQuarantinedItems('user-alpha').length, 1, 'User Alpha quarantine must be preserved');
     });
   });
 });
