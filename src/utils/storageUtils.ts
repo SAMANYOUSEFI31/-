@@ -210,9 +210,13 @@ const DEBOUNCE_DELAY_MS = 350;
  */
 export function writeStateDirect(state: SystemState, userId?: string | null): boolean {
   try {
-    const ownerId = normalizeUserId(userId || state.userProfile?.id);
+    const ownerId = normalizeUserId(userId ?? state.userProfile?.id);
     const targetKey = getScopedStorageKey(ownerId);
-    return safeSetLocalStorage(targetKey, JSON.stringify(state));
+    // Ensure the saved payload's userProfile.id aligns with the scoped owner to prevent mismatched state rejection
+    const stateToSave = ownerId && state.userProfile && state.userProfile.id !== ownerId
+      ? { ...state, userProfile: { ...state.userProfile, id: ownerId } }
+      : state;
+    return safeSetLocalStorage(targetKey, JSON.stringify(stateToSave));
   } catch (err) {
     console.error('[Bushido Storage] Failed to save state to localStorage:', err);
     return false;

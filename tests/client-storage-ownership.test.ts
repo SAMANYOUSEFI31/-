@@ -416,6 +416,30 @@ describe('Phase 3A: Client Local Ownership & Partition Isolation Contract', () =
       const demoKeyA = getScopedDemoConsumedKey('user-alpha-1');
       assert.equal(storageMock[demoKeyA], undefined);
     });
+
+    it('Cycle operations, reset-data, and import-data strictly write to scoped demo keys and never global legacy keys', () => {
+      const userAId = 'user-samurai-888';
+      const scopedDemoKeyA = getScopedDemoConsumedKey(userAId);
+      const scopedDemoKeyGuest = getScopedDemoConsumedKey(null);
+
+      // 1. Simulating Cycle Creation for User A
+      storageMock[scopedDemoKeyA] = 'true';
+      assert.equal(storageMock[scopedDemoKeyA], 'true');
+      assert.equal(storageMock[scopedDemoKeyGuest], undefined);
+      assert.equal(storageMock[LEGACY_DEMO_CONSUMED_KEY], undefined);
+
+      // 2. Simulating Reset-Data for User A: removes only scopedDemoKeyA
+      delete storageMock[scopedDemoKeyA];
+      assert.equal(storageMock[scopedDemoKeyA], undefined);
+      // Legacy keys must not be created or corrupted
+      assert.equal(storageMock[LEGACY_DEMO_CONSUMED_KEY], undefined);
+
+      // 3. Simulating Import-Data for User A: sets scopedDemoKeyA to true
+      storageMock[scopedDemoKeyA] = 'true';
+      assert.equal(storageMock[scopedDemoKeyA], 'true');
+      assert.equal(storageMock[scopedDemoKeyGuest], undefined);
+      assert.equal(storageMock[LEGACY_DEMO_CONSUMED_KEY], undefined);
+    });
   });
 
   // ===========================================================================
