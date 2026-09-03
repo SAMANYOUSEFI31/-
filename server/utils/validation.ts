@@ -1,11 +1,30 @@
 import { z, ZodSchema } from 'zod';
 import { Request, Response, NextFunction } from 'express';
 import { toEnglishDigits } from '../security';
+import { normalizePhoneNumber } from './phone';
 
 /**
  * تابع کمکی پاک‌سازی و تبدیل اعداد فارسی/عربی به انگلیسی
  */
 const cleanDigits = (val: string) => toEnglishDigits(val ? val.trim() : '');
+
+/**
+ * اعتبارسنجی و نرمال‌سازی سخت‌گیرانه شماره موبایل ایران
+ */
+export const iranianPhoneSchema = z
+  .string()
+  .min(1, { message: 'ورود شماره موبایل الزامی است.' })
+  .transform((val, ctx) => {
+    const normalized = normalizePhoneNumber(val);
+    if (!normalized) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'فرمت شماره موبایل نامعتبر است. نمونه صحیح: ۰۹۱۲۳۴۵۶۷۸۹',
+      });
+      return z.NEVER;
+    }
+    return normalized;
+  });
 
 /**
  * Standard date string format validator (YYYY-MM-DD)
@@ -25,30 +44,74 @@ const dateStringSchema = z
  * ========================================================================= */
 
 /**
- * User Registration Schema
+ * Phone-First Registration: Step 1 (Request OTP)
+ */
+export const registerRequestOtpSchema = z.object({
+  phoneNumber: iranianPhoneSchema,
+});
+
+/**
+ * Phone-First Registration: Step 2 (Verify OTP & Set Password)
+ */
+export const registerVerifyOtpSchema = z.object({
+  phoneNumber: iranianPhoneSchema,
+  code: z
+    .string()
+    .transform(cleanDigits)
+    .pipe(z.string().min(4, { message: 'کد تایید الزامی است.' })),
+  password: z.string().min(8, { message: 'رمز عبور باید حداقل ۸ کاراکتر باشد.' }),
+  name: z.string().max(80, { message: 'نام کاربری حداکثر می‌تواند ۸۰ کاراکتر باشد.' }).optional(),
+});
+
+/**
+ * Phone-First Password Recovery: Step 1 (Request OTP)
+ */
+export const forgotPasswordRequestOtpSchema = z.object({
+  phoneNumber: iranianPhoneSchema,
+});
+
+/**
+ * Phone-First Password Recovery: Step 2 (Reset Password with OTP)
+ */
+export const resetPasswordWithOtpSchema = z.object({
+  phoneNumber: iranianPhoneSchema,
+  code: z
+    .string()
+    .transform(cleanDigits)
+    .pipe(z.string().min(4, { message: 'کد تایید الزامی است.' })),
+  newPassword: z.string().min(8, { message: 'رمز عبور جدید باید حداقل ۸ کاراکتر باشد.' }),
+});
+
+/**
+ * User Registration Schema (Legacy / Direct Adapter)
  */
 export const registerSchema = z.object({
   identifier: z
     .string()
-    .transform(cleanDigits)
-    .pipe(z.string().min(3, { message: 'شماره موبایل یا ایمیل باید حداقل ۳ کاراکتر باشد.' })),
-  password: z.string().min(8, { message: 'رمز عبور باید حداقل ۸ کاراکتر باشد.' }),
-  name: z.string().max(80, { message: 'نام کاربری حداکثر می‌تواند ۸۰ کاراکتر باشد.' }).optional(),
-  email: z.string().email({ message: 'فرمت ایمیل وارد شده نامعتبر است.' }).optional().or(z.literal('')),
+    .optional()
+    .transform((val) => (val ? cleanDigits(val) : val)),
   phoneNumber: z
     .string()
     .optional()
     .transform((val) => (val ? cleanDigits(val) : val)),
+  password: z.string().min(8, { message: 'رمز عبور باید حداقل ۸ کاراکتر باشد.' }),
+  name: z.string().max(80, { message: 'نام کاربری حداکثر می‌تواند ۸۰ کاراکتر باشد.' }).optional(),
+  email: z.string().email({ message: 'فرمت ایمیل وارد شده نامعتبر است.' }).optional().or(z.literal('')),
+  code: z.string().optional().transform((val) => (val ? cleanDigits(val) : val)),
 });
 
 /**
- * User Login Schema
+ * User Login Schema (Phone + Password or Super Admin)
  */
 export const loginSchema = z.object({
   identifier: z
     .string()
-    .transform(cleanDigits)
-    .pipe(z.string().min(1, { message: 'ورود شماره موبایل یا ایمیل الزامی است.' })),
+    .optional()
+    .transform((val) => (val ? cleanDigits(val) : val)),
+  phoneNumber: z
+    .string()
+    .optional()
+    .transform((val) => (val ? cleanDigits(val) : val)),
   password: z.string().min(1, { message: 'ورود رمز عبور الزامی است.' }),
 });
 
@@ -58,8 +121,12 @@ export const loginSchema = z.object({
 export const otpRequestSchema = z.object({
   identifier: z
     .string()
-    .transform(cleanDigits)
-    .pipe(z.string().min(1, { message: 'ورود شماره موبایل یا ایمیل الزامی است.' })),
+    .optional()
+    .transform((val) => (val ? cleanDigits(val) : val)),
+  phoneNumber: z
+    .string()
+    .optional()
+    .transform((val) => (val ? cleanDigits(val) : val)),
 });
 
 /**
@@ -68,8 +135,12 @@ export const otpRequestSchema = z.object({
 export const resetPasswordSchema = z.object({
   identifier: z
     .string()
-    .transform(cleanDigits)
-    .pipe(z.string().min(1, { message: 'شناسه کاربری الزامی است.' })),
+    .optional()
+    .transform((val) => (val ? cleanDigits(val) : val)),
+  phoneNumber: z
+    .string()
+    .optional()
+    .transform((val) => (val ? cleanDigits(val) : val)),
   code: z
     .string()
     .transform(cleanDigits)

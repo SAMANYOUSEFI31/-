@@ -12,6 +12,7 @@ import {
   isSuperAdminIdentifier,
   allowTestShortcuts
 } from '../security';
+import { normalizePhoneNumber } from '../utils/phone';
 
 export function normalizeIdentifier(val: string): string {
   if (!val) return '';
@@ -53,7 +54,37 @@ export async function findUserById(id: string): Promise<DBUser | null> {
   return found || null;
 }
 
+export async function findUserByPhoneNumber(phone: string): Promise<DBUser | null> {
+  const canonicalPhone = normalizePhoneNumber(phone);
+  if (!canonicalPhone) return null;
+
+  if (isPrismaAvailable && prisma) {
+    try {
+      const user = await prisma.user.findFirst({
+        where: { phoneNumber: canonicalPhone }
+      });
+      if (user) return mapPrismaUser(user);
+    } catch (e) {
+      console.warn('[Database] Prisma findUserByPhoneNumber failed, falling back to local store:', e);
+    }
+  }
+
+  const found = memoryStore.users.find(u => {
+    if (!u.phoneNumber) return false;
+    const uPhoneNorm = normalizePhoneNumber(u.phoneNumber);
+    return uPhoneNorm === canonicalPhone || u.phoneNumber === canonicalPhone;
+  });
+
+  return found || null;
+}
+
 export async function findUserByIdentifier(identifier: string): Promise<DBUser | null> {
+  const canonicalPhone = normalizePhoneNumber(identifier);
+  if (canonicalPhone) {
+    const byPhone = await findUserByPhoneNumber(canonicalPhone);
+    if (byPhone) return byPhone;
+  }
+
   const normalized = normalizeIdentifier(identifier);
   
   if (isPrismaAvailable && prisma) {

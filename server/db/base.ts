@@ -107,6 +107,10 @@ export interface DBOtpCode {
   expiresAt: string;
   verified: boolean;
   userId?: string | null;
+  purpose?: string;
+  attempts?: number;
+  maxAttempts?: number;
+  lastSentAt?: string;
   createdAt: string;
 }
 

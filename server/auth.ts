@@ -44,6 +44,10 @@ export {
   type SecurityCapabilities
 };
 
+export * from './utils/phone';
+export * from './sms';
+export * from './otp';
+
 export interface AuthUserPayload {
   userId: string;
   email?: string | null;

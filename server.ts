@@ -7,6 +7,7 @@ import {
   closeDatabase,
   findUserById,
   findUserByIdentifier,
+  findUserByPhoneNumber,
   createUser,
   updateUser,
   getUserCycles,
@@ -61,6 +62,10 @@ import {
 import {
   validateBody,
   registerSchema,
+  registerRequestOtpSchema,
+  registerVerifyOtpSchema,
+  forgotPasswordRequestOtpSchema,
+  resetPasswordWithOtpSchema,
   loginSchema,
   otpRequestSchema,
   resetPasswordSchema,
@@ -71,6 +76,8 @@ import {
   paymentRequestSchema,
   paymentVerifySchema
 } from './server/utils/validation.js';
+import { normalizePhoneNumber, isValidIranianMobile } from './server/utils/phone.js';
+import { createOtpChallenge, verifyOtpChallenge } from './server/otp/index.js';
 
 dotenv.config();
 
@@ -144,32 +151,129 @@ app.get('/api/admin/diagnostics', adminMiddleware, (req: AuthenticatedRequest, r
 });
 
 /* =========================================================================
- * AUTHENTICATION ENDPOINTS
+ * AUTHENTICATION ENDPOINTS (Phone-First Architecture)
  * ========================================================================= */
 
-// 1. Direct Registration (Mobile/Email + Password)
-app.post('/api/auth/register', validateBody(registerSchema), async (req, res, next) => {
+// 1. Phone-First Registration: Step 1 - Request OTP
+const handleRegisterRequestOtp = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
-    const { identifier, password, name, email, phoneNumber } = req.body;
-    const rawId = identifier || email || phoneNumber;
-    const cleanId = rawId.trim().toLowerCase();
+    const rawPhone = req.body.phoneNumber || req.body.identifier;
+    const canonicalPhone = normalizePhoneNumber(rawPhone);
 
-    const existing = await findUserByIdentifier(cleanId);
-    if (existing) {
+    if (!canonicalPhone) {
       return res.status(400).json({
-        code: 'USER_EXISTS',
-        messageFa: 'کاربری با این مشخصات قبلاً ثبت‌نام کرده است. لطفاً وارد شوید.'
+        code: 'INVALID_PHONE_NUMBER',
+        messageFa: 'شماره موبایل وارد شده نامعتبر است. فرمت صحیح: ۰۹۱۲۳۴۵۶۷۸۹'
       });
     }
 
-    const isEmailInput = cleanId.includes('@');
-    const isMaster = isSuperAdminIdentifier(cleanId);
+    const existing = await findUserByPhoneNumber(canonicalPhone);
+    if (existing) {
+      return res.status(400).json({
+        code: 'USER_EXISTS',
+        messageFa: 'کاربری با این شماره موبایل قبلاً ثبت‌نام نموده است. لطفاً وارد شوید.'
+      });
+    }
+
+    const challengeRes = await createOtpChallenge({
+      phoneNumber: canonicalPhone,
+      purpose: 'PHONE_REGISTRATION'
+    });
+
+    if (!challengeRes.success) {
+      if (challengeRes.code === 'COOLDOWN_ACTIVE') {
+        return res.status(429).json({
+          code: challengeRes.code,
+          messageFa: challengeRes.messageFa,
+          retryAfterSeconds: challengeRes.retryAfterSeconds
+        });
+      }
+      return res.status(400).json({
+        code: challengeRes.code,
+        messageFa: challengeRes.messageFa
+      });
+    }
+
+    const payload: Record<string, any> = {
+      success: true,
+      phoneNumber: canonicalPhone,
+      messageFa: `کد تایید ۵ رقمی برای شماره ${canonicalPhone} ارسال شد.`,
+      expiresInSeconds: challengeRes.expiresInSeconds,
+      cooldownSeconds: challengeRes.cooldownSeconds
+    };
+
+    if (challengeRes.debugCode) {
+      payload.debugCode = challengeRes.debugCode;
+    }
+
+    res.json(payload);
+  } catch (error) {
+    next(error);
+  }
+};
+
+app.post('/api/auth/register/request-otp', handleRegisterRequestOtp);
+app.post('/api/auth/register/send-otp', handleRegisterRequestOtp);
+
+// 2. Phone-First Registration: Step 2 - Verify OTP & Set Password
+const handleRegisterVerifyOtp = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try {
+    const rawPhone = req.body.phoneNumber || req.body.identifier;
+    const { code, password, name } = req.body;
+
+    if (!code) {
+      return res.status(400).json({
+        code: 'OTP_REQUIRED',
+        messageFa: 'جهت تکمیل ثبت‌نام، تایید شماره موبایل با کد پیامکی الزامی است.'
+      });
+    }
+
+    const canonicalPhone = normalizePhoneNumber(rawPhone);
+    if (!canonicalPhone) {
+      return res.status(400).json({
+        code: 'INVALID_PHONE_NUMBER',
+        messageFa: 'شماره موبایل وارد شده نامعتبر است. فرمت صحیح: ۰۹۱۲۳۴۵۶۷۸۹'
+      });
+    }
+
+    if (!password || typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({
+        code: 'INVALID_PASSWORD',
+        messageFa: 'رمز عبور باید حداقل ۸ کاراکتر باشد.'
+      });
+    }
+
+    // Verify purpose-bound OTP
+    const verifyRes = await verifyOtpChallenge({
+      phoneNumber: canonicalPhone,
+      code: String(code),
+      purpose: 'PHONE_REGISTRATION'
+    });
+
+    if (!verifyRes.success) {
+      return res.status(400).json({
+        code: verifyRes.code,
+        messageFa: verifyRes.messageFa,
+        remainingAttempts: verifyRes.remainingAttempts
+      });
+    }
+
+    // Check concurrency duplicate
+    const existing = await findUserByPhoneNumber(canonicalPhone);
+    if (existing) {
+      return res.status(400).json({
+        code: 'USER_EXISTS',
+        messageFa: 'کاربری با این شماره موبایل قبلاً ثبت‌نام نموده است.'
+      });
+    }
+
+    const isMaster = isSuperAdminIdentifier(canonicalPhone);
     const hashedPassword = await hashPassword(password);
 
     const user = await createUser({
-      email: isEmailInput ? cleanId : undefined,
-      phoneNumber: !isEmailInput ? cleanId : undefined,
-      name: name?.trim() || (isEmailInput ? cleanId.split('@')[0] : `کاربر ${cleanId.slice(-4)}`),
+      phoneNumber: canonicalPhone,
+      email: undefined, // Public email registration is not supported!
+      name: name?.trim() || `کاربر ${canonicalPhone.slice(-4)}`,
       passwordHash: hashedPassword,
       tier: isMaster ? 'vip_samurai' : 'free',
       isVip: isMaster,
@@ -186,7 +290,7 @@ app.post('/api/auth/register', validateBody(registerSchema), async (req, res, ne
     });
 
     if (!isProduction()) {
-      console.log(`[Bushido Auth] User registered successfully: ${user.id}`);
+      console.log(`[Bushido Auth] User registered successfully with phone: ${canonicalPhone}`);
     }
 
     res.json({
@@ -198,13 +302,17 @@ app.post('/api/auth/register', validateBody(registerSchema), async (req, res, ne
   } catch (error) {
     next(error);
   }
-});
+};
 
-// 2. Direct Login (Mobile/Email + Password)
+app.post('/api/auth/register/verify-otp', handleRegisterVerifyOtp);
+app.post('/api/auth/register', handleRegisterVerifyOtp);
+
+// 3. Login (Phone + Password for normal users, Super Admin bypass preserved)
 app.post('/api/auth/login', validateBody(loginSchema), async (req, res, next) => {
   try {
-    const { identifier, password } = req.body;
-    const cleanId = identifier.trim().toLowerCase();
+    const rawId = req.body.phoneNumber || req.body.identifier || '';
+    const password = req.body.password;
+    const cleanId = String(rawId).trim();
 
     // Development/Fallback Ensure
     if (allowTestShortcuts()) ensureDefaultAdminAndUsers();
@@ -255,7 +363,23 @@ app.post('/api/auth/login', validateBody(loginSchema), async (req, res, next) =>
       });
     }
 
-    let user = await findUserByIdentifier(cleanId);
+    // Public authentication MUST use phone number - reject email login
+    if (cleanId.includes('@')) {
+      return res.status(400).json({
+        code: 'EMAIL_LOGIN_NOT_SUPPORTED',
+        messageFa: 'ورود فقط با شماره موبایل امکان‌پذیر است. لطفاً شماره موبایل خود را وارد نمایید.'
+      });
+    }
+
+    const canonicalPhone = normalizePhoneNumber(cleanId);
+    if (!canonicalPhone) {
+      return res.status(400).json({
+        code: 'INVALID_PHONE_NUMBER',
+        messageFa: 'شماره موبایل وارد شده نامعتبر است. فرمت صحیح: ۰۹۱۲۳۴۵۶۷۸۹'
+      });
+    }
+
+    const user = await findUserByPhoneNumber(canonicalPhone);
     if (!user) {
       return res.status(401).json({
         code: 'USER_NOT_FOUND',
@@ -286,72 +410,114 @@ app.post('/api/auth/login', validateBody(loginSchema), async (req, res, next) =>
   }
 });
 
-// 3. Forgot Password - Request OTP
-app.post('/api/auth/forgot-password', validateBody(otpRequestSchema), async (req, res, next) => {
+// 4. Password Recovery: Step 1 - Request OTP
+app.post('/api/auth/forgot-password', async (req, res, next) => {
   try {
-    const { identifier } = req.body;
-    const cleanId = identifier.trim().toLowerCase();
-    const user = await findUserByIdentifier(cleanId);
+    const rawId = req.body.phoneNumber || req.body.identifier || '';
+    const cleanId = String(rawId).trim();
 
-    if (!user) {
-      return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'حساب کاربری با این مشخصات یافت نشد.' });
-    }
-
-    if (!isMockOtpEnabled()) {
-      return res.status(503).json({
-        code: 'SMS_SERVICE_UNAVAILABLE',
-        messageFa: 'سامانه پیامکی در حال حاضر متصل نیست. لطفاً با پشتیبانی یا مدیر سامانه تماس بگیرید.'
+    const canonicalPhone = normalizePhoneNumber(cleanId);
+    if (!canonicalPhone) {
+      return res.status(400).json({
+        code: 'INVALID_PHONE_NUMBER',
+        messageFa: 'شماره موبایل وارد شده نامعتبر است. فرمت صحیح: ۰۹۱۲۳۴۵۶۷۸۹'
       });
     }
 
-    const generatedCode = Math.floor(10000 + Math.random() * 90000).toString();
-    await saveOtpCode(cleanId, generatedCode);
-
-    if (allowTestShortcuts()) {
-      console.log(`[Bushido Auth] Password Recovery OTP for ${cleanId}: [ ${generatedCode} ]`);
+    const user = await findUserByPhoneNumber(canonicalPhone);
+    if (!user) {
+      return res.status(404).json({
+        code: 'USER_NOT_FOUND',
+        messageFa: 'حساب کاربری با این شماره موبایل یافت نشد.'
+      });
     }
 
-    const responsePayload: Record<string, any> = {
+    const challengeRes = await createOtpChallenge({
+      phoneNumber: canonicalPhone,
+      purpose: 'PASSWORD_RESET',
+      userId: user.id
+    });
+
+    if (!challengeRes.success) {
+      if (challengeRes.code === 'COOLDOWN_ACTIVE') {
+        return res.status(429).json({
+          code: challengeRes.code,
+          messageFa: challengeRes.messageFa,
+          retryAfterSeconds: challengeRes.retryAfterSeconds
+        });
+      }
+      return res.status(400).json({
+        code: challengeRes.code,
+        messageFa: challengeRes.messageFa
+      });
+    }
+
+    const payload: Record<string, any> = {
       success: true,
-      messageFa: `کد تایید ۵ رقمی بازیابی رمز عبور برای ${cleanId} ارسال شد.`
+      phoneNumber: canonicalPhone,
+      messageFa: `کد تایید ۵ رقمی بازیابی رمز عبور برای ${canonicalPhone} ارسال شد.`,
+      expiresInSeconds: challengeRes.expiresInSeconds,
+      cooldownSeconds: challengeRes.cooldownSeconds
     };
 
-    if (isOtpDebugEnabled()) {
-      responsePayload.debugCode = generatedCode;
+    if (challengeRes.debugCode) {
+      payload.debugCode = challengeRes.debugCode;
     }
 
-    res.json(responsePayload);
+    res.json(payload);
   } catch (error) {
     next(error);
   }
 });
 
-// 4. Reset Password with OTP Code
-app.post('/api/auth/reset-password', validateBody(resetPasswordSchema), async (req, res, next) => {
+// 5. Password Recovery: Step 2 - Reset Password with OTP Code
+app.post('/api/auth/reset-password', async (req, res, next) => {
   try {
-    const { identifier, code, newPassword } = req.body;
-    const cleanId = identifier.trim().toLowerCase();
-    
-    if (!isMockOtpEnabled()) {
-      return res.status(503).json({
-        code: 'SMS_SERVICE_UNAVAILABLE',
-        messageFa: 'سامانه پیامکی در حال حاضر متصل نیست.'
+    const rawId = req.body.phoneNumber || req.body.identifier || '';
+    const { code, newPassword } = req.body;
+    const cleanId = String(rawId).trim();
+
+    const canonicalPhone = normalizePhoneNumber(cleanId);
+    if (!canonicalPhone) {
+      return res.status(400).json({
+        code: 'INVALID_PHONE_NUMBER',
+        messageFa: 'شماره موبایل وارد شده نامعتبر است.'
       });
     }
 
-    const isValid = await verifyOtpCode(cleanId, String(code));
-    if (!isValid) {
-      return res.status(400).json({ code: 'INVALID_OTP', messageFa: 'کد تایید نامعتبر یا منقضی شده است.' });
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
+      return res.status(400).json({
+        code: 'INVALID_PASSWORD',
+        messageFa: 'رمز عبور جدید باید حداقل ۸ کاراکتر باشد.'
+      });
     }
 
-    const user = await findUserByIdentifier(cleanId);
+    const verifyRes = await verifyOtpChallenge({
+      phoneNumber: canonicalPhone,
+      code: String(code || ''),
+      purpose: 'PASSWORD_RESET'
+    });
+
+    if (!verifyRes.success) {
+      return res.status(400).json({
+        code: verifyRes.code,
+        messageFa: verifyRes.messageFa,
+        remainingAttempts: verifyRes.remainingAttempts
+      });
+    }
+
+    const user = await findUserByPhoneNumber(canonicalPhone);
     if (!user) {
-      return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'کاربر مورد نظر یافت نشد.' });
+      return res.status(404).json({
+        code: 'USER_NOT_FOUND',
+        messageFa: 'کاربر مورد نظر یافت نشد.'
+      });
     }
 
     const hashed = await hashPassword(newPassword);
     const updated = await updateUser(user.id, { passwordHash: hashed });
 
+    // Session Security: Fresh token after password reset
     const token = generateToken({
       userId: user.id,
       email: user.email,
@@ -372,33 +538,48 @@ app.post('/api/auth/reset-password', validateBody(resetPasswordSchema), async (r
   }
 });
 
-// 5. Send OTP (General Auth)
-app.post('/api/auth/send-otp', validateBody(otpRequestSchema), async (req, res, next) => {
+// 6. Send OTP (General Auth Adapter)
+app.post('/api/auth/send-otp', async (req, res, next) => {
   try {
-    const { identifier } = req.body;
-    const cleanId = identifier.trim().toLowerCase();
+    const rawId = req.body.phoneNumber || req.body.identifier || '';
+    const purpose = (req.body.purpose === 'PASSWORD_RESET' ? 'PASSWORD_RESET' : 'PHONE_REGISTRATION');
+    const canonicalPhone = normalizePhoneNumber(rawId);
 
-    if (!isMockOtpEnabled()) {
-      return res.status(503).json({
-        code: 'SMS_SERVICE_UNAVAILABLE',
-        messageFa: 'سامانه پیامکی در حال حاضر متصل نیست. لطفاً با رمز عبور وارد شوید یا با مدیر سامانه تماس بگیرید.'
+    if (!canonicalPhone) {
+      return res.status(400).json({
+        code: 'INVALID_PHONE_NUMBER',
+        messageFa: 'شماره موبایل وارد شده نامعتبر است.'
       });
     }
 
-    const generatedCode = Math.floor(10000 + Math.random() * 90000).toString();
-    await saveOtpCode(cleanId, generatedCode);
+    const challengeRes = await createOtpChallenge({
+      phoneNumber: canonicalPhone,
+      purpose
+    });
 
-    if (allowTestShortcuts()) {
-      console.log(`[Bushido Auth] OTP for ${cleanId}: [ ${generatedCode} ]`);
+    if (!challengeRes.success) {
+      if (challengeRes.code === 'COOLDOWN_ACTIVE') {
+        return res.status(429).json({
+          code: challengeRes.code,
+          messageFa: challengeRes.messageFa,
+          retryAfterSeconds: challengeRes.retryAfterSeconds
+        });
+      }
+      return res.status(400).json({
+        code: challengeRes.code,
+        messageFa: challengeRes.messageFa
+      });
     }
 
     const responsePayload: Record<string, any> = {
       success: true,
-      messageFa: `کد تایید ۵ رقمی برای ${cleanId} ارسال شد.`
+      messageFa: `کد تایید ۵ رقمی برای ${canonicalPhone} ارسال شد.`,
+      expiresInSeconds: challengeRes.expiresInSeconds,
+      cooldownSeconds: challengeRes.cooldownSeconds
     };
 
-    if (isOtpDebugEnabled()) {
-      responsePayload.debugCode = generatedCode;
+    if (challengeRes.debugCode) {
+      responsePayload.debugCode = challengeRes.debugCode;
     }
 
     res.json(responsePayload);
@@ -407,37 +588,42 @@ app.post('/api/auth/send-otp', validateBody(otpRequestSchema), async (req, res, 
   }
 });
 
-// 6. Verify OTP & Auto Login/Register
+// 7. Verify OTP & Auto Login/Register (General Adapter)
 app.post('/api/auth/verify-otp', async (req, res, next) => {
   try {
-    const { identifier, code, name } = req.body;
-    if (!identifier || !code) {
-      return res.status(400).json({ code: 'BAD_REQUEST', messageFa: 'شناسه کاربری و کد تایید الزامی است.' });
+    const rawId = req.body.phoneNumber || req.body.identifier || '';
+    const { code, name, purpose } = req.body;
+    if (!rawId || !code) {
+      return res.status(400).json({ code: 'BAD_REQUEST', messageFa: 'شماره موبایل و کد تایید الزامی است.' });
     }
 
-    if (!isMockOtpEnabled()) {
-      return res.status(503).json({
-        code: 'SMS_SERVICE_UNAVAILABLE',
-        messageFa: 'سرویس تایید پیامکی در حال حاضر فعال نیست.'
+    const canonicalPhone = normalizePhoneNumber(rawId);
+    if (!canonicalPhone) {
+      return res.status(400).json({ code: 'INVALID_PHONE_NUMBER', messageFa: 'شماره موبایل نامعتبر است.' });
+    }
+
+    const otpPurpose = (purpose === 'PASSWORD_RESET' ? 'PASSWORD_RESET' : 'PHONE_REGISTRATION');
+    const verifyRes = await verifyOtpChallenge({
+      phoneNumber: canonicalPhone,
+      code: String(code),
+      purpose: otpPurpose
+    });
+
+    if (!verifyRes.success) {
+      return res.status(400).json({
+        code: verifyRes.code,
+        messageFa: verifyRes.messageFa,
+        remainingAttempts: verifyRes.remainingAttempts
       });
     }
 
-    const cleanId = identifier.trim().toLowerCase();
-    const isValid = await verifyOtpCode(cleanId, String(code));
-
-    if (!isValid) {
-      return res.status(400).json({ code: 'INVALID_OTP', messageFa: 'کد تایید نامعتبر یا منقضی شده است.' });
-    }
-
-    let user = await findUserByIdentifier(cleanId);
-    const isMasterAdmin = isSuperAdminIdentifier(cleanId);
+    let user = await findUserByPhoneNumber(canonicalPhone);
+    const isMasterAdmin = isSuperAdminIdentifier(canonicalPhone);
 
     if (!user) {
-      const isEmail = cleanId.includes('@');
       user = await createUser({
-        email: isEmail ? cleanId : undefined,
-        phoneNumber: !isEmail ? cleanId : undefined,
-        name: name?.trim() || (isEmail ? cleanId.split('@')[0] : `کاربر ${cleanId.slice(-4)}`),
+        phoneNumber: canonicalPhone,
+        name: name?.trim() || `کاربر ${canonicalPhone.slice(-4)}`,
         tier: isMasterAdmin ? 'vip_samurai' : 'free',
         isVip: isMasterAdmin,
         isAdmin: isMasterAdmin
