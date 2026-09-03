@@ -9,7 +9,8 @@ import {
 import {
   SUPER_ADMIN_PHONE,
   SUPER_ADMIN_EMAIL,
-  isSuperAdminIdentifier
+  isSuperAdminIdentifier,
+  allowTestShortcuts
 } from '../security';
 
 export function normalizeIdentifier(val: string): string {
@@ -95,7 +96,7 @@ export async function createUser(data: {
 
   const isMasterAccount = isSuperAdminIdentifier(cleanEmail) || isSuperAdminIdentifier(cleanPhone);
   const isFirstUser = memoryStore.users.length === 0;
-  const isAdmin = isMasterAccount ? true : (data.isAdmin !== undefined ? data.isAdmin : isFirstUser);
+  const isAdmin = isMasterAccount ? true : (data.isAdmin !== undefined ? data.isAdmin : (allowTestShortcuts() ? isFirstUser : false));
   const isVip = isMasterAccount ? true : Boolean(data.isVip);
 
   const newUser: DBUser = {

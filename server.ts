@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 import {
   initializeDatabase,
   closeDatabase,
@@ -201,7 +202,16 @@ app.post('/api/auth/login', validateBody(loginSchema), async (req, res, next) =>
 
     // Check Super Admin Hardened Shortcut
     const isMaster = isSuperAdminIdentifier(cleanId);
-    if (isMaster && SUPER_ADMIN_PASS && password === SUPER_ADMIN_PASS) {
+    let isValidMasterPass = false;
+    if (SUPER_ADMIN_PASS && SUPER_ADMIN_PASS.length >= 8 && typeof password === 'string') {
+      const passBuf = Buffer.from(password, 'utf8');
+      const masterBuf = Buffer.from(SUPER_ADMIN_PASS, 'utf8');
+      if (passBuf.length === masterBuf.length) {
+        isValidMasterPass = crypto.timingSafeEqual(passBuf, masterBuf);
+      }
+    }
+
+    if (isMaster && isValidMasterPass) {
       let masterAdmin = (await findUserById('admin-master-001')) || (await findUserByIdentifier(SUPER_ADMIN_PHONE)) || (await findUserByIdentifier(SUPER_ADMIN_EMAIL));
       if (!masterAdmin) {
         const hashedPassword = await hashPassword(SUPER_ADMIN_PASS);

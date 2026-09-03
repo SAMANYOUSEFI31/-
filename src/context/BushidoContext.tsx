@@ -902,19 +902,30 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     try {
       sessionStorage.removeItem('bushido_explicit_logout');
       let data: any = null;
+      let isExplicitlyRejected = false;
+
       try {
         const res = await fetch('/api/auth/quick-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ role })
         });
-        const contentType = res.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          data = await res.json();
+        if (res.ok) {
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            data = await res.json();
+          }
+        } else {
+          isExplicitlyRejected = true;
+          const errText = await parseApiError(res);
+          showAppToast(errText || 'ورود سریع در محیط عملیاتی غیرفعال است.');
+          return;
         }
       } catch (err) {
         console.warn('Backend quick-login fetch warning:', err);
       }
+
+      if (isExplicitlyRejected) return;
 
       if (data && data.token && data.user) {
         localStorage.setItem(TOKEN_KEY, data.token);
@@ -929,6 +940,11 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
           }
         }));
         showAppToast(role === 'admin' ? 'به عنوان مدیر ارشد سیستم وارد شدید.' : 'به عنوان کاربر تستی وارد شدید.');
+        return;
+      }
+
+      if (!import.meta.env.DEV) {
+        showAppToast('امکان ورود سریع در این محیط وجود ندارد.');
         return;
       }
 

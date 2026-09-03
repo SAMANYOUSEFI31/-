@@ -93,6 +93,11 @@ export async function updateCycle(
 
   if (isPrismaAvailable && prisma) {
     try {
+      const existing = await prisma.cycle.findFirst({
+        where: { id: cycleId, userId }
+      });
+      if (!existing) return null;
+
       const updated = await prisma.cycle.update({
         where: { id: cycleId },
         data: {
@@ -125,8 +130,13 @@ export async function updateCycle(
 export async function deleteCycle(userId: string, cycleId: string): Promise<boolean> {
   if (isPrismaAvailable && prisma) {
     try {
+      const existing = await prisma.cycle.findFirst({
+        where: { id: cycleId, userId }
+      });
+      if (!existing) return false;
+
       await prisma.dailyLog.deleteMany({ where: { cycleId, userId } });
-      await prisma.cycle.delete({ where: { id: cycleId, userId } });
+      await prisma.cycle.delete({ where: { id: cycleId } });
       return true;
     } catch (e) {
       console.warn('[Database] Prisma deleteCycle failed, deleting in local store:', e);

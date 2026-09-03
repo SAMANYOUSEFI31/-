@@ -122,7 +122,7 @@ export async function initializeDatabase(): Promise<void> {
   if (!isPrismaAvailable) {
     setPrismaState(null, false);
     try { loadLocalStore(); } catch {}
-    if (isAllowTest || isOnVercel || NODE_ENV !== 'production') {
+    if (isAllowTest || NODE_ENV !== 'production') {
       ensureDefaultAdminAndUsers();
     }
   }
