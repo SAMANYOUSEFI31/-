@@ -136,6 +136,7 @@ export async function completeSubscription(
   const nextYearStr = new Date(Date.now() + 365 * 86400000).toISOString();
 
   let sub: DBSubscription | null = null;
+  let isNewlyCompleted = false;
 
   if (isPrismaAvailable && prisma) {
     try {
@@ -143,6 +144,27 @@ export async function completeSubscription(
         where: { authority }
       });
       if (match) {
+        if (match.status === 'SUCCESS') {
+          // Idempotent: return existing record without mutating or re-activating VIP
+          return {
+            id: match.id,
+            userId: match.userId,
+            planId: match.planId,
+            amount: match.amount,
+            authority: match.authority,
+            refId: match.refId,
+            cardPan: match.cardPan,
+            status: 'SUCCESS',
+            description: match.description,
+            expiresAt: match.expiresAt ? match.expiresAt.toISOString() : null,
+            createdAt: match.createdAt.toISOString(),
+            updatedAt: match.updatedAt.toISOString()
+          };
+        }
+        if (match.status === 'FAILED') {
+          // Terminal: FAILED transactions cannot transition to SUCCESS
+          return null;
+        }
         sub = await prisma.subscription.update({
           where: { authority },
           data: {
@@ -153,17 +175,27 @@ export async function completeSubscription(
             updatedAt: nowStr
           }
         });
+        isNewlyCompleted = true;
       }
     } catch (e) {
       console.warn('[Database] Prisma completeSubscription failed, updating local store:', e);
     }
   }
 
-  if (!sub) {
+  if (!sub && !isNewlyCompleted) {
     const idx = memoryStore.subscriptions.findIndex(s => s.authority === authority);
     if (idx !== -1) {
+      const existing = memoryStore.subscriptions[idx];
+      if (existing.status === 'SUCCESS') {
+        // Idempotent: return existing record without mutating or re-activating VIP
+        return existing;
+      }
+      if (existing.status === 'FAILED') {
+        // Terminal: FAILED transactions cannot transition to SUCCESS
+        return null;
+      }
       memoryStore.subscriptions[idx] = {
-        ...memoryStore.subscriptions[idx],
+        ...existing,
         status: 'SUCCESS',
         refId,
         cardPan,
@@ -172,11 +204,12 @@ export async function completeSubscription(
       };
       saveLocalStore();
       sub = memoryStore.subscriptions[idx];
+      isNewlyCompleted = true;
     }
   }
 
-  if (sub) {
-    // Elevate target user to VIP
+  if (sub && isNewlyCompleted) {
+    // Elevate target user to VIP strictly on first transition
     await updateUser(sub.userId, {
       isVip: true,
       tier: 'vip_samurai',
@@ -202,6 +235,23 @@ export async function markSubscriptionFailed(
         where: { authority }
       });
       if (match) {
+        // Terminal idempotency: never downgrade a SUCCESS transaction to FAILED
+        if (match.status === 'SUCCESS') {
+          return {
+            id: match.id,
+            userId: match.userId,
+            planId: match.planId,
+            amount: match.amount,
+            authority: match.authority,
+            refId: match.refId,
+            cardPan: match.cardPan,
+            status: 'SUCCESS',
+            description: match.description,
+            expiresAt: match.expiresAt ? match.expiresAt.toISOString() : null,
+            createdAt: match.createdAt.toISOString(),
+            updatedAt: match.updatedAt.toISOString()
+          };
+        }
         sub = await prisma.subscription.update({
           where: { authority },
           data: {
@@ -219,10 +269,15 @@ export async function markSubscriptionFailed(
   if (!sub) {
     const idx = memoryStore.subscriptions.findIndex(s => s.authority === authority);
     if (idx !== -1) {
+      const existing = memoryStore.subscriptions[idx];
+      // Terminal idempotency: never downgrade a SUCCESS transaction to FAILED
+      if (existing.status === 'SUCCESS') {
+        return existing;
+      }
       memoryStore.subscriptions[idx] = {
-        ...memoryStore.subscriptions[idx],
+        ...existing,
         status: 'FAILED',
-        description: reason ? `[ناموفق] ${reason}` : memoryStore.subscriptions[idx].description,
+        description: reason ? `[ناموفق] ${reason}` : existing.description,
         updatedAt: nowStr
       };
       saveLocalStore();

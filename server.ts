@@ -777,15 +777,31 @@ app.post('/api/payment/verify', validateBody(paymentVerifySchema), async (req, r
 
     const allSubs = await adminGetAllSubscriptions();
     const existingSub = allSubs.find(s => s.authority === authority);
+
+    if (!existingSub) {
+      return res.status(404).json({
+        code: 'NOT_FOUND',
+        messageFa: 'رکورد تراکنش یافت نشد.'
+      });
+    }
     
     // Idempotency check: Don't process twice
-    if (existingSub && existingSub.status === 'SUCCESS') {
+    if (existingSub.status === 'SUCCESS') {
       return res.json({
         status: 101,
         refId: existingSub.refId,
         cardPan: existingSub.cardPan,
         messageFa: 'این تراکنش قبلاً با موفقیت ثبت و تایید شده است.',
         tier: 'vip_samurai',
+        subscription: existingSub
+      });
+    }
+
+    // Terminal status check: FAILED transactions cannot be re-verified
+    if (existingSub.status === 'FAILED') {
+      return res.status(400).json({
+        code: 'TRANSACTION_ALREADY_FAILED',
+        messageFa: 'این تراکنش قبلاً با وضعیت ناموفق ثبت شده است و امکان تایید مجدد ندارد.',
         subscription: existingSub
       });
     }
