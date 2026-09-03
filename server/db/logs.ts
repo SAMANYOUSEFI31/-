@@ -241,6 +241,97 @@ export async function upsertDailyLog(
   }
 }
 
+export async function updateDailyLog(
+  userId: string,
+  logId: string,
+  data: Partial<Omit<DBDailyLog, 'id' | 'userId' | 'createdAt'>>
+): Promise<DBDailyLog | null> {
+  const now = new Date().toISOString();
+
+  // Validate and sanitize update fields to prevent immutable field overrides
+  const safeData: any = {};
+  if (typeof data.wakeUp === 'boolean') safeData.wakeUp = data.wakeUp;
+  if (typeof data.workout === 'boolean') safeData.workout = data.workout;
+  if (typeof data.study === 'boolean') safeData.study = data.study;
+  if (typeof data.journal === 'boolean') safeData.journal = data.journal;
+  if (typeof data.hardTask === 'boolean') safeData.hardTask = data.hardTask;
+  if (typeof data.specialMission === 'boolean') safeData.specialMission = data.specialMission;
+  if (data.failureReason !== undefined) safeData.failureReason = data.failureReason;
+  if (data.failureTime !== undefined) safeData.failureTime = data.failureTime;
+  if (data.autopsyNotes !== undefined) safeData.autopsyNotes = data.autopsyNotes;
+  if (data.countermeasure !== undefined) safeData.countermeasure = data.countermeasure;
+  if (data.aiFeedback !== undefined) safeData.aiFeedback = data.aiFeedback;
+  if (data.notes !== undefined) safeData.notes = data.notes;
+
+  if (isPrismaAvailable && prisma) {
+    try {
+      const existing = await prisma.dailyLog.findFirst({
+        where: { id: logId, userId }
+      });
+      if (!existing) return null;
+
+      // If cycleId is being moved/updated, verify that target cycle also belongs to the authenticated user
+      if (data.cycleId && data.cycleId !== existing.cycleId) {
+        const parentCycle = await prisma.cycle.findFirst({
+          where: { id: data.cycleId, userId }
+        });
+        if (!parentCycle) {
+          const err: any = new Error('Cycle not found or does not belong to the authenticated user');
+          err.code = 'CYCLE_NOT_FOUND';
+          throw err;
+        }
+        safeData.cycleId = data.cycleId;
+      }
+
+      const updated = await prisma.dailyLog.update({
+        where: { id: logId },
+        data: {
+          ...safeData,
+          updatedAt: new Date()
+        }
+      });
+      return {
+        ...updated,
+        createdAt: updated.createdAt instanceof Date ? updated.createdAt.toISOString() : updated.createdAt,
+        updatedAt: updated.updatedAt instanceof Date ? updated.updatedAt.toISOString() : updated.updatedAt
+      };
+    } catch (e: any) {
+      if (e?.code === 'CYCLE_NOT_FOUND') {
+        throw e;
+      }
+      console.warn('[Database] Prisma updateDailyLog failed, updating local store:', e);
+    }
+  }
+
+  const existingIdx = memoryStore.dailyLogs.findIndex(l => l.id === logId && l.userId === userId);
+  if (existingIdx === -1) return null;
+
+  const existing = memoryStore.dailyLogs[existingIdx];
+
+  // If cycleId is being moved/updated, verify that target cycle also belongs to the authenticated user
+  if (data.cycleId && data.cycleId !== existing.cycleId) {
+    const parentCycle = memoryStore.cycles.find(c => c.id === data.cycleId && c.userId === userId);
+    if (!parentCycle) {
+      const err: any = new Error('Cycle not found or does not belong to the authenticated user');
+      err.code = 'CYCLE_NOT_FOUND';
+      throw err;
+    }
+    safeData.cycleId = data.cycleId;
+  }
+
+  memoryStore.dailyLogs[existingIdx] = {
+    ...existing,
+    ...safeData,
+    id: existing.id,
+    userId: existing.userId,
+    date: existing.date,
+    createdAt: existing.createdAt,
+    updatedAt: now
+  };
+  saveLocalStore();
+  return memoryStore.dailyLogs[existingIdx];
+}
+
 export async function deleteDailyLog(userId: string, logId: string): Promise<boolean> {
   if (isPrismaAvailable && prisma) {
     try {

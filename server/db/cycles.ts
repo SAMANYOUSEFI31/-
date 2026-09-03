@@ -62,9 +62,36 @@ export async function createCycle(
 ): Promise<DBCycle> {
   const targetId = data.id || data.clientOperationId;
   if (targetId) {
-    const existing = await getCycleById(userId, targetId);
-    if (existing) {
-      return existing;
+    if (isPrismaAvailable && prisma) {
+      try {
+        const globalCycle = await prisma.cycle.findUnique({
+          where: { id: targetId }
+        });
+        if (globalCycle) {
+          if (globalCycle.userId === userId) {
+            return {
+              ...globalCycle,
+              rules: Array.isArray(globalCycle.rules) ? globalCycle.rules : []
+            };
+          }
+          const err: any = new Error('Cycle ID collision: ID already belongs to another user');
+          err.code = 'CYCLE_ID_COLLISION';
+          throw err;
+        }
+      } catch (e: any) {
+        if (e?.code === 'CYCLE_ID_COLLISION') throw e;
+        console.warn('[Database] Prisma check cycle ID collision failed:', e);
+      }
+    }
+
+    const globalStoreCycle = memoryStore.cycles.find(c => c.id === targetId);
+    if (globalStoreCycle) {
+      if (globalStoreCycle.userId === userId) {
+        return { ...globalStoreCycle };
+      }
+      const err: any = new Error('Cycle ID collision: ID already belongs to another user');
+      err.code = 'CYCLE_ID_COLLISION';
+      throw err;
     }
   }
 
@@ -104,7 +131,13 @@ export async function createCycle(
         ...created,
         rules: Array.isArray(created.rules) ? created.rules : []
       };
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.code === 'CYCLE_ID_COLLISION') throw e;
+      if (e?.code === 'P2002') {
+        const err: any = new Error('Cycle ID collision: ID already exists');
+        err.code = 'CYCLE_ID_COLLISION';
+        throw err;
+      }
       console.warn('[Database] Prisma createCycle failed, saving to local store:', e);
     }
   }

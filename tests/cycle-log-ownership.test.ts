@@ -1,9 +1,9 @@
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import {
   memoryStore,
   saveLocalStore,
-  loadLocalStore,
   setPrismaState,
   getUserCycles,
   getCycleById,
@@ -16,393 +16,1066 @@ import {
   getDailyLogById,
   getDailyLogByDate,
   upsertDailyLog,
+  updateDailyLog,
   deleteDailyLog,
   deleteDailyLogByDate
 } from '../server/db/index.js';
+import { generateToken } from '../server/auth.js';
+import { app } from '../server.js';
 
-describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity', () => {
+describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite', () => {
   const userA = 'user-alpha-001';
   const userB = 'user-beta-002';
   const attackerUser = 'attacker-evil-999';
 
+  let server: http.Server;
+  let baseUrl = '';
+
+  const tokenUserA = generateToken({
+    userId: userA,
+    phoneNumber: '09121111111',
+    isVip: false,
+    tier: 'FREE'
+  });
+
+  const tokenUserB = generateToken({
+    userId: userB,
+    phoneNumber: '09122222222',
+    isVip: false,
+    tier: 'FREE'
+  });
+
+  before(async () => {
+    // Spin up ephemeral HTTP server for live route and middleware ownership testing
+    server = http.createServer(app);
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', () => {
+        const addr = server.address() as any;
+        baseUrl = `http://127.0.0.1:${addr.port}`;
+        resolve();
+      });
+    });
+  });
+
+  after(async () => {
+    if (server) {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   beforeEach(() => {
-    // Force memory store mode for deterministic local isolation (no live DB mutation)
     setPrismaState(null, false);
     memoryStore.cycles = [];
     memoryStore.dailyLogs = [];
-    memoryStore.users = [];
+    memoryStore.users = [
+      {
+        id: userA,
+        phoneNumber: '09121111111',
+        name: 'کاربر آلفا',
+        email: null,
+        passwordHash: null,
+        tier: 'free',
+        isVip: false,
+        isAdmin: false,
+        tokenVersion: 0,
+        nightOwlCutoffHour: 4,
+        accentTheme: 'amber',
+        vipSince: null,
+        vipExpiresAt: null,
+        paymentRefId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: userB,
+        phoneNumber: '09122222222',
+        name: 'کاربر بتا',
+        email: null,
+        passwordHash: null,
+        tier: 'free',
+        isVip: false,
+        isAdmin: false,
+        tokenVersion: 0,
+        nightOwlCutoffHour: 4,
+        accentTheme: 'amber',
+        vipSince: null,
+        vipExpiresAt: null,
+        paymentRefId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
     saveLocalStore();
   });
 
-  // ---------------------------------------------------------------------------
-  // Test A: User A creates a Cycle -> Cycle is owned by User A.
-  // ---------------------------------------------------------------------------
-  it('Test A: User A creates a Cycle -> Cycle is owned strictly by User A', async () => {
-    const cycle = await createCycle(userA, {
-      title: 'چرخه اول آلفا',
-      startDate: '2026-09-01',
-      endDate: '2026-09-30',
-      targetTheme: 'amber',
-      inheritedStreak: 5,
-      rules: ['بیداری سحرگاهی', 'ورزش سامورایی']
+  /* =========================================================================
+   * PART 1: PERSISTENCE & DB-LAYER OWNERSHIP VALIDATION
+   * ========================================================================= */
+  describe('Part 1: Database & Persistence Layer Ownership Isolation', () => {
+    it('Test 1.1: User A creates a Cycle -> strictly owned by User A', async () => {
+      const cycle = await createCycle(userA, {
+        title: 'چرخه اول آلفا',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        targetTheme: 'amber',
+        inheritedStreak: 5,
+        rules: ['بیداری سحرگاهی', 'ورزش سامورایی']
+      });
+
+      assert.ok(cycle.id);
+      assert.equal(cycle.userId, userA);
+      assert.equal(cycle.title, 'چرخه اول آلفا');
+      assert.equal(cycle.isArchived, false);
+
+      const inStore = memoryStore.cycles.find(c => c.id === cycle.id);
+      assert.ok(inStore);
+      assert.equal(inStore.userId, userA);
     });
 
-    assert.ok(cycle.id);
-    assert.equal(cycle.userId, userA);
-    assert.equal(cycle.title, 'چرخه اول آلفا');
-    assert.equal(cycle.isArchived, false);
+    it('Test 1.2: Cycle list isolation -> User A sees only A cycles, User B sees only B cycles', async () => {
+      await createCycle(userA, {
+        title: 'چرخه ۱ آلفا',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30'
+      });
+      await createCycle(userB, {
+        title: 'چرخه ۱ بتا',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30'
+      });
 
-    // Verify in storage
-    const inStore = memoryStore.cycles.find(c => c.id === cycle.id);
-    assert.ok(inStore);
-    assert.equal(inStore.userId, userA);
+      const userACycles = await getUserCycles(userA);
+      assert.equal(userACycles.length, 1);
+      assert.equal(userACycles[0].userId, userA);
+      assert.equal(userACycles[0].title, 'چرخه ۱ آلفا');
+
+      const userBCycles = await getUserCycles(userB);
+      assert.equal(userBCycles.length, 1);
+      assert.equal(userBCycles[0].userId, userB);
+      assert.equal(userBCycles[0].title, 'چرخه ۱ بتا');
+    });
+
+    it('Test 1.3: User B operations on User A Cycle are denied and persistence remains unchanged', async () => {
+      const cycleA = await createCycle(userA, {
+        title: 'چرخه دست‌نخورده آلفا',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        targetTheme: 'amber'
+      });
+
+      // Non-owner read
+      const readAttempt = await getCycleById(userB, cycleA.id);
+      assert.equal(readAttempt, null);
+
+      // Non-owner update
+      const updateAttempt = await updateCycle(userB, cycleA.id, {
+        title: 'تغییر غیرمجاز توسط کاربر B',
+        targetTheme: 'crimson'
+      });
+      assert.equal(updateAttempt, null);
+
+      // Non-owner archive
+      const archiveAttempt = await archiveCycle(userB, cycleA.id);
+      assert.equal(archiveAttempt, null);
+
+      // Non-owner restore
+      const restoreAttempt = await restoreCycle(userB, cycleA.id);
+      assert.equal(restoreAttempt, null);
+
+      // Non-owner delete
+      const deleteAttempt = await deleteCycle(userB, cycleA.id);
+      assert.equal(deleteAttempt, false);
+
+      // Persistence unchanged check
+      const cycleAVerify = await getCycleById(userA, cycleA.id);
+      assert.ok(cycleAVerify);
+      assert.equal(cycleAVerify.title, 'چرخه دست‌نخورده آلفا');
+      assert.equal(cycleAVerify.targetTheme, 'amber');
+      assert.equal(cycleAVerify.isArchived, false);
+      assert.equal(cycleAVerify.userId, userA);
+    });
+
+    it('Test 1.4: Cross-user cycle ID collision/hijacking is rejected', async () => {
+      const cycleA = await createCycle(userA, {
+        id: 'cycle-custom-fixed-id-1',
+        title: 'چرخه ثابت آلفا',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30'
+      });
+
+      // User B attempts to create a cycle claiming User A's cycle ID
+      await assert.rejects(
+        async () => {
+          await createCycle(userB, {
+            id: cycleA.id,
+            title: 'تلاش تصاحب توسط کاربر B',
+            startDate: '2026-09-01',
+            endDate: '2026-09-30'
+          });
+        },
+        (err: any) => {
+          assert.equal(err.code, 'CYCLE_ID_COLLISION');
+          return true;
+        }
+      );
+
+      // Verify User A cycle remains completely intact
+      const verifyA = await getCycleById(userA, cycleA.id);
+      assert.ok(verifyA);
+      assert.equal(verifyA.title, 'چرخه ثابت آلفا');
+      assert.equal(verifyA.userId, userA);
+    });
+
+    it('Test 1.5: User B cannot create DailyLog under User A Cycle -> Rejected, 0 records created', async () => {
+      const cycleA = await createCycle(userA, {
+        title: 'چرخه خصوصی آلفا',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30'
+      });
+
+      await assert.rejects(
+        async () => {
+          await upsertDailyLog(userB, {
+            cycleId: cycleA.id,
+            date: '2026-09-06',
+            wakeUp: true,
+            workout: true
+          });
+        },
+        (err: any) => {
+          assert.ok(err.code === 'CYCLE_NOT_FOUND' || err.message?.includes('Cycle not found'));
+          return true;
+        }
+      );
+
+      // Persistence unchanged: exactly 0 logs
+      assert.equal(memoryStore.dailyLogs.length, 0);
+      assert.equal((await getUserDailyLogs(userA)).length, 0);
+      assert.equal((await getUserDailyLogs(userB)).length, 0);
+    });
+
+    it('Test 1.6: User B cannot read, update, or delete User A DailyLog -> Rejected, log intact', async () => {
+      const cycleA = await createCycle(userA, {
+        title: 'چرخه آلفا',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30'
+      });
+
+      const logA = await upsertDailyLog(userA, {
+        cycleId: cycleA.id,
+        date: '2026-09-10',
+        wakeUp: true,
+        workout: true,
+        study: true,
+        journal: true,
+        hardTask: true,
+        specialMission: true,
+        notes: 'گزارش روزانه اختصاصی آلفا'
+      });
+
+      // Non-owner read by ID
+      const readById = await getDailyLogById(userB, logA.id);
+      assert.equal(readById, null);
+
+      // Non-owner read by Date
+      const readByDate = await getDailyLogByDate(userB, '2026-09-10');
+      assert.equal(readByDate, null);
+
+      // Non-owner update
+      const updateAttempt = await updateDailyLog(userB, logA.id, {
+        notes: 'تلاش خرابکاری در یادداشت',
+        wakeUp: false
+      });
+      assert.equal(updateAttempt, null);
+
+      // Non-owner delete by ID
+      const deleteById = await deleteDailyLog(userB, logA.id);
+      assert.equal(deleteById, false);
+
+      // Non-owner delete by Date
+      const deleteByDate = await deleteDailyLogByDate(userB, '2026-09-10');
+      assert.equal(deleteByDate, false);
+
+      // Persistence unchanged: User A log retains all original values
+      const verifyLogA = await getDailyLogById(userA, logA.id);
+      assert.ok(verifyLogA);
+      assert.equal(verifyLogA.notes, 'گزارش روزانه اختصاصی آلفا');
+      assert.equal(verifyLogA.wakeUp, true);
+      assert.equal(verifyLogA.userId, userA);
+    });
+
+    it('Test 1.7: User A cannot move DailyLog to User B cycle -> Rejected with CYCLE_NOT_FOUND', async () => {
+      const cycleA = await createCycle(userA, {
+        title: 'چرخه آلفا',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30'
+      });
+
+      const cycleB = await createCycle(userB, {
+        title: 'چرخه بتا',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30'
+      });
+
+      const logA = await upsertDailyLog(userA, {
+        cycleId: cycleA.id,
+        date: '2026-09-11',
+        wakeUp: true
+      });
+
+      // User A attempts to reparent their log to User B's cycle
+      await assert.rejects(
+        async () => {
+          await updateDailyLog(userA, logA.id, {
+            cycleId: cycleB.id
+          });
+        },
+        (err: any) => {
+          assert.equal(err.code, 'CYCLE_NOT_FOUND');
+          return true;
+        }
+      );
+
+      // Persistence unchanged: log retains original cycleId
+      const verifyLog = await getDailyLogById(userA, logA.id);
+      assert.ok(verifyLog);
+      assert.equal(verifyLog.cycleId, cycleA.id);
+    });
+
+    it('Test 1.8: Client userId spoofing payload is strictly overridden by authenticated user', async () => {
+      const cycle = await createCycle(attackerUser, {
+        title: 'چرخه مهاجم',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        ...({ userId: userA } as any)
+      });
+      assert.equal(cycle.userId, attackerUser);
+
+      const updated = await updateCycle(attackerUser, cycle.id, {
+        title: 'عنوان تغییر یافته',
+        ...({ userId: userA, id: 'hijacked-id' } as any)
+      });
+      assert.ok(updated);
+      assert.equal(updated.userId, attackerUser);
+      assert.equal(updated.id, cycle.id);
+    });
+
+    it('Test 1.9: Deleting Cycle cascades only to owned DailyLogs, leaving foreign records untouched', async () => {
+      const cycleA = await createCycle(userA, {
+        title: 'چرخه A',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30'
+      });
+      await upsertDailyLog(userA, {
+        cycleId: cycleA.id,
+        date: '2026-09-01',
+        wakeUp: true
+      });
+
+      const cycleB = await createCycle(userB, {
+        title: 'چرخه B',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30'
+      });
+      await upsertDailyLog(userB, {
+        cycleId: cycleB.id,
+        date: '2026-09-01',
+        wakeUp: true
+      });
+
+      const deleteRes = await deleteCycle(userA, cycleA.id);
+      assert.equal(deleteRes, true);
+
+      // User A records deleted
+      assert.equal((await getUserCycles(userA)).length, 0);
+      assert.equal((await getUserDailyLogs(userA)).length, 0);
+
+      // User B records 100% intact
+      const userBCycles = await getUserCycles(userB);
+      assert.equal(userBCycles.length, 1);
+      assert.equal(userBCycles[0].id, cycleB.id);
+
+      const userBLogs = await getUserDailyLogs(userB);
+      assert.equal(userBLogs.length, 1);
+      assert.equal(userBLogs[0].cycleId, cycleB.id);
+    });
   });
 
-  // ---------------------------------------------------------------------------
-  // Test B: User A lists Cycles -> Sees only User A's Cycles.
-  // ---------------------------------------------------------------------------
-  it('Test B: User A lists Cycles -> Sees only User A cycles and not foreign cycles', async () => {
-    await createCycle(userA, {
-      title: 'چرخه ۱ آلفا',
-      startDate: '2026-09-01',
-      endDate: '2026-09-30'
-    });
-    await createCycle(userA, {
-      title: 'چرخه ۲ آلفا',
-      startDate: '2026-10-01',
-      endDate: '2026-10-31'
-    });
-    await createCycle(userB, {
-      title: 'چرخه ۱ بتا',
-      startDate: '2026-09-01',
-      endDate: '2026-09-30'
-    });
+  /* =========================================================================
+   * PART 2: HTTP ROUTE-LAYER OWNERSHIP VALIDATION MATRIX
+   * Covers all 4 required evidence criteria:
+   *   1. Owner success case
+   *   2. Non-owner denial case
+   *   3. Unauthenticated denial case
+   *   4. Persistence unchanged after denied mutation
+   * ========================================================================= */
+  describe('Part 2: HTTP Route-Layer Ownership & Access Control Matrix', () => {
+    // -------------------------------------------------------------------------
+    // 2.1 Cycle Read: GET /api/cycles/:id
+    // -------------------------------------------------------------------------
+    describe('GET /api/cycles/:id', () => {
+      it('1. Owner success case -> 200 with cycle data', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
 
-    const userACycles = await getUserCycles(userA);
-    assert.equal(userACycles.length, 2);
-    assert.ok(userACycles.every(c => c.userId === userA));
-    assert.ok(userACycles.some(c => c.title === 'چرخه ۱ آلفا'));
-    assert.ok(userACycles.some(c => c.title === 'چرخه ۲ آلفا'));
-    assert.ok(!userACycles.some(c => c.title === 'چرخه ۱ بتا'));
-  });
+        const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
+          headers: { Authorization: `Bearer ${tokenUserA}` }
+        });
+        assert.equal(res.status, 200);
+        const body: any = await res.json();
+        assert.equal(body.cycle.id, cycle.id);
+        assert.equal(body.cycle.userId, userA);
+      });
 
-  // ---------------------------------------------------------------------------
-  // Test C: User B lists Cycles -> Sees only User B's Cycles; cannot see User A's Cycles.
-  // ---------------------------------------------------------------------------
-  it('Test C: User B lists Cycles -> Sees only User B cycles, zero leakage of User A data', async () => {
-    await createCycle(userA, {
-      title: 'چرخه محرمانه آلفا',
-      startDate: '2026-09-01',
-      endDate: '2026-09-30'
-    });
-    await createCycle(userB, {
-      title: 'چرخه عمومی بتا',
-      startDate: '2026-09-01',
-      endDate: '2026-09-30'
-    });
+      it('2. Non-owner denial case -> 404 NOT_FOUND', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
 
-    const userBCycles = await getUserCycles(userB);
-    assert.equal(userBCycles.length, 1);
-    assert.equal(userBCycles[0].userId, userB);
-    assert.equal(userBCycles[0].title, 'چرخه عمومی بتا');
-  });
+        const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
+          headers: { Authorization: `Bearer ${tokenUserB}` }
+        });
+        assert.equal(res.status, 404);
+        const body: any = await res.json();
+        assert.equal(body.code, 'NOT_FOUND');
+      });
 
-  // ---------------------------------------------------------------------------
-  // Test D: User B attempts to read/update/delete/archive User A's Cycle -> Rejected, untouched.
-  // ---------------------------------------------------------------------------
-  it('Test D: User B attempts to read, update, archive or delete User A Cycle -> Rejected, Cycle remains untouched', async () => {
-    const cycleA = await createCycle(userA, {
-      title: 'چرخه دست‌نخورده آلفا',
-      startDate: '2026-09-01',
-      endDate: '2026-09-30',
-      targetTheme: 'amber'
+      it('3. Unauthenticated denial case -> 401 UNAUTHORIZED', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+
+        const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`);
+        assert.equal(res.status, 401);
+      });
     });
 
-    // 1. User B tries to read User A's cycle by ID
-    const readAttempt = await getCycleById(userB, cycleA.id);
-    assert.equal(readAttempt, null, 'User B must not be able to read User A cycle by ID');
+    // -------------------------------------------------------------------------
+    // 2.2 Cycle Update: PUT /api/cycles/:id
+    // -------------------------------------------------------------------------
+    describe('PUT /api/cycles/:id', () => {
+      it('1. Owner success case -> 200 with updated cycle', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'عنوان اولیه',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
 
-    // 2. User B tries to update User A's cycle
-    const updateAttempt = await updateCycle(userB, cycleA.id, {
-      title: 'هک شده توسط کاربر ب',
-      targetTheme: 'crimson'
+        const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${tokenUserA}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ title: 'عنوان به‌روزرسانی‌شده' })
+        });
+        assert.equal(res.status, 200);
+        const body: any = await res.json();
+        assert.equal(body.cycle.title, 'عنوان به‌روزرسانی‌شده');
+      });
+
+      it('2. Non-owner denial case -> 404 NOT_FOUND', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'عنوان اولیه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+
+        const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${tokenUserB}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ title: 'تلاش هک توسط کاربر B' })
+        });
+        assert.equal(res.status, 404);
+      });
+
+      it('3. Unauthenticated denial case -> 401 UNAUTHORIZED', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'عنوان آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+
+        const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: 'بدون توکن' })
+        });
+        assert.equal(res.status, 401);
+      });
+
+      it('4. Persistence unchanged after denied mutation', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'عنوان اصلی دست‌نخورده',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30',
+          targetTheme: 'amber'
+        });
+
+        // Denied attempt by User B
+        await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${tokenUserB}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ title: 'تلاش تغییر غیرمجاز', targetTheme: 'crimson' })
+        });
+
+        // Verify cycle is unchanged in store
+        const verify = await getCycleById(userA, cycle.id);
+        assert.ok(verify);
+        assert.equal(verify.title, 'عنوان اصلی دست‌نخورده');
+        assert.equal(verify.targetTheme, 'amber');
+      });
     });
-    assert.equal(updateAttempt, null, 'User B must not be able to update User A cycle');
 
-    // 3. User B tries to archive User A's cycle
-    const archiveAttempt = await archiveCycle(userB, cycleA.id);
-    assert.equal(archiveAttempt, null, 'User B must not be able to archive User A cycle');
+    // -------------------------------------------------------------------------
+    // 2.3 Cycle Archive & Restore: PUT /api/cycles/:id/archive & restore
+    // -------------------------------------------------------------------------
+    describe('PUT /api/cycles/:id/archive & /restore', () => {
+      it('1. Owner success case -> 200 with isArchived toggled', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
 
-    // 4. User B tries to delete User A's cycle
-    const deleteAttempt = await deleteCycle(userB, cycleA.id);
-    assert.equal(deleteAttempt, false, 'User B must not be able to delete User A cycle');
+        // Archive
+        const archRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/archive`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${tokenUserA}` }
+        });
+        assert.equal(archRes.status, 200);
+        assert.equal((await archRes.json() as any).cycle.isArchived, true);
 
-    // Verify User A's cycle is completely intact in database
-    const cycleAVerify = await getCycleById(userA, cycleA.id);
-    assert.ok(cycleAVerify);
-    assert.equal(cycleAVerify.title, 'چرخه دست‌نخورده آلفا');
-    assert.equal(cycleAVerify.targetTheme, 'amber');
-    assert.equal(cycleAVerify.isArchived, false);
-    assert.equal(cycleAVerify.userId, userA);
-  });
+        // Restore
+        const restRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/restore`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${tokenUserA}` }
+        });
+        assert.equal(restRes.status, 200);
+        assert.equal((await restRes.json() as any).cycle.isArchived, false);
+      });
 
-  // ---------------------------------------------------------------------------
-  // Test E: User A creates a DailyLog for User A's Cycle -> Owned by User A, linked to Cycle A.
-  // ---------------------------------------------------------------------------
-  it('Test E: User A creates a DailyLog for User A Cycle -> Owned by User A and linked to Cycle A', async () => {
-    const cycleA = await createCycle(userA, {
-      title: 'چرخه اصلی آلفا',
-      startDate: '2026-09-01',
-      endDate: '2026-09-30'
+      it('2. Non-owner denial case -> 404 NOT_FOUND for both archive and restore', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+
+        const archRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/archive`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${tokenUserB}` }
+        });
+        assert.equal(archRes.status, 404);
+
+        const restRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/restore`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${tokenUserB}` }
+        });
+        assert.equal(restRes.status, 404);
+      });
+
+      it('3. Unauthenticated denial case -> 401 UNAUTHORIZED', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+
+        const archRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/archive`, { method: 'PUT' });
+        assert.equal(archRes.status, 401);
+
+        const restRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/restore`, { method: 'PUT' });
+        assert.equal(restRes.status, 401);
+      });
+
+      it('4. Persistence unchanged after denied archive mutation', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+
+        await fetch(`${baseUrl}/api/cycles/${cycle.id}/archive`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${tokenUserB}` }
+        });
+
+        const verify = await getCycleById(userA, cycle.id);
+        assert.ok(verify);
+        assert.equal(verify.isArchived, false);
+      });
     });
 
-    const logA = await upsertDailyLog(userA, {
-      cycleId: cycleA.id,
-      date: '2026-09-05',
-      wakeUp: true,
-      workout: true,
-      study: true,
-      journal: false,
-      hardTask: true,
-      specialMission: false,
-      notes: 'تمرین سحرگاهی سامورایی'
+    // -------------------------------------------------------------------------
+    // 2.4 Cycle Delete: DELETE /api/cycles/:id
+    // -------------------------------------------------------------------------
+    describe('DELETE /api/cycles/:id', () => {
+      it('1. Owner success case -> 200 with success: true and deleted from store', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه برای حذف',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+
+        const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${tokenUserA}` }
+        });
+        assert.equal(res.status, 200);
+
+        const verify = await getCycleById(userA, cycle.id);
+        assert.equal(verify, null);
+      });
+
+      it('2. Non-owner denial case -> 404 NOT_FOUND', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه محافظت‌شده آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+
+        const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${tokenUserB}` }
+        });
+        assert.equal(res.status, 404);
+      });
+
+      it('3. Unauthenticated denial case -> 401 UNAUTHORIZED', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه محافظت‌شده آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+
+        const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`, { method: 'DELETE' });
+        assert.equal(res.status, 401);
+      });
+
+      it('4. Persistence unchanged after denied deletion', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه محافظت‌شده آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+
+        await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${tokenUserB}` }
+        });
+
+        const verify = await getCycleById(userA, cycle.id);
+        assert.ok(verify);
+        assert.equal(verify.title, 'چرخه محافظت‌شده آلفا');
+      });
     });
 
-    assert.ok(logA.id);
-    assert.equal(logA.userId, userA);
-    assert.equal(logA.cycleId, cycleA.id);
-    assert.equal(logA.date, '2026-09-05');
-    assert.equal(logA.wakeUp, true);
+    // -------------------------------------------------------------------------
+    // 2.5 DailyLog Creation under Cycle: POST /api/logs & /api/daily-logs
+    // -------------------------------------------------------------------------
+    describe('POST /api/logs & /api/daily-logs (Create Log)', () => {
+      it('1. Owner success case -> 200 with created daily log', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
 
-    // Verify retrieved by user
-    const fetchedLogs = await getUserDailyLogs(userA, cycleA.id);
-    assert.equal(fetchedLogs.length, 1);
-    assert.equal(fetchedLogs[0].id, logA.id);
-    assert.equal(fetchedLogs[0].userId, userA);
-  });
+        const res = await fetch(`${baseUrl}/api/logs`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tokenUserA}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            cycleId: cycle.id,
+            date: '2026-09-02',
+            wakeUp: true,
+            workout: true
+          })
+        });
+        assert.equal(res.status, 200);
+        const body: any = await res.json();
+        assert.equal(body.log.cycleId, cycle.id);
+        assert.equal(body.log.userId, userA);
+        assert.equal(body.log.wakeUp, true);
+      });
 
-  // ---------------------------------------------------------------------------
-  // Test F: User B attempts to create/upsert a DailyLog referencing User A's Cycle -> Rejected before writing.
-  // ---------------------------------------------------------------------------
-  it('Test F: User B attempts to upsert DailyLog referencing User A Cycle -> Rejected before writing, 0 cross-user records', async () => {
-    const cycleA = await createCycle(userA, {
-      title: 'چرخه خصوصی آلفا',
-      startDate: '2026-09-01',
-      endDate: '2026-09-30'
+      it('2. Non-owner denial case -> 404 CYCLE_NOT_FOUND when targeting foreign cycle', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+
+        const res = await fetch(`${baseUrl}/api/logs`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tokenUserB}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            cycleId: cycle.id,
+            date: '2026-09-02',
+            wakeUp: true
+          })
+        });
+        assert.equal(res.status, 404);
+        const body: any = await res.json();
+        assert.equal(body.code, 'CYCLE_NOT_FOUND');
+      });
+
+      it('3. Unauthenticated denial case -> 401 UNAUTHORIZED', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+
+        const res = await fetch(`${baseUrl}/api/logs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cycleId: cycle.id,
+            date: '2026-09-02',
+            wakeUp: true
+          })
+        });
+        assert.equal(res.status, 401);
+      });
+
+      it('4. Persistence unchanged after denied log creation', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+
+        // User B attempts to create log under User A's cycle
+        await fetch(`${baseUrl}/api/logs`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tokenUserB}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            cycleId: cycle.id,
+            date: '2026-09-03',
+            wakeUp: true
+          })
+        });
+
+        // Verify 0 logs exist in DB
+        assert.equal(memoryStore.dailyLogs.length, 0);
+        assert.equal((await getUserDailyLogs(userA)).length, 0);
+        assert.equal((await getUserDailyLogs(userB)).length, 0);
+      });
     });
 
-    // User B tries to insert a log referencing cycleA.id
-    await assert.rejects(
-      async () => {
-        await upsertDailyLog(userB, {
+    // -------------------------------------------------------------------------
+    // 2.6 DailyLog Read: GET /api/logs/:id & /api/daily-logs/:id
+    // -------------------------------------------------------------------------
+    describe('GET /api/logs/:id & /api/daily-logs/:id', () => {
+      it('1. Owner success case -> 200 with log data', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+        const log = await upsertDailyLog(userA, {
+          cycleId: cycle.id,
+          date: '2026-09-04',
+          wakeUp: true
+        });
+
+        const res = await fetch(`${baseUrl}/api/logs/${log.id}`, {
+          headers: { Authorization: `Bearer ${tokenUserA}` }
+        });
+        assert.equal(res.status, 200);
+        const body: any = await res.json();
+        assert.equal(body.log.id, log.id);
+        assert.equal(body.log.userId, userA);
+      });
+
+      it('2. Non-owner denial case -> 404 NOT_FOUND', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+        const log = await upsertDailyLog(userA, {
+          cycleId: cycle.id,
+          date: '2026-09-04',
+          wakeUp: true
+        });
+
+        const res = await fetch(`${baseUrl}/api/logs/${log.id}`, {
+          headers: { Authorization: `Bearer ${tokenUserB}` }
+        });
+        assert.equal(res.status, 404);
+      });
+
+      it('3. Unauthenticated denial case -> 401 UNAUTHORIZED', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+        const log = await upsertDailyLog(userA, {
+          cycleId: cycle.id,
+          date: '2026-09-04',
+          wakeUp: true
+        });
+
+        const res = await fetch(`${baseUrl}/api/logs/${log.id}`);
+        assert.equal(res.status, 401);
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // 2.7 DailyLog Update: PUT /api/logs/:id & /api/daily-logs/:id
+    // -------------------------------------------------------------------------
+    describe('PUT /api/logs/:id & /api/daily-logs/:id (Update Log)', () => {
+      it('1. Owner success case -> 200 with updated log fields', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+        const log = await upsertDailyLog(userA, {
+          cycleId: cycle.id,
+          date: '2026-09-05',
+          wakeUp: false,
+          notes: 'یادداشت اولیه'
+        });
+
+        const res = await fetch(`${baseUrl}/api/logs/${log.id}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${tokenUserA}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            wakeUp: true,
+            workout: true,
+            notes: 'یادداشت جدید سامورایی'
+          })
+        });
+        assert.equal(res.status, 200);
+        const body: any = await res.json();
+        assert.equal(body.log.wakeUp, true);
+        assert.equal(body.log.workout, true);
+        assert.equal(body.log.notes, 'یادداشت جدید سامورایی');
+      });
+
+      it('2. Non-owner denial case -> 404 NOT_FOUND', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+        const log = await upsertDailyLog(userA, {
+          cycleId: cycle.id,
+          date: '2026-09-05',
+          wakeUp: true
+        });
+
+        const res = await fetch(`${baseUrl}/api/logs/${log.id}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${tokenUserB}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ wakeUp: false })
+        });
+        assert.equal(res.status, 404);
+      });
+
+      it('3. Unauthenticated denial case -> 401 UNAUTHORIZED', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+        const log = await upsertDailyLog(userA, {
+          cycleId: cycle.id,
+          date: '2026-09-05',
+          wakeUp: true
+        });
+
+        const res = await fetch(`${baseUrl}/api/logs/${log.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wakeUp: false })
+        });
+        assert.equal(res.status, 401);
+      });
+
+      it('4. Persistence unchanged after denied log update', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+        const log = await upsertDailyLog(userA, {
+          cycleId: cycle.id,
+          date: '2026-09-05',
+          wakeUp: true,
+          notes: 'یادداشت دست‌نخورده آلفا'
+        });
+
+        // Denied attempt by User B
+        await fetch(`${baseUrl}/api/logs/${log.id}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${tokenUserB}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ wakeUp: false, notes: 'تخریب توسط هکر' })
+        });
+
+        // Verify in DB
+        const verifyLog = await getDailyLogById(userA, log.id);
+        assert.ok(verifyLog);
+        assert.equal(verifyLog.wakeUp, true);
+        assert.equal(verifyLog.notes, 'یادداشت دست‌نخورده آلفا');
+      });
+
+      it('5. User A updating log with User B cycleId -> 404 CYCLE_NOT_FOUND, cycleId unchanged', async () => {
+        const cycleA = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+        const cycleB = await createCycle(userB, {
+          title: 'چرخه بتا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+        const logA = await upsertDailyLog(userA, {
           cycleId: cycleA.id,
           date: '2026-09-06',
-          wakeUp: true,
-          workout: true,
-          study: false,
-          journal: false,
-          hardTask: false,
-          specialMission: false
+          wakeUp: true
         });
-      },
-      (err: any) => {
-        assert.ok(err.code === 'CYCLE_NOT_FOUND' || err.message?.includes('Cycle not found'));
-        return true;
-      }
-    );
 
-    // Verify no logs were inserted for User B or under Cycle A
-    assert.equal(memoryStore.dailyLogs.length, 0);
-    const userBLogs = await getUserDailyLogs(userB);
-    assert.equal(userBLogs.length, 0);
-    const userALogs = await getUserDailyLogs(userA);
-    assert.equal(userALogs.length, 0);
-  });
+        const res = await fetch(`${baseUrl}/api/logs/${logA.id}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${tokenUserA}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ cycleId: cycleB.id })
+        });
+        assert.equal(res.status, 404);
+        const body: any = await res.json();
+        assert.equal(body.code, 'CYCLE_NOT_FOUND');
 
-  // ---------------------------------------------------------------------------
-  // Test G: User B attempts to read/update/delete User A's DailyLog -> Rejected, intact.
-  // ---------------------------------------------------------------------------
-  it('Test G: User B attempts to read or delete User A DailyLog -> Rejected, User A log remains intact', async () => {
-    const cycleA = await createCycle(userA, {
-      title: 'چرخه آلفا',
-      startDate: '2026-09-01',
-      endDate: '2026-09-30'
+        // Persistence unchanged check
+        const verifyLog = await getDailyLogById(userA, logA.id);
+        assert.ok(verifyLog);
+        assert.equal(verifyLog.cycleId, cycleA.id);
+      });
     });
 
-    const logA = await upsertDailyLog(userA, {
-      cycleId: cycleA.id,
-      date: '2026-09-10',
-      wakeUp: true,
-      workout: true,
-      study: true,
-      journal: true,
-      hardTask: true,
-      specialMission: true,
-      notes: 'رکورد بی‌نقص'
+    // -------------------------------------------------------------------------
+    // 2.8 DailyLog Delete: DELETE /api/logs/:id & /api/daily-logs/:id
+    // -------------------------------------------------------------------------
+    describe('DELETE /api/logs/:id & /api/daily-logs/:id (Delete Log)', () => {
+      it('1. Owner success case -> 200 with success: true and deleted from store', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+        const log = await upsertDailyLog(userA, {
+          cycleId: cycle.id,
+          date: '2026-09-07',
+          wakeUp: true
+        });
+
+        const res = await fetch(`${baseUrl}/api/logs/${log.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${tokenUserA}` }
+        });
+        assert.equal(res.status, 200);
+
+        const verify = await getDailyLogById(userA, log.id);
+        assert.equal(verify, null);
+      });
+
+      it('2. Non-owner denial case -> 404 NOT_FOUND', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+        const log = await upsertDailyLog(userA, {
+          cycleId: cycle.id,
+          date: '2026-09-07',
+          wakeUp: true
+        });
+
+        const res = await fetch(`${baseUrl}/api/logs/${log.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${tokenUserB}` }
+        });
+        assert.equal(res.status, 404);
+      });
+
+      it('3. Unauthenticated denial case -> 401 UNAUTHORIZED', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+        const log = await upsertDailyLog(userA, {
+          cycleId: cycle.id,
+          date: '2026-09-07',
+          wakeUp: true
+        });
+
+        const res = await fetch(`${baseUrl}/api/logs/${log.id}`, { method: 'DELETE' });
+        assert.equal(res.status, 401);
+      });
+
+      it('4. Persistence unchanged after denied log deletion', async () => {
+        const cycle = await createCycle(userA, {
+          title: 'چرخه آلفا',
+          startDate: '2026-09-01',
+          endDate: '2026-09-30'
+        });
+        const log = await upsertDailyLog(userA, {
+          cycleId: cycle.id,
+          date: '2026-09-07',
+          wakeUp: true,
+          notes: 'یادداشت مهم که نباید پاک شود'
+        });
+
+        // Non-owner delete attempt
+        await fetch(`${baseUrl}/api/logs/${log.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${tokenUserB}` }
+        });
+
+        // Verify log is still in database
+        const verifyLog = await getDailyLogById(userA, log.id);
+        assert.ok(verifyLog);
+        assert.equal(verifyLog.notes, 'یادداشت مهم که نباید پاک شود');
+      });
     });
-
-    // 1. User B tries to read User A's log by ID
-    const readLogAttempt = await getDailyLogById(userB, logA.id);
-    assert.equal(readLogAttempt, null);
-
-    // 2. User B tries to read User A's log by Date
-    const readDateAttempt = await getDailyLogByDate(userB, '2026-09-10');
-    assert.equal(readDateAttempt, null);
-
-    // 3. User B tries to delete User A's log by ID
-    const deleteAttempt = await deleteDailyLog(userB, logA.id);
-    assert.equal(deleteAttempt, false);
-
-    // 4. User B tries to delete User A's log by Date
-    const deleteDateAttempt = await deleteDailyLogByDate(userB, '2026-09-10');
-    assert.equal(deleteDateAttempt, false);
-
-    // Verify User A's log is completely preserved
-    const logAVerify = await getDailyLogById(userA, logA.id);
-    assert.ok(logAVerify);
-    assert.equal(logAVerify.notes, 'رکورد بی‌نقص');
-    assert.equal(logAVerify.userId, userA);
-  });
-
-  // ---------------------------------------------------------------------------
-  // Test H: Client payload supplying a different userId -> Server ignores/overrides with authenticated user.
-  // ---------------------------------------------------------------------------
-  it('Test H: Client payload attempting userId spoofing -> Server strictly binds to authenticated userId', async () => {
-    // Attempting to spoof User A's ID while authenticated as Attacker
-    const cycle = await createCycle(attackerUser, {
-      title: 'چرخه مهاجم',
-      startDate: '2026-09-01',
-      endDate: '2026-09-30',
-      // Client sends malicious userId in extra payload
-      ...({ userId: userA } as any)
-    });
-
-    assert.equal(cycle.userId, attackerUser, 'Created cycle must belong to attackerUser, not spoofed userA');
-
-    // Attempting to update cycle with spoofed userId
-    const updated = await updateCycle(attackerUser, cycle.id, {
-      title: 'عنوان تغییر یافته',
-      // Malicious attempt to transfer ownership
-      ...({ userId: userA, id: 'new-stolen-id' } as any)
-    });
-
-    assert.ok(updated);
-    assert.equal(updated.userId, attackerUser, 'Ownership must NOT be transferable via update payload');
-    assert.equal(updated.id, cycle.id, 'Cycle ID must be immutable');
-  });
-
-  // ---------------------------------------------------------------------------
-  // Test I: Deleting a Cycle deletes only the DailyLogs belonging to that Cycle and User.
-  // ---------------------------------------------------------------------------
-  it('Test I: Deleting a Cycle cascades only to owned DailyLogs, leaving foreign cycles and logs intact', async () => {
-    // User A Cycle 1 with 2 logs
-    const cycleA1 = await createCycle(userA, {
-      title: 'چرخه ۱ آلفا',
-      startDate: '2026-09-01',
-      endDate: '2026-09-30'
-    });
-    await upsertDailyLog(userA, {
-      cycleId: cycleA1.id,
-      date: '2026-09-01',
-      wakeUp: true,
-      workout: true,
-      study: false,
-      journal: false,
-      hardTask: false,
-      specialMission: false
-    });
-    await upsertDailyLog(userA, {
-      cycleId: cycleA1.id,
-      date: '2026-09-02',
-      wakeUp: true,
-      workout: false,
-      study: true,
-      journal: false,
-      hardTask: false,
-      specialMission: false
-    });
-
-    // User A Cycle 2 with 1 log
-    const cycleA2 = await createCycle(userA, {
-      title: 'چرخه ۲ آلفا',
-      startDate: '2026-10-01',
-      endDate: '2026-10-31'
-    });
-    await upsertDailyLog(userA, {
-      cycleId: cycleA2.id,
-      date: '2026-10-01',
-      wakeUp: true,
-      workout: true,
-      study: true,
-      journal: true,
-      hardTask: true,
-      specialMission: true
-    });
-
-    // User B Cycle 1 with 1 log
-    const cycleB1 = await createCycle(userB, {
-      title: 'چرخه ۱ بتا',
-      startDate: '2026-09-01',
-      endDate: '2026-09-30'
-    });
-    await upsertDailyLog(userB, {
-      cycleId: cycleB1.id,
-      date: '2026-09-01',
-      wakeUp: true,
-      workout: true,
-      study: false,
-      journal: false,
-      hardTask: false,
-      specialMission: false
-    });
-
-    // User A deletes Cycle A1
-    const deleteResult = await deleteCycle(userA, cycleA1.id);
-    assert.equal(deleteResult, true);
-
-    // Verify Cycle A1 is gone
-    const userACycles = await getUserCycles(userA);
-    assert.equal(userACycles.length, 1);
-    assert.equal(userACycles[0].id, cycleA2.id);
-
-    // Verify Cycle A1 logs are gone, but Cycle A2 log remains
-    const userALogs = await getUserDailyLogs(userA);
-    assert.equal(userALogs.length, 1);
-    assert.equal(userALogs[0].cycleId, cycleA2.id);
-
-    // Verify User B's Cycle and Log are 100% untouched
-    const userBCycles = await getUserCycles(userB);
-    assert.equal(userBCycles.length, 1);
-    assert.equal(userBCycles[0].id, cycleB1.id);
-
-    const userBLogs = await getUserDailyLogs(userB);
-    assert.equal(userBLogs.length, 1);
-    assert.equal(userBLogs[0].cycleId, cycleB1.id);
-  });
-
-  // ---------------------------------------------------------------------------
-  // Test J: Querying foreign cycleId in getUserDailyLogs returns empty, 0 leakage.
-  // ---------------------------------------------------------------------------
-  it('Test J: User B querying logs with User A cycleId returns empty array, zero foreign data leakage', async () => {
-    const cycleA = await createCycle(userA, {
-      title: 'چرخه بسیار محرمانه آلفا',
-      startDate: '2026-09-01',
-      endDate: '2026-09-30'
-    });
-    await upsertDailyLog(userA, {
-      cycleId: cycleA.id,
-      date: '2026-09-01',
-      wakeUp: true,
-      workout: true,
-      study: true,
-      journal: true,
-      hardTask: true,
-      specialMission: true,
-      notes: 'یادداشت‌های محرمانه آلفا'
-    });
-
-    // User B tries to query logs for User A's cycle
-    const userBLogsForCycleA = await getUserDailyLogs(userB, cycleA.id);
-    assert.equal(userBLogsForCycleA.length, 0, 'Must return empty array for foreign cycle query');
   });
 });

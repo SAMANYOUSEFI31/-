@@ -21,6 +21,7 @@ import {
   getUserDailyLogs,
   getDailyLogById,
   upsertDailyLog,
+  updateDailyLog,
   deleteDailyLog,
   createSubscriptionRecord,
   completeSubscription,
@@ -79,6 +80,7 @@ import {
   createCycleSchema,
   updateCycleSchema,
   upsertDailyLogSchema,
+  updateDailyLogSchema,
   autopsySchema,
   paymentRequestSchema,
   paymentVerifySchema
@@ -767,7 +769,13 @@ app.post('/api/cycles', authMiddleware, validateBody(createCycleSchema), async (
     }
     const newCycle = await createCycle(userId, req.body);
     res.json({ cycle: newCycle });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'CYCLE_ID_COLLISION') {
+      return res.status(409).json({
+        code: 'CYCLE_ID_COLLISION',
+        messageFa: 'شناسه چرخه قبلاً توسط کاربر دیگری ثبت شده است.'
+      });
+    }
     next(error);
   }
 });
@@ -875,6 +883,26 @@ const handleGetSingleDailyLog = async (req: AuthenticatedRequest, res: express.R
   }
 };
 
+const handleUpdateDailyLog = async (req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const logId = req.params.id;
+    const updated = await updateDailyLog(userId, logId, req.body);
+    if (!updated) {
+      return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'گزارش روزانه مورد نظر یافت نشد.' });
+    }
+    res.json({ log: updated, success: true });
+  } catch (error: any) {
+    if (error?.code === 'CYCLE_NOT_FOUND' || error?.message?.includes('Cycle not found')) {
+      return res.status(404).json({
+        code: 'CYCLE_NOT_FOUND',
+        messageFa: 'چرخه مشخص شده یافت نشد یا متعلق به کاربر دیگری است.'
+      });
+    }
+    next(error);
+  }
+};
+
 const handleDeleteDailyLog = async (req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) => {
   try {
     const userId = req.user!.userId;
@@ -893,11 +921,13 @@ app.get('/api/logs', authMiddleware, handleGetDailyLogs);
 app.get('/api/logs/:id', authMiddleware, handleGetSingleDailyLog);
 app.post('/api/logs', authMiddleware, validateBody(upsertDailyLogSchema), handleUpsertDailyLog);
 app.post('/api/logs/upsert', authMiddleware, validateBody(upsertDailyLogSchema), handleUpsertDailyLog);
+app.put('/api/logs/:id', authMiddleware, validateBody(updateDailyLogSchema), handleUpdateDailyLog);
 app.delete('/api/logs/:id', authMiddleware, handleDeleteDailyLog);
 
 app.get('/api/daily-logs', authMiddleware, handleGetDailyLogs);
 app.get('/api/daily-logs/:id', authMiddleware, handleGetSingleDailyLog);
 app.post('/api/daily-logs', authMiddleware, validateBody(upsertDailyLogSchema), handleUpsertDailyLog);
+app.put('/api/daily-logs/:id', authMiddleware, validateBody(updateDailyLogSchema), handleUpdateDailyLog);
 app.delete('/api/daily-logs/:id', authMiddleware, handleDeleteDailyLog);
 
 /* =========================================================================

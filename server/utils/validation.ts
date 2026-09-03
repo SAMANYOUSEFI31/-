@@ -218,6 +218,25 @@ export const upsertDailyLogSchema = z.object({
 });
 
 /**
+ * Daily Log Update Schema
+ */
+export const updateDailyLogSchema = z.object({
+  cycleId: z.string().min(1).optional(),
+  wakeUp: z.boolean().optional(),
+  workout: z.boolean().optional(),
+  study: z.boolean().optional(),
+  journal: z.boolean().optional(),
+  hardTask: z.boolean().optional(),
+  specialMission: z.boolean().optional(),
+  failureReason: z.string().max(500).optional().nullable(),
+  failureTime: z.string().max(100).optional().nullable(),
+  autopsyNotes: z.string().max(2000).optional().nullable(),
+  countermeasure: z.string().max(2000).optional().nullable(),
+  aiFeedback: z.string().max(2000).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+
+/**
  * Failure Autopsy Submission Schema
  */
 export const autopsySchema = z.object({
