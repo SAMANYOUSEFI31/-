@@ -39,6 +39,23 @@ const dateStringSchema = z
     })
   );
 
+/**
+ * Exact five-digit OTP format validator
+ */
+export const fiveDigitOtpSchema = z
+  .string({ required_error: 'ورود کد تایید الزامی است.' })
+  .transform(cleanDigits)
+  .pipe(
+    z.string().regex(/^\d{5}$/, { message: 'کد تایید باید دقیقاً ۵ رقم باشد.' })
+  );
+
+/**
+ * Centralized password policy (minimum 8 characters)
+ */
+export const passwordSchema = z
+  .string({ required_error: 'ورود رمز عبور الزامی است.' })
+  .min(8, { message: 'رمز عبور باید حداقل ۸ کاراکتر باشد.' });
+
 /* =========================================================================
  * ZOD SCHEMAS FOR API INPUT VALIDATION (Item B5)
  * ========================================================================= */
@@ -46,41 +63,44 @@ const dateStringSchema = z
 /**
  * Phone-First Registration: Step 1 (Request OTP)
  */
-export const registerRequestOtpSchema = z.object({
-  phoneNumber: iranianPhoneSchema,
-});
+export const registerRequestOtpSchema = z
+  .object({
+    phoneNumber: iranianPhoneSchema,
+  })
+  .strict({ message: 'فیلدهای اضافی در بدنه درخواست مجاز نیست.' });
 
 /**
  * Phone-First Registration: Step 2 (Verify OTP & Set Password)
+ * Rejects unexpected privilege fields (isAdmin, isVip, role, tier) via .strict()
  */
-export const registerVerifyOtpSchema = z.object({
-  phoneNumber: iranianPhoneSchema,
-  code: z
-    .string()
-    .transform(cleanDigits)
-    .pipe(z.string().min(4, { message: 'کد تایید الزامی است.' })),
-  password: z.string().min(8, { message: 'رمز عبور باید حداقل ۸ کاراکتر باشد.' }),
-  name: z.string().max(80, { message: 'نام کاربری حداکثر می‌تواند ۸۰ کاراکتر باشد.' }).optional(),
-});
+export const registerVerifyOtpSchema = z
+  .object({
+    phoneNumber: iranianPhoneSchema,
+    code: fiveDigitOtpSchema,
+    password: passwordSchema,
+    name: z.string().max(80, { message: 'نام کاربری حداکثر می‌تواند ۸۰ کاراکتر باشد.' }).optional(),
+  })
+  .strict({ message: 'فیلدهای اضافی یا ارتقای دسترسی در ثبت‌نام عمومی مجاز نیست.' });
 
 /**
  * Phone-First Password Recovery: Step 1 (Request OTP)
  */
-export const forgotPasswordRequestOtpSchema = z.object({
-  phoneNumber: iranianPhoneSchema,
-});
+export const forgotPasswordRequestOtpSchema = z
+  .object({
+    phoneNumber: iranianPhoneSchema,
+  })
+  .strict({ message: 'فیلدهای اضافی در بدنه درخواست مجاز نیست.' });
 
 /**
  * Phone-First Password Recovery: Step 2 (Reset Password with OTP)
  */
-export const resetPasswordWithOtpSchema = z.object({
-  phoneNumber: iranianPhoneSchema,
-  code: z
-    .string()
-    .transform(cleanDigits)
-    .pipe(z.string().min(4, { message: 'کد تایید الزامی است.' })),
-  newPassword: z.string().min(8, { message: 'رمز عبور جدید باید حداقل ۸ کاراکتر باشد.' }),
-});
+export const resetPasswordWithOtpSchema = z
+  .object({
+    phoneNumber: iranianPhoneSchema,
+    code: fiveDigitOtpSchema,
+    newPassword: passwordSchema,
+  })
+  .strict({ message: 'فیلدهای اضافی در بدنه درخواست مجاز نیست.' });
 
 /**
  * User Registration Schema (Legacy / Direct Adapter)

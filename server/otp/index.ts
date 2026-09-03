@@ -1,14 +1,23 @@
 import crypto from 'crypto';
 import {
-  prisma,
-  isPrismaAvailable,
-  memoryStore,
-  saveLocalStore,
   DBOtpCode
 } from '../db/base.js';
+import {
+  findActiveOtpChallenge,
+  findLatestOtpChallenge,
+  createOtpRecord,
+  updateOtpRecord,
+  removeOtpRecord
+} from '../db/otp.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import { sendOtpSms, OTP_PURPOSES, type OtpPurposeType } from '../sms/index.js';
-import { toEnglishDigits, isOtpDebugEnabled, allowTestShortcuts } from '../security.js';
+import {
+  getJwtSecret,
+  toEnglishDigits,
+  isOtpDebugEnabled,
+  allowTestShortcuts,
+  isProduction
+} from '../security.js';
 
 export { OTP_PURPOSES };
 export type { OtpPurposeType };
@@ -42,6 +51,7 @@ export interface VerifyOtpChallengeOptions {
   phoneNumber: string;
   code: string;
   purpose: OtpPurposeType;
+  consume?: boolean; // Default is true; set false for atomic multi-step flows
 }
 
 export type VerifyOtpChallengeResult =
@@ -64,7 +74,27 @@ export type VerifyOtpChallengeResult =
     };
 
 /**
- * Creates and dispatches a purpose-bound OTP challenge
+ * Computes a secure keyed HMAC hash for an OTP code bound to a canonical phone number
+ */
+export function hashOtpCode(code: string, phoneNumber: string): string {
+  const secret = getJwtSecret();
+  return crypto.createHmac('sha256', secret).update(`${phoneNumber}:${code}`).digest('hex');
+}
+
+/**
+ * Constant-time comparison between user input and stored codeHash
+ */
+export function verifyOtpCode(inputCode: string, phoneNumber: string, storedHash: string): boolean {
+  if (!inputCode || !storedHash) return false;
+  const computed = hashOtpCode(inputCode, phoneNumber);
+  const a = Buffer.from(computed, 'utf8');
+  const b = Buffer.from(storedHash, 'utf8');
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+/**
+ * Creates, persists, and dispatches a purpose-bound OTP challenge
  */
 export async function createOtpChallenge(
   options: CreateOtpChallengeOptions
@@ -81,10 +111,8 @@ export async function createOtpChallenge(
   const now = new Date();
   const nowTime = now.getTime();
 
-  // 1. Check existing challenges for cooldown
-  const existing = memoryStore.otpCodes
-    .filter(o => o.identifier === normalizedPhone && o.purpose === options.purpose && !o.verified)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  // 1. Check existing challenges for cooldown using persistent storage
+  const existing = await findLatestOtpChallenge(normalizedPhone, options.purpose);
 
   if (existing) {
     const lastSentTime = new Date(existing.lastSentAt || existing.createdAt).getTime();
@@ -102,50 +130,34 @@ export async function createOtpChallenge(
 
   // 2. Generate secure 5-digit OTP
   const code = crypto.randomInt(10000, 100000).toString();
+  const codeHash = hashOtpCode(code, normalizedPhone);
   const expiresAt = new Date(nowTime + OTP_EXPIRATION_SECONDS * 1000).toISOString();
 
   const challenge: DBOtpCode = {
     id: `otp-${nowTime}-${Math.floor(Math.random() * 1000)}`,
     identifier: normalizedPhone,
-    code,
     purpose: options.purpose,
+    code: isProduction() ? undefined : code,
+    codeHash,
     expiresAt,
     verified: false,
     attempts: 0,
     maxAttempts: OTP_MAX_ATTEMPTS,
     userId: options.userId || null,
     lastSentAt: now.toISOString(),
-    createdAt: now.toISOString()
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString()
   };
 
-  // 3. Invalidate previous unverified OTPs for this phone + purpose in memory
-  memoryStore.otpCodes = memoryStore.otpCodes.filter(
-    o => !(o.identifier === normalizedPhone && o.purpose === options.purpose && !o.verified)
-  );
-  memoryStore.otpCodes.push(challenge);
-  saveLocalStore();
-
-  // Try Prisma if available
-  if (isPrismaAvailable && prisma) {
-    try {
-      await prisma.otpCode.create({
-        data: {
-          id: challenge.id,
-          identifier: challenge.identifier,
-          code: challenge.code,
-          expiresAt: new Date(challenge.expiresAt),
-          verified: false,
-          userId: challenge.userId
-        }
-      });
-    } catch (e) {
-      // Prisma fallback already handled by memoryStore
-    }
-  }
+  // 3. Persist record (supersedes prior unverified challenges)
+  await createOtpRecord(challenge);
 
   // 4. Dispatch via SMS provider
   const dispatchRes = await sendOtpSms(normalizedPhone, code, options.purpose);
   if (!dispatchRes.success) {
+    // GAP 5: Failed SMS dispatch cleanup!
+    // Remove the challenge so it does not remain usable and does not cause a stale cooldown.
+    await removeOtpRecord(challenge.id);
     return {
       success: false,
       code: 'SMS_DISPATCH_FAILED',
@@ -160,7 +172,8 @@ export async function createOtpChallenge(
     cooldownSeconds: OTP_COOLDOWN_SECONDS
   };
 
-  if (isOtpDebugEnabled() || allowTestShortcuts()) {
+  // Public production must never log or return the raw OTP!
+  if (isOtpDebugEnabled() && allowTestShortcuts() && !isProduction()) {
     result.debugCode = code;
   }
 
@@ -168,7 +181,7 @@ export async function createOtpChallenge(
 }
 
 /**
- * Verifies a purpose-bound OTP challenge
+ * Verifies a purpose-bound OTP challenge against persistent storage
  */
 export async function verifyOtpChallenge(
   options: VerifyOtpChallengeOptions
@@ -183,18 +196,14 @@ export async function verifyOtpChallenge(
   }
 
   const cleanCode = toEnglishDigits(options.code || '').trim();
-  const nowStr = new Date().toISOString();
+  const now = new Date();
 
-  // Find active challenge in memory
-  const challenge = memoryStore.otpCodes.find(
-    o => o.identifier === normalizedPhone && o.purpose === options.purpose && !o.verified
-  );
+  // Find active challenge in persistent storage
+  const challenge = await findActiveOtpChallenge(normalizedPhone, options.purpose);
 
   if (!challenge) {
     // Check if challenge exists under another purpose (purpose mismatch check)
-    const anyPurposeChallenge = memoryStore.otpCodes.find(
-      o => o.identifier === normalizedPhone && !o.verified
-    );
+    const anyPurposeChallenge = await findActiveOtpChallenge(normalizedPhone);
 
     if (anyPurposeChallenge && anyPurposeChallenge.purpose && anyPurposeChallenge.purpose !== options.purpose) {
       return {
@@ -212,7 +221,7 @@ export async function verifyOtpChallenge(
   }
 
   // Check expiration
-  if (challenge.expiresAt < nowStr) {
+  if (new Date(challenge.expiresAt).getTime() < now.getTime()) {
     return {
       success: false,
       code: 'OTP_EXPIRED',
@@ -232,12 +241,14 @@ export async function verifyOtpChallenge(
     };
   }
 
-  // Verify code
-  if (challenge.code !== cleanCode) {
-    challenge.attempts = currentAttempts + 1;
-    saveLocalStore();
+  // Verify code using constant-time hash comparison
+  const isValid = verifyOtpCode(cleanCode, normalizedPhone, challenge.codeHash);
 
-    const remaining = maxAttempts - challenge.attempts;
+  if (!isValid) {
+    const newAttempts = currentAttempts + 1;
+    await updateOtpRecord(challenge.id, { attempts: newAttempts });
+
+    const remaining = maxAttempts - newAttempts;
     if (remaining <= 0) {
       return {
         success: false,
@@ -255,19 +266,12 @@ export async function verifyOtpChallenge(
     };
   }
 
-  // Match success: Mark verified (consumed)
-  challenge.verified = true;
-  saveLocalStore();
-
-  if (isPrismaAvailable && prisma) {
-    try {
-      await prisma.otpCode.updateMany({
-        where: { id: challenge.id },
-        data: { verified: true }
-      });
-    } catch {
-      // ignored
-    }
+  // Match success: Consume challenge if requested (default true)
+  if (options.consume !== false) {
+    await updateOtpRecord(challenge.id, {
+      verified: true,
+      consumedAt: new Date().toISOString()
+    });
   }
 
   return {
@@ -275,4 +279,15 @@ export async function verifyOtpChallenge(
     phoneNumber: normalizedPhone,
     challengeId: challenge.id
   };
+}
+
+/**
+ * Explicitly consumes a previously verified challenge
+ */
+export async function consumeOtpChallenge(challengeId: string): Promise<boolean> {
+  const updated = await updateOtpRecord(challengeId, {
+    verified: true,
+    consumedAt: new Date().toISOString()
+  });
+  return Boolean(updated);
 }

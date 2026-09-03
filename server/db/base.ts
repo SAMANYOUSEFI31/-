@@ -54,6 +54,7 @@ export interface DBUser {
   tier: string;
   isVip: boolean;
   isAdmin?: boolean;
+  tokenVersion?: number;
   nightOwlCutoffHour?: number;
   accentTheme?: string;
   vipSince?: string | null;
@@ -102,16 +103,18 @@ export interface DBDailyLog {
 
 export interface DBOtpCode {
   id: string;
-  identifier: string;
-  code: string;
+  identifier: string; // Canonical phone number (09XXXXXXXXX)
+  purpose: string;
+  codeHash: string;
   expiresAt: string;
   verified: boolean;
+  attempts: number;
+  maxAttempts: number;
+  lastSentAt: string;
+  consumedAt?: string | null;
   userId?: string | null;
-  purpose?: string;
-  attempts?: number;
-  maxAttempts?: number;
-  lastSentAt?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export type DBSubscriptionStatus = 'PENDING' | 'SUCCESS' | 'FAILED';

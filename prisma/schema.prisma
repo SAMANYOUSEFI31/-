@@ -57,6 +57,7 @@ model User {
   vipExpiresAt       DateTime?
   paymentRefId       String?
   isAdmin            Boolean        @default(false)
+  tokenVersion       Int            @default(0)
   nightOwlCutoffHour Int            @default(4)
   accentTheme        String         @default("amber")
   
@@ -133,17 +134,25 @@ model DailyLog {
 }
 
 model OtpCode {
-  id         String    @id @default(cuid())
-  identifier String
-  code       String
-  expiresAt  DateTime
-  verified   Boolean   @default(false)
-  userId     String?
-  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt  DateTime  @default(now())
+  id          String    @id @default(cuid())
+  identifier  String    // Canonical phone number (09XXXXXXXXX)
+  purpose     String    @default("PHONE_REGISTRATION") // PHONE_REGISTRATION | PASSWORD_RESET
+  codeHash    String
+  expiresAt   DateTime
+  verified    Boolean   @default(false)
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  lastSentAt  DateTime  @default(now())
+  consumedAt  DateTime?
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([identifier])
   @@index([identifier, verified])
+  @@index([identifier, purpose])
+  @@index([identifier, purpose, verified])
 }
 
 model Subscription {

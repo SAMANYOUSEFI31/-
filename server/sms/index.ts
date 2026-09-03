@@ -45,6 +45,14 @@ export function clearSmsHistory(): void {
   smsDispatchHistory.length = 0;
 }
 
+export function getLastDispatchedOtp(to?: string, purpose?: OtpPurposeType): string | null {
+  const matching = smsDispatchHistory.filter(
+    entry => (!to || entry.to === to) && (!purpose || entry.purpose === purpose)
+  );
+  if (matching.length === 0) return null;
+  return matching[matching.length - 1].otpCode || null;
+}
+
 /**
  * Mock / Unconfigured SMS Provider
  * Used in development, testing, and fallback when real SMS gateway credentials are not configured.

@@ -55,6 +55,7 @@ export interface AuthUserPayload {
   isVip: boolean;
   tier: string;
   isAdmin?: boolean;
+  tokenVersion?: number;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -89,6 +90,16 @@ export async function authMiddleware(
       return res.status(401).json({
         code: 'USER_NOT_FOUND',
         messageFa: 'کاربر در دیتابیس یافت نشد.'
+      });
+    }
+
+    // GAP 6: Server-Authoritative Session Invalidation
+    const userVersion = user.tokenVersion ?? 0;
+    const tokenVersion = decoded.tokenVersion ?? 0;
+    if (tokenVersion < userVersion) {
+      return res.status(401).json({
+        code: 'SESSION_REVOKED',
+        messageFa: 'نشست کاربری شما به دلیل تغییر رمز عبور منقضی شده است. لطفاً مجدداً وارد شوید.'
       });
     }
 
@@ -142,6 +153,15 @@ export async function adminMiddleware(
       return res.status(401).json({
         code: 'USER_NOT_FOUND',
         messageFa: 'حساب کاربری یافت نشد.'
+      });
+    }
+
+    const userVersion = user.tokenVersion ?? 0;
+    const tokenVersion = decoded.tokenVersion ?? 0;
+    if (tokenVersion < userVersion) {
+      return res.status(401).json({
+        code: 'SESSION_REVOKED',
+        messageFa: 'نشست کاربری منقضی شده است. لطفاً مجدداً وارد شوید.'
       });
     }
 

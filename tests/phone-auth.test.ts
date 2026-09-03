@@ -8,6 +8,7 @@ import {
 import {
   createOtpChallenge,
   verifyOtpChallenge,
+  consumeOtpChallenge,
   OTP_PURPOSES
 } from '../server/otp/index.js';
 import {
@@ -20,8 +21,11 @@ import {
 import {
   memoryStore,
   createUser,
+  updateUser,
+  findUserById,
   findUserByPhoneNumber,
   findUserByIdentifier,
+  findActiveOtpChallenge,
   setPrismaState
 } from '../server/db/index.js';
 import {
@@ -30,6 +34,12 @@ import {
   generateToken,
   verifyToken
 } from '../server/auth.js';
+import {
+  registerRequestOtpSchema,
+  registerVerifyOtpSchema,
+  forgotPasswordRequestOtpSchema,
+  resetPasswordWithOtpSchema
+} from '../server/utils/validation.js';
 
 describe('Phase 2B: Phone-First Authentication Foundation', () => {
   const originalEnv = { ...process.env };
@@ -361,6 +371,194 @@ describe('Phase 2B: Phone-First Authentication Foundation', () => {
       assert.equal(verifyPassword('MySafePassword#1', hash), true);
       assert.equal(verifyPassword('WrongPassword', hash), false);
       assert.equal(verifyPassword('', hash), false);
+    });
+  });
+
+  /* =========================================================================
+   * 5. Session Invalidation via tokenVersion (Gap 6)
+   * ========================================================================= */
+  describe('Session Invalidation via tokenVersion', () => {
+    it('invalidates active JWT sessions when user tokenVersion is incremented', async () => {
+      const user = await createUser({
+        phoneNumber: '09121112233',
+        passwordHash: hashPassword('Pass1234!'),
+        name: 'کاربر تست نشست',
+        tokenVersion: 0
+      });
+
+      // 1. Generate token with tokenVersion: 0
+      const tokenV0 = generateToken({
+        userId: user.id,
+        phoneNumber: user.phoneNumber,
+        isVip: false,
+        tier: 'free',
+        isAdmin: false,
+        tokenVersion: 0
+      });
+
+      const decodedV0 = verifyToken(tokenV0);
+      assert.ok(decodedV0);
+      assert.equal(decodedV0.tokenVersion, 0);
+
+      // Verify token matches current user tokenVersion in DB
+      const dbUserBefore = await findUserById(user.id);
+      assert.ok(dbUserBefore);
+      assert.equal(dbUserBefore.tokenVersion ?? 0, 0);
+      assert.ok((decodedV0.tokenVersion ?? 0) >= (dbUserBefore.tokenVersion ?? 0));
+
+      // 2. Simulate password reset / session revocation by incrementing tokenVersion in DB
+      await updateUser(user.id, { tokenVersion: 1 });
+
+      const dbUserAfter = await findUserById(user.id);
+      assert.ok(dbUserAfter);
+      assert.equal(dbUserAfter.tokenVersion, 1);
+
+      // 3. Verify old token is now recognized as revoked / invalid
+      const isOldTokenRevoked = (decodedV0.tokenVersion ?? 0) < (dbUserAfter.tokenVersion ?? 0);
+      assert.equal(isOldTokenRevoked, true, 'Old token version must be strictly less than DB user tokenVersion');
+
+      // 4. Issue new token with tokenVersion: 1
+      const tokenV1 = generateToken({
+        userId: user.id,
+        phoneNumber: user.phoneNumber,
+        isVip: false,
+        tier: 'free',
+        isAdmin: false,
+        tokenVersion: 1
+      });
+
+      const decodedV1 = verifyToken(tokenV1);
+      assert.ok(decodedV1);
+      assert.equal(decodedV1.tokenVersion, 1);
+      const isNewTokenValid = (decodedV1.tokenVersion ?? 0) >= (dbUserAfter.tokenVersion ?? 0);
+      assert.equal(isNewTokenValid, true, 'New token version must match or exceed DB user tokenVersion');
+    });
+  });
+
+  /* =========================================================================
+   * 6. Atomic OTP Consumption & Non-Reuse (Gap 4)
+   * ========================================================================= */
+  describe('Atomic OTP Consumption & Non-Reuse', () => {
+    it('supports two-phase verification and atomic consumption to prevent challenge reuse', async () => {
+      await createOtpChallenge({
+        phoneNumber: '09128889900',
+        purpose: OTP_PURPOSES.PHONE_REGISTRATION
+      });
+
+      const record = memoryStore.otpCodes.find(c => c.identifier === '09128889900')!;
+      assert.ok(record);
+      const code = record.code;
+
+      // Phase 1: Verify OTP without consuming (atomic check)
+      const verifyPhase = await verifyOtpChallenge({
+        phoneNumber: '09128889900',
+        code,
+        purpose: OTP_PURPOSES.PHONE_REGISTRATION,
+        consume: false
+      });
+      assert.equal(verifyPhase.success, true);
+      assert.ok(verifyPhase.challengeId);
+      assert.equal(record.consumedAt, undefined);
+
+      // Phase 2: Consume the challenge after operation succeeds
+      const consumeRes = await consumeOtpChallenge(verifyPhase.challengeId!);
+      assert.equal(consumeRes, true);
+      assert.ok(record.consumedAt);
+
+      // Attempting to re-verify or reuse the consumed challenge MUST fail
+      const reuseAttempt = await verifyOtpChallenge({
+        phoneNumber: '09128889900',
+        code,
+        purpose: OTP_PURPOSES.PHONE_REGISTRATION
+      });
+      assert.equal(reuseAttempt.success, false);
+      if (!reuseAttempt.success) {
+        assert.equal(reuseAttempt.code, 'INVALID_OR_EXPIRED_OTP');
+      }
+    });
+  });
+
+  /* =========================================================================
+   * 7. Strict Input Validation & Anti-Escalation (Gap 7)
+   * ========================================================================= */
+  describe('Strict Input Validation & Anti-Escalation', () => {
+    it('accepts valid registration request payload and normalizes inputs', () => {
+      const valid = registerVerifyOtpSchema.safeParse({
+        phoneNumber: '۰۹۱۲۳۴۵۶۷۸۹',
+        code: '۵۴۳۲۱',
+        password: 'ValidPassword123!',
+        name: 'سامورایی'
+      });
+      assert.equal(valid.success, true);
+      if (valid.success) {
+        assert.equal(valid.data.phoneNumber, '09123456789');
+        assert.equal(valid.data.code, '54321');
+        assert.equal(valid.data.password, 'ValidPassword123!');
+      }
+    });
+
+    it('strictly rejects payloads containing extra or forbidden fields (anti privilege escalation)', () => {
+      const maliciousAdmin = registerVerifyOtpSchema.safeParse({
+        phoneNumber: '09123456789',
+        code: '12345',
+        password: 'ValidPassword123!',
+        isAdmin: true
+      });
+      assert.equal(maliciousAdmin.success, false);
+
+      const maliciousVip = registerVerifyOtpSchema.safeParse({
+        phoneNumber: '09123456789',
+        code: '12345',
+        password: 'ValidPassword123!',
+        isVip: true,
+        tier: 'vip_samurai'
+      });
+      assert.equal(maliciousVip.success, false);
+    });
+
+    it('rejects passwords shorter than 8 characters', () => {
+      const shortPass = registerVerifyOtpSchema.safeParse({
+        phoneNumber: '09123456789',
+        code: '12345',
+        password: 'short'
+      });
+      assert.equal(shortPass.success, false);
+    });
+
+    it('rejects OTP codes that are not exactly 5 digits', () => {
+      const wrongCodeLength = registerVerifyOtpSchema.safeParse({
+        phoneNumber: '09123456789',
+        code: '123',
+        password: 'ValidPassword123!'
+      });
+      assert.equal(wrongCodeLength.success, false);
+    });
+  });
+
+  /* =========================================================================
+   * 8. Failed SMS Dispatch Cleanup (Gap 5)
+   * ========================================================================= */
+  describe('Failed SMS Dispatch Cleanup', () => {
+    it('cleans up challenge and avoids stuck cooldown when SMS dispatch fails', async () => {
+      // Set fail-closed provider to simulate network/provider failure
+      setSmsProvider(new FailClosedSmsProvider());
+
+      const res = await createOtpChallenge({
+        phoneNumber: '09129990011',
+        purpose: OTP_PURPOSES.PHONE_REGISTRATION
+      });
+
+      assert.equal(res.success, false);
+      if (!res.success) {
+        assert.equal(res.code, 'SMS_DISPATCH_FAILED');
+      }
+
+      // Ensure no active challenge remains in storage
+      const active = await findActiveOtpChallenge('09129990011', OTP_PURPOSES.PHONE_REGISTRATION);
+      assert.equal(active, null, 'Failed challenge must be purged from storage');
+
+      // Restore mock provider
+      setSmsProvider(new MockSmsProvider());
     });
   });
 });

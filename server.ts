@@ -77,7 +77,7 @@ import {
   paymentVerifySchema
 } from './server/utils/validation.js';
 import { normalizePhoneNumber, isValidIranianMobile } from './server/utils/phone.js';
-import { createOtpChallenge, verifyOtpChallenge } from './server/otp/index.js';
+import { createOtpChallenge, verifyOtpChallenge, consumeOtpChallenge } from './server/otp/index.js';
 
 dotenv.config();
 
@@ -212,21 +212,14 @@ const handleRegisterRequestOtp = async (req: express.Request, res: express.Respo
   }
 };
 
-app.post('/api/auth/register/request-otp', handleRegisterRequestOtp);
-app.post('/api/auth/register/send-otp', handleRegisterRequestOtp);
+app.post('/api/auth/register/request-otp', validateBody(registerRequestOtpSchema), handleRegisterRequestOtp);
+app.post('/api/auth/register/send-otp', validateBody(registerRequestOtpSchema), handleRegisterRequestOtp);
 
 // 2. Phone-First Registration: Step 2 - Verify OTP & Set Password
 const handleRegisterVerifyOtp = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
     const rawPhone = req.body.phoneNumber || req.body.identifier;
     const { code, password, name } = req.body;
-
-    if (!code) {
-      return res.status(400).json({
-        code: 'OTP_REQUIRED',
-        messageFa: 'جهت تکمیل ثبت‌نام، تایید شماره موبایل با کد پیامکی الزامی است.'
-      });
-    }
 
     const canonicalPhone = normalizePhoneNumber(rawPhone);
     if (!canonicalPhone) {
@@ -236,18 +229,21 @@ const handleRegisterVerifyOtp = async (req: express.Request, res: express.Respon
       });
     }
 
-    if (!password || typeof password !== 'string' || password.length < 8) {
+    // Duplicate check before consuming challenge
+    const existing = await findUserByPhoneNumber(canonicalPhone);
+    if (existing) {
       return res.status(400).json({
-        code: 'INVALID_PASSWORD',
-        messageFa: 'رمز عبور باید حداقل ۸ کاراکتر باشد.'
+        code: 'USER_EXISTS',
+        messageFa: 'کاربری با این شماره موبایل قبلاً ثبت‌نام نموده است.'
       });
     }
 
-    // Verify purpose-bound OTP
+    // GAP 4: Verify purpose-bound OTP without consuming yet (atomic account creation)
     const verifyRes = await verifyOtpChallenge({
       phoneNumber: canonicalPhone,
       code: String(code),
-      purpose: 'PHONE_REGISTRATION'
+      purpose: 'PHONE_REGISTRATION',
+      consume: false
     });
 
     if (!verifyRes.success) {
@@ -258,27 +254,25 @@ const handleRegisterVerifyOtp = async (req: express.Request, res: express.Respon
       });
     }
 
-    // Check concurrency duplicate
-    const existing = await findUserByPhoneNumber(canonicalPhone);
-    if (existing) {
-      return res.status(400).json({
-        code: 'USER_EXISTS',
-        messageFa: 'کاربری با این شماره موبایل قبلاً ثبت‌نام نموده است.'
-      });
-    }
-
-    const isMaster = isSuperAdminIdentifier(canonicalPhone);
     const hashedPassword = await hashPassword(password);
 
+    // GAP 4: Public registration ALWAYS creates free unprivileged user:
+    // isAdmin = false, isVip = false, tier = 'free'
+    // Super Admin must never be created through ordinary public registration privilege logic.
     const user = await createUser({
       phoneNumber: canonicalPhone,
-      email: undefined, // Public email registration is not supported!
+      email: undefined, // Public email registration is not supported
       name: name?.trim() || `کاربر ${canonicalPhone.slice(-4)}`,
       passwordHash: hashedPassword,
-      tier: isMaster ? 'vip_samurai' : 'free',
-      isVip: isMaster,
-      isAdmin: isMaster
+      tier: 'free',
+      isVip: false,
+      isAdmin: false
     });
+
+    // Account creation succeeded: NOW consume the OTP challenge
+    if (verifyRes.challengeId) {
+      await consumeOtpChallenge(verifyRes.challengeId);
+    }
 
     const token = generateToken({
       userId: user.id,
@@ -286,7 +280,8 @@ const handleRegisterVerifyOtp = async (req: express.Request, res: express.Respon
       phoneNumber: user.phoneNumber,
       isVip: user.isVip,
       tier: user.tier,
-      isAdmin: Boolean(user.isAdmin)
+      isAdmin: Boolean(user.isAdmin),
+      tokenVersion: user.tokenVersion ?? 0
     });
 
     if (!isProduction()) {
@@ -304,8 +299,8 @@ const handleRegisterVerifyOtp = async (req: express.Request, res: express.Respon
   }
 };
 
-app.post('/api/auth/register/verify-otp', handleRegisterVerifyOtp);
-app.post('/api/auth/register', handleRegisterVerifyOtp);
+app.post('/api/auth/register/verify-otp', validateBody(registerVerifyOtpSchema), handleRegisterVerifyOtp);
+app.post('/api/auth/register', validateBody(registerVerifyOtpSchema), handleRegisterVerifyOtp);
 
 // 3. Login (Phone + Password for normal users, Super Admin bypass preserved)
 app.post('/api/auth/login', validateBody(loginSchema), async (req, res, next) => {
@@ -352,7 +347,8 @@ app.post('/api/auth/login', validateBody(loginSchema), async (req, res, next) =>
         phoneNumber: masterAdmin.phoneNumber,
         isVip: true,
         tier: 'vip_samurai',
-        isAdmin: true
+        isAdmin: true,
+        tokenVersion: masterAdmin.tokenVersion ?? 0
       });
 
       return res.json({
@@ -401,7 +397,8 @@ app.post('/api/auth/login', validateBody(loginSchema), async (req, res, next) =>
       phoneNumber: user.phoneNumber,
       isVip: user.isVip,
       tier: user.tier,
-      isAdmin: Boolean(user.isAdmin)
+      isAdmin: Boolean(user.isAdmin),
+      tokenVersion: user.tokenVersion ?? 0
     });
 
     res.json({ success: true, token, user });
@@ -411,7 +408,7 @@ app.post('/api/auth/login', validateBody(loginSchema), async (req, res, next) =>
 });
 
 // 4. Password Recovery: Step 1 - Request OTP
-app.post('/api/auth/forgot-password', async (req, res, next) => {
+app.post('/api/auth/forgot-password', validateBody(forgotPasswordRequestOtpSchema), async (req, res, next) => {
   try {
     const rawId = req.body.phoneNumber || req.body.identifier || '';
     const cleanId = String(rawId).trim();
@@ -471,7 +468,7 @@ app.post('/api/auth/forgot-password', async (req, res, next) => {
 });
 
 // 5. Password Recovery: Step 2 - Reset Password with OTP Code
-app.post('/api/auth/reset-password', async (req, res, next) => {
+app.post('/api/auth/reset-password', validateBody(resetPasswordWithOtpSchema), async (req, res, next) => {
   try {
     const rawId = req.body.phoneNumber || req.body.identifier || '';
     const { code, newPassword } = req.body;
@@ -482,13 +479,6 @@ app.post('/api/auth/reset-password', async (req, res, next) => {
       return res.status(400).json({
         code: 'INVALID_PHONE_NUMBER',
         messageFa: 'شماره موبایل وارد شده نامعتبر است.'
-      });
-    }
-
-    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
-      return res.status(400).json({
-        code: 'INVALID_PASSWORD',
-        messageFa: 'رمز عبور جدید باید حداقل ۸ کاراکتر باشد.'
       });
     }
 
@@ -515,21 +505,28 @@ app.post('/api/auth/reset-password', async (req, res, next) => {
     }
 
     const hashed = await hashPassword(newPassword);
-    const updated = await updateUser(user.id, { passwordHash: hashed });
 
-    // Session Security: Fresh token after password reset
+    // GAP 6: Invalidate all existing sessions by incrementing tokenVersion
+    const nextTokenVersion = (user.tokenVersion ?? 0) + 1;
+    const updated = await updateUser(user.id, {
+      passwordHash: hashed,
+      tokenVersion: nextTokenVersion
+    });
+
+    // Issue new session token bearing the incremented tokenVersion
     const token = generateToken({
       userId: user.id,
       email: user.email,
       phoneNumber: user.phoneNumber,
       isVip: user.isVip,
       tier: user.tier,
-      isAdmin: Boolean(user.isAdmin)
+      isAdmin: Boolean(user.isAdmin),
+      tokenVersion: nextTokenVersion
     });
 
     res.json({
       success: true,
-      messageFa: 'رمز عبور با موفقیت به‌روزرسانی شد.',
+      messageFa: 'رمز عبور با موفقیت به‌روزرسانی شد و تمام نشست‌های قبلی باطل گردیدند.',
       token,
       user: updated || user
     });
@@ -538,23 +535,45 @@ app.post('/api/auth/reset-password', async (req, res, next) => {
   }
 });
 
-// 6. Send OTP (General Auth Adapter)
+// 6. Send OTP (Restricted Purpose-Specific Adapter - No generic auto-auth)
 app.post('/api/auth/send-otp', async (req, res, next) => {
   try {
     const rawId = req.body.phoneNumber || req.body.identifier || '';
-    const purpose = (req.body.purpose === 'PASSWORD_RESET' ? 'PASSWORD_RESET' : 'PHONE_REGISTRATION');
-    const canonicalPhone = normalizePhoneNumber(rawId);
+    const purpose = req.body.purpose;
 
+    if (purpose !== 'PHONE_REGISTRATION' && purpose !== 'PASSWORD_RESET') {
+      return res.status(400).json({
+        code: 'INVALID_PURPOSE',
+        messageFa: 'ارسال کد تایید فقط برای مقاصد PHONE_REGISTRATION یا PASSWORD_RESET مجاز است.'
+      });
+    }
+
+    const canonicalPhone = normalizePhoneNumber(rawId);
     if (!canonicalPhone) {
       return res.status(400).json({
         code: 'INVALID_PHONE_NUMBER',
-        messageFa: 'شماره موبایل وارد شده نامعتبر است.'
+        messageFa: 'شماره موبایل وارد شده نامعتبر است. فرمت صحیح: ۰۹۱۲۳۴۵۶۷۸۹'
+      });
+    }
+
+    const existing = await findUserByPhoneNumber(canonicalPhone);
+    if (purpose === 'PHONE_REGISTRATION' && existing) {
+      return res.status(400).json({
+        code: 'USER_EXISTS',
+        messageFa: 'حساب کاربری با این شماره موبایل قبلاً ثبت شده است. لطفاً وارد شوید.'
+      });
+    }
+    if (purpose === 'PASSWORD_RESET' && !existing) {
+      return res.status(404).json({
+        code: 'USER_NOT_FOUND',
+        messageFa: 'حساب کاربری با این شماره موبایل یافت نشد.'
       });
     }
 
     const challengeRes = await createOtpChallenge({
       phoneNumber: canonicalPhone,
-      purpose
+      purpose,
+      userId: existing?.id
     });
 
     if (!challengeRes.success) {
@@ -573,7 +592,9 @@ app.post('/api/auth/send-otp', async (req, res, next) => {
 
     const responsePayload: Record<string, any> = {
       success: true,
-      messageFa: `کد تایید ۵ رقمی برای ${canonicalPhone} ارسال شد.`,
+      phoneNumber: canonicalPhone,
+      purpose,
+      messageFa: `کد تایید ۵ رقمی برای شماره ${canonicalPhone} ارسال شد.`,
       expiresInSeconds: challengeRes.expiresInSeconds,
       cooldownSeconds: challengeRes.cooldownSeconds
     };
@@ -588,25 +609,38 @@ app.post('/api/auth/send-otp', async (req, res, next) => {
   }
 });
 
-// 7. Verify OTP & Auto Login/Register (General Adapter)
+// 7. Verify OTP (Restricted Validation Adapter - NO auto-registration, NO auto-login)
 app.post('/api/auth/verify-otp', async (req, res, next) => {
   try {
     const rawId = req.body.phoneNumber || req.body.identifier || '';
-    const { code, name, purpose } = req.body;
+    const { code, purpose } = req.body;
+
     if (!rawId || !code) {
-      return res.status(400).json({ code: 'BAD_REQUEST', messageFa: 'شماره موبایل و کد تایید الزامی است.' });
+      return res.status(400).json({
+        code: 'BAD_REQUEST',
+        messageFa: 'شماره موبایل و کد تایید الزامی است.'
+      });
+    }
+
+    if (purpose !== 'PHONE_REGISTRATION' && purpose !== 'PASSWORD_RESET') {
+      return res.status(400).json({
+        code: 'INVALID_PURPOSE',
+        messageFa: 'اعتبارسنجی فقط برای مقاصد PHONE_REGISTRATION یا PASSWORD_RESET مجاز است.'
+      });
     }
 
     const canonicalPhone = normalizePhoneNumber(rawId);
     if (!canonicalPhone) {
-      return res.status(400).json({ code: 'INVALID_PHONE_NUMBER', messageFa: 'شماره موبایل نامعتبر است.' });
+      return res.status(400).json({
+        code: 'INVALID_PHONE_NUMBER',
+        messageFa: 'شماره موبایل نامعتبر است.'
+      });
     }
 
-    const otpPurpose = (purpose === 'PASSWORD_RESET' ? 'PASSWORD_RESET' : 'PHONE_REGISTRATION');
     const verifyRes = await verifyOtpChallenge({
       phoneNumber: canonicalPhone,
       code: String(code),
-      purpose: otpPurpose
+      purpose
     });
 
     if (!verifyRes.success) {
@@ -617,36 +651,14 @@ app.post('/api/auth/verify-otp', async (req, res, next) => {
       });
     }
 
-    let user = await findUserByPhoneNumber(canonicalPhone);
-    const isMasterAdmin = isSuperAdminIdentifier(canonicalPhone);
-
-    if (!user) {
-      user = await createUser({
-        phoneNumber: canonicalPhone,
-        name: name?.trim() || `کاربر ${canonicalPhone.slice(-4)}`,
-        tier: isMasterAdmin ? 'vip_samurai' : 'free',
-        isVip: isMasterAdmin,
-        isAdmin: isMasterAdmin
-      });
-    } else if (isMasterAdmin && (!user.isAdmin || !user.isVip)) {
-      const updatedMaster = await updateUser(user.id, {
-        isAdmin: true,
-        isVip: true,
-        tier: 'vip_samurai'
-      });
-      if (updatedMaster) user = updatedMaster;
-    }
-
-    const token = generateToken({
-      userId: user.id,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      isVip: user.isVip,
-      tier: user.tier,
-      isAdmin: Boolean(user.isAdmin)
+    // Strictly validation result ONLY. No token, no user creation.
+    res.json({
+      success: true,
+      verified: true,
+      phoneNumber: canonicalPhone,
+      purpose,
+      messageFa: 'کد تایید با موفقیت اعتبارسنجی شد. جهت ورود یا ثبت‌نام طبق روال استاندارد اقدام فرمایید.'
     });
-
-    res.json({ success: true, token, user });
   } catch (error) {
     next(error);
   }
