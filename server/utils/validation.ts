@@ -228,10 +228,11 @@ export const autopsySchema = z.object({
 
 /**
  * Payment Request Schema
+ * Client may request a planId. Amount is optional and validated server-side against authoritative catalog.
  */
 export const paymentRequestSchema = z.object({
   planId: z.string().min(1, { message: 'شناسه طرح اشتراک الزامی است.' }),
-  amount: z.number().positive({ message: 'مبلغ پرداخت باید یک عدد مثبت باشد.' }),
+  amount: z.number().positive({ message: 'مبلغ پرداخت باید یک عدد مثبت باشد.' }).optional(),
   description: z.string().max(200).optional(),
 });
 

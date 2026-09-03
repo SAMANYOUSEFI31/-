@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, SubscriptionPlan } from '../types';
+import { PLANS } from '../config/plans';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
@@ -29,42 +30,6 @@ interface PaymentModalProps {
   onClose: () => void;
   onUpgradeSuccess: (updatedProfile: UserProfile) => void;
 }
-
-const PLANS: SubscriptionPlan[] = [
-  {
-    id: 'samurai_90days',
-    title: 'فصل ۹۰ روزه سامورایی VIP',
-    titleFa: 'اشتراک یک فصل کامل (۹۰ روز)',
-    priceToman: 199000,
-    formattedPrice: '۱۹۹,۰۰۰',
-    durationMonths: 3,
-    badgeFa: 'پیشنهاد ویژه دیوان',
-    isPopular: true,
-    features: [
-      'دسترسی نامحدود به کالبدشکافی عمیق شکست‌ها',
-      'مشاوره راهبردی نامحدود با سنسی بوشیدو',
-      'صدور گواهینامه رسمی دیوان پایان دوره با مهر طلایی',
-      'امکان تعریف و بایگانی نامحدود چرخه‌های ۹۰ روزه',
-      'نشان اختصاصی سامورایی ویژه در پروفایل کاربری',
-      'پشتیبان‌گیری ابری و خروجی دیتابیس بدون محدودیت'
-    ]
-  },
-  {
-    id: 'samurai_annual',
-    title: 'عضویت سالانه دلاوران بوشیدو',
-    titleFa: 'اشتراک سالانه (۴ چرخه ۹۰ روزه)',
-    priceToman: 590000,
-    formattedPrice: '۵۹۰,۰۰۰',
-    durationMonths: 12,
-    badgeFa: '۳۰٪ تخفیف طلایی',
-    features: [
-      'شامل تمام امکانات پلن ۹۰ روزه',
-      'دسترسی مادام‌العمر به آرشیو تحلیل‌های شکست',
-      'اولویت در دریافت امکانات و ابزارهای جدید',
-      'نشان افسانه‌ای جنگجوی برتر (Legendary Warrior)'
-    ]
-  }
-];
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({
   userProfile,

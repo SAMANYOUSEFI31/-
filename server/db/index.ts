@@ -150,3 +150,4 @@ export * from './cycles.js';
 export * from './logs.js';
 export * from './subscriptions.js';
 export * from './otp.js';
+export * from '../plans.js';

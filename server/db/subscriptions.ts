@@ -4,8 +4,9 @@ import {
   memoryStore,
   saveLocalStore,
   DBSubscription
-} from './base';
-import { findUserById, updateUser } from './users';
+} from './base.js';
+import { findUserById, updateUser } from './users.js';
+import { getPlanById } from '../plans.js';
 
 // -------------------------------------------------------------
 // Subscriptions & Payment Transactions
@@ -54,7 +55,6 @@ export async function completeSubscription(
   cardPan: string
 ): Promise<DBSubscription | null> {
   const nowStr = new Date().toISOString();
-  const nextYearStr = new Date(Date.now() + 365 * 86400000).toISOString();
 
   let sub: DBSubscription | null = null;
   let isNewlyCompleted = false;
@@ -86,13 +86,18 @@ export async function completeSubscription(
           // Terminal: FAILED transactions cannot transition to SUCCESS
           return null;
         }
+
+        const plan = getPlanById(match.planId);
+        const durationDays = plan?.durationDays ?? (plan?.durationMonths ? plan.durationMonths * 30 : 365);
+        const calculatedExpiresAt = new Date(Date.now() + durationDays * 86400000).toISOString();
+
         sub = await prisma.subscription.update({
           where: { authority },
           data: {
             status: 'SUCCESS',
             refId,
             cardPan,
-            expiresAt: nextYearStr,
+            expiresAt: calculatedExpiresAt,
             updatedAt: nowStr
           }
         });
@@ -115,12 +120,17 @@ export async function completeSubscription(
         // Terminal: FAILED transactions cannot transition to SUCCESS
         return null;
       }
+
+      const plan = getPlanById(existing.planId);
+      const durationDays = plan?.durationDays ?? (plan?.durationMonths ? plan.durationMonths * 30 : 365);
+      const calculatedExpiresAt = new Date(Date.now() + durationDays * 86400000).toISOString();
+
       memoryStore.subscriptions[idx] = {
         ...existing,
         status: 'SUCCESS',
         refId,
         cardPan,
-        expiresAt: nextYearStr,
+        expiresAt: calculatedExpiresAt,
         updatedAt: nowStr
       };
       saveLocalStore();
@@ -130,12 +140,17 @@ export async function completeSubscription(
   }
 
   if (sub && isNewlyCompleted) {
+    const plan = getPlanById(sub.planId);
+    const durationDays = plan?.durationDays ?? (plan?.durationMonths ? plan.durationMonths * 30 : 365);
+    const calculatedExpiresAt = sub.expiresAt || new Date(Date.now() + durationDays * 86400000).toISOString();
+    const targetTier = plan?.tier || 'vip_samurai';
+
     // Elevate target user to VIP strictly on first transition
     await updateUser(sub.userId, {
       isVip: true,
-      tier: 'vip_samurai',
+      tier: targetTier,
       vipSince: nowStr,
-      vipExpiresAt: nextYearStr,
+      vipExpiresAt: calculatedExpiresAt,
       paymentRefId: refId
     });
   }

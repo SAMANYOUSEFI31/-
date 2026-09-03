@@ -27,7 +27,10 @@ import {
   adminGetAllSubscriptions,
   adminGetOverviewStats,
   ensureDefaultAdminAndUsers,
-  isPrismaAvailable
+  isPrismaAvailable,
+  getPlanById,
+  isValidPlanId,
+  getAllPlans
 } from './server/db/index.js';
 import {
   generateToken,
@@ -903,13 +906,41 @@ app.post('/api/ai/verdict', authMiddleware, (req, res, next) => {
 });
 
 /* =========================================================================
- * PAYMENT & SUBSCRIPTION GATEWAY
+ * PAYMENT & SUBSCRIPTION GATEWAY (Phase 2C Authoritative Plan Trust Boundary)
  * ========================================================================= */
+
+// Authoritative Plans Catalog Endpoint
+app.get(['/api/plans', '/api/payment/plans'], (req, res) => {
+  res.json({
+    success: true,
+    plans: getAllPlans()
+  });
+});
 
 app.post('/api/payment/request', optionalAuthMiddleware, validateBody(paymentRequestSchema), async (req: AuthenticatedRequest, res, next) => {
   try {
     const { planId, amount, description } = req.body;
     const userId = req.user?.userId || 'guest-warrior-1';
+
+    // 1. Authoritative Plan Validation: Server is the sole authority for plan details and pricing
+    const plan = getPlanById(planId);
+    if (!plan) {
+      return res.status(400).json({
+        code: 'INVALID_PLAN',
+        messageFa: 'طرح اشتراک انتخاب شده نامعتبر است. لطفاً یکی از طرح‌های معتبر دیوان را انتخاب نمایید.'
+      });
+    }
+
+    // 2. Amount Integrity: Reject any client attempts to define or manipulate the plan amount
+    if (typeof amount === 'number' && amount !== plan.priceToman) {
+      return res.status(400).json({
+        code: 'AMOUNT_MISMATCH',
+        messageFa: 'مبلغ ارسالی با قیمت مصوب طرح مطابقت ندارد.'
+      });
+    }
+
+    const trustedAmount = plan.priceToman;
+    const trustedDescription = description || `ارتقا به ${plan.title}`;
     
     const merchantId = process.env.ZARINPAL_MERCHANT_ID?.trim();
     const isLiveZarinpal = merchantId && merchantId.length >= 30;
@@ -925,17 +956,18 @@ app.post('/api/payment/request', optionalAuthMiddleware, validateBody(paymentReq
 
     await createSubscriptionRecord({
       userId,
-      planId,
-      amount,
+      planId: plan.id,
+      amount: trustedAmount,
       authority,
-      description: description || 'ارتقا به حساب سامورایی ویژه'
+      description: trustedDescription
     });
 
     res.json({
       status: 100,
       authority,
-      paymentUrl: `/mock-gateway?authority=${authority}&amount=${amount}`,
-      amount,
+      paymentUrl: `/mock-gateway?authority=${authority}&amount=${trustedAmount}`,
+      amount: trustedAmount,
+      planId: plan.id,
       mode: isLiveZarinpal ? 'zarinpal-live' : 'zarinpal-mock-simulator',
     });
   } catch (error) {
@@ -945,7 +977,7 @@ app.post('/api/payment/request', optionalAuthMiddleware, validateBody(paymentReq
 
 app.post('/api/payment/verify', validateBody(paymentVerifySchema), async (req, res, next) => {
   try {
-    const { authority, amount } = req.body;
+    const { authority } = req.body;
 
     const allSubs = await adminGetAllSubscriptions();
     const existingSub = allSubs.find(s => s.authority === authority);
@@ -992,10 +1024,11 @@ app.post('/api/payment/verify', validateBody(paymentVerifySchema), async (req, r
     let cardPan = '6037-99**-****-' + Math.floor(1000 + Math.random() * 9000);
 
     if (isLiveZarinpal) {
+      // Use the persisted server-owned amount for live verification
       const zRes = await fetch('https://api.zarinpal.com/pg/v4/payment/verify.json', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merchant_id: merchantId, authority, amount })
+        body: JSON.stringify({ merchant_id: merchantId, authority, amount: existingSub.amount })
       });
       const zData = await zRes.json();
 
@@ -1022,7 +1055,7 @@ app.post('/api/payment/verify', validateBody(paymentVerifySchema), async (req, r
       refId,
       cardPan,
       authority,
-      amount,
+      amount: existingSub.amount,
       messageFa: 'تراکنش با موفقیت تایید شد و حساب شما ارتقا یافت.',
       tier: 'vip_samurai',
       subscription: sub

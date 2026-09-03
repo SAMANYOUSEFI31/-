@@ -245,9 +245,11 @@ export interface SubscriptionPlan {
   priceToman: number;
   formattedPrice: string;
   durationMonths: number;
+  durationDays?: number;
   badgeFa: string;
   features: string[];
   isPopular?: boolean;
+  tier?: UserSubscriptionTier;
 }
 
 export interface PaymentRequestResponse {

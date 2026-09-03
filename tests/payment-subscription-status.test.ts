@@ -10,8 +10,12 @@ import {
   markSubscriptionFailed,
   getUserSubscriptions,
   adminGetAllSubscriptions,
-  adminGetOverviewStats
+  adminGetOverviewStats,
+  getPlanById,
+  isValidPlanId,
+  getAllPlans
 } from '../server/db/index.js';
+import { paymentRequestSchema, paymentVerifySchema } from '../server/utils/validation.js';
 
 describe('Payment & Subscription Verification Idempotency Suite (Phase 2A.1 Unit & Fallback-Store Tests)', () => {
   const testUserId = 'test-user-payment-001';
@@ -320,5 +324,124 @@ describe('Payment & Subscription Verification Idempotency Suite (Phase 2A.1 Unit
         );
       }
     }
+  });
+
+  describe('Phase 2C: Authoritative Plan Trust Boundary & Duration Fulfillment', () => {
+    it('H. Plan catalog integrity: plans are authoritative, immutable, and accurately typed', () => {
+      const allPlans = getAllPlans();
+      assert.ok(allPlans.length >= 2, 'Should have at least 90-day and annual plans');
+
+      const plan90 = getPlanById('samurai_90days');
+      assert.ok(plan90, 'samurai_90days must exist in authoritative catalog');
+      assert.equal(plan90.priceToman, 199000);
+      assert.equal(plan90.durationDays, 90);
+      assert.equal(plan90.durationMonths, 3);
+      assert.equal(plan90.tier, 'vip_samurai');
+
+      const planAnnual = getPlanById('samurai_annual');
+      assert.ok(planAnnual, 'samurai_annual must exist in authoritative catalog');
+      assert.equal(planAnnual.priceToman, 590000);
+      assert.equal(planAnnual.durationDays, 365);
+      assert.equal(planAnnual.durationMonths, 12);
+      assert.equal(planAnnual.tier, 'vip_samurai');
+
+      assert.equal(isValidPlanId('samurai_90days'), true);
+      assert.equal(isValidPlanId('samurai_annual'), true);
+      assert.equal(isValidPlanId('invalid_hacker_plan'), false);
+      assert.equal(getPlanById('non_existent'), null);
+    });
+
+    it('I. Fulfillment duration accuracy: samurai_90days yields 90-day VIP and samurai_annual yields 365-day VIP', async () => {
+      // 1. Test 90-day fulfillment
+      const nowBefore = Date.now();
+      await createSubscriptionRecord({
+        userId: testUserId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority: 'AUTH_TEST_90DAYS'
+      });
+
+      const completed90 = await completeSubscription('AUTH_TEST_90DAYS', 'REF_90', 'CARD_90');
+      assert.ok(completed90);
+      assert.equal(completed90.status, 'SUCCESS');
+      assert.ok(completed90.expiresAt);
+
+      const expDate90 = new Date(completed90.expiresAt).getTime();
+      const diffDays90 = Math.round((expDate90 - nowBefore) / (86400000));
+      assert.equal(diffDays90, 90, 'Fulfillment duration for 90-day plan must be exactly 90 days');
+
+      const user90 = await findUserById(testUserId);
+      assert.ok(user90);
+      assert.equal(user90.isVip, true);
+      assert.equal(user90.tier, 'vip_samurai');
+      assert.equal(user90.vipExpiresAt, completed90.expiresAt);
+
+      // 2. Test Annual fulfillment
+      const nowBeforeAnnual = Date.now();
+      await createSubscriptionRecord({
+        userId: testUserId,
+        planId: 'samurai_annual',
+        amount: 590000,
+        authority: 'AUTH_TEST_ANNUAL'
+      });
+
+      const completedAnnual = await completeSubscription('AUTH_TEST_ANNUAL', 'REF_ANNUAL', 'CARD_ANNUAL');
+      assert.ok(completedAnnual);
+      assert.equal(completedAnnual.status, 'SUCCESS');
+      assert.ok(completedAnnual.expiresAt);
+
+      const expDateAnnual = new Date(completedAnnual.expiresAt).getTime();
+      const diffDaysAnnual = Math.round((expDateAnnual - nowBeforeAnnual) / (86400000));
+      assert.equal(diffDaysAnnual, 365, 'Fulfillment duration for annual plan must be exactly 365 days');
+
+      const userAnnual = await findUserById(testUserId);
+      assert.ok(userAnnual);
+      assert.equal(userAnnual.vipExpiresAt, completedAnnual.expiresAt);
+    });
+
+    it('J. Schema validation & input protection: accepts valid planId, optional amount, rejects malformed payloads', () => {
+      // Valid minimal payload with planId only (no client-supplied amount)
+      const validMin = paymentRequestSchema.safeParse({
+        planId: 'samurai_90days'
+      });
+      assert.equal(validMin.success, true);
+      if (validMin.success) {
+        assert.equal(validMin.data.planId, 'samurai_90days');
+        assert.equal(validMin.data.amount, undefined);
+      }
+
+      // Valid payload with planId and matching amount
+      const validWithAmount = paymentRequestSchema.safeParse({
+        planId: 'samurai_annual',
+        amount: 590000,
+        description: 'تست خرید سالانه'
+      });
+      assert.equal(validWithAmount.success, true);
+
+      // Rejects empty planId
+      const emptyPlan = paymentRequestSchema.safeParse({
+        planId: ''
+      });
+      assert.equal(emptyPlan.success, false);
+
+      // Rejects zero or negative amount if provided
+      const negativeAmount = paymentRequestSchema.safeParse({
+        planId: 'samurai_90days',
+        amount: -100
+      });
+      assert.equal(negativeAmount.success, false);
+
+      const zeroAmount = paymentRequestSchema.safeParse({
+        planId: 'samurai_90days',
+        amount: 0
+      });
+      assert.equal(zeroAmount.success, false);
+
+      // Verification schema accepts authority and ignores/safely parses amount
+      const validVerify = paymentVerifySchema.safeParse({
+        authority: 'AUTH_12345678'
+      });
+      assert.equal(validVerify.success, true);
+    });
   });
 });
