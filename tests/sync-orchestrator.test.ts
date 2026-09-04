@@ -1,0 +1,595 @@
+import { describe, it, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {
+  SyncOrchestrator,
+  createSyncOrchestrator,
+  SyncTrigger,
+  SyncRequest,
+  SyncRunOutcome
+} from '../src/utils/syncOrchestrator.js';
+import { ReplayOptions, ReplayResult } from '../src/utils/offlineQueueUtils.js';
+import { OfflineQueueItem } from '../src/types.js';
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: any) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+function createSampleReplayResult(overrides?: Partial<ReplayResult>): ReplayResult {
+  return {
+    syncedCount: 1,
+    failedCount: 0,
+    remainingQueueCount: 0,
+    stoppedDueToAuth: false,
+    stoppedDueToAccountChange: false,
+    stoppedDueToLockLoss: false,
+    ...overrides
+  };
+}
+
+describe('Phase 3C.1: Single Sync Orchestrator and Trigger Ownership', () => {
+  let orchestrator: SyncOrchestrator;
+  let activeAccount: string | null;
+  let replayCalls: Array<{
+    options: ReplayOptions;
+    deferred: ReturnType<typeof createDeferred<ReplayResult>>;
+  }>;
+
+  beforeEach(() => {
+    activeAccount = 'user-alpha';
+    replayCalls = [];
+
+    orchestrator = createSyncOrchestrator({
+      currentActiveAccountResolver: () => activeAccount,
+      isOnlineResolver: () => true,
+      replayExecutor: (options: ReplayOptions) => {
+        const deferred = createDeferred<ReplayResult>();
+        replayCalls.push({ options, deferred });
+        return deferred.promise;
+      }
+    });
+  });
+
+  describe('1. Concurrency, Serialization & Overlap Elimination', () => {
+    it('(a) Two simultaneous requests do not execute overlapping replay runs', async () => {
+      // Trigger request 1
+      const p1 = orchestrator.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha-1'
+      });
+
+      assert.equal(replayCalls.length, 1, 'First request immediately starts an active run');
+      assert.equal(orchestrator.isRunActive(), true, 'Orchestrator marks run as active');
+
+      // Trigger request 2 while request 1 is still in flight
+      const p2 = orchestrator.requestSync({
+        trigger: 'BOOT_AUTH_VERIFIED',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha-2'
+      });
+
+      // Assert NO overlapping second replay call occurred
+      assert.equal(replayCalls.length, 1, 'Second request must not start an overlapping replay run');
+      assert.equal(orchestrator.hasPendingTrailing(), true, 'Second request is retained as pending trailing run');
+
+      // Resolve first run
+      replayCalls[0].deferred.resolve(createSampleReplayResult({ syncedCount: 2 }));
+      const outcome1 = await p1;
+
+      assert.equal(outcome1.status, 'COMPLETED');
+      assert.equal(outcome1.syncedCount, 2);
+
+      // Now the trailing run should have automatically started
+      assert.equal(replayCalls.length, 2, 'Trailing run is dispatched after first run completes');
+      assert.equal(replayCalls[1].options.authToken, 'token-alpha-2', 'Trailing run uses its own token snapshot');
+
+      // Resolve second run
+      replayCalls[1].deferred.resolve(createSampleReplayResult({ syncedCount: 1 }));
+      const outcome2 = await p2;
+
+      assert.equal(outcome2.status, 'COMPLETED');
+      assert.equal(outcome2.syncedCount, 1);
+      assert.equal(orchestrator.isRunActive(), false, 'Orchestrator clears active run once all settle');
+      assert.equal(orchestrator.hasPendingTrailing(), false, 'No pending trailing run remains');
+    });
+
+    it('(b) Equivalent same-owner trigger bursts are coalesced', async () => {
+      // Start active run
+      const pActive = orchestrator.requestSync({
+        trigger: 'BOOT_AUTH_VERIFIED',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+
+      assert.equal(replayCalls.length, 1);
+
+      // Fire a burst of multiple same-owner triggers
+      const pBurst1 = orchestrator.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+      const pBurst2 = orchestrator.requestSync({
+        trigger: 'BOOT_AUTH_VERIFIED',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+      const pBurst3 = orchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+
+      assert.equal(replayCalls.length, 1, 'Burst does not start any overlapping runs');
+      const trailingInfo = orchestrator.getPendingTrailing();
+      assert.ok(trailingInfo, 'Single pending trailing run exists');
+      assert.equal(trailingInfo?.ownerId, 'user-alpha');
+      // Triggers are retained as a deduplicated set
+      assert.ok(trailingInfo?.triggers.includes('NETWORK_ONLINE'));
+      assert.ok(trailingInfo?.triggers.includes('BOOT_AUTH_VERIFIED'));
+      assert.ok(trailingInfo?.triggers.includes('AUTH_SUCCESS'));
+
+      // Finish active run
+      replayCalls[0].deferred.resolve(createSampleReplayResult());
+      await pActive;
+
+      // Trailing run starts
+      assert.equal(replayCalls.length, 2, 'Exactly one trailing run was started for the entire burst');
+
+      replayCalls[1].deferred.resolve(createSampleReplayResult({ syncedCount: 3 }));
+      const [res1, res2, res3] = await Promise.all([pBurst1, pBurst2, pBurst3]);
+
+      assert.equal(res1.status, 'COMPLETED');
+      assert.equal(res2.status, 'COMPLETED');
+      assert.equal(res3.status, 'COMPLETED');
+      assert.equal(res1.syncedCount, 3);
+      assert.equal(res2.syncedCount, 3);
+      assert.equal(res3.syncedCount, 3);
+    });
+
+    it('(c) & (d) Triggers during active run produce at most ONE trailing run, not an unbounded sequence', async () => {
+      const pActive = orchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+
+      // 10 triggers arrive during active run
+      const promises: Promise<SyncRunOutcome>[] = [];
+      for (let i = 0; i < 10; i++) {
+        promises.push(
+          orchestrator.requestSync({
+            trigger: 'NETWORK_ONLINE',
+            targetOwnerId: 'user-alpha',
+            targetToken: 'token-alpha'
+          })
+        );
+      }
+
+      assert.equal(replayCalls.length, 1, 'Only the active run is in flight');
+
+      // Settle active run
+      replayCalls[0].deferred.resolve(createSampleReplayResult({ syncedCount: 1 }));
+      await pActive;
+
+      // Settle trailing run
+      assert.equal(replayCalls.length, 2, 'Only ONE trailing run was spawned for all 10 triggers');
+      replayCalls[1].deferred.resolve(createSampleReplayResult({ syncedCount: 5 }));
+
+      const results = await Promise.all(promises);
+      for (const res of results) {
+        assert.equal(res.status, 'COMPLETED');
+        assert.equal(res.syncedCount, 5);
+      }
+
+      // Verify no further runs are spawned
+      assert.equal(replayCalls.length, 2, 'Total replay calls strictly capped at 2 (1 active + 1 trailing)');
+      assert.equal(orchestrator.isRunActive(), false);
+      assert.equal(orchestrator.hasPendingTrailing(), false);
+    });
+
+    it('(e) force=true dominates force=false for a coalesced same-owner trailing request', async () => {
+      const pActive = orchestrator.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha',
+        force: false
+      });
+
+      // First trailing request: force=false
+      const pTrailing1 = orchestrator.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha',
+        force: false
+      });
+      assert.equal(orchestrator.getPendingTrailing()?.force, false);
+
+      // Second trailing request: MANUAL_FORCE (force=true)
+      const pTrailing2 = orchestrator.requestSync({
+        trigger: 'MANUAL_FORCE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha',
+        force: true
+      });
+      assert.equal(orchestrator.getPendingTrailing()?.force, true, 'force=true dominates pending trailing state');
+
+      // Third trailing request: force=false
+      const pTrailing3 = orchestrator.requestSync({
+        trigger: 'BOOT_AUTH_VERIFIED',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha',
+        force: false
+      });
+      assert.equal(orchestrator.getPendingTrailing()?.force, true, 'force=true continues to dominate');
+
+      // Settle active run
+      replayCalls[0].deferred.resolve(createSampleReplayResult());
+      await pActive;
+
+      // Check options of dispatched trailing run
+      assert.equal(replayCalls.length, 2);
+      assert.equal(replayCalls[1].options.force, true, 'Dispatched trailing run executed with force=true');
+      assert.equal(replayCalls[1].options.respectBackoff, false, 'Backoff disabled when force is true');
+
+      replayCalls[1].deferred.resolve(createSampleReplayResult());
+      await Promise.all([pTrailing1, pTrailing2, pTrailing3]);
+    });
+  });
+
+  describe('2. Account Transitions & Identity Partition Isolation', () => {
+    it('(f) A pending User A request is discarded after switching to User B', async () => {
+      // User A starts active run
+      const pActiveA = orchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+
+      // User A enqueues a trailing request
+      const pTrailingA = orchestrator.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+      assert.equal(orchestrator.getPendingTrailing()?.ownerId, 'user-alpha');
+
+      // Account transition occurs while User A run is still active: User B signs in!
+      activeAccount = 'user-beta';
+      const pTrailingB = orchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-beta',
+        targetToken: 'token-beta'
+      });
+
+      // The pending User A request must be discarded immediately
+      const outcomeA = await pTrailingA;
+      assert.equal(outcomeA.status, 'DISCARDED_STALE');
+      assert.equal(outcomeA.stoppedDueToAccountChange, true);
+      assert.equal(outcomeA.ownerId, 'user-alpha');
+
+      // The pending trailing slot is now owned by User B
+      assert.equal(orchestrator.getPendingTrailing()?.ownerId, 'user-beta');
+
+      // Finish active User A run (note: replay itself notes account change)
+      replayCalls[0].deferred.resolve(createSampleReplayResult({
+        syncedCount: 0,
+        stoppedDueToAccountChange: true
+      }));
+      await pActiveA;
+
+      // Trailing run for User B starts
+      assert.equal(replayCalls.length, 2);
+      assert.equal(replayCalls[1].options.activeAccountId, 'user-beta');
+      assert.equal(replayCalls[1].options.authToken, 'token-beta');
+
+      replayCalls[1].deferred.resolve(createSampleReplayResult({ syncedCount: 2 }));
+      const outcomeB = await pTrailingB;
+      assert.equal(outcomeB.status, 'COMPLETED');
+      assert.equal(outcomeB.syncedCount, 2);
+      assert.equal(outcomeB.ownerId, 'user-beta');
+    });
+
+    it('(g) A valid User B request becomes the trailing run after an active User A run settles', async () => {
+      // Active run for User A
+      const pActiveA = orchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+
+      // Switch to User B
+      activeAccount = 'user-beta';
+      const pTrailingB = orchestrator.requestSync({
+        trigger: 'QUICK_LOGIN_SUCCESS',
+        targetOwnerId: 'user-beta',
+        targetToken: 'token-beta'
+      });
+
+      // Settle User A
+      replayCalls[0].deferred.resolve(createSampleReplayResult({ stoppedDueToAccountChange: true }));
+      await pActiveA;
+
+      // Trailing run executes for User B
+      assert.equal(replayCalls.length, 2);
+      assert.equal(replayCalls[1].options.activeAccountId, 'user-beta');
+
+      replayCalls[1].deferred.resolve(createSampleReplayResult({ syncedCount: 4 }));
+      const outcomeB = await pTrailingB;
+      assert.equal(outcomeB.status, 'COMPLETED');
+      assert.equal(outcomeB.syncedCount, 4);
+    });
+
+    it('(h) Owner and token snapshots are never mixed across requests', async () => {
+      // User A
+      const pActive = orchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha-secure'
+      });
+
+      assert.equal(replayCalls[0].options.activeAccountId, 'user-alpha');
+      assert.equal(replayCalls[0].options.authToken, 'token-alpha-secure');
+
+      // User B
+      activeAccount = 'user-beta';
+      const pB = orchestrator.requestSync({
+        trigger: 'IMPERSONATION_START',
+        targetOwnerId: 'user-beta',
+        targetToken: 'token-beta-secure'
+      });
+
+      replayCalls[0].deferred.resolve(createSampleReplayResult({ stoppedDueToAccountChange: true }));
+      await pActive;
+
+      // Assert User B received User B's token, never User A's token
+      assert.equal(replayCalls[1].options.activeAccountId, 'user-beta');
+      assert.equal(replayCalls[1].options.authToken, 'token-beta-secure');
+
+      replayCalls[1].deferred.resolve(createSampleReplayResult());
+      await pB;
+    });
+
+    it('(i) Logout or an absent active authenticated account suppresses a pending replay', async () => {
+      const pActive = orchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+
+      // Queue trailing
+      const pTrailing = orchestrator.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+
+      // User logs out (active account becomes null or guest, cancelPendingSync called)
+      activeAccount = null;
+      orchestrator.cancelPendingSync();
+
+      const trailingOutcome = await pTrailing;
+      assert.equal(trailingOutcome.status, 'ABORTED');
+      assert.equal(trailingOutcome.stoppedDueToAccountChange, true);
+
+      // Complete active run
+      replayCalls[0].deferred.resolve(createSampleReplayResult({ stoppedDueToAccountChange: true }));
+      await pActive;
+
+      // No trailing run is executed
+      assert.equal(replayCalls.length, 1, 'No trailing replay run is executed after logout');
+      assert.equal(orchestrator.isRunActive(), false);
+      assert.equal(orchestrator.hasPendingTrailing(), false);
+    });
+
+    it('(j) A stale run cannot emit visible item success or a success notification after an account transition', async () => {
+      let visibleItemSyncCount = 0;
+      let visibleResultNotificationCount = 0;
+
+      const pActive = orchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha',
+        onItemSuccess: (_item: OfflineQueueItem) => {
+          visibleItemSyncCount++;
+        },
+        onResult: (_outcome: SyncRunOutcome) => {
+          visibleResultNotificationCount++;
+        }
+      });
+
+      assert.equal(replayCalls.length, 1);
+
+      // Account transition happens during replay!
+      activeAccount = 'user-beta';
+
+      // Simulate replay attempting to invoke onItemSuccess
+      const sampleItem: OfflineQueueItem = {
+        id: 'item-1',
+        ownerId: 'user-alpha',
+        type: 'UPDATE_LOG',
+        payload: { date: '2026-09-04' },
+        timestamp: Date.now()
+      };
+      replayCalls[0].options.onItemSuccess?.(sampleItem);
+
+      // Assert visible item success was suppressed!
+      assert.equal(
+        visibleItemSyncCount,
+        0,
+        'Visible item state update must be suppressed when active account changes'
+      );
+
+      // Replay finishes, reporting synced items
+      replayCalls[0].deferred.resolve(createSampleReplayResult({
+        syncedCount: 3,
+        stoppedDueToAccountChange: true
+      }));
+
+      const outcome = await pActive;
+      assert.equal(outcome.status, 'DISCARDED_STALE');
+      assert.equal(outcome.stoppedDueToAccountChange, true);
+      assert.equal(
+        visibleResultNotificationCount,
+        0,
+        'Visible result toast notification must not fire for a stale run'
+      );
+    });
+  });
+
+  describe('3. Resilience, Error Release & Sensitive Payload Redaction', () => {
+    it('(k) Errors or rejected replay promises release active-run ownership and do not permanently block later requests', async () => {
+      // First run rejects with an unexpected error
+      const p1 = orchestrator.requestSync({
+        trigger: 'BOOT_AUTH_VERIFIED',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+
+      assert.equal(orchestrator.isRunActive(), true);
+      replayCalls[0].deferred.reject(new Error('Network catastrophic failure'));
+
+      const outcome1 = await p1;
+      assert.equal(outcome1.status, 'FAILED');
+      assert.ok(outcome1.error);
+      assert.equal(orchestrator.isRunActive(), false, 'Active run flag is released after failure');
+
+      // Subsequent valid request succeeds cleanly
+      const p2 = orchestrator.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+
+      assert.equal(replayCalls.length, 2, 'Subsequent request is permitted and runs');
+      replayCalls[1].deferred.resolve(createSampleReplayResult({ syncedCount: 1 }));
+
+      const outcome2 = await p2;
+      assert.equal(outcome2.status, 'COMPLETED');
+      assert.equal(outcome2.syncedCount, 1);
+    });
+
+    it('(l) Trigger metadata does not retain authentication tokens or mutation payloads', async () => {
+      const pActive = orchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'SUPER_SECRET_BEARER_TOKEN_12345'
+      });
+
+      replayCalls[0].deferred.resolve(createSampleReplayResult({ syncedCount: 1 }));
+      const outcome = await pActive;
+
+      const serialized = JSON.stringify(outcome);
+      assert.ok(!serialized.includes('SUPER_SECRET_BEARER_TOKEN_12345'), 'Bearer token must not leak in outcome');
+      assert.deepEqual(outcome.triggers, ['AUTH_SUCCESS'], 'Outcome only contains closed trigger name');
+    });
+
+    it('Offline mode returns SKIPPED_OFFLINE without calling replayExecutor', async () => {
+      const offlineOrchestrator = createSyncOrchestrator({
+        currentActiveAccountResolver: () => 'user-alpha',
+        isOnlineResolver: () => false,
+        replayExecutor: async () => {
+          throw new Error('Should not be called offline');
+        }
+      });
+
+      const outcome = await offlineOrchestrator.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+
+      assert.equal(outcome.status, 'SKIPPED_OFFLINE');
+      assert.equal(outcome.syncedCount, 0);
+    });
+
+    it('Guest or tokenless requests return SKIPPED_GUEST_OR_ANONYMOUS without calling replayExecutor', async () => {
+      let callCount = 0;
+      const testOrch = createSyncOrchestrator({
+        currentActiveAccountResolver: () => 'guest',
+        isOnlineResolver: () => true,
+        replayExecutor: async (opts) => {
+          callCount++;
+          return createSampleReplayResult();
+        }
+      });
+
+      // Test guest
+      const resGuest = await testOrch.requestSync({
+        trigger: 'BOOT_AUTH_VERIFIED',
+        targetOwnerId: 'guest',
+        targetToken: 'token-123'
+      });
+      assert.equal(resGuest.status, 'SKIPPED_GUEST_OR_ANONYMOUS');
+      assert.equal(callCount, 0);
+
+      // Test missing token
+      const resTokenless = await testOrch.requestSync({
+        trigger: 'BOOT_AUTH_VERIFIED',
+        targetOwnerId: 'user-alpha',
+        targetToken: ''
+      });
+      assert.equal(resTokenless.status, 'SKIPPED_GUEST_OR_ANONYMOUS');
+      assert.equal(callCount, 0);
+    });
+  });
+
+  describe('4. Production Wiring & App.tsx Source-Contract Invariants', () => {
+    it('App.tsx routes all 6 verified triggers through requestSync orchestrator gateway', () => {
+      const appContent = fs.readFileSync('src/App.tsx', 'utf-8');
+
+      // 1. All 6 triggers exist as closed vocabulary in App.tsx
+      assert.ok(
+        appContent.includes("requestSync('NETWORK_ONLINE')"),
+        'App.tsx routes browser online through requestSync(NETWORK_ONLINE)'
+      );
+      assert.ok(
+        appContent.includes("requestSync('BOOT_AUTH_VERIFIED'"),
+        'App.tsx routes boot auth verified through requestSync(BOOT_AUTH_VERIFIED)'
+      );
+      assert.ok(
+        appContent.includes("requestSync('AUTH_SUCCESS'"),
+        'App.tsx routes handleAuthSuccess through requestSync(AUTH_SUCCESS)'
+      );
+      assert.ok(
+        appContent.includes("requestSync('QUICK_LOGIN_SUCCESS'"),
+        'App.tsx routes handleQuickLogin through requestSync(QUICK_LOGIN_SUCCESS)'
+      );
+      assert.ok(
+        appContent.includes("requestSync('IMPERSONATION_START'"),
+        'App.tsx routes handleImpersonateUser through requestSync(IMPERSONATION_START)'
+      );
+      assert.ok(
+        appContent.includes("requestSync('IMPERSONATION_EXIT'"),
+        'App.tsx routes handleExitImpersonation through requestSync(IMPERSONATION_EXIT)'
+      );
+
+      // 2. Direct replayAccountOfflineQueue invocation is NOT present in App.tsx
+      const directReplayCalls = appContent.match(/await\s+replayAccountOfflineQueue\s*\(/g);
+      assert.equal(
+        directReplayCalls,
+        null,
+        'App.tsx must not directly call replayAccountOfflineQueue; all replay must go through SyncOrchestrator'
+      );
+
+      // 3. syncOrchestrator is instantiated via createSyncOrchestrator
+      assert.ok(
+        appContent.includes('createSyncOrchestrator'),
+        'App.tsx instantiates orchestrator via createSyncOrchestrator'
+      );
+
+      // 4. Logout cancels pending orchestrator sync
+      assert.ok(
+        appContent.includes('syncOrchestrator.cancelPendingSync()'),
+        'App.tsx cancels pending sync on logout'
+      );
+    });
+  });
+});

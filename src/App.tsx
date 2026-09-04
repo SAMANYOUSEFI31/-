@@ -37,10 +37,14 @@ import {
   resolveBackendSyncDecision,
   migrateLegacyGlobalQueue,
   enqueueOfflineMutation,
-  replayAccountOfflineQueue,
   isGuestQueueOwner,
   shouldQueueOfflineMutation
 } from './utils/storageUtils';
+import { 
+  createSyncOrchestrator, 
+  SyncTrigger, 
+  SyncOrchestrator 
+} from './utils/syncOrchestrator';
 import {
   IMPERSONATOR_TOKEN_KEY,
   IMPERSONATING_USER_KEY,
@@ -174,30 +178,41 @@ export default function App() {
     activeAccountRef.current = systemState.userProfile?.id || null;
   }, [systemState.userProfile?.id]);
 
-  const syncOfflineDataToServer = useCallback(async (
-    targetOwnerId?: string | null, 
+  const authTokenRef = useRef<string | null>(authToken);
+  useEffect(() => {
+    authTokenRef.current = authToken;
+  }, [authToken]);
+
+  const showAppToastRef = useRef(showAppToast);
+  useEffect(() => {
+    showAppToastRef.current = showAppToast;
+  }, [showAppToast]);
+
+  const syncOrchestratorRef = useRef<SyncOrchestrator | null>(null);
+  if (!syncOrchestratorRef.current) {
+    // Single sync orchestrator gateway delegating to replayAccountOfflineQueue with full coalescing
+    syncOrchestratorRef.current = createSyncOrchestrator({
+      currentActiveAccountResolver: () => activeAccountRef.current,
+      isOnlineResolver: () => typeof navigator === 'undefined' || navigator.onLine
+    });
+  }
+  const syncOrchestrator = syncOrchestratorRef.current;
+
+  const requestSync = useCallback((
+    trigger: SyncTrigger,
+    targetOwnerId?: string | null,
     targetToken?: string | null,
     force = false
   ) => {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      return;
-    }
+    const ownerId = targetOwnerId !== undefined ? targetOwnerId : activeAccountRef.current;
+    const token = targetToken !== undefined ? targetToken : (authTokenRef.current || safeGetLocalStorage(TOKEN_KEY));
 
-    const ownerId = targetOwnerId !== undefined ? targetOwnerId : systemState.userProfile?.id;
-    const currentToken = targetToken !== undefined ? targetToken : (authToken || safeGetLocalStorage(TOKEN_KEY));
-
-    // Strengthen replay identity binding:
-    // Replay strictly allowed for authenticated accounts with non-empty tokens
-    if (!ownerId || !currentToken || isGuestQueueOwner(ownerId)) {
-      return;
-    }
-
-    const result = await replayAccountOfflineQueue({
-      activeAccountId: ownerId,
-      authToken: currentToken,
+    return syncOrchestrator.requestSync({
+      trigger,
+      targetOwnerId: ownerId,
+      targetToken: token,
       force,
-      respectBackoff: !force,
-      getCurrentActiveAccountId: () => activeAccountRef.current,
+      currentActiveAccountResolver: () => activeAccountRef.current,
       onItemSuccess: (item) => {
         if (item.type === 'UPDATE_LOG') {
           setSystemState(prev => ({
@@ -210,20 +225,38 @@ export default function App() {
             cycles: prev.cycles.map(c => c.id === item.payload.id ? { ...c, isSynced: true } : c)
           }));
         }
+      },
+      onResult: (outcome) => {
+        if (
+          outcome.status === 'COMPLETED' &&
+          outcome.syncedCount > 0 &&
+          !outcome.stoppedDueToAccountChange &&
+          !outcome.stoppedDueToLockLoss &&
+          !outcome.stoppedDueToAuth
+        ) {
+          showAppToastRef.current(
+            `همگام‌سازی ابری با موفقیت انجام شد (${toPersianDigits(outcome.syncedCount)} تغییر ذخیره شد).`,
+            'success'
+          );
+        }
       }
     });
+  }, [syncOrchestrator]);
 
-    if (result.syncedCount > 0) {
-      showAppToast(`همگام‌سازی ابری با موفقیت انجام شد (${toPersianDigits(result.syncedCount)} تغییر ذخیره شد).`, 'success');
-    }
-  }, [authToken, systemState.userProfile?.id, showAppToast]);
+  const syncOfflineDataToServer = useCallback((
+    targetOwnerId?: string | null,
+    targetToken?: string | null,
+    force = false
+  ) => {
+    return requestSync(force ? 'MANUAL_FORCE' : 'BOOT_AUTH_VERIFIED', targetOwnerId, targetToken, force);
+  }, [requestSync]);
 
   useEffect(() => {
     let onlineTimer: any = null;
     const handleOnline = () => {
       if (onlineTimer) clearTimeout(onlineTimer);
       onlineTimer = setTimeout(() => {
-        syncOfflineDataToServer();
+        requestSync('NETWORK_ONLINE');
       }, 300);
     };
     window.addEventListener('online', handleOnline);
@@ -231,7 +264,7 @@ export default function App() {
       if (onlineTimer) clearTimeout(onlineTimer);
       window.removeEventListener('online', handleOnline);
     };
-  }, [syncOfflineDataToServer]);
+  }, [requestSync]);
 
   // Fetch user profile and backend data on mount or token change (parallelized without duplicate waterfalls)
   useEffect(() => {
@@ -359,7 +392,7 @@ export default function App() {
 
         // Replay identity binding: Replay starts after verified auth identity from /api/auth/me
         if (fetchedUserProfile?.id && currentToken) {
-          syncOfflineDataToServer(fetchedUserProfile.id, currentToken);
+          requestSync('BOOT_AUTH_VERIFIED', fetchedUserProfile.id, currentToken);
         }
       } catch (err) {
         console.warn('Backend sync warning (running in offline/local fallback):', err);
@@ -371,7 +404,7 @@ export default function App() {
     return () => {
       isCancelled = true;
     };
-  }, [authToken, syncOfflineDataToServer]);
+  }, [authToken, requestSync]);
 
   const currentCycle = useMemo(() => {
     return systemState.cycles.find(c => c.id === activeCycleId) || systemState.cycles[0] || null;
@@ -694,8 +727,10 @@ export default function App() {
       setActiveCycleId(transition.nextActiveCycleId);
     }
     showAppToast(`با موفقیت وارد حساب «${user.name || 'کاربر'}» شدید.`);
-    // Explicit binding: Replay verified target user queue with target token (no setTimeout)
-    syncOfflineDataToServer(user.id, token);
+    // Explicit binding: Replay verified target user queue through single orchestrator gateway
+    activeAccountRef.current = user.id;
+    authTokenRef.current = token;
+    requestSync('AUTH_SUCCESS', user.id, token);
   };
 
   const handleQuickLogin = async (role: 'admin' | 'test_user') => {
@@ -724,8 +759,10 @@ export default function App() {
           setActiveCycleId(transition.nextActiveCycleId);
         }
         showAppToast(role === 'admin' ? 'به عنوان مدیر ارشد سیستم وارد شدید.' : 'به عنوان کاربر تستی وارد شدید.');
-        // Explicit binding: Replay verified target user queue with target token (no setTimeout)
-        syncOfflineDataToServer(data.user.id, data.token);
+        // Explicit binding: Replay verified target user queue through single orchestrator gateway
+        activeAccountRef.current = data.user.id;
+        authTokenRef.current = data.token;
+        requestSync('QUICK_LOGIN_SUCCESS', data.user.id, data.token);
       } else {
         showAppToast(data.messageFa || data.error || 'ورود سریع در این محیط غیرفعال است.', 'error');
       }
@@ -772,8 +809,10 @@ export default function App() {
         }
         setActiveTab('battlefield');
         showAppToast(`در حال شبیه‌سازی و مشاهده سامانه از دید: «${data.user.name}»`);
-        // Explicit binding: Replay target user's queue with target token
-        syncOfflineDataToServer(data.user.id, data.token);
+        // Explicit binding: Replay target user's queue through single orchestrator gateway
+        activeAccountRef.current = data.user.id;
+        authTokenRef.current = data.token;
+        requestSync('IMPERSONATION_START', data.user.id, data.token);
       } else {
         showAppToast(data.messageFa || data.error || 'خطا در سوییچ به کاربر');
       }
@@ -809,8 +848,10 @@ export default function App() {
       }
 
       if (outcome.status === 'SUCCESS') {
-        // Replay only the Admin's own queue
-        syncOfflineDataToServer(outcome.adminUser.id, outcome.adminToken);
+        // Replay only the Admin's own queue through single orchestrator gateway
+        activeAccountRef.current = outcome.adminUser.id;
+        authTokenRef.current = outcome.adminToken;
+        requestSync('IMPERSONATION_EXIT', outcome.adminUser.id, outcome.adminToken);
 
         // Notify server of exit for audit trail (non-authoritative metadata)
         fetch('/api/admin/impersonate/exit', {
@@ -834,6 +875,9 @@ export default function App() {
       // - Clear unsafe authentication and impersonation state
       // - Return to a signed-out state
       // - Require authentication again
+      activeAccountRef.current = null;
+      authTokenRef.current = null;
+      syncOrchestrator.cancelPendingSync();
       setAuthToken(null);
       setImpersonatingUser(null);
       setImpersonatorAdminToken(null);
@@ -859,6 +903,9 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    activeAccountRef.current = null;
+    authTokenRef.current = null;
+    syncOrchestrator.cancelPendingSync();
     const transition = executeLogoutDuringImpersonation(systemState);
     setAuthToken(null);
     setImpersonatingUser(null);
