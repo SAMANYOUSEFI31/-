@@ -158,15 +158,66 @@ export function calculateReplayBackoffMs(retryCount: number): number {
 // In-flight replay promise tracker per account to prevent intra-tab concurrent replays
 const inFlightReplayPromises = new Map<string, Promise<ReplayResult>>();
 
+export interface ReplayTimingDependencies {
+  now?: () => number;
+  setInterval?: (callback: () => void, intervalMs: number) => any;
+  clearInterval?: (handle: any) => void;
+}
+
+export interface ResolvedReplayTiming {
+  now: () => number;
+  setInterval: (callback: () => void, intervalMs: number) => any;
+  clearInterval: (handle: any) => void;
+  leaseTimeoutMs: number;
+  heartbeatIntervalMs: number;
+}
+
+/**
+ * Resolves a single consistent timing contract per replay execution.
+ * When no timing dependency is supplied, production defaults are strictly preserved:
+ * Date.now, globalThis.setInterval, globalThis.clearInterval,
+ * REPLAY_LOCK_TIMEOUT_MS (10000), and REPLAY_LOCK_HEARTBEAT_INTERVAL_MS (3000).
+ */
+export function resolveReplayTiming(options?: {
+  leaseTimeoutMs?: number;
+  heartbeatIntervalMs?: number;
+  lockTiming?: ReplayLockTimingConfig;
+  timing?: ReplayTimingDependencies;
+}): ResolvedReplayTiming {
+  const rawLease = options?.lockTiming?.leaseTimeoutMs ?? options?.leaseTimeoutMs;
+  const rawHb = options?.lockTiming?.heartbeatIntervalMs ?? options?.heartbeatIntervalMs;
+  const leaseTimeoutMs = resolveReplayLockTimeout(rawLease);
+  const heartbeatIntervalMs = resolveHeartbeatInterval(rawHb, leaseTimeoutMs);
+
+  const now = options?.timing?.now ?? (() => Date.now());
+  const customSetInterval = options?.timing?.setInterval ?? ((cb, ms) => globalThis.setInterval(cb, ms));
+  const customClearInterval = options?.timing?.clearInterval ?? ((h) => globalThis.clearInterval(h));
+
+  return {
+    now,
+    setInterval: customSetInterval,
+    clearInterval: customClearInterval,
+    leaseTimeoutMs,
+    heartbeatIntervalMs
+  };
+}
+
 /**
  * Acquires a cross-tab ephemeral storage lease for replay execution.
  * Returns the acquired unique lockId string on success, or null on failure/contention.
  */
-export function acquireReplayLock(owner: string, timeoutMs?: number): string | null {
+export function acquireReplayLock(
+  owner: string, 
+  timeoutMs?: number,
+  clockOrTiming?: (() => number) | { now?: () => number }
+): string | null {
   const normOwner = normalizeQueueOwner(owner);
   const lockKey = `${REPLAY_LOCK_PREFIX}${normOwner}`;
   const effectiveTimeout = resolveReplayLockTimeout(timeoutMs);
-  const now = Date.now();
+  const getNow = typeof clockOrTiming === 'function' 
+    ? clockOrTiming 
+    : (clockOrTiming?.now ?? (() => Date.now()));
+  const now = getNow();
   const existingRaw = safeGetLocalStorage(lockKey);
   if (existingRaw) {
     try {
@@ -199,7 +250,12 @@ export function acquireReplayLock(owner: string, timeoutMs?: number): string | n
 /**
  * Verifies that the cross-tab lease is currently active and belongs to the given lockId.
  */
-export function verifyReplayLock(owner: string, lockId: string, timeoutMs?: number): boolean {
+export function verifyReplayLock(
+  owner: string, 
+  lockId: string, 
+  timeoutMs?: number,
+  clockOrTiming?: (() => number) | { now?: () => number }
+): boolean {
   if (!lockId) return false;
   const normOwner = normalizeQueueOwner(owner);
   const lockKey = `${REPLAY_LOCK_PREFIX}${normOwner}`;
@@ -208,7 +264,10 @@ export function verifyReplayLock(owner: string, lockId: string, timeoutMs?: numb
   if (!raw) return false;
   try {
     const parsed = JSON.parse(raw);
-    const now = Date.now();
+    const getNow = typeof clockOrTiming === 'function' 
+      ? clockOrTiming 
+      : (clockOrTiming?.now ?? (() => Date.now()));
+    const now = getNow();
     if (parsed?.lockId === lockId && typeof parsed.timestamp === 'number' && (now - parsed.timestamp) < effectiveTimeout) {
       return true;
     }
@@ -220,7 +279,12 @@ export function verifyReplayLock(owner: string, lockId: string, timeoutMs?: numb
  * Renews the cross-tab lease timestamp for the current lockId holder.
  * Only the active holder can renew. Returns false if ownership was lost or expired.
  */
-export function renewReplayLock(owner: string, lockId: string, timeoutMs?: number): boolean {
+export function renewReplayLock(
+  owner: string, 
+  lockId: string, 
+  timeoutMs?: number,
+  clockOrTiming?: (() => number) | { now?: () => number }
+): boolean {
   if (!lockId) return false;
   const normOwner = normalizeQueueOwner(owner);
   const lockKey = `${REPLAY_LOCK_PREFIX}${normOwner}`;
@@ -229,7 +293,10 @@ export function renewReplayLock(owner: string, lockId: string, timeoutMs?: numbe
   if (!raw) return false;
   try {
     const parsed = JSON.parse(raw);
-    const now = Date.now();
+    const getNow = typeof clockOrTiming === 'function' 
+      ? clockOrTiming 
+      : (clockOrTiming?.now ?? (() => Date.now()));
+    const now = getNow();
     if (parsed?.lockId !== lockId) {
       // Lock has been taken over by another tab/holder
       return false;
@@ -986,6 +1053,7 @@ export interface ReplayOptions {
   heartbeatIntervalMs?: number;
   leaseTimeoutMs?: number;
   lockTiming?: ReplayLockTimingConfig;
+  timing?: ReplayTimingDependencies;
   onItemSuccess?: (item: OfflineQueueItem) => void;
   onItemFailure?: (item: OfflineQueueItem, error: any) => void;
   getCurrentActiveAccountId?: () => string | null;
@@ -1071,13 +1139,15 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
     });
   }
 
-  const rawLeaseTimeout = options.lockTiming?.leaseTimeoutMs ?? options.leaseTimeoutMs;
-  const rawHeartbeatInterval = options.lockTiming?.heartbeatIntervalMs ?? options.heartbeatIntervalMs;
-  const resolvedLeaseTimeoutMs = resolveReplayLockTimeout(rawLeaseTimeout);
-  const resolvedHeartbeatIntervalMs = resolveHeartbeatInterval(rawHeartbeatInterval, resolvedLeaseTimeoutMs);
+  const timing = resolveReplayTiming({
+    leaseTimeoutMs: options.leaseTimeoutMs,
+    heartbeatIntervalMs: options.heartbeatIntervalMs,
+    lockTiming: options.lockTiming,
+    timing: options.timing
+  });
 
   // 4. Concurrency Protection (Inter-tab): Acquire cross-tab storage lease
-  const lockId = acquireReplayLock(initialOwner, resolvedLeaseTimeoutMs);
+  const lockId = acquireReplayLock(initialOwner, timing.leaseTimeoutMs, timing.now);
   if (!lockId) {
     return {
       syncedCount: 0,
@@ -1099,8 +1169,7 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
         effectiveOptions,
         initialOwner,
         lockId,
-        resolvedLeaseTimeoutMs,
-        resolvedHeartbeatIntervalMs
+        timing
       );
     } finally {
       releaseReplayLock(initialOwner, lockId);
@@ -1117,9 +1186,18 @@ async function executeReplayLoop(
   options: ReplayOptions, 
   initialOwner: string,
   lockId?: string | null,
-  leaseTimeoutMs: number = REPLAY_LOCK_TIMEOUT_MS,
-  heartbeatIntervalMs: number = REPLAY_LOCK_HEARTBEAT_INTERVAL_MS
+  timingOrLeaseTimeout?: ResolvedReplayTiming | number,
+  heartbeatIntervalMs?: number
 ): Promise<ReplayResult> {
+  const timing: ResolvedReplayTiming = typeof timingOrLeaseTimeout === 'object' && timingOrLeaseTimeout !== null && 'now' in timingOrLeaseTimeout
+    ? timingOrLeaseTimeout
+    : resolveReplayTiming({
+        leaseTimeoutMs: typeof timingOrLeaseTimeout === 'number' ? timingOrLeaseTimeout : options.leaseTimeoutMs,
+        heartbeatIntervalMs: heartbeatIntervalMs ?? options.heartbeatIntervalMs,
+        lockTiming: options.lockTiming,
+        timing: options.timing
+      });
+
   const fetchFn = options.fetchImpl || options.fetchFn || (typeof fetch !== 'undefined' ? fetch : undefined);
   if (!fetchFn) {
     return {
@@ -1145,7 +1223,7 @@ async function executeReplayLoop(
     }
 
     // 1b. Deferral check: If respectBackoff is enabled and item is in exponential backoff window, defer safely
-    if (options.respectBackoff && item.nextRetryAt && Date.now() < item.nextRetryAt && !options.force) {
+    if (options.respectBackoff && item.nextRetryAt && timing.now() < item.nextRetryAt && !options.force) {
       break;
     }
 
@@ -1172,7 +1250,7 @@ async function executeReplayLoop(
     }
 
     // 4. Pre-request Lease Ownership & Heartbeat Renewal Check
-    if (lockId && !renewReplayLock(initialOwner, lockId, leaseTimeoutMs)) {
+    if (lockId && !renewReplayLock(initialOwner, lockId, timing.leaseTimeoutMs, timing.now)) {
       return {
         syncedCount,
         failedCount,
@@ -1280,16 +1358,16 @@ async function executeReplayLoop(
       let heartbeatTimer: any = null;
 
       if (lockId) {
-        heartbeatTimer = setInterval(() => {
-          const renewed = renewReplayLock(initialOwner, lockId, leaseTimeoutMs);
+        heartbeatTimer = timing.setInterval(() => {
+          const renewed = renewReplayLock(initialOwner, lockId, timing.leaseTimeoutMs, timing.now);
           if (!renewed) {
             leaseLostDuringFlight = true;
-            if (heartbeatTimer) {
-              clearInterval(heartbeatTimer);
+            if (heartbeatTimer !== null) {
+              timing.clearInterval(heartbeatTimer);
               heartbeatTimer = null;
             }
           }
-        }, heartbeatIntervalMs);
+        }, timing.heartbeatIntervalMs);
       }
 
       try {
@@ -1302,15 +1380,15 @@ async function executeReplayLoop(
         networkErrorOccurred = true;
         caughtNetworkErr = networkErr;
       } finally {
-        if (heartbeatTimer) {
-          clearInterval(heartbeatTimer);
+        if (heartbeatTimer !== null) {
+          timing.clearInterval(heartbeatTimer);
           heartbeatTimer = null;
         }
       }
 
       // In-flight Lease Ownership Verification:
       // If heartbeat failed during network execution or lease was lost/expired, abort safely
-      if (lockId && (leaseLostDuringFlight || !verifyReplayLock(initialOwner, lockId, leaseTimeoutMs))) {
+      if (lockId && (leaseLostDuringFlight || !verifyReplayLock(initialOwner, lockId, timing.leaseTimeoutMs, timing.now))) {
         return {
           syncedCount,
           failedCount,
@@ -1353,7 +1431,7 @@ async function executeReplayLoop(
 
         // Post-fetch Lease Ownership Verification:
         // Ensure this tab still holds the active lease before removing from queue and committing success
-        if (lockId && !verifyReplayLock(initialOwner, lockId, leaseTimeoutMs)) {
+        if (lockId && !verifyReplayLock(initialOwner, lockId, timing.leaseTimeoutMs, timing.now)) {
           return {
             syncedCount,
             failedCount,
