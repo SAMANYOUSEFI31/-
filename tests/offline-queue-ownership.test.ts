@@ -780,5 +780,406 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
       assert.equal(getQuarantinedItems('user-beta').length, 0);
       assert.equal(getQuarantinedItems('user-alpha').length, 1, 'User Alpha quarantine must be preserved');
     });
+
+    it('Scenario 9: Global quarantine ledger does NOT store complete private payloads; sensitive credentials are redacted', () => {
+      clearQuarantine();
+
+      const userAId = 'user-alpha';
+      const userBId = 'user-beta';
+
+      // Quarantine items with private notes and sensitive credentials
+      quarantineQueueItems([
+        {
+          id: 'item-priv-1',
+          ownerId: userAId,
+          type: 'UPDATE_LOG',
+          payload: {
+            date: '1405-01-10',
+            habitNotes: 'Extremely personal diary entry for User A',
+            authToken: 'secret-token-user-a',
+            password: 'plain-password-123'
+          }
+        }
+      ], 'Security check failed', userAId);
+
+      quarantineQueueItems([
+        {
+          id: 'item-priv-2',
+          ownerId: userBId,
+          type: 'CREATE_CYCLE',
+          payload: {
+            id: 'cycle-secret-b',
+            title: 'User B Confidential Business Plan',
+            otpCode: '987654',
+            secret: 'top-secret-val'
+          }
+        }
+      ], 'Schema mismatch', userBId);
+
+      // 1. Check owner-scoped partitions: payloads ARE preserved, but credentials MUST be redacted
+      const alphaQuarantine = getQuarantinedItems(userAId);
+      assert.equal(alphaQuarantine.length, 1);
+      const alphaItem = alphaQuarantine[0].items[0];
+      assert.equal(alphaItem.payload.habitNotes, 'Extremely personal diary entry for User A');
+      assert.equal(alphaItem.payload.authToken, '[REDACTED]');
+      assert.equal(alphaItem.payload.password, '[REDACTED]');
+
+      const betaQuarantine = getQuarantinedItems(userBId);
+      assert.equal(betaQuarantine.length, 1);
+      const betaItem = betaQuarantine[0].items[0];
+      assert.equal(betaItem.payload.title, 'User B Confidential Business Plan');
+      assert.equal(betaItem.payload.otpCode, '[REDACTED]');
+      assert.equal(betaItem.payload.secret, '[REDACTED]');
+
+      // 2. Check global compatibility ledger: MUST NOT contain full private payloads from multiple users
+      const globalRaw = storageMock[OFFLINE_QUARANTINE_KEY];
+      assert.ok(globalRaw, 'Global ledger exists for compatibility/audit');
+      const globalParsed = JSON.parse(globalRaw);
+      assert.equal(globalParsed.length, 2);
+
+      // In the global ledger, entries contain safe audit items, NOT full private payloads
+      for (const entry of globalParsed) {
+        assert.ok(entry.quarantinedAt);
+        assert.ok(entry.reason);
+        assert.equal(typeof entry.itemCount, 'number');
+        for (const safeItem of entry.items) {
+          assert.ok(safeItem.id);
+          assert.ok(safeItem.type);
+          assert.equal(typeof safeItem.hasPayload, 'boolean');
+          // Payload itself must NEVER be duplicated in the global shared ledger
+          assert.equal((safeItem as any).payload, undefined);
+        }
+      }
+
+      // Neither user's private text must be present anywhere in the raw global ledger JSON
+      assert.ok(!globalRaw.includes('Extremely personal diary entry for User A'));
+      assert.ok(!globalRaw.includes('User B Confidential Business Plan'));
+      assert.ok(!globalRaw.includes('secret-token-user-a'));
+      assert.ok(!globalRaw.includes('plain-password-123'));
+    });
+
+    it('Scenario 10: Logout maintains partition integrity, does not merge, transfer, or replay queues', async () => {
+      // User Alpha queues an item
+      enqueueOfflineMutation('user-alpha', {
+        type: 'UPDATE_LOG',
+        payload: { date: '1405-02-01', score: 10 }
+      });
+      assert.equal(getOfflineQueue('user-alpha').length, 1);
+
+      // User logs out (active account becomes null / guest)
+      let networkCalls = 0;
+      const mockFetch = async () => {
+        networkCalls++;
+        return { ok: true, status: 200, json: async () => ({}) } as any;
+      };
+
+      // Replay in logged-out / guest state
+      const loggedOutResult = await replayAccountOfflineQueue({
+        activeAccountId: null,
+        authToken: null,
+        fetchFn: mockFetch
+      });
+
+      // No network calls, 0 synced
+      assert.equal(networkCalls, 0);
+      assert.equal(loggedOutResult.syncedCount, 0);
+
+      // User Alpha queue is strictly preserved and untouched
+      assert.equal(getOfflineQueue('user-alpha').length, 1);
+      assert.equal(getOfflineQueue('user-alpha')[0].payload.date, '1405-02-01');
+
+      // Guest partition is unaffected
+      assert.equal(getOfflineQueue(null).length, 0);
+
+      // User Beta logs in
+      const betaResult = await replayAccountOfflineQueue({
+        activeAccountId: 'user-beta',
+        authToken: 'token-beta',
+        fetchFn: mockFetch
+      });
+
+      // User Beta has no items, network is NOT called, User Alpha queue is still untouched
+      assert.equal(betaResult.syncedCount, 0);
+      assert.equal(networkCalls, 0);
+      assert.equal(getOfflineQueue('user-alpha').length, 1);
+      assert.equal(getOfflineQueue('user-beta').length, 0);
+    });
+
+    it('Scenario 11: Page reload / storage restore preserves the correct account queue', () => {
+      const activeUserId = 'user-champion';
+      enqueueOfflineMutation(activeUserId, {
+        type: 'UPDATE_LOG',
+        payload: { date: '1405-03-01', score: 9 }
+      });
+      enqueueOfflineMutation(activeUserId, {
+        type: 'UPDATE_PROFILE',
+        payload: { displayName: 'Champion Restored' }
+      });
+
+      // Simulate full page reload by verifying that reading from localStorage restores the exact queue
+      const restoredQueue = getOfflineQueue(activeUserId);
+      assert.equal(restoredQueue.length, 2);
+      assert.equal(restoredQueue[0].payload.date, '1405-03-01');
+      assert.equal(restoredQueue[1].payload.displayName, 'Champion Restored');
+      assert.equal(restoredQueue[0].ownerId, activeUserId);
+      assert.equal(restoredQueue[1].ownerId, activeUserId);
+    });
+
+    it('Scenario 12: Repeated UPDATE_LOG compacts correctly for same cycle and date', () => {
+      const owner = 'user-log-compact';
+      clearOfflineQueue(owner);
+
+      enqueueOfflineMutation(owner, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: 'cycle-10', date: '1405-04-01', score: 5, wakeUp: true }
+      });
+      assert.equal(getOfflineQueue(owner).length, 1);
+
+      // Second update for same cycle and date
+      enqueueOfflineMutation(owner, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: 'cycle-10', date: '1405-04-01', score: 8, wakeUp: true, workout: true }
+      });
+
+      // Must remain exactly 1 compacted item with the latest payload
+      const queue = getOfflineQueue(owner);
+      assert.equal(queue.length, 1);
+      assert.equal(queue[0].payload.score, 8);
+      assert.equal(queue[0].payload.workout, true);
+
+      // Different date in same cycle -> separate item
+      enqueueOfflineMutation(owner, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: 'cycle-10', date: '1405-04-02', score: 10 }
+      });
+      assert.equal(getOfflineQueue(owner).length, 2);
+    });
+
+    it('Scenario 13: Repeated UPDATE_CYCLE compacts correctly, preserving CREATE_CYCLE dependency order', () => {
+      const owner = 'user-cycle-compact';
+      clearOfflineQueue(owner);
+
+      // Step 1: Create cycle offline
+      enqueueOfflineMutation(owner, {
+        type: 'CREATE_CYCLE',
+        payload: { id: 'cycle-created-offline', title: 'New Cycle v1' }
+      });
+
+      // Step 2: Update cycle offline
+      enqueueOfflineMutation(owner, {
+        type: 'UPDATE_CYCLE',
+        payload: { id: 'cycle-created-offline', title: 'New Cycle v2' }
+      });
+
+      // Step 3: Update cycle again offline
+      enqueueOfflineMutation(owner, {
+        type: 'UPDATE_CYCLE',
+        payload: { id: 'cycle-created-offline', title: 'New Cycle v3 - Final' }
+      });
+
+      const queue = getOfflineQueue(owner);
+      assert.equal(queue.length, 2, 'Should contain CREATE_CYCLE followed by single compacted UPDATE_CYCLE');
+      assert.equal(queue[0].type, 'CREATE_CYCLE');
+      assert.equal(queue[0].payload.id, 'cycle-created-offline');
+      assert.equal(queue[1].type, 'UPDATE_CYCLE');
+      assert.equal(queue[1].payload.title, 'New Cycle v3 - Final');
+    });
+
+    it('Scenario 14: CREATE_CYCLE followed by DELETE_CYCLE completely removes the offline mutation chain', () => {
+      const owner = 'user-create-delete';
+      clearOfflineQueue(owner);
+
+      // Create cycle offline
+      enqueueOfflineMutation(owner, {
+        type: 'CREATE_CYCLE',
+        payload: { id: 'cycle-temp', title: 'Temporary' }
+      });
+
+      // Update cycle offline
+      enqueueOfflineMutation(owner, {
+        type: 'UPDATE_CYCLE',
+        payload: { id: 'cycle-temp', title: 'Temporary Updated' }
+      });
+
+      // Add log for this offline cycle
+      enqueueOfflineMutation(owner, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: 'cycle-temp', date: '1405-01-01', score: 8 }
+      });
+
+      assert.equal(getOfflineQueue(owner).length, 3);
+
+      // Delete the cycle offline before sync
+      enqueueOfflineMutation(owner, {
+        type: 'DELETE_CYCLE',
+        payload: { id: 'cycle-temp' }
+      });
+
+      // The entire pending chain for this offline cycle must be completely pruned
+      const queue = getOfflineQueue(owner);
+      assert.equal(queue.length, 0, 'CREATE_CYCLE + DELETE_CYCLE before sync removes all pending mutations');
+    });
+
+    it('Scenario 15: DELETE_CYCLE prunes pending Cycle updates and related DailyLog mutations, and duplicate DELETE_CYCLE is compacted', () => {
+      const owner = 'user-server-delete';
+      clearOfflineQueue(owner);
+
+      // Existing cycle on server has pending offline updates
+      enqueueOfflineMutation(owner, {
+        type: 'UPDATE_CYCLE',
+        payload: { id: 'server-cycle-77', title: 'Server Cycle Updated' }
+      });
+      enqueueOfflineMutation(owner, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: 'server-cycle-77', date: '1405-05-01', score: 7 }
+      });
+
+      assert.equal(getOfflineQueue(owner).length, 2);
+
+      // Delete cycle on server
+      enqueueOfflineMutation(owner, {
+        type: 'DELETE_CYCLE',
+        payload: { id: 'server-cycle-77' }
+      });
+
+      // Pending updates and log mutations for that cycle are pruned; only 1 DELETE_CYCLE remains
+      let queue = getOfflineQueue(owner);
+      assert.equal(queue.length, 1);
+      assert.equal(queue[0].type, 'DELETE_CYCLE');
+
+      // Duplicate DELETE_CYCLE does not create redundant replay steps
+      enqueueOfflineMutation(owner, {
+        type: 'DELETE_CYCLE',
+        payload: { id: 'server-cycle-77' }
+      });
+      queue = getOfflineQueue(owner);
+      assert.equal(queue.length, 1);
+
+      // Any attempted update after DELETE_CYCLE is dropped
+      enqueueOfflineMutation(owner, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: 'server-cycle-77', date: '1405-05-02', score: 10 }
+      });
+      queue = getOfflineQueue(owner);
+      assert.equal(queue.length, 1);
+    });
+
+    it('Scenario 16: Compaction never crosses account boundaries', () => {
+      const user1 = 'user-iso-1';
+      const user2 = 'user-iso-2';
+
+      enqueueOfflineMutation(user1, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: 'cycle-common', date: '1405-01-01', score: 5 }
+      });
+      enqueueOfflineMutation(user2, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: 'cycle-common', date: '1405-01-01', score: 9 }
+      });
+
+      // User 1 updates their log again
+      enqueueOfflineMutation(user1, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: 'cycle-common', date: '1405-01-01', score: 10 }
+      });
+
+      const q1 = getOfflineQueue(user1);
+      const q2 = getOfflineQueue(user2);
+
+      assert.equal(q1.length, 1);
+      assert.equal(q1[0].payload.score, 10);
+      assert.equal(q1[0].ownerId, user1);
+
+      assert.equal(q2.length, 1);
+      assert.equal(q2[0].payload.score, 9);
+      assert.equal(q2[0].ownerId, user2);
+    });
+
+    it('Scenario 17: Running legacy migration more than once does not duplicate items (idempotent)', () => {
+      const targetUser = 'user-idempotent';
+      clearOfflineQueue(targetUser);
+
+      storageMock[LEGACY_OFFLINE_QUEUE_KEY] = JSON.stringify([
+        {
+          id: 'item-mig-1',
+          ownerId: targetUser,
+          type: 'UPDATE_LOG',
+          payload: { date: '1405-06-01' }
+        }
+      ]);
+
+      const firstRun = migrateLegacyGlobalQueue();
+      assert.equal(firstRun.migratedCount, 1);
+      assert.equal(getOfflineQueue(targetUser).length, 1);
+
+      // Second run immediately following
+      const secondRun = migrateLegacyGlobalQueue();
+      assert.equal(secondRun.migratedCount, 0);
+      assert.equal(secondRun.quarantinedCount, 0);
+      assert.equal(getOfflineQueue(targetUser).length, 1, 'Queue must not duplicate items');
+    });
+
+    it('Scenario 18: Quarantined data never replays automatically', async () => {
+      const owner = 'user-quarantine-never-replays';
+      clearOfflineQueue(owner);
+      clearQuarantine(owner);
+
+      quarantineQueueItems([
+        {
+          id: 'bad-item-99',
+          ownerId: owner,
+          type: 'UPDATE_LOG',
+          payload: { date: '1405-01-01', badData: true }
+        }
+      ], 'Data corruption', owner);
+
+      assert.equal(getQuarantinedItems(owner).length, 1);
+      assert.equal(getOfflineQueue(owner).length, 0);
+
+      let fetchInvoked = false;
+      const mockFetch = async () => {
+        fetchInvoked = true;
+        return { ok: true, status: 200, json: async () => ({}) } as any;
+      };
+
+      const result = await replayAccountOfflineQueue({
+        activeAccountId: owner,
+        authToken: 'valid-token',
+        fetchFn: mockFetch
+      });
+
+      assert.equal(result.syncedCount, 0);
+      assert.equal(fetchInvoked, false, 'Quarantine data must never be fetched or replayed');
+      assert.equal(getQuarantinedItems(owner).length, 1, 'Quarantine remains preserved');
+    });
+
+    it('Scenario 19: The production entry point (main.tsx) renders App.tsx directly and does not mount BushidoProvider', async () => {
+      const fs = await import('node:fs');
+      const mainContent = fs.readFileSync('src/main.tsx', 'utf-8');
+
+      // main.tsx mounts <App />
+      assert.ok(mainContent.includes('<App'), 'main.tsx must mount App');
+      // main.tsx does NOT mount BushidoProvider
+      assert.ok(!mainContent.includes('BushidoProvider'), 'main.tsx must NOT mount BushidoProvider');
+
+      // BushidoContext has architectural notice
+      const contextContent = fs.readFileSync('src/context/BushidoContext.tsx', 'utf-8');
+      assert.ok(contextContent.includes('ARCHITECTURAL NOTICE - SPRINT 3B.1 CONTRACT'), 'BushidoContext has architectural notice');
+    });
+
+    it('Scenario 20: The production runtime (App.tsx) has authoritative online listener and migration', async () => {
+      const fs = await import('node:fs');
+      const appContent = fs.readFileSync('src/App.tsx', 'utf-8');
+
+      // App.tsx invokes migrateLegacyGlobalQueue on mount
+      assert.ok(appContent.includes('migrateLegacyGlobalQueue();'), 'App.tsx calls migrateLegacyGlobalQueue on mount');
+
+      // App.tsx registers the authoritative browser online listener
+      assert.ok(appContent.includes("window.addEventListener('online'"), 'App.tsx registers online listener');
+      assert.ok(appContent.includes("window.removeEventListener('online'"), 'App.tsx unregisters online listener');
+
+      // Replay is triggered through replayAccountOfflineQueue
+      assert.ok(appContent.includes('replayAccountOfflineQueue'), 'App.tsx triggers replayAccountOfflineQueue');
+    });
   });
 });

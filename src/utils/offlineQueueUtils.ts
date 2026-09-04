@@ -215,6 +215,22 @@ export function enqueueOfflineMutation(
     }
   }
 
+  // Rule 2b: If cycle is already pending deletion, drop subsequent updates to prevent revived ghost mutations
+  if (mutation.type === 'UPDATE_CYCLE' || mutation.type === 'UPDATE_LOG') {
+    const targetCycleId = mutation.type === 'UPDATE_CYCLE' 
+      ? (typeof mutation.payload === 'string' ? mutation.payload : mutation.payload?.id)
+      : mutation.payload?.cycleId;
+    if (targetCycleId) {
+      const hasPendingDelete = currentQueue.some(item =>
+        item.type === 'DELETE_CYCLE' &&
+        (typeof item.payload === 'string' ? item.payload : item.payload?.id) === targetCycleId
+      );
+      if (hasPendingDelete) {
+        return newItem;
+      }
+    }
+  }
+
   // Rule 3: CREATE_CYCLE followed by DELETE_CYCLE before sync
   if (mutation.type === 'DELETE_CYCLE') {
     const targetCycleId = typeof mutation.payload === 'string' ? mutation.payload : mutation.payload?.id;
@@ -240,7 +256,10 @@ export function enqueueOfflineMutation(
     const filteredQueue = currentQueue.filter(item => {
       if (item.type === 'UPDATE_CYCLE' && item.payload?.id === targetCycleId) return false;
       if (item.type === 'UPDATE_LOG' && item.payload?.cycleId === targetCycleId) return false;
-      if (item.type === 'DELETE_CYCLE' && item.dedupKey === dedupKey) return false;
+      if (item.type === 'DELETE_CYCLE' && (
+        item.dedupKey === dedupKey ||
+        (typeof item.payload === 'string' ? item.payload : item.payload?.id) === targetCycleId
+      )) return false;
       return true;
     });
     filteredQueue.push(newItem);
@@ -316,18 +335,95 @@ export function clearOfflineQueue(ownerId?: string | null): void {
   safeRemoveLocalStorage(key);
 }
 
+const SENSITIVE_KEYS = new Set([
+  'token', 'authtoken', 'password', 'otp', 'code', 'authorization',
+  'cookie', 'secret', 'hash', 'bearer', 'refreshtoken', 'accesstoken', 'authheader'
+]);
+
+/**
+ * Redacts sensitive credentials (tokens, passwords, OTPs, auth headers) from payloads
+ * before storing them in quarantine records.
+ */
+export function sanitizePayloadCredentials(val: any, depth = 0): any {
+  if (depth > 5 || val === null || val === undefined) return val;
+  if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') return val;
+  if (Array.isArray(val)) {
+    return val.map(item => sanitizePayloadCredentials(item, depth + 1));
+  }
+  if (typeof val === 'object') {
+    const cleaned: Record<string, any> = {};
+    for (const [k, v] of Object.entries(val)) {
+      const lower = k.toLowerCase().replace(/[-_]/g, '');
+      if (
+        SENSITIVE_KEYS.has(lower) || 
+        lower.includes('token') || 
+        lower.includes('password') || 
+        lower.includes('secret') ||
+        lower.includes('authheader') ||
+        lower.includes('otp')
+      ) {
+        cleaned[k] = '[REDACTED]';
+      } else {
+        cleaned[k] = sanitizePayloadCredentials(v, depth + 1);
+      }
+    }
+    return cleaned;
+  }
+  return val;
+}
+
+export interface QuarantineAuditItem {
+  id: string | null;
+  ownerId: string;
+  type: string;
+  timestamp: number;
+  dedupKey?: string;
+  retryCount: number;
+  lastError?: string;
+  hasPayload: boolean;
+}
+
+/**
+ * Creates safe metadata for the global quarantine audit ledger without duplicating
+ * complete private mutation payloads across multiple user accounts.
+ */
+export function toSafeQuarantineAuditItem(item: any): QuarantineAuditItem {
+  return {
+    id: typeof item?.id === 'string' ? item.id : null,
+    ownerId: normalizeQueueOwner(item?.ownerId),
+    type: typeof item?.type === 'string' ? item.type : 'UNKNOWN',
+    timestamp: typeof item?.timestamp === 'number' ? item.timestamp : Date.now(),
+    dedupKey: typeof item?.dedupKey === 'string' ? item.dedupKey : undefined,
+    retryCount: typeof item?.retryCount === 'number' ? item.retryCount : 0,
+    lastError: typeof item?.lastError === 'string' ? item.lastError : undefined,
+    hasPayload: item?.payload !== undefined
+  };
+}
+
 /**
  * Quarantines items to prevent data loss while keeping active partitions clean and isolated.
- * Sensitive mutation payloads are stored in the target owner's partition key.
- * Ambiguous or unverifiable items are routed to the ambiguous legacy quarantine partition.
+ * - Sensitive mutation payloads are sanitized and stored in the target owner's partition key.
+ * - Ambiguous or unverifiable items are routed to the ambiguous legacy quarantine partition.
+ * - The global compatibility ledger contains ONLY safe metadata without duplicating private payloads.
  */
 export function quarantineQueueItems(items: any[], reason: string, defaultOwnerId?: string | null): void {
   if (!items || items.length === 0) return;
   try {
+    // 1. Sanitize items to strip sensitive credentials (tokens, passwords, OTPs, auth headers)
+    const sanitizedItems = items.map(item => {
+      if (item && typeof item === 'object') {
+        return {
+          ...item,
+          payload: item.payload !== undefined ? sanitizePayloadCredentials(item.payload) : undefined
+        };
+      }
+      return item;
+    });
+
     const ownerGroups: Record<string, any[]> = {};
     const ambiguousItems: any[] = [];
 
-    for (const item of items) {
+    for (const item of sanitizedItems) {
       const explicitOwner = defaultOwnerId !== undefined ? defaultOwnerId : item?.ownerId;
       const normalized = normalizeUserId(explicitOwner);
       if (normalized) {
@@ -341,7 +437,7 @@ export function quarantineQueueItems(items: any[], reason: string, defaultOwnerI
       }
     }
 
-    // Write owner-scoped quarantines
+    // Write owner-scoped quarantines (preserves the account's own payload in its own isolated partition)
     for (const [owner, groupItems] of Object.entries(ownerGroups)) {
       const key = getScopedQuarantineKey(owner);
       const raw = safeGetLocalStorage(key);
@@ -367,14 +463,17 @@ export function quarantineQueueItems(items: any[], reason: string, defaultOwnerI
       safeSetLocalStorage(LEGACY_AMBIGUOUS_QUARANTINE_KEY, JSON.stringify(existing));
     }
 
-    // Write global quarantine ledger for auditing and backwards compatibility
+    // Write global quarantine ledger for auditing and backwards compatibility:
+    // IMPORTANT: Storing safe audit metadata ONLY. Complete private mutation payloads from
+    // different users are NEVER copied or aggregated into this shared global ledger.
     const globalRaw = safeGetLocalStorage(OFFLINE_QUARANTINE_KEY);
     const globalExisting = globalRaw ? JSON.parse(globalRaw) : [];
     globalExisting.push({
       quarantinedAt: new Date().toISOString(),
-      ownerId: defaultOwnerId || items[0]?.ownerId || null,
+      ownerId: defaultOwnerId ? normalizeQueueOwner(defaultOwnerId) : (items[0]?.ownerId ? normalizeQueueOwner(items[0]?.ownerId) : null),
       reason,
-      items
+      itemCount: items.length,
+      items: items.map(toSafeQuarantineAuditItem)
     });
     safeSetLocalStorage(OFFLINE_QUARANTINE_KEY, JSON.stringify(globalExisting));
   } catch (err) {
@@ -384,6 +483,8 @@ export function quarantineQueueItems(items: any[], reason: string, defaultOwnerI
 
 /**
  * Preserves unparseable or corrupted raw string data in quarantine before clearing storage keys.
+ * Full raw string is preserved ONLY in ambiguous quarantine partition; global audit ledger
+ * records safe metadata (length, timestamp, parse error) without storing arbitrary raw strings.
  */
 export function quarantineCorruptedRawData(raw: string, reason: string, error?: any): void {
   try {
@@ -399,9 +500,16 @@ export function quarantineCorruptedRawData(raw: string, reason: string, error?: 
     existingAmbiguous.push(entry);
     safeSetLocalStorage(LEGACY_AMBIGUOUS_QUARANTINE_KEY, JSON.stringify(existingAmbiguous));
 
+    // In global compatibility ledger, preserve only safe metadata (length, timestamp, reason, parseError)
+    const globalEntry = {
+      quarantinedAt: new Date().toISOString(),
+      reason,
+      rawLength: typeof raw === 'string' ? raw.length : 0,
+      parseError: error ? String(error) : undefined
+    };
     const existingGlobalRaw = safeGetLocalStorage(OFFLINE_QUARANTINE_KEY);
     const existingGlobal = existingGlobalRaw ? JSON.parse(existingGlobalRaw) : [];
-    existingGlobal.push(entry);
+    existingGlobal.push(globalEntry);
     safeSetLocalStorage(OFFLINE_QUARANTINE_KEY, JSON.stringify(existingGlobal));
   } catch (err) {
     console.warn('[Offline Queue] Failed to quarantine corrupted raw data:', err);
@@ -540,8 +648,8 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
     };
   }
 
-  // 2. Authentication Enforcement: Authenticated queue requires valid token
-  if (!options.authToken) {
+  // 2. Authentication Enforcement: Authenticated queue requires valid, non-empty auth token
+  if (!options.authToken || typeof options.authToken !== 'string' || options.authToken.trim().length === 0) {
     return {
       syncedCount: 0,
       failedCount: 0,

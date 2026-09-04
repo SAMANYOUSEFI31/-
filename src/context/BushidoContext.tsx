@@ -1,3 +1,15 @@
+/**
+ * ARCHITECTURAL NOTICE - SPRINT 3B.1 CONTRACT:
+ * 
+ * BushidoContext is currently an INACTIVE, UNMOUNTED alternative provider.
+ * The authoritative, active production runtime is src/App.tsx.
+ * 
+ * - App.tsx directly manages production state, online listeners, and queue replay.
+ * - BushidoProvider is NOT mounted in src/main.tsx or anywhere in the production tree.
+ * - This file is preserved for reference and potential future consolidation (Phase 3B.3).
+ * - All offline queue operations MUST route through src/utils/offlineQueueUtils.ts.
+ */
+
 import React, { 
   createContext, 
   useContext, 
