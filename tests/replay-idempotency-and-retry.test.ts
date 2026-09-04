@@ -915,4 +915,298 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
       assert.equal(userRecord.accentTheme, 'emerald');
     });
   });
+
+  // ===========================================================================
+  // 10. SERVER-SIDE CLIENTOPERATIONID IDEMPOTENCY & CROSS-USER ISOLATION
+  // ===========================================================================
+  describe('10. Server-Side clientOperationId Idempotency & Cross-User Isolation', () => {
+    const userBeta = 'usr_beta_tester';
+    const betaToken = generateToken({
+      userId: userBeta,
+      phoneNumber: '09121112233',
+      isVip: false,
+      tier: 'FREE'
+    });
+
+    beforeEach(() => {
+      if (!memoryStore.users.some(u => u.id === userBeta)) {
+        memoryStore.users.push({
+          id: userBeta,
+          phoneNumber: '09121112233',
+          email: 'beta@bushido.local',
+          name: 'Beta Warrior',
+          passwordHash: 'hashed_pwd_beta',
+          tier: 'free',
+          isVip: false,
+          isAdmin: false,
+          tokenVersion: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+    });
+
+    it('CREATE_CYCLE: clientOperationId deduplicates repeat requests and prevents cross-user collisions', async () => {
+      const sharedOpId = 'op_cyc_shared_test_123';
+
+      // 1. User A creates cycle with sharedOpId
+      const resA1 = await fetch(`${baseUrl}/api/cycles`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ambToken}`
+        },
+        body: JSON.stringify({
+          clientOperationId: sharedOpId,
+          title: 'User A Idempotent Cycle',
+          startDate: '1403-12-01',
+          endDate: '1403-12-30'
+        })
+      });
+      assert.equal(resA1.status, 200);
+      const dataA1 = await resA1.json() as any;
+      assert.ok(dataA1.cycle);
+      const cycleIdA = dataA1.cycle.id;
+
+      // 2. User A replays the EXACT SAME request with sharedOpId
+      const resA2 = await fetch(`${baseUrl}/api/cycles`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ambToken}`
+        },
+        body: JSON.stringify({
+          clientOperationId: sharedOpId,
+          title: 'User A Idempotent Cycle',
+          startDate: '1403-12-01',
+          endDate: '1403-12-30'
+        })
+      });
+      assert.equal(resA2.status, 200);
+      const dataA2 = await resA2.json() as any;
+      assert.equal(dataA2.deduplicated, true, 'Replay request must be marked deduplicated');
+      assert.equal(dataA2.cycle.id, cycleIdA, 'Deduplicated cycle ID must match initial creation');
+
+      // 3. User B sends request with identical sharedOpId
+      const resB = await fetch(`${baseUrl}/api/cycles`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${betaToken}`
+        },
+        body: JSON.stringify({
+          clientOperationId: sharedOpId,
+          title: 'User B Distinct Cycle',
+          startDate: '1403-12-01',
+          endDate: '1403-12-30'
+        })
+      });
+      assert.equal(resB.status, 200, 'User B must not collide with User A despite identical clientOperationId');
+      const dataB = await resB.json() as any;
+      assert.notEqual(dataB.cycle.id, cycleIdA, 'User B cycle must have distinct ID scoped to User B');
+
+      const cyclesA = await getUserCycles(ambUser);
+      const cyclesB = await getUserCycles(userBeta);
+      assert.equal(cyclesA.filter(c => c.title === 'User A Idempotent Cycle').length, 1, 'User A must have exactly 1 cycle');
+      assert.equal(cyclesB.filter(c => c.title === 'User B Distinct Cycle').length, 1, 'User B must have exactly 1 cycle');
+    });
+
+    it('UPDATE_LOG: clientOperationId and composite key guarantee idempotent log updates without cross-user leakage', async () => {
+      // First ensure parent cycles exist for both users
+      const cycleA = await createCycle(ambUser, {
+        title: 'Cycle for Log Test A',
+        startDate: '1403-12-01',
+        endDate: '1403-12-30'
+      });
+      const cycleB = await createCycle(userBeta, {
+        title: 'Cycle for Log Test B',
+        startDate: '1403-12-01',
+        endDate: '1403-12-30'
+      });
+
+      const sharedLogOpId = 'op_log_shared_idempotency_99';
+      const testDate = '1403-12-15';
+
+      // 1. User A upserts daily log
+      const resA1 = await fetch(`${baseUrl}/api/logs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ambToken}`
+        },
+        body: JSON.stringify({
+          clientOperationId: sharedLogOpId,
+          cycleId: cycleA.id,
+          date: testDate,
+          workout: true,
+          study: true
+        })
+      });
+      assert.equal(resA1.status, 200);
+
+      // 2. User A replays the EXACT SAME upsert request
+      const resA2 = await fetch(`${baseUrl}/api/logs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ambToken}`
+        },
+        body: JSON.stringify({
+          clientOperationId: sharedLogOpId,
+          cycleId: cycleA.id,
+          date: testDate,
+          workout: true,
+          study: true
+        })
+      });
+      assert.equal(resA2.status, 200);
+
+      const logsA = await getUserDailyLogs(ambUser);
+      const userALogsOnDate = logsA.filter(l => l.date === testDate);
+      assert.equal(userALogsOnDate.length, 1, 'Replaying log upsert must never duplicate records for user');
+      assert.equal(userALogsOnDate[0].workout, true);
+
+      // 3. User B sends log with identical clientOperationId but workout: false
+      const resB = await fetch(`${baseUrl}/api/logs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${betaToken}`
+        },
+        body: JSON.stringify({
+          clientOperationId: sharedLogOpId,
+          cycleId: cycleB.id,
+          date: testDate,
+          workout: false,
+          study: false
+        })
+      });
+      assert.equal(resB.status, 200);
+
+      const logsB = await getUserDailyLogs(userBeta);
+      const userBLogsOnDate = logsB.filter(l => l.date === testDate);
+      assert.equal(userBLogsOnDate.length, 1);
+      assert.equal(userBLogsOnDate[0].workout, false);
+
+      // Verify User A's log was unaffected by User B's identical clientOperationId
+      const refreshedLogA = await getDailyLogByDate(ambUser, testDate);
+      assert.equal(refreshedLogA?.workout, true);
+    });
+
+    it('UPDATE_CYCLE: replay is idempotent and rejects cross-user cycle modification', async () => {
+      const cycleA = await createCycle(ambUser, {
+        title: 'Original Cycle A',
+        startDate: '1403-12-01',
+        endDate: '1403-12-30'
+      });
+
+      const updateOpId = 'op_cyc_update_safety_55';
+
+      // 1. User A updates cycle
+      const resA1 = await fetch(`${baseUrl}/api/cycles/${cycleA.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ambToken}`
+        },
+        body: JSON.stringify({
+          clientOperationId: updateOpId,
+          title: 'Modified Title A'
+        })
+      });
+      assert.equal(resA1.status, 200);
+
+      // 2. User A replays identical update
+      const resA2 = await fetch(`${baseUrl}/api/cycles/${cycleA.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ambToken}`
+        },
+        body: JSON.stringify({
+          clientOperationId: updateOpId,
+          title: 'Modified Title A'
+        })
+      });
+      assert.equal(resA2.status, 200);
+
+      const fetchedA = await getCycleById(ambUser, cycleA.id);
+      assert.equal(fetchedA?.title, 'Modified Title A');
+
+      // 3. User B attempts to modify User A's cycle using the same or different opId
+      const resB = await fetch(`${baseUrl}/api/cycles/${cycleA.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${betaToken}`
+        },
+        body: JSON.stringify({
+          clientOperationId: updateOpId,
+          title: 'Hacked Title B'
+        })
+      });
+      assert.equal(resB.status, 404, 'User B must not be permitted to update User A cycle');
+    });
+
+    it('UPDATE_PROFILE: clientOperationId replay is idempotent and strictly user-scoped', async () => {
+      const profOpId = 'op_prof_idempotent_88';
+
+      // 1. User A updates profile
+      const resA1 = await fetch(`${baseUrl}/api/user/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ambToken}`
+        },
+        body: JSON.stringify({
+          clientOperationId: profOpId,
+          name: 'Ambiguous Master Prime',
+          accentTheme: 'amber'
+        })
+      });
+      assert.equal(resA1.status, 200);
+
+      // 2. User A replays identical request
+      const resA2 = await fetch(`${baseUrl}/api/user/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ambToken}`
+        },
+        body: JSON.stringify({
+          clientOperationId: profOpId,
+          name: 'Ambiguous Master Prime',
+          accentTheme: 'amber'
+        })
+      });
+      assert.equal(resA2.status, 200);
+
+      const userA = await findUserById(ambUser);
+      assert.equal(userA?.name, 'Ambiguous Master Prime');
+      assert.equal(userA?.accentTheme, 'amber');
+
+      // 3. User B updates profile with identical clientOperationId
+      const resB = await fetch(`${baseUrl}/api/user/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${betaToken}`
+        },
+        body: JSON.stringify({
+          clientOperationId: profOpId,
+          name: 'Beta Master Solo',
+          accentTheme: 'cyan'
+        })
+      });
+      assert.equal(resB.status, 200);
+
+      const userB = await findUserById(userBeta);
+      assert.equal(userB?.name, 'Beta Master Solo');
+      assert.equal(userB?.accentTheme, 'cyan');
+
+      // Confirm User A profile was not modified by User B request
+      const userAAfter = await findUserById(ambUser);
+      assert.equal(userAAfter?.name, 'Ambiguous Master Prime');
+    });
+  });
 });

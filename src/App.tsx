@@ -3,10 +3,7 @@ import React, {
   useEffect, 
   useMemo, 
   useCallback, 
-  useRef, 
-  Component, 
-  ErrorInfo, 
-  ReactNode 
+  useRef 
 } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Cycle, DailyLog, SystemSettings, UserProfile, AdminUserItem } from './types';
@@ -63,72 +60,12 @@ import { AutopsyModal } from './components/AutopsyModal';
 import { PaymentModal } from './components/PaymentModal';
 import { AuthModal } from './components/AuthModal';
 import { CreateCycleModal } from './components/CreateCycleModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { useBodyScrollLock } from './utils/useBodyScrollLock';
 import { Toast, ToastItem, ToastType } from './components/Toast';
 import { toPersianDigits } from './utils/numberUtils';
-import { RotateCcw, AlertTriangle, Eye, ShieldCheck, RefreshCw } from 'lucide-react';
+import { RotateCcw, Eye, ShieldCheck } from 'lucide-react';
 import './styles/tokens.css';
-
-interface ErrorBoundaryProps {
-  children: ReactNode;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-}
-
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = {
-    hasError: false,
-    error: null,
-  };
-
-  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
-  }
-
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('[Bushido ErrorBoundary] Uncaught runtime error:', error, errorInfo);
-  }
-
-  private handleReload = (): void => {
-    this.setState({ hasError: false, error: null });
-    window.location.reload();
-  };
-
-  public render(): ReactNode {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-[#09090b] text-zinc-100 flex items-center justify-center p-4 dir-rtl">
-          <div className="max-w-md w-full bg-[#121215] border border-red-500/30 rounded-3xl p-6 text-center space-y-4 shadow-2xl">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
-              <AlertTriangle className="w-7 h-7" />
-            </div>
-            <h2 className="text-lg font-bold text-zinc-100">خطایی در اجرای برنامه رخ داد</h2>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              سامانه بوشیدو با یک خطای غیرمنتظره رندرینگ مواجه شده است. برای جلوگیری از بازگشت به حالت ناپایدار، می‌توانید صفحه را مجدداً بارگذاری کنید.
-            </p>
-            {this.state.error && (
-              <div className="text-[11px] font-mono dir-ltr bg-black/60 p-3 rounded-xl text-red-300 overflow-x-auto text-left border border-zinc-800">
-                {this.state.error.toString()}
-              </div>
-            )}
-            <button
-              onClick={this.handleReload}
-              className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-red-600/20"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>بارگذاری مجدد سامانه</span>
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
 
 export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(() => {

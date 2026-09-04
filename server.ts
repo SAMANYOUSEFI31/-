@@ -769,7 +769,7 @@ app.get('/api/cycles/:id', authMiddleware, async (req: AuthenticatedRequest, res
 app.post('/api/cycles', authMiddleware, validateBody(createCycleSchema), async (req: AuthenticatedRequest, res, next) => {
   try {
     const userId = req.user!.userId;
-    const targetId = req.body.id || req.body.clientOperationId;
+    const targetId = req.body.id || (req.body.clientOperationId ? `cyc_${userId}_${req.body.clientOperationId}` : undefined);
     if (targetId) {
       const existing = await getCycleById(userId, targetId);
       if (existing) {

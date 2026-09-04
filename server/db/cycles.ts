@@ -60,7 +60,7 @@ export async function createCycle(
     rules?: string[];
   }
 ): Promise<DBCycle> {
-  const targetId = data.id || data.clientOperationId;
+  const targetId = data.id || (data.clientOperationId ? `cyc_${userId}_${data.clientOperationId}` : undefined);
   if (targetId) {
     if (isPrismaAvailable && prisma) {
       try {

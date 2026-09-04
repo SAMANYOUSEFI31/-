@@ -67,6 +67,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Bypass Vite dev server internal assets, dev modules, and HMR requests
+  if (
+    url.pathname.startsWith('/@') ||
+    url.pathname.startsWith('/src/') ||
+    url.pathname.startsWith('/node_modules/') ||
+    url.pathname.includes('.vite/') ||
+    url.searchParams.has('t') ||
+    url.searchParams.has('import') ||
+    url.pathname.includes('hot-update')
+  ) {
+    return;
+  }
+
   // 1. API Requests: Network Only with Graceful Offline JSON Fallback
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(

@@ -73,7 +73,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             {/* Error detail banner */}
-            {process.env.NODE_ENV !== 'production' ? (
+            {import.meta.env.DEV ? (
               <div className="bg-[#09090b] border border-red-500/30 rounded-2xl p-4 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-bold text-red-300">
                   <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />

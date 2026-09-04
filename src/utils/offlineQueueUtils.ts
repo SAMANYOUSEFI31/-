@@ -22,14 +22,52 @@ export {
 };
 
 /**
- * CROSS-TAB CONCURRENCY & REPLAY CONTRACT:
- * 1. The localStorage lease mechanism (acquireReplayLock, verifyReplayLock, renewReplayLock, releaseReplayLock)
- *    provides best-effort cross-tab concurrency coordination. Because localStorage does not offer hardware-level
- *    atomic Compare-And-Swap primitives, read-back verification and lease timestamps minimize overlap windows.
- * 2. Pre-request renewal and post-response verification prevent stale lock holders from committing stale state.
- * 3. Delivery Guarantee: At-least-once delivery with server-side idempotent deduplication
- *    (stable clientOperationId, entity UUIDs, unique composite constraints). Server-side idempotency
- *    remains the authoritative defense against ambiguous duplicate delivery.
+ * =============================================================================
+ * PHASE 3B.3: REPLAY CONTRACT & CONCURRENCY COORDINATION SPECIFICATION
+ * =============================================================================
+ *
+ * 1. Best-Effort Ephemeral Leases (localStorage Across Tabs / Workers):
+ *    - The localStorage lease mechanism (`acquireReplayLock`, `verifyReplayLock`, `renewReplayLock`, `releaseReplayLock`)
+ *      provides best-effort mutual exclusion across browser tabs and web workers within the same origin.
+ *    - Because Web Storage (`localStorage`) lacks hardware-level atomic Compare-And-Swap (CAS) primitives
+ *      or distributed consensus guarantees, write-then-readback verification and millisecond timestamp leases
+ *      minimize race windows.
+ *    - localStorage leases are strictly an advisory optimization to reduce superfluous redundant network requests;
+ *      they are NOT guaranteed distributed locks and must NEVER be relied upon as the sole line of defense.
+ *
+ * 2. Risk of Browser Timer Throttling:
+ *    - Modern browsers aggressively throttle timers (`setInterval`, `setTimeout`) in inactive, background,
+ *      or minimized tabs, as well as on mobile devices under operating system power-saving policies.
+ *    - Timer throttling can delay heartbeat renewal executions past the effective lease timeout boundary,
+ *      allowing another foreground tab to legitimately assume lease ownership and initiate replay.
+ *    - The client-side replay loop handles this gracefully via dual verification (in-flight heartbeat failure
+ *      detection and post-fetch CAS lease verification): if a lease is expired or assumed by another tab,
+ *      the current replay loop halts immediately (`stoppedDueToLockLoss: true`), does NOT mutate queue state,
+ *      and does NOT emit `onItemSuccess`.
+ *
+ * 3. Role of Heartbeats in Bridging Lease Duration and Request Duration:
+ *    - To protect against abandoned leases caused by crashed tabs, closed windows, or killed worker threads,
+ *      the lease timeout (`leaseTimeoutMs`, production default 10,000ms) is intentionally bounded.
+ *    - Individual high-latency HTTP requests, heavy payloads, or poor cellular connections may take significantly
+ *      longer to execute than the lease duration.
+ *    - Periodic in-flight heartbeats (`heartbeatIntervalMs`, strictly configured below lease timeout) execute
+ *      during active network fetch operations to refresh the lease timestamp in `localStorage`.
+ *    - This bridges the gap between short lease expiration windows and arbitrarily long in-flight network requests,
+ *      holding the lease active as long as the requesting tab remains responsive and network execution continues.
+ *    - Once the request completes (success, network error, HTTP error, or detected lock loss), the heartbeat
+ *      interval is synchronously and deterministically cleared in `finally` blocks, preventing resource or handle leaks.
+ *
+ * 4. Mandatory Server-Side Idempotency:
+ *    - Because client leases are best-effort, ambiguous network delivery (e.g. client connection drops after the server
+ *      commits a mutation, or concurrent replays across two tabs) can cause at-least-once delivery duplicates.
+ *    - Therefore, server-side idempotency remains MANDATORY and AUTHORITATIVE:
+ *      * Every replayable mutation includes a stable `clientOperationId` (derived deterministically from `item.id`).
+ *      * Cycles enforce server-authoritative deduplication on `clientOperationId` scoped strictly to `userId`.
+ *      * Daily logs enforce composite unique constraints on `(userId, date)`.
+ *      * User profiles enforce atomic updates scoped strictly to the authenticated `userId`.
+ *    - Server-side deduplication guarantees that replaying an operation multiple times produces identical state
+ *      without duplicating records or leaking mutations across distinct users.
+ * =============================================================================
  */
 
 export const OFFLINE_QUARANTINE_PREFIX = 'bushido_quarantine_';
@@ -41,6 +79,67 @@ export const MAX_REPLAY_RETRIES = 5;
 export const REPLAY_LOCK_PREFIX = 'bushido_replay_lock_';
 export const REPLAY_LOCK_TIMEOUT_MS = 10000;
 export const REPLAY_LOCK_HEARTBEAT_INTERVAL_MS = 3000;
+
+export const MIN_REPLAY_LOCK_TIMEOUT_MS = 20;
+export const MIN_REPLAY_LOCK_HEARTBEAT_INTERVAL_MS = 5;
+
+/**
+ * Normalizes and validates the replay lease timeout.
+ * - Preserves REPLAY_LOCK_TIMEOUT_MS = 10000 as the production default.
+ * - Rejects/normalizes NaN, Infinity, negative, zero, fractional, and non-number values safely.
+ * - Enforces MIN_REPLAY_LOCK_TIMEOUT_MS.
+ */
+export function resolveReplayLockTimeout(timeoutMs?: unknown): number {
+  if (
+    typeof timeoutMs !== 'number' ||
+    !Number.isFinite(timeoutMs) ||
+    Number.isNaN(timeoutMs) ||
+    timeoutMs <= 0
+  ) {
+    return REPLAY_LOCK_TIMEOUT_MS;
+  }
+  const floored = Math.floor(timeoutMs);
+  return Math.max(MIN_REPLAY_LOCK_TIMEOUT_MS, floored);
+}
+
+/**
+ * Normalizes and validates the replay heartbeat interval.
+ * - Heartbeat interval must remain strictly below the effective lease timeout.
+ * - Rejects/normalizes NaN, Infinity, negative, zero, fractional, and non-number values safely.
+ * - Clamps to MIN_REPLAY_LOCK_HEARTBEAT_INTERVAL_MS to prevent tight-loop timer storms.
+ */
+export function resolveHeartbeatInterval(intervalMs?: unknown, effectiveLeaseTimeoutMs?: number): number {
+  const leaseTimeout = resolveReplayLockTimeout(effectiveLeaseTimeoutMs);
+
+  let interval: number;
+  if (
+    typeof intervalMs !== 'number' ||
+    !Number.isFinite(intervalMs) ||
+    Number.isNaN(intervalMs) ||
+    intervalMs <= 0
+  ) {
+    if (leaseTimeout === REPLAY_LOCK_TIMEOUT_MS) {
+      interval = REPLAY_LOCK_HEARTBEAT_INTERVAL_MS;
+    } else {
+      interval = Math.max(MIN_REPLAY_LOCK_HEARTBEAT_INTERVAL_MS, Math.floor(leaseTimeout / 3));
+    }
+  } else {
+    interval = Math.floor(intervalMs);
+  }
+
+  // Prevent tight-loop timer storms
+  interval = Math.max(MIN_REPLAY_LOCK_HEARTBEAT_INTERVAL_MS, interval);
+
+  // Heartbeat interval must remain strictly below the effective lease timeout
+  if (interval >= leaseTimeout) {
+    interval = Math.max(MIN_REPLAY_LOCK_HEARTBEAT_INTERVAL_MS, Math.floor(leaseTimeout / 2));
+    if (interval >= leaseTimeout) {
+      interval = Math.max(1, leaseTimeout - 1);
+    }
+  }
+
+  return interval;
+}
 
 export const INITIAL_REPLAY_BACKOFF_MS = 2000;
 export const MAX_REPLAY_BACKOFF_MS = 30000;
@@ -63,15 +162,16 @@ const inFlightReplayPromises = new Map<string, Promise<ReplayResult>>();
  * Acquires a cross-tab ephemeral storage lease for replay execution.
  * Returns the acquired unique lockId string on success, or null on failure/contention.
  */
-export function acquireReplayLock(owner: string): string | null {
+export function acquireReplayLock(owner: string, timeoutMs?: number): string | null {
   const normOwner = normalizeQueueOwner(owner);
   const lockKey = `${REPLAY_LOCK_PREFIX}${normOwner}`;
+  const effectiveTimeout = resolveReplayLockTimeout(timeoutMs);
   const now = Date.now();
   const existingRaw = safeGetLocalStorage(lockKey);
   if (existingRaw) {
     try {
       const parsed = JSON.parse(existingRaw);
-      if (parsed && typeof parsed.timestamp === 'number' && (now - parsed.timestamp) < REPLAY_LOCK_TIMEOUT_MS) {
+      if (parsed && typeof parsed.timestamp === 'number' && (now - parsed.timestamp) < effectiveTimeout) {
         return null;
       }
     } catch {
@@ -99,16 +199,17 @@ export function acquireReplayLock(owner: string): string | null {
 /**
  * Verifies that the cross-tab lease is currently active and belongs to the given lockId.
  */
-export function verifyReplayLock(owner: string, lockId: string): boolean {
+export function verifyReplayLock(owner: string, lockId: string, timeoutMs?: number): boolean {
   if (!lockId) return false;
   const normOwner = normalizeQueueOwner(owner);
   const lockKey = `${REPLAY_LOCK_PREFIX}${normOwner}`;
+  const effectiveTimeout = resolveReplayLockTimeout(timeoutMs);
   const raw = safeGetLocalStorage(lockKey);
   if (!raw) return false;
   try {
     const parsed = JSON.parse(raw);
     const now = Date.now();
-    if (parsed?.lockId === lockId && typeof parsed.timestamp === 'number' && (now - parsed.timestamp) < REPLAY_LOCK_TIMEOUT_MS) {
+    if (parsed?.lockId === lockId && typeof parsed.timestamp === 'number' && (now - parsed.timestamp) < effectiveTimeout) {
       return true;
     }
   } catch {}
@@ -119,10 +220,11 @@ export function verifyReplayLock(owner: string, lockId: string): boolean {
  * Renews the cross-tab lease timestamp for the current lockId holder.
  * Only the active holder can renew. Returns false if ownership was lost or expired.
  */
-export function renewReplayLock(owner: string, lockId: string): boolean {
+export function renewReplayLock(owner: string, lockId: string, timeoutMs?: number): boolean {
   if (!lockId) return false;
   const normOwner = normalizeQueueOwner(owner);
   const lockKey = `${REPLAY_LOCK_PREFIX}${normOwner}`;
+  const effectiveTimeout = resolveReplayLockTimeout(timeoutMs);
   const raw = safeGetLocalStorage(lockKey);
   if (!raw) return false;
   try {
@@ -132,7 +234,7 @@ export function renewReplayLock(owner: string, lockId: string): boolean {
       // Lock has been taken over by another tab/holder
       return false;
     }
-    if (typeof parsed.timestamp !== 'number' || (now - parsed.timestamp) >= REPLAY_LOCK_TIMEOUT_MS) {
+    if (typeof parsed.timestamp !== 'number' || (now - parsed.timestamp) >= effectiveTimeout) {
       // Lease already expired; cannot revive an expired lease
       return false;
     }
@@ -869,6 +971,11 @@ export function migrateLegacyGlobalQueue(): { migratedCount: number; quarantined
   return { migratedCount, quarantinedCount };
 }
 
+export interface ReplayLockTimingConfig {
+  leaseTimeoutMs?: number;
+  heartbeatIntervalMs?: number;
+}
+
 export interface ReplayOptions {
   activeAccountId: string | null;
   authToken: string | null;
@@ -877,6 +984,8 @@ export interface ReplayOptions {
   force?: boolean;
   respectBackoff?: boolean;
   heartbeatIntervalMs?: number;
+  leaseTimeoutMs?: number;
+  lockTiming?: ReplayLockTimingConfig;
   onItemSuccess?: (item: OfflineQueueItem) => void;
   onItemFailure?: (item: OfflineQueueItem, error: any) => void;
   getCurrentActiveAccountId?: () => string | null;
@@ -962,8 +1071,13 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
     });
   }
 
+  const rawLeaseTimeout = options.lockTiming?.leaseTimeoutMs ?? options.leaseTimeoutMs;
+  const rawHeartbeatInterval = options.lockTiming?.heartbeatIntervalMs ?? options.heartbeatIntervalMs;
+  const resolvedLeaseTimeoutMs = resolveReplayLockTimeout(rawLeaseTimeout);
+  const resolvedHeartbeatIntervalMs = resolveHeartbeatInterval(rawHeartbeatInterval, resolvedLeaseTimeoutMs);
+
   // 4. Concurrency Protection (Inter-tab): Acquire cross-tab storage lease
-  const lockId = acquireReplayLock(initialOwner);
+  const lockId = acquireReplayLock(initialOwner, resolvedLeaseTimeoutMs);
   if (!lockId) {
     return {
       syncedCount: 0,
@@ -981,7 +1095,13 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
 
   const runReplay = async (): Promise<ReplayResult> => {
     try {
-      return await executeReplayLoop(effectiveOptions, initialOwner, lockId);
+      return await executeReplayLoop(
+        effectiveOptions,
+        initialOwner,
+        lockId,
+        resolvedLeaseTimeoutMs,
+        resolvedHeartbeatIntervalMs
+      );
     } finally {
       releaseReplayLock(initialOwner, lockId);
       inFlightReplayPromises.delete(initialOwner);
@@ -996,7 +1116,9 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
 async function executeReplayLoop(
   options: ReplayOptions, 
   initialOwner: string,
-  lockId?: string | null
+  lockId?: string | null,
+  leaseTimeoutMs: number = REPLAY_LOCK_TIMEOUT_MS,
+  heartbeatIntervalMs: number = REPLAY_LOCK_HEARTBEAT_INTERVAL_MS
 ): Promise<ReplayResult> {
   const fetchFn = options.fetchImpl || options.fetchFn || (typeof fetch !== 'undefined' ? fetch : undefined);
   if (!fetchFn) {
@@ -1050,7 +1172,7 @@ async function executeReplayLoop(
     }
 
     // 4. Pre-request Lease Ownership & Heartbeat Renewal Check
-    if (lockId && !renewReplayLock(initialOwner, lockId)) {
+    if (lockId && !renewReplayLock(initialOwner, lockId, leaseTimeoutMs)) {
       return {
         syncedCount,
         failedCount,
@@ -1157,11 +1279,9 @@ async function executeReplayLoop(
       let leaseLostDuringFlight = false;
       let heartbeatTimer: any = null;
 
-      const heartbeatIntervalMs = options.heartbeatIntervalMs || REPLAY_LOCK_HEARTBEAT_INTERVAL_MS;
-
       if (lockId) {
         heartbeatTimer = setInterval(() => {
-          const renewed = renewReplayLock(initialOwner, lockId);
+          const renewed = renewReplayLock(initialOwner, lockId, leaseTimeoutMs);
           if (!renewed) {
             leaseLostDuringFlight = true;
             if (heartbeatTimer) {
@@ -1190,7 +1310,7 @@ async function executeReplayLoop(
 
       // In-flight Lease Ownership Verification:
       // If heartbeat failed during network execution or lease was lost/expired, abort safely
-      if (lockId && (leaseLostDuringFlight || !verifyReplayLock(initialOwner, lockId))) {
+      if (lockId && (leaseLostDuringFlight || !verifyReplayLock(initialOwner, lockId, leaseTimeoutMs))) {
         return {
           syncedCount,
           failedCount,
@@ -1233,7 +1353,7 @@ async function executeReplayLoop(
 
         // Post-fetch Lease Ownership Verification:
         // Ensure this tab still holds the active lease before removing from queue and committing success
-        if (lockId && !verifyReplayLock(initialOwner, lockId)) {
+        if (lockId && !verifyReplayLock(initialOwner, lockId, leaseTimeoutMs)) {
           return {
             syncedCount,
             failedCount,
