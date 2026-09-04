@@ -56,6 +56,8 @@ export interface AuthUserPayload {
   tier: string;
   isAdmin?: boolean;
   tokenVersion?: number;
+  isImpersonated?: boolean;
+  impersonatedBy?: string | null;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -112,7 +114,10 @@ export async function authMiddleware(
       phoneNumber: user.phoneNumber,
       isVip: isMaster ? true : user.isVip,
       tier: isMaster ? 'vip_samurai' : user.tier,
-      isAdmin: isMaster ? true : Boolean(user.isAdmin)
+      isAdmin: isMaster ? true : Boolean(user.isAdmin),
+      tokenVersion: user.tokenVersion ?? 0,
+      isImpersonated: Boolean(decoded.isImpersonated),
+      impersonatedBy: decoded.impersonatedBy || null
     };
 
     next();
@@ -181,7 +186,10 @@ export async function adminMiddleware(
       phoneNumber: user.phoneNumber,
       isVip: true,
       tier: 'vip_samurai',
-      isAdmin: true
+      isAdmin: true,
+      tokenVersion: user.tokenVersion ?? 0,
+      isImpersonated: Boolean(decoded.isImpersonated),
+      impersonatedBy: decoded.impersonatedBy || null
     };
 
     next();
@@ -216,7 +224,10 @@ export async function optionalAuthMiddleware(
             phoneNumber: user.phoneNumber,
             isVip: isMaster ? true : user.isVip,
             tier: isMaster ? 'vip_samurai' : user.tier,
-            isAdmin: isMaster ? true : Boolean(user.isAdmin)
+            isAdmin: isMaster ? true : Boolean(user.isAdmin),
+            tokenVersion: user.tokenVersion ?? 0,
+            isImpersonated: Boolean(decoded.isImpersonated),
+            impersonatedBy: decoded.impersonatedBy || null
           };
         }
       }

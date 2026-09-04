@@ -1291,8 +1291,16 @@ app.post('/api/admin/users/create-test', adminMiddleware, async (req: Authentica
 app.post('/api/admin/impersonate', adminMiddleware, async (req: AuthenticatedRequest, res, next) => {
   try {
     const { targetUserId } = req.body;
-    const targetUser = await findUserById(targetUserId);
-    
+    if (!targetUserId || typeof targetUserId !== 'string' || !targetUserId.trim()) {
+      return res.status(400).json({ code: 'INVALID_REQUEST', messageFa: 'شناسه کاربر هدف الزامی است.' });
+    }
+
+    const cleanTargetId = targetUserId.trim();
+    if (cleanTargetId === req.user!.userId) {
+      return res.status(400).json({ code: 'SELF_IMPERSONATION_FORBIDDEN', messageFa: 'شبیه‌سازی حساب خود مجاز نمی‌باشد.' });
+    }
+
+    const targetUser = await findUserById(cleanTargetId);
     if (!targetUser) {
       return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'کاربر مورد نظر یافت نشد.' });
     }
@@ -1301,12 +1309,31 @@ app.post('/api/admin/impersonate', adminMiddleware, async (req: AuthenticatedReq
       userId: targetUser.id,
       email: targetUser.email,
       phoneNumber: targetUser.phoneNumber,
-      isVip: targetUser.isVip,
+      isVip: Boolean(targetUser.isVip),
       tier: targetUser.tier,
-      isAdmin: Boolean(targetUser.isAdmin)
+      isAdmin: Boolean(targetUser.isAdmin),
+      tokenVersion: targetUser.tokenVersion ?? 0,
+      isImpersonated: true,
+      impersonatedBy: req.user!.userId
     });
 
-    res.json({ success: true, token, user: targetUser, messageFa: `شبیه‌سازی کاربر فعال شد.` });
+    console.log(`[Audit:Impersonation] Admin ${req.user!.userId} impersonated user ${targetUser.id} (${targetUser.phoneNumber || targetUser.email || targetUser.name})`);
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: targetUser.id,
+        name: targetUser.name,
+        email: targetUser.email,
+        phoneNumber: targetUser.phoneNumber,
+        tier: targetUser.tier,
+        isVip: Boolean(targetUser.isVip),
+        isAdmin: Boolean(targetUser.isAdmin),
+        vipExpiresAt: targetUser.vipExpiresAt
+      },
+      messageFa: `شبیه‌سازی کاربر فعال شد.`
+    });
   } catch (error) {
     next(error);
   }

@@ -126,8 +126,17 @@ export default function App() {
     return safeGetLocalStorage(TOKEN_KEY);
   });
 
-  const [impersonatingUser, setImpersonatingUser] = useState<AdminUserItem | null>(null);
-  const [impersonatorAdminToken, setImpersonatorAdminToken] = useState<string | null>(null);
+  const [impersonatingUser, setImpersonatingUser] = useState<AdminUserItem | null>(() => {
+    try {
+      const stored = safeGetSessionStorage('bushido_impersonating_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [impersonatorAdminToken, setImpersonatorAdminToken] = useState<string | null>(() => {
+    return safeGetSessionStorage('bushido_impersonator_token');
+  });
 
   const [systemState, setSystemState] = useState<{
     cycles: Cycle[];
@@ -785,6 +794,8 @@ export default function App() {
       if (res.ok && data.token && data.user) {
         setImpersonatorAdminToken(currentToken);
         setImpersonatingUser(targetUser);
+        safeSetSessionStorage('bushido_impersonator_token', currentToken);
+        safeSetSessionStorage('bushido_impersonating_user', JSON.stringify(targetUser));
         safeSetLocalStorage(TOKEN_KEY, data.token);
         setAuthToken(data.token);
         const transition = transitionAccountState({
@@ -805,7 +816,7 @@ export default function App() {
         // Explicit binding: Replay target user's queue with target token
         syncOfflineDataToServer(data.user.id, data.token);
       } else {
-        showAppToast(data.error || 'خطا در سوییچ به کاربر');
+        showAppToast(data.messageFa || data.error || 'خطا در سوییچ به کاربر');
       }
     } catch (e) {
       console.error('Impersonate user error:', e);
@@ -814,15 +825,21 @@ export default function App() {
   };
 
   const handleExitImpersonation = async () => {
-    if (!impersonatorAdminToken) return;
+    const adminToken = impersonatorAdminToken || safeGetSessionStorage('bushido_impersonator_token');
+    if (!adminToken) return;
     try {
-      safeSetLocalStorage(TOKEN_KEY, impersonatorAdminToken);
-      setAuthToken(impersonatorAdminToken);
+      safeRemoveSessionStorage('bushido_impersonator_token');
+      safeRemoveSessionStorage('bushido_impersonating_user');
       setImpersonatingUser(null);
+      setImpersonatorAdminToken(null);
+
+      safeSetLocalStorage(TOKEN_KEY, adminToken);
+      setAuthToken(adminToken);
+
       const res = await fetch('/api/auth/me', {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${impersonatorAdminToken}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
       if (res.ok) {
@@ -842,10 +859,9 @@ export default function App() {
             setActiveCycleId(transition.nextActiveCycleId);
           }
           // Explicit binding: Replay admin's own queue with admin token (NEVER target user queue)
-          syncOfflineDataToServer(data.user.id, impersonatorAdminToken);
+          syncOfflineDataToServer(data.user.id, adminToken);
         }
       }
-      setImpersonatorAdminToken(null);
       setActiveTab('admin');
       showAppToast('به حساب مدیریت بازگشتید.');
     } catch (e) {
@@ -855,6 +871,8 @@ export default function App() {
 
   const handleLogout = () => {
     safeRemoveLocalStorage(TOKEN_KEY);
+    safeRemoveSessionStorage('bushido_impersonator_token');
+    safeRemoveSessionStorage('bushido_impersonating_user');
     safeSetSessionStorage('bushido_explicit_logout', 'true');
     setAuthToken(null);
     setImpersonatingUser(null);

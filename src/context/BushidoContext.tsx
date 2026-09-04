@@ -161,8 +161,17 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   });
 
-  const [impersonatingUser, setImpersonatingUser] = useState<AdminUserItem | null>(null);
-  const [impersonatorAdminToken, setImpersonatorAdminToken] = useState<string | null>(null);
+  const [impersonatingUser, setImpersonatingUser] = useState<AdminUserItem | null>(() => {
+    try {
+      const stored = safeGetSessionStorage('bushido_impersonating_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [impersonatorAdminToken, setImpersonatorAdminToken] = useState<string | null>(() => {
+    return safeGetSessionStorage('bushido_impersonator_token');
+  });
 
   const [systemState, setSystemState] = useState<{
     cycles: Cycle[];
@@ -1011,6 +1020,8 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
         if (data.token && data.user) {
           setImpersonatorAdminToken(currentToken);
           setImpersonatingUser(targetUser);
+          safeSetSessionStorage('bushido_impersonator_token', currentToken);
+          safeSetSessionStorage('bushido_impersonating_user', JSON.stringify(targetUser));
           safeSetLocalStorage(TOKEN_KEY, data.token);
           setAuthToken(data.token);
           const transition = transitionAccountState({
@@ -1044,15 +1055,21 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [authToken, systemState, showAppToast, syncOfflineDataToServer]);
 
   const handleExitImpersonation = useCallback(async () => {
-    if (!impersonatorAdminToken) return;
+    const adminToken = impersonatorAdminToken || safeGetSessionStorage('bushido_impersonator_token');
+    if (!adminToken) return;
     try {
-      safeSetLocalStorage(TOKEN_KEY, impersonatorAdminToken);
-      setAuthToken(impersonatorAdminToken);
+      safeRemoveSessionStorage('bushido_impersonator_token');
+      safeRemoveSessionStorage('bushido_impersonating_user');
       setImpersonatingUser(null);
+      setImpersonatorAdminToken(null);
+
+      safeSetLocalStorage(TOKEN_KEY, adminToken);
+      setAuthToken(adminToken);
+
       const res = await fetch('/api/auth/me', {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${impersonatorAdminToken}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
       if (res.ok) {
@@ -1072,10 +1089,9 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
             setActiveCycleId(transition.nextActiveCycleId);
           }
           // Explicit binding: Replay admin's own queue with admin token (NEVER target user queue)
-          syncOfflineDataToServer(data.user.id, impersonatorAdminToken);
+          syncOfflineDataToServer(data.user.id, adminToken);
         }
       }
-      setImpersonatorAdminToken(null);
       setActiveTab('admin');
       showAppToast('به حساب مدیریت بازگشتید.');
     } catch (e) {
@@ -1085,9 +1101,12 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const handleLogout = useCallback(() => {
     safeRemoveLocalStorage(TOKEN_KEY);
+    safeRemoveSessionStorage('bushido_impersonator_token');
+    safeRemoveSessionStorage('bushido_impersonating_user');
     safeSetSessionStorage('bushido_explicit_logout', 'true');
     setAuthToken(null);
     setImpersonatingUser(null);
+    setImpersonatorAdminToken(null);
     setImpersonatorAdminToken(null);
     const transition = transitionAccountState({
       currentSystemState: systemState,
