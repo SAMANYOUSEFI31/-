@@ -6,7 +6,7 @@ import React, {
   useRef 
 } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Cycle, DailyLog, SystemSettings, UserProfile, AdminUserItem } from './types';
+import { Cycle, DailyLog, SystemSettings, UserProfile, AdminUserItem, OfflineQueueItem } from './types';
 import { createInitialSystemState, GUEST_USER_PROFILE } from './data/initialData';
 import { computeCycleMetrics, createEmptyCycleMetrics } from './engine/bushidoCalculations';
 import { getLogicalTodayDate, addDaysToDate } from './utils/dateUtils';
@@ -43,7 +43,9 @@ import {
 import { 
   createSyncOrchestrator, 
   SyncTrigger, 
-  SyncOrchestrator 
+  SyncOrchestrator,
+  SyncRunOutcome,
+  bindBootAuthAndRequestSync
 } from './utils/syncOrchestrator';
 import {
   IMPERSONATOR_TOKEN_KEY,
@@ -188,12 +190,43 @@ export default function App() {
     showAppToastRef.current = showAppToast;
   }, [showAppToast]);
 
+  const handleAppItemSuccess = useCallback((item: OfflineQueueItem) => {
+    if (item.type === 'UPDATE_LOG') {
+      setSystemState(prev => ({
+        ...prev,
+        logs: prev.logs.map(l => l.date === item.payload.date ? { ...l, isSynced: true } : l)
+      }));
+    } else if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
+      setSystemState(prev => ({
+        ...prev,
+        cycles: prev.cycles.map(c => c.id === item.payload.id ? { ...c, isSynced: true } : c)
+      }));
+    }
+  }, []);
+
+  const handleAppSyncResult = useCallback((outcome: SyncRunOutcome) => {
+    if (
+      outcome.status === 'COMPLETED' &&
+      outcome.syncedCount > 0 &&
+      !outcome.stoppedDueToAccountChange &&
+      !outcome.stoppedDueToLockLoss &&
+      !outcome.stoppedDueToAuth
+    ) {
+      showAppToastRef.current(
+        `همگام‌سازی ابری با موفقیت انجام شد (${toPersianDigits(outcome.syncedCount)} تغییر ذخیره شد).`,
+        'success'
+      );
+    }
+  }, []);
+
   const syncOrchestratorRef = useRef<SyncOrchestrator | null>(null);
   if (!syncOrchestratorRef.current) {
     // Single sync orchestrator gateway delegating to replayAccountOfflineQueue with full coalescing
     syncOrchestratorRef.current = createSyncOrchestrator({
       currentActiveAccountResolver: () => activeAccountRef.current,
-      isOnlineResolver: () => typeof navigator === 'undefined' || navigator.onLine
+      isOnlineResolver: () => typeof navigator === 'undefined' || navigator.onLine,
+      defaultItemSuccessCallback: handleAppItemSuccess,
+      defaultResultCallback: handleAppSyncResult
     });
   }
   const syncOrchestrator = syncOrchestratorRef.current;
@@ -213,43 +246,10 @@ export default function App() {
       targetToken: token,
       force,
       currentActiveAccountResolver: () => activeAccountRef.current,
-      onItemSuccess: (item) => {
-        if (item.type === 'UPDATE_LOG') {
-          setSystemState(prev => ({
-            ...prev,
-            logs: prev.logs.map(l => l.date === item.payload.date ? { ...l, isSynced: true } : l)
-          }));
-        } else if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
-          setSystemState(prev => ({
-            ...prev,
-            cycles: prev.cycles.map(c => c.id === item.payload.id ? { ...c, isSynced: true } : c)
-          }));
-        }
-      },
-      onResult: (outcome) => {
-        if (
-          outcome.status === 'COMPLETED' &&
-          outcome.syncedCount > 0 &&
-          !outcome.stoppedDueToAccountChange &&
-          !outcome.stoppedDueToLockLoss &&
-          !outcome.stoppedDueToAuth
-        ) {
-          showAppToastRef.current(
-            `همگام‌سازی ابری با موفقیت انجام شد (${toPersianDigits(outcome.syncedCount)} تغییر ذخیره شد).`,
-            'success'
-          );
-        }
-      }
+      onItemSuccess: handleAppItemSuccess,
+      onResult: handleAppSyncResult
     });
-  }, [syncOrchestrator]);
-
-  const syncOfflineDataToServer = useCallback((
-    targetOwnerId?: string | null,
-    targetToken?: string | null,
-    force = false
-  ) => {
-    return requestSync(force ? 'MANUAL_FORCE' : 'BOOT_AUTH_VERIFIED', targetOwnerId, targetToken, force);
-  }, [requestSync]);
+  }, [syncOrchestrator, handleAppItemSuccess, handleAppSyncResult]);
 
   useEffect(() => {
     let onlineTimer: any = null;
@@ -293,6 +293,8 @@ export default function App() {
                 currentToken = data.token;
                 safeSetLocalStorage(TOKEN_KEY, data.token);
                 setActiveAccountId(data.user.id);
+                activeAccountRef.current = data.user.id;
+                authTokenRef.current = data.token;
                 setAuthToken(data.token);
               }
             }
@@ -323,6 +325,8 @@ export default function App() {
             const userData = await userRes.json();
             if (userData?.user) {
               setActiveAccountId(userData.user.id);
+              activeAccountRef.current = userData.user.id;
+              authTokenRef.current = currentToken;
               fetchedUserProfile = {
                 ...userData.user,
                 isVip: Boolean(userData.user.isVip),
@@ -332,6 +336,8 @@ export default function App() {
           } else if (userRes.status === 401) {
             safeRemoveLocalStorage(TOKEN_KEY);
             setActiveAccountId(null);
+            activeAccountRef.current = null;
+            authTokenRef.current = null;
             setAuthToken(null);
           }
         }
@@ -392,7 +398,14 @@ export default function App() {
 
         // Replay identity binding: Replay starts after verified auth identity from /api/auth/me
         if (fetchedUserProfile?.id && currentToken) {
-          requestSync('BOOT_AUTH_VERIFIED', fetchedUserProfile.id, currentToken);
+          bindBootAuthAndRequestSync({
+            verifiedUserId: fetchedUserProfile.id,
+            verifiedToken: currentToken,
+            activeAccountRef,
+            authTokenRef,
+            setActiveAccountId,
+            requestSync
+          });
         }
       } catch (err) {
         console.warn('Backend sync warning (running in offline/local fallback):', err);

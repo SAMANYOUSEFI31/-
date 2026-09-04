@@ -6,7 +6,8 @@ import {
   createSyncOrchestrator,
   SyncTrigger,
   SyncRequest,
-  SyncRunOutcome
+  SyncRunOutcome,
+  bindBootAuthAndRequestSync
 } from '../src/utils/syncOrchestrator.js';
 import { ReplayOptions, ReplayResult } from '../src/utils/offlineQueueUtils.js';
 import { OfflineQueueItem } from '../src/types.js';
@@ -241,6 +242,124 @@ describe('Phase 3C.1: Single Sync Orchestrator and Trigger Ownership', () => {
 
       replayCalls[1].deferred.resolve(createSampleReplayResult());
       await Promise.all([pTrailing1, pTrailing2, pTrailing3]);
+    });
+
+    it('(f) Coalesced requests during active run invoke stable item-success and result callbacks only once', async () => {
+      let itemSuccessInvocations = 0;
+      let resultInvocations = 0;
+
+      // Stable App-equivalent callbacks
+      const stableItemSuccess = (_item: OfflineQueueItem) => {
+        itemSuccessInvocations++;
+      };
+      const stableResult = (outcome: SyncRunOutcome) => {
+        if (outcome.status === 'COMPLETED' && outcome.syncedCount > 0) {
+          resultInvocations++;
+        }
+      };
+
+      // Start initial active run (deferred)
+      const pInitial = orchestrator.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-initial',
+        onItemSuccess: stableItemSuccess,
+        onResult: stableResult
+      });
+
+      assert.equal(replayCalls.length, 1, 'Initial run started');
+      assert.equal(orchestrator.isRunActive(), true);
+
+      // Burst 3 coalesced requests during active run with the exact same stable callbacks
+      // Request 1: force=false
+      const pBurst1 = orchestrator.requestSync({
+        trigger: 'BOOT_AUTH_VERIFIED',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-burst-1',
+        force: false,
+        onItemSuccess: stableItemSuccess,
+        onResult: stableResult
+      });
+
+      // Request 2: force=true (should dominate)
+      const pBurst2 = orchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-burst-2',
+        force: true,
+        onItemSuccess: stableItemSuccess,
+        onResult: stableResult
+      });
+
+      // Request 3: force=false
+      const pBurst3 = orchestrator.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-burst-3',
+        force: false,
+        onItemSuccess: stableItemSuccess,
+        onResult: stableResult
+      });
+
+      assert.equal(replayCalls.length, 1, 'Burst requests do not start parallel runs');
+      assert.equal(orchestrator.hasPendingTrailing(), true);
+
+      // Complete initial run (0 items replayed)
+      replayCalls[0].deferred.resolve(createSampleReplayResult({ syncedCount: 0 }));
+      const initialOutcome = await pInitial;
+      assert.equal(initialOutcome.status, 'COMPLETED');
+      assert.equal(resultInvocations, 0, 'No toast when syncedCount is 0');
+
+      // Now the trailing run begins
+      assert.equal(replayCalls.length, 2, 'Exactly one trailing replay run created');
+      const trailingCall = replayCalls[1];
+      assert.equal(trailingCall.options.force, true, 'force=true dominates force=false');
+      assert.equal(trailingCall.options.authToken, 'token-burst-3', 'Newest token used');
+
+      // Simulate replaying 1 item in the trailing run
+      const dummyItem: OfflineQueueItem = {
+        id: 'mutation-1',
+        type: 'UPDATE_LOG',
+        payload: { date: '1403-01-01', completedHabitIds: ['h1'] },
+        timestamp: Date.now(),
+        retryCount: 0,
+        ownerId: 'user-alpha'
+      };
+
+      trailingCall.options.onItemSuccess?.(dummyItem);
+      assert.equal(
+        itemSuccessInvocations,
+        1,
+        'Item-success callback invoked exactly once despite 3 coalesced trigger requests'
+      );
+
+      // Resolve trailing run with syncedCount: 1
+      trailingCall.deferred.resolve(createSampleReplayResult({ syncedCount: 1 }));
+
+      const [out1, out2, out3] = await Promise.all([pBurst1, pBurst2, pBurst3]);
+
+      // All callers received outcome
+      assert.equal(out1.status, 'COMPLETED');
+      assert.equal(out2.status, 'COMPLETED');
+      assert.equal(out3.status, 'COMPLETED');
+      assert.equal(out1.syncedCount, 1);
+      assert.equal(out2.syncedCount, 1);
+      assert.equal(out3.syncedCount, 1);
+
+      // Result callback invoked only once
+      assert.equal(
+        resultInvocations,
+        1,
+        'Success notification callback invoked exactly once for the completed trailing run'
+      );
+
+      // Trigger metadata deduplicated
+      const sortedTriggers = [...out1.triggers].sort();
+      assert.deepEqual(
+        sortedTriggers,
+        ['AUTH_SUCCESS', 'BOOT_AUTH_VERIFIED', 'NETWORK_ONLINE'],
+        'Triggers set deduplicates repeat triggers (NETWORK_ONLINE appeared twice, stored once)'
+      );
     });
   });
 
@@ -551,8 +670,8 @@ describe('Phase 3C.1: Single Sync Orchestrator and Trigger Ownership', () => {
         'App.tsx routes browser online through requestSync(NETWORK_ONLINE)'
       );
       assert.ok(
-        appContent.includes("requestSync('BOOT_AUTH_VERIFIED'"),
-        'App.tsx routes boot auth verified through requestSync(BOOT_AUTH_VERIFIED)'
+        appContent.includes("requestSync('BOOT_AUTH_VERIFIED'") || appContent.includes('bindBootAuthAndRequestSync'),
+        'App.tsx routes boot auth verified through bindBootAuthAndRequestSync / requestSync(BOOT_AUTH_VERIFIED)'
       );
       assert.ok(
         appContent.includes("requestSync('AUTH_SUCCESS'"),
@@ -571,12 +690,42 @@ describe('Phase 3C.1: Single Sync Orchestrator and Trigger Ownership', () => {
         'App.tsx routes handleExitImpersonation through requestSync(IMPERSONATION_EXIT)'
       );
 
-      // 2. Direct replayAccountOfflineQueue invocation is NOT present in App.tsx
-      const directReplayCalls = appContent.match(/await\s+replayAccountOfflineQueue\s*\(/g);
+      // 2. Direct replayAccountOfflineQueue invocation / import / return / alias is NOT present in executable code
+      // Strip comments so references inside comments do not cause false positives
+      const strippedAppContent = appContent
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/\/.*$/gm, '');
+
+      // Direct import
+      const directImportMatch = strippedAppContent.match(/\bimport\s+[^;]*\breplayAccountOfflineQueue\b[^;]*;/);
       assert.equal(
-        directReplayCalls,
+        directImportMatch,
         null,
-        'App.tsx must not directly call replayAccountOfflineQueue; all replay must go through SyncOrchestrator'
+        'App.tsx must not import replayAccountOfflineQueue directly'
+      );
+
+      // Alias import
+      const aliasImportMatch = strippedAppContent.match(/\breplayAccountOfflineQueue\s+as\s+\w+/);
+      assert.equal(
+        aliasImportMatch,
+        null,
+        'App.tsx must not alias replayAccountOfflineQueue import'
+      );
+
+      // Direct invocation with or without await
+      const directInvocationMatch = strippedAppContent.match(/\breplayAccountOfflineQueue\s*\(/);
+      assert.equal(
+        directInvocationMatch,
+        null,
+        'App.tsx must not call replayAccountOfflineQueue directly (with or without await)'
+      );
+
+      // Direct return
+      const directReturnMatch = strippedAppContent.match(/\breturn\s+[^;]*\breplayAccountOfflineQueue\b/);
+      assert.equal(
+        directReturnMatch,
+        null,
+        'App.tsx must not return a direct replay call'
       );
 
       // 3. syncOrchestrator is instantiated via createSyncOrchestrator
@@ -590,6 +739,161 @@ describe('Phase 3C.1: Single Sync Orchestrator and Trigger Ownership', () => {
         appContent.includes('syncOrchestrator.cancelPendingSync()'),
         'App.tsx cancels pending sync on logout'
       );
+
+      // 5. Obsolete syncOfflineDataToServer wrapper is removed
+      assert.ok(
+        !appContent.includes('syncOfflineDataToServer'),
+        'App.tsx must not declare or retain obsolete syncOfflineDataToServer wrapper'
+      );
+
+      // 6. Verified boot binding helper is imported and used
+      assert.ok(
+        appContent.includes('bindBootAuthAndRequestSync'),
+        'App.tsx imports and uses bindBootAuthAndRequestSync for verified boot binding'
+      );
+    });
+  });
+
+  describe('5. BOOT_AUTH_VERIFIED Identity Binding & Account Transition Safety', () => {
+    it('(a, c, d) Cold authenticated boot with initially null activeAccountRef binds verified identity and requests replay successfully', async () => {
+      const activeAccountRef = { current: null as string | null };
+      const authTokenRef = { current: null as string | null };
+      let localActiveAccount: string | null = null;
+      let executorOptions: ReplayOptions | null = null;
+
+      const testOrch = createSyncOrchestrator({
+        currentActiveAccountResolver: () => activeAccountRef.current,
+        isOnlineResolver: () => true,
+        replayExecutor: async (options) => {
+          executorOptions = options;
+          return createSampleReplayResult({ syncedCount: 3 });
+        }
+      });
+
+      const bootPromise = bindBootAuthAndRequestSync({
+        verifiedUserId: 'cold-user-1',
+        verifiedToken: 'cold-token-jwt',
+        activeAccountRef,
+        authTokenRef,
+        setActiveAccountId: (id) => { localActiveAccount = id; },
+        requestSync: (trigger, owner, token, force) => testOrch.requestSync({
+          trigger,
+          targetOwnerId: owner,
+          targetToken: token,
+          force,
+          currentActiveAccountResolver: () => activeAccountRef.current
+        })
+      });
+
+      // Synchronous binding before replay execution
+      assert.equal(activeAccountRef.current, 'cold-user-1', 'activeAccountRef is bound to verified user ID');
+      assert.equal(authTokenRef.current, 'cold-token-jwt', 'authTokenRef is bound to verified token');
+      assert.equal(localActiveAccount, 'cold-user-1', 'Local active account pointer is synchronized');
+
+      const outcome = await bootPromise;
+      assert.equal(outcome.status, 'COMPLETED', 'Legitimate boot request is not incorrectly returned as DISCARDED_STALE');
+      assert.equal(outcome.syncedCount, 3);
+      assert.equal(outcome.ownerId, 'cold-user-1');
+      assert.ok(executorOptions !== null);
+      assert.equal((executorOptions as ReplayOptions).activeAccountId, 'cold-user-1', 'Executor receives exact verified owner');
+      assert.equal((executorOptions as ReplayOptions).authToken, 'cold-token-jwt', 'Executor receives exact corresponding token');
+    });
+
+    it('(b) Automatic quick-login boot binds returned user ID and token before BOOT_AUTH_VERIFIED request', async () => {
+      // Starts in guest state
+      const activeAccountRef = { current: 'guest' as string | null };
+      const authTokenRef = { current: null as string | null };
+      let localActiveAccount = 'guest';
+      let executorOptions: ReplayOptions | null = null;
+
+      const testOrch = createSyncOrchestrator({
+        currentActiveAccountResolver: () => activeAccountRef.current,
+        isOnlineResolver: () => true,
+        replayExecutor: async (options) => {
+          executorOptions = options;
+          return createSampleReplayResult({ syncedCount: 2 });
+        }
+      });
+
+      // Auto quick-login response data
+      const quickLoginData = {
+        user: { id: 'admin-auto-login-42' },
+        token: 'token-auto-login-42'
+      };
+
+      const bootPromise = bindBootAuthAndRequestSync({
+        verifiedUserId: quickLoginData.user.id,
+        verifiedToken: quickLoginData.token,
+        activeAccountRef,
+        authTokenRef,
+        setActiveAccountId: (id) => { localActiveAccount = id || 'guest'; },
+        requestSync: (trigger, owner, token, force) => testOrch.requestSync({
+          trigger,
+          targetOwnerId: owner,
+          targetToken: token,
+          force,
+          currentActiveAccountResolver: () => activeAccountRef.current
+        })
+      });
+
+      assert.equal(activeAccountRef.current, 'admin-auto-login-42');
+      assert.equal(authTokenRef.current, 'token-auto-login-42');
+      assert.equal(localActiveAccount, 'admin-auto-login-42');
+
+      const outcome = await bootPromise;
+      assert.equal(outcome.status, 'COMPLETED');
+      assert.equal(outcome.syncedCount, 2);
+      assert.equal((executorOptions as unknown as ReplayOptions).activeAccountId, 'admin-auto-login-42');
+      assert.equal((executorOptions as unknown as ReplayOptions).authToken, 'token-auto-login-42');
+    });
+
+    it('(e) If account changes before replay begins or completes, stale success remains suppressed', async () => {
+      const activeAccountRef = { current: null as string | null };
+      const authTokenRef = { current: null as string | null };
+      let itemSuccessInvocations = 0;
+      let resultInvocations = 0;
+      const replayDeferred = createDeferred<ReplayResult>();
+
+      const testOrch = createSyncOrchestrator({
+        currentActiveAccountResolver: () => activeAccountRef.current,
+        isOnlineResolver: () => true,
+        replayExecutor: () => replayDeferred.promise
+      });
+
+      const bootPromise = bindBootAuthAndRequestSync({
+        verifiedUserId: 'user-original',
+        verifiedToken: 'token-original',
+        activeAccountRef,
+        authTokenRef,
+        requestSync: (trigger, owner, token, force) => testOrch.requestSync({
+          trigger,
+          targetOwnerId: owner,
+          targetToken: token,
+          force,
+          currentActiveAccountResolver: () => activeAccountRef.current,
+          onItemSuccess: () => { itemSuccessInvocations++; },
+          onResult: (outcome) => {
+            if (outcome.status === 'COMPLETED') {
+              resultInvocations++;
+            }
+          }
+        })
+      });
+
+      assert.equal(testOrch.isRunActive(), true);
+
+      // While replay is in flight, user switches account (e.g. impersonation or logout)
+      activeAccountRef.current = 'user-switched';
+      authTokenRef.current = 'token-switched';
+
+      // Settle replay for user-original
+      replayDeferred.resolve(createSampleReplayResult({ syncedCount: 1 }));
+
+      const outcome = await bootPromise;
+      assert.equal(outcome.status, 'DISCARDED_STALE', 'Outcome marked DISCARDED_STALE');
+      assert.equal(outcome.stoppedDueToAccountChange, true, 'stoppedDueToAccountChange is true');
+      assert.equal(itemSuccessInvocations, 0, 'Item-success callback is suppressed');
+      assert.equal(resultInvocations, 0, 'Result notification callback is suppressed');
     });
   });
 });

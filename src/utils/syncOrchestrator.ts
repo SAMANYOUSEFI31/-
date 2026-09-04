@@ -67,6 +67,8 @@ export interface SyncOrchestratorConfig {
   currentActiveAccountResolver?: () => string | null;
   replayExecutor?: (options: ReplayOptions) => Promise<ReplayResult>;
   isOnlineResolver?: () => boolean;
+  defaultItemSuccessCallback?: (item: OfflineQueueItem) => void;
+  defaultResultCallback?: (outcome: SyncRunOutcome) => void;
 }
 
 interface ActiveRunState {
@@ -209,6 +211,22 @@ export class SyncOrchestrator {
 
     // 3. Active run check:
     // If an active run is in progress, coalesce or retain as the single pending trailing request
+    const itemCbs = new Set<(item: OfflineQueueItem) => void>();
+    if (this.config.defaultItemSuccessCallback) {
+      itemCbs.add(this.config.defaultItemSuccessCallback);
+    }
+    if (request.onItemSuccess) {
+      itemCbs.add(request.onItemSuccess);
+    }
+
+    const resCbs = new Set<(outcome: SyncRunOutcome) => void>();
+    if (this.config.defaultResultCallback) {
+      resCbs.add(this.config.defaultResultCallback);
+    }
+    if (request.onResult) {
+      resCbs.add(request.onResult);
+    }
+
     if (this.activeRun !== null) {
       if (this.pendingTrailing === null) {
         let resolver!: (outcome: SyncRunOutcome) => void;
@@ -223,8 +241,8 @@ export class SyncOrchestrator {
           triggers: new Set([request.trigger]),
           currentActiveAccountResolver: activeResolver,
           replayExecutor,
-          itemSuccessCallbacks: new Set(request.onItemSuccess ? [request.onItemSuccess] : []),
-          resultCallbacks: new Set(request.onResult ? [request.onResult] : []),
+          itemSuccessCallbacks: itemCbs,
+          resultCallbacks: resCbs,
           deferredResolvers: [resolver]
         };
 
@@ -282,8 +300,8 @@ export class SyncOrchestrator {
           triggers: new Set([request.trigger]),
           currentActiveAccountResolver: activeResolver,
           replayExecutor,
-          itemSuccessCallbacks: new Set(request.onItemSuccess ? [request.onItemSuccess] : []),
-          resultCallbacks: new Set(request.onResult ? [request.onResult] : []),
+          itemSuccessCallbacks: itemCbs,
+          resultCallbacks: resCbs,
           deferredResolvers: [resolver]
         };
 
@@ -299,8 +317,8 @@ export class SyncOrchestrator {
       triggers: new Set([request.trigger]),
       currentActiveAccountResolver: activeResolver,
       replayExecutor,
-      itemSuccessCallbacks: new Set(request.onItemSuccess ? [request.onItemSuccess] : []),
-      resultCallbacks: new Set(request.onResult ? [request.onResult] : [])
+      itemSuccessCallbacks: itemCbs,
+      resultCallbacks: resCbs
     });
   }
 
@@ -584,3 +602,42 @@ export class SyncOrchestrator {
 export function createSyncOrchestrator(config?: SyncOrchestratorConfig): SyncOrchestrator {
   return new SyncOrchestrator(config);
 }
+
+/**
+ * Parameters for binding verified boot identity to runtime refs and dispatching BOOT_AUTH_VERIFIED sync.
+ */
+export interface BootAuthIdentityBindingParams {
+  verifiedUserId: string;
+  verifiedToken: string;
+  activeAccountRef: { current: string | null };
+  authTokenRef: { current: string | null };
+  setActiveAccountId?: (id: string | null) => void;
+  requestSync: (
+    trigger: SyncTrigger,
+    targetOwnerId?: string | null,
+    targetToken?: string | null,
+    force?: boolean
+  ) => Promise<SyncRunOutcome>;
+}
+
+/**
+ * Pure identity-binding helper for authenticated boot and quick-login.
+ * Ensures activeAccountRef, authTokenRef, and local storage pointer are bound
+ * synchronously to the verified user before requesting BOOT_AUTH_VERIFIED synchronization.
+ */
+export function bindBootAuthAndRequestSync({
+  verifiedUserId,
+  verifiedToken,
+  activeAccountRef,
+  authTokenRef,
+  setActiveAccountId,
+  requestSync
+}: BootAuthIdentityBindingParams): Promise<SyncRunOutcome> {
+  activeAccountRef.current = verifiedUserId;
+  authTokenRef.current = verifiedToken;
+  if (setActiveAccountId) {
+    setActiveAccountId(verifiedUserId);
+  }
+  return requestSync('BOOT_AUTH_VERIFIED', verifiedUserId, verifiedToken);
+}
+
