@@ -8,11 +8,21 @@ import {
 } from '../server/db/index.js';
 import { generateToken, verifyToken } from '../server/auth.js';
 import { app } from '../server.js';
-import { transitionAccountState, loadStoredSystemState, saveStoredSystemState } from '../src/utils/storageUtils.js';
+import { transitionAccountState, loadStoredSystemState, saveStoredSystemState, TOKEN_KEY } from '../src/utils/storageUtils.js';
 import { createInitialSystemState } from '../src/data/initialData.js';
+import {
+  IMPERSONATOR_TOKEN_KEY,
+  IMPERSONATING_USER_KEY,
+  validateAdminTokenForExit,
+  buildExitImpersonationSuccessState,
+  buildExitImpersonationRevokedState,
+  executeLogoutDuringImpersonation,
+  resolveImpersonationStateOnBoot
+} from '../src/utils/impersonationUtils.js';
 
 describe('Phase 3A.5: Admin & Impersonation Boundary Suite', () => {
   const adminId = 'admin-master-001';
+  const secondAdminId = 'admin-secondary-002';
   const normalUserId = 'user-samurai-001';
   const otherUserId = 'user-ronin-002';
 
@@ -50,6 +60,9 @@ describe('Phase 3A.5: Admin & Impersonation Boundary Suite', () => {
 
   after(async () => {
     if (server) {
+      if (typeof (server as any).closeAllConnections === 'function') {
+        (server as any).closeAllConnections();
+      }
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
@@ -113,6 +126,24 @@ describe('Phase 3A.5: Admin & Impersonation Boundary Suite', () => {
         paymentRefId: null,
         createdAt: '2026-09-01T00:00:00.000Z',
         updatedAt: '2026-09-01T00:00:00.000Z'
+      },
+      {
+        id: secondAdminId,
+        phoneNumber: '09129999999',
+        name: 'مدیر همکار',
+        email: 'admin2@bushido.app',
+        passwordHash: null,
+        tier: 'vip_samurai',
+        isVip: true,
+        isAdmin: true,
+        tokenVersion: 0,
+        nightOwlCutoffHour: 4,
+        accentTheme: 'amber',
+        vipSince: '2026-01-01T00:00:00.000Z',
+        vipExpiresAt: null,
+        paymentRefId: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z'
       }
     ];
   });
@@ -501,5 +532,221 @@ describe('Phase 3A.5: Admin & Impersonation Boundary Suite', () => {
 
     assert.equal(backToAdminTransition.nextState.userProfile.id, adminId);
     assert.equal(backToAdminTransition.nextState.userProfile.isAdmin, true);
+  });
+
+  it('15. Admin cannot impersonate another Admin (403 ADMIN_TARGET_IMPERSONATION_FORBIDDEN)', async () => {
+    const res = await fetch(`${baseUrl}/api/admin/impersonate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({ targetUserId: secondAdminId })
+    });
+
+    assert.equal(res.status, 403);
+    const data = await res.json();
+    assert.equal(data.code, 'ADMIN_TARGET_IMPERSONATION_FORBIDDEN');
+  });
+
+  it('16. adminMiddleware defense-in-depth: Normal user, impersonated normal user, and impersonated admin target are all strictly rejected from admin endpoints', async () => {
+    // 1. Normal user
+    const normalRes = await fetch(`${baseUrl}/api/admin/users`, {
+      headers: { Authorization: `Bearer ${normalUserToken}` }
+    });
+    assert.equal(normalRes.status, 403);
+    const normalData = await normalRes.json();
+    assert.equal(normalData.code, 'FORBIDDEN');
+
+    // 2. Impersonated normal user
+    const impRes = await fetch(`${baseUrl}/api/admin/impersonate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({ targetUserId: normalUserId })
+    });
+    const { token: impNormalToken } = await impRes.json();
+    const impNormalRes = await fetch(`${baseUrl}/api/admin/users`, {
+      headers: { Authorization: `Bearer ${impNormalToken}` }
+    });
+    assert.equal(impNormalRes.status, 403);
+    const impNormalData = await impNormalRes.json();
+    assert.equal(impNormalData.code, 'IMPERSONATION_ACCESS_FORBIDDEN');
+
+    // 3. Impersonated Admin target (defense-in-depth: token payload with isAdmin: true and isImpersonated: true)
+    const craftedImpersonatedAdminToken = generateToken({
+      userId: secondAdminId,
+      phoneNumber: '09129999999',
+      isVip: true,
+      tier: 'vip_samurai',
+      isAdmin: true,
+      tokenVersion: 0,
+      isImpersonated: true,
+      impersonatedBy: adminId
+    });
+    const craftedRes = await fetch(`${baseUrl}/api/admin/users`, {
+      headers: { Authorization: `Bearer ${craftedImpersonatedAdminToken}` }
+    });
+    assert.equal(craftedRes.status, 403);
+    const craftedData = await craftedRes.json();
+    assert.equal(craftedData.code, 'IMPERSONATION_ACCESS_FORBIDDEN');
+  });
+
+  it('17. Fail-safe exit: valid Admin restoration verifies with /api/auth/me and transitions state', async () => {
+    // Pure unit validator with actual server
+    const outcome = await validateAdminTokenForExit(adminToken, async (input, init) => {
+      return fetch(`${baseUrl}${input}`, init);
+    });
+
+    assert.equal(outcome.success, true);
+    if (outcome.success) {
+      assert.equal(outcome.status, 'SUCCESS');
+      assert.equal(outcome.adminUser.id, adminId);
+      assert.equal(outcome.adminUser.isAdmin, true);
+
+      // Verify pure success state builder
+      const dummyTargetState = createInitialSystemState({
+        id: normalUserId,
+        name: 'سامورایی هدف',
+        isAdmin: false
+      });
+      const transition = buildExitImpersonationSuccessState(dummyTargetState, outcome.adminUser);
+      assert.equal(transition.nextState.userProfile.id, adminId);
+      assert.equal(transition.nextState.userProfile.isAdmin, true);
+    }
+  });
+
+  it('18. Fail-safe exit: expired / malformed Admin token returns AUTH_REVOKED and transitions to signed out', async () => {
+    const invalidToken = 'malformed.token.xyz';
+    const outcome = await validateAdminTokenForExit(invalidToken, async (input, init) => {
+      return fetch(`${baseUrl}${input}`, init);
+    });
+
+    assert.equal(outcome.success, false);
+    if (!outcome.success) {
+      assert.equal(outcome.status, 'AUTH_REVOKED');
+      const dummyTargetState = createInitialSystemState({
+        id: normalUserId,
+        name: 'سامورایی هدف',
+        isAdmin: false
+      });
+      const transition = buildExitImpersonationRevokedState(dummyTargetState);
+      assert.equal(transition.nextState.userProfile.id, '');
+      assert.equal(transition.nextState.userProfile.isAdmin, false);
+    }
+  });
+
+  it('19. Fail-safe exit: SESSION_REVOKED Admin token returns AUTH_REVOKED', async () => {
+    // Invalidate admin's session
+    const adminInDb = memoryStore.users.find(u => u.id === adminId);
+    if (adminInDb) {
+      adminInDb.tokenVersion = 5;
+    }
+
+    // Token has tokenVersion 0, db has 5
+    const outcome = await validateAdminTokenForExit(adminToken, async (input, init) => {
+      return fetch(`${baseUrl}${input}`, init);
+    });
+
+    assert.equal(outcome.success, false);
+    if (!outcome.success) {
+      assert.equal(outcome.status, 'AUTH_REVOKED');
+      assert.equal(outcome.code, 'SESSION_REVOKED');
+    }
+
+    // Reset tokenVersion
+    if (adminInDb) {
+      adminInDb.tokenVersion = 0;
+    }
+  });
+
+  it('20. Fail-safe exit: non-Admin identity returned from /api/auth/me returns INVALID_ADMIN_IDENTITY', async () => {
+    // Normal user token passed as admin token
+    const outcome = await validateAdminTokenForExit(normalUserToken, async (input, init) => {
+      return fetch(`${baseUrl}${input}`, init);
+    });
+
+    assert.equal(outcome.success, false);
+    if (!outcome.success) {
+      assert.equal(outcome.status, 'INVALID_ADMIN_IDENTITY');
+      assert.equal(outcome.code, 'NOT_AN_ADMIN');
+    }
+  });
+
+  it('21. Fail-safe exit: temporary network failure preserves recoverable token without premature destruction', async () => {
+    const mockNetworkFailureFetch = async () => {
+      throw new TypeError('Failed to fetch: Network error');
+    };
+
+    const outcome = await validateAdminTokenForExit(adminToken, mockNetworkFailureFetch as any);
+
+    assert.equal(outcome.success, false);
+    if (!outcome.success) {
+      assert.equal(outcome.status, 'NETWORK_ERROR');
+      // Crucial: token was NOT revoked or marked invalid, recoverable state maintained
+    }
+  });
+
+  it('22. Logout while impersonating purges impersonation metadata and clears local tokens', () => {
+    const storage: Record<string, string> = {
+      [TOKEN_KEY]: 'current-token',
+      [IMPERSONATOR_TOKEN_KEY]: adminToken,
+      [IMPERSONATING_USER_KEY]: JSON.stringify({ id: normalUserId })
+    };
+
+    const storageDriver = {
+      removeLocal: (k: string) => { delete storage[k]; },
+      removeSession: (k: string) => { delete storage[k]; },
+      setSession: (k: string, v: string) => { storage[k] = v; }
+    };
+
+    const dummyState = createInitialSystemState({ id: normalUserId, name: 'سامورایی هدف' });
+    const transition = executeLogoutDuringImpersonation(dummyState, storageDriver);
+
+    assert.equal(transition.nextState.userProfile.id, '');
+    assert.equal(transition.nextState.userProfile.isAdmin, false);
+    assert.equal(storage[TOKEN_KEY], undefined);
+    assert.equal(storage[IMPERSONATOR_TOKEN_KEY], undefined);
+    assert.equal(storage[IMPERSONATING_USER_KEY], undefined);
+    assert.equal(storage['bushido_explicit_logout'], 'true');
+  });
+
+  it('23. Page reload while impersonating safely resolves and maintains impersonation state', () => {
+    const activeImpToken = 'active-impersonated-token';
+    const storage: Record<string, string> = {
+      [TOKEN_KEY]: activeImpToken,
+      [IMPERSONATOR_TOKEN_KEY]: adminToken,
+      [IMPERSONATING_USER_KEY]: JSON.stringify({ id: normalUserId, name: 'سامورایی هدف' })
+    };
+
+    const storageDriver = {
+      getLocal: (k: string) => storage[k] || null,
+      getSession: (k: string) => storage[k] || null
+    };
+
+    const boot = resolveImpersonationStateOnBoot(storageDriver);
+    assert.equal(boot.isImpersonating, true);
+    assert.equal(boot.activeToken, activeImpToken);
+    assert.equal(boot.impersonatorAdminToken, adminToken);
+    assert.equal(boot.impersonatingUser?.id, normalUserId);
+  });
+
+  it('24. Server-side POST /api/admin/impersonate/exit validates admin token and returns admin profile', async () => {
+    const exitRes = await fetch(`${baseUrl}/api/admin/impersonate/exit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({ targetUserId: normalUserId })
+    });
+
+    assert.equal(exitRes.status, 200);
+    const data = await exitRes.json();
+    assert.equal(data.success, true);
+    assert.equal(data.user.id, adminId);
+    assert.equal(data.user.isAdmin, true);
   });
 });

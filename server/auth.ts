@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { findUserById } from './db';
+import { logImpersonationAudit } from './audit';
 import {
   generateToken,
   verifyToken,
@@ -150,6 +151,21 @@ export async function adminMiddleware(
       return res.status(401).json({
         code: 'INVALID_TOKEN',
         messageFa: 'توکن نامعتبر یا منقضی شده است.'
+      });
+    }
+
+    // Defense in Depth: Reject ANY token where isImpersonated === true
+    if (decoded.isImpersonated) {
+      logImpersonationAudit({
+        eventType: 'impersonation_denied',
+        impersonatorAdminId: decoded.impersonatedBy || null,
+        targetUserId: decoded.userId,
+        result: 'failure',
+        errorCode: 'IMPERSONATION_ACCESS_FORBIDDEN'
+      });
+      return res.status(403).json({
+        code: 'IMPERSONATION_ACCESS_FORBIDDEN',
+        messageFa: 'دسترسی به بخش مدیریت در حالت شبیه‌سازی اکیداً ممنوع است.'
       });
     }
 

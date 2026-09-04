@@ -41,11 +41,13 @@ import {
 } from './server/db/index.js';
 import {
   generateToken,
+  verifyToken,
   authMiddleware,
   adminMiddleware,
   optionalAuthMiddleware,
   AuthenticatedRequest
 } from './server/auth.js';
+import { logImpersonationAudit } from './server/audit.js';
 import {
   SUPER_ADMIN_PHONE,
   SUPER_ADMIN_EMAIL,
@@ -698,7 +700,12 @@ app.get('/api/auth/me', authMiddleware, async (req: AuthenticatedRequest, res, n
     if (!user) {
       return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'کاربر یافت نشد.' });
     }
-    res.json({ user });
+    const isMaster = isSuperAdminIdentifier(user.phoneNumber) || isSuperAdminIdentifier(user.email);
+    const sanitizedUser = {
+      ...user,
+      isAdmin: Boolean(user.isAdmin) || isMaster
+    };
+    res.json({ user: sanitizedUser });
   } catch (error) {
     next(error);
   }
@@ -1297,27 +1304,62 @@ app.post('/api/admin/impersonate', adminMiddleware, async (req: AuthenticatedReq
 
     const cleanTargetId = targetUserId.trim();
     if (cleanTargetId === req.user!.userId) {
+      logImpersonationAudit({
+        eventType: 'impersonation_denied',
+        impersonatorAdminId: req.user!.userId,
+        targetUserId: cleanTargetId,
+        result: 'failure',
+        errorCode: 'SELF_IMPERSONATION_FORBIDDEN'
+      });
       return res.status(400).json({ code: 'SELF_IMPERSONATION_FORBIDDEN', messageFa: 'شبیه‌سازی حساب خود مجاز نمی‌باشد.' });
     }
 
     const targetUser = await findUserById(cleanTargetId);
     if (!targetUser) {
+      logImpersonationAudit({
+        eventType: 'impersonation_target_not_found',
+        impersonatorAdminId: req.user!.userId,
+        targetUserId: cleanTargetId,
+        result: 'failure',
+        errorCode: 'NOT_FOUND'
+      });
       return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'کاربر مورد نظر یافت نشد.' });
     }
 
+    const isTargetMaster = isSuperAdminIdentifier(targetUser.phoneNumber) || isSuperAdminIdentifier(targetUser.email);
+    if (Boolean(targetUser.isAdmin) || isTargetMaster) {
+      logImpersonationAudit({
+        eventType: 'impersonation_denied',
+        impersonatorAdminId: req.user!.userId,
+        targetUserId: targetUser.id,
+        result: 'failure',
+        errorCode: 'ADMIN_TARGET_IMPERSONATION_FORBIDDEN'
+      });
+      return res.status(403).json({
+        code: 'ADMIN_TARGET_IMPERSONATION_FORBIDDEN',
+        messageFa: 'شبیه‌سازی حساب مدیر دیگر مجاز نمی‌باشد.'
+      });
+    }
+
+    // Scoped impersonation token: isAdmin is ALWAYS false for impersonated sessions
     const token = generateToken({
       userId: targetUser.id,
       email: targetUser.email,
       phoneNumber: targetUser.phoneNumber,
       isVip: Boolean(targetUser.isVip),
       tier: targetUser.tier,
-      isAdmin: Boolean(targetUser.isAdmin),
+      isAdmin: false,
       tokenVersion: targetUser.tokenVersion ?? 0,
       isImpersonated: true,
       impersonatedBy: req.user!.userId
     });
 
-    console.log(`[Audit:Impersonation] Admin ${req.user!.userId} impersonated user ${targetUser.id} (${targetUser.phoneNumber || targetUser.email || targetUser.name})`);
+    logImpersonationAudit({
+      eventType: 'impersonation_started',
+      impersonatorAdminId: req.user!.userId,
+      targetUserId: targetUser.id,
+      result: 'success'
+    });
 
     res.json({
       success: true,
@@ -1329,13 +1371,110 @@ app.post('/api/admin/impersonate', adminMiddleware, async (req: AuthenticatedReq
         phoneNumber: targetUser.phoneNumber,
         tier: targetUser.tier,
         isVip: Boolean(targetUser.isVip),
-        isAdmin: Boolean(targetUser.isAdmin),
+        isAdmin: false,
         vipExpiresAt: targetUser.vipExpiresAt
       },
       messageFa: `شبیه‌سازی کاربر فعال شد.`
     });
   } catch (error) {
     next(error);
+  }
+});
+
+app.post(['/api/admin/impersonate/exit', '/api/admin/exit-impersonation'], async (req: AuthenticatedRequest, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      logImpersonationAudit({
+        eventType: 'impersonation_exit_failed',
+        impersonatorAdminId: null,
+        targetUserId: null,
+        result: 'failure',
+        errorCode: 'UNAUTHORIZED'
+      });
+      return res.status(401).json({ code: 'UNAUTHORIZED', messageFa: 'توکن مدیر جهت خروج ارائه نشده است.' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = verifyToken<any>(token);
+    if (!decoded || !decoded.userId || decoded.isImpersonated) {
+      logImpersonationAudit({
+        eventType: 'impersonation_exit_failed',
+        impersonatorAdminId: decoded?.userId || null,
+        targetUserId: null,
+        result: 'failure',
+        errorCode: 'INVALID_ADMIN_TOKEN'
+      });
+      return res.status(401).json({ code: 'INVALID_ADMIN_TOKEN', messageFa: 'توکن مدیر نامعتبر است.' });
+    }
+
+    const adminUser = await findUserById(decoded.userId);
+    if (!adminUser) {
+      logImpersonationAudit({
+        eventType: 'impersonation_exit_failed',
+        impersonatorAdminId: decoded.userId,
+        targetUserId: null,
+        result: 'failure',
+        errorCode: 'ADMIN_NOT_FOUND'
+      });
+      return res.status(401).json({ code: 'ADMIN_NOT_FOUND', messageFa: 'حساب مدیر یافت نشد.' });
+    }
+
+    const userVersion = adminUser.tokenVersion ?? 0;
+    const tokenVersion = decoded.tokenVersion ?? 0;
+    if (tokenVersion < userVersion) {
+      logImpersonationAudit({
+        eventType: 'impersonation_exit_failed',
+        impersonatorAdminId: adminUser.id,
+        targetUserId: null,
+        result: 'failure',
+        errorCode: 'SESSION_REVOKED'
+      });
+      return res.status(401).json({ code: 'SESSION_REVOKED', messageFa: 'نشست مدیر منقضی شده است.' });
+    }
+
+    const isMaster = isSuperAdminIdentifier(adminUser.phoneNumber) || isSuperAdminIdentifier(adminUser.email);
+    if (!adminUser.isAdmin && !isMaster) {
+      logImpersonationAudit({
+        eventType: 'impersonation_exit_failed',
+        impersonatorAdminId: adminUser.id,
+        targetUserId: null,
+        result: 'failure',
+        errorCode: 'NOT_AN_ADMIN'
+      });
+      return res.status(403).json({ code: 'NOT_AN_ADMIN', messageFa: 'حساب معتبر مدیریت نمی‌باشد.' });
+    }
+
+    const targetUserId = req.body?.targetUserId || null;
+    logImpersonationAudit({
+      eventType: 'impersonation_exited',
+      impersonatorAdminId: adminUser.id,
+      targetUserId,
+      result: 'success'
+    });
+
+    res.json({
+      success: true,
+      user: {
+        id: adminUser.id,
+        name: adminUser.name,
+        email: adminUser.email,
+        phoneNumber: adminUser.phoneNumber,
+        tier: adminUser.tier,
+        isVip: true,
+        isAdmin: true
+      },
+      messageFa: 'خروج از شبیه‌سازی با موفقیت انجام شد.'
+    });
+  } catch (error) {
+    logImpersonationAudit({
+      eventType: 'impersonation_exit_failed',
+      impersonatorAdminId: null,
+      targetUserId: null,
+      result: 'failure',
+      errorCode: 'INTERNAL_ERROR'
+    });
+    res.status(500).json({ code: 'INTERNAL_ERROR', messageFa: 'خطای سرور در خروج از شبیه‌سازی.' });
   }
 });
 

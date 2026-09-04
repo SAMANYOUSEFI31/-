@@ -52,6 +52,14 @@ import {
   shouldQueueOfflineMutation
 } from '../utils/storageUtils';
 import {
+  IMPERSONATOR_TOKEN_KEY,
+  IMPERSONATING_USER_KEY,
+  validateAdminTokenForExit,
+  buildExitImpersonationSuccessState,
+  buildExitImpersonationRevokedState,
+  executeLogoutDuringImpersonation
+} from '../utils/impersonationUtils';
+import {
   enqueueOfflineMutation,
   getOfflineQueue,
   saveOfflineQueue,
@@ -1055,63 +1063,95 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [authToken, systemState, showAppToast, syncOfflineDataToServer]);
 
   const handleExitImpersonation = useCallback(async () => {
-    const adminToken = impersonatorAdminToken || safeGetSessionStorage('bushido_impersonator_token');
+    const adminToken = impersonatorAdminToken || safeGetSessionStorage(IMPERSONATOR_TOKEN_KEY);
     if (!adminToken) return;
-    try {
-      safeRemoveSessionStorage('bushido_impersonator_token');
-      safeRemoveSessionStorage('bushido_impersonating_user');
+
+    // 1. Read saved Admin token & validate through /api/auth/me BEFORE modifying local state
+    const outcome = await validateAdminTokenForExit(adminToken);
+
+    if (outcome.status === 'SUCCESS') {
+      // 2. Validation succeeds:
+      // - Transition back to verified Admin account
+      // - Replace active token
+      // - Clear impersonation metadata
+      // - Replay only Admin queue
+      // - Display success
+      safeSetLocalStorage(TOKEN_KEY, outcome.adminToken);
+      setAuthToken(outcome.adminToken);
+
+      safeRemoveSessionStorage(IMPERSONATOR_TOKEN_KEY);
+      safeRemoveSessionStorage(IMPERSONATING_USER_KEY);
       setImpersonatingUser(null);
       setImpersonatorAdminToken(null);
 
-      safeSetLocalStorage(TOKEN_KEY, adminToken);
-      setAuthToken(adminToken);
+      const transition = buildExitImpersonationSuccessState(systemState, outcome.adminUser);
+      setSystemState(transition.nextState);
+      if (transition.nextState.cycles.length > 0) {
+        setActiveCycleId(transition.nextActiveCycleId);
+      }
 
-      const res = await fetch('/api/auth/me', {
+      // Replay only the Admin's own queue
+      syncOfflineDataToServer(outcome.adminUser.id, outcome.adminToken);
+
+      setActiveTab('admin');
+      showAppToast(outcome.messageFa);
+
+      // Notify server of exit for audit trail
+      fetch('/api/admin/impersonate/exit', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken}`
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.user) {
-          const transition = transitionAccountState({
-            currentSystemState: systemState,
-            targetUserId: data.user.id,
-            targetUserProfile: {
-              ...data.user,
-              isVip: Boolean(data.user.isVip),
-              isAdmin: Boolean(data.user.isAdmin)
-            }
-          });
-          setSystemState(transition.nextState);
-          if (transition.nextState.cycles.length > 0) {
-            setActiveCycleId(transition.nextActiveCycleId);
-          }
-          // Explicit binding: Replay admin's own queue with admin token (NEVER target user queue)
-          syncOfflineDataToServer(data.user.id, adminToken);
-        }
-      }
-      setActiveTab('admin');
-      showAppToast('به حساب مدیریت بازگشتید.');
-    } catch (e) {
-      console.error('Exit impersonation error:', e);
+          'Authorization': `Bearer ${outcome.adminToken}`
+        },
+        body: JSON.stringify({ targetUserId: impersonatingUser?.id || null })
+      }).catch(() => {});
+      return;
     }
-  }, [impersonatorAdminToken, systemState, showAppToast, syncOfflineDataToServer]);
+
+    if (outcome.status === 'AUTH_REVOKED' || outcome.status === 'INVALID_ADMIN_IDENTITY') {
+      // Validation fails due to 401, SESSION_REVOKED or invalid Admin identity:
+      // - Do NOT display a success message
+      // - Clear unsafe authentication and impersonation state
+      // - Return to a signed-out state
+      // - Require authentication again
+      safeRemoveLocalStorage(TOKEN_KEY);
+      safeRemoveSessionStorage(IMPERSONATOR_TOKEN_KEY);
+      safeRemoveSessionStorage(IMPERSONATING_USER_KEY);
+      safeSetSessionStorage('bushido_explicit_logout', 'true');
+
+      setAuthToken(null);
+      setImpersonatingUser(null);
+      setImpersonatorAdminToken(null);
+
+      const transition = buildExitImpersonationRevokedState(systemState);
+      setSystemState(transition.nextState);
+      setActiveCycleId(transition.nextActiveCycleId);
+
+      setIsAuthModalOpen(true);
+      showAppToast(outcome.messageFa);
+      return;
+    }
+
+    if (outcome.status === 'NETWORK_ERROR') {
+      // Temporary network failure:
+      // - Do NOT destroy the only recoverable Admin token prematurely
+      // - Do NOT claim that exit succeeded
+      // - Keep a safe recoverable state and show an error
+      showAppToast(outcome.messageFa);
+      return;
+    }
+
+    if (outcome.status === 'NO_ADMIN_TOKEN') {
+      showAppToast(outcome.messageFa);
+      return;
+    }
+  }, [impersonatorAdminToken, impersonatingUser, systemState, showAppToast, syncOfflineDataToServer]);
 
   const handleLogout = useCallback(() => {
-    safeRemoveLocalStorage(TOKEN_KEY);
-    safeRemoveSessionStorage('bushido_impersonator_token');
-    safeRemoveSessionStorage('bushido_impersonating_user');
-    safeSetSessionStorage('bushido_explicit_logout', 'true');
+    const transition = executeLogoutDuringImpersonation(systemState);
     setAuthToken(null);
     setImpersonatingUser(null);
     setImpersonatorAdminToken(null);
-    setImpersonatorAdminToken(null);
-    const transition = transitionAccountState({
-      currentSystemState: systemState,
-      targetUserId: null
-    });
     setSystemState(transition.nextState);
     setActiveCycleId(transition.nextActiveCycleId);
     setIsAuthModalOpen(false);
