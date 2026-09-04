@@ -8,6 +8,7 @@ import {
   createSubscriptionRecord,
   completeSubscription,
   markSubscriptionFailed,
+  findSubscriptionByAuthority,
   getUserSubscriptions,
   adminGetAllSubscriptions,
   adminGetOverviewStats,
@@ -442,6 +443,136 @@ describe('Payment & Subscription Verification Idempotency Suite (Phase 2A.1 Unit
         authority: 'AUTH_12345678'
       });
       assert.equal(validVerify.success, true);
+    });
+  });
+
+  describe('Phase 3A.4: Subscription & Payment Ownership Boundaries Suite', () => {
+    const userAId = 'user-samurai-alice';
+    const userBId = 'user-samurai-bob';
+
+    beforeEach(() => {
+      memoryStore.users = [
+        {
+          id: userAId,
+          email: 'alice@bushido.test',
+          phoneNumber: '+989121111111',
+          name: 'آلیس سامورایی',
+          role: 'FREE',
+          tier: 'ronin_free',
+          isVip: false,
+          vipSince: null,
+          vipExpiresAt: null,
+          paymentRefId: null,
+          isAdmin: false,
+          nightOwlCutoffHour: 4,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: userBId,
+          email: 'bob@bushido.test',
+          phoneNumber: '+989122222222',
+          name: 'باب رونین',
+          role: 'FREE',
+          tier: 'ronin_free',
+          isVip: false,
+          vipSince: null,
+          vipExpiresAt: null,
+          paymentRefId: null,
+          isAdmin: false,
+          nightOwlCutoffHour: 4,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ];
+      memoryStore.subscriptions = [];
+    });
+
+    it('K. User A cannot read or access User B subscription records via getUserSubscriptions', async () => {
+      // Create subscription owned strictly by User A
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 290000,
+        authority: 'AUTH_ALICE_SECRET_01',
+        description: 'طرح سه ماهه آلیس'
+      });
+
+      // Create subscription owned strictly by User B
+      await createSubscriptionRecord({
+        userId: userBId,
+        planId: 'samurai_annual',
+        amount: 590000,
+        authority: 'AUTH_BOB_SECRET_02',
+        description: 'طرح سالانه باب'
+      });
+
+      // Query User A subscriptions: must strictly only return User A records
+      const aliceSubs = await getUserSubscriptions(userAId);
+      assert.equal(aliceSubs.length, 1);
+      assert.equal(aliceSubs[0].userId, userAId);
+      assert.equal(aliceSubs[0].authority, 'AUTH_ALICE_SECRET_01');
+
+      // Query User B subscriptions: must strictly only return User B records
+      const bobSubs = await getUserSubscriptions(userBId);
+      assert.equal(bobSubs.length, 1);
+      assert.equal(bobSubs[0].userId, userBId);
+      assert.equal(bobSubs[0].authority, 'AUTH_BOB_SECRET_02');
+
+      // Verify no cross-tenant leakage
+      assert.ok(!aliceSubs.some(s => s.userId === userBId));
+      assert.ok(!bobSubs.some(s => s.userId === userAId));
+    });
+
+    it('L. Direct lookup findSubscriptionByAuthority returns correct record with owner identity', async () => {
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 290000,
+        authority: 'AUTH_DIRECT_LOOKUP_100',
+        description: 'تست جستجوی مستقیم شناسه'
+      });
+
+      const found = await findSubscriptionByAuthority('AUTH_DIRECT_LOOKUP_100');
+      assert.ok(found);
+      assert.equal(found.userId, userAId);
+      assert.equal(found.amount, 290000);
+      assert.equal(found.status, 'PENDING');
+
+      // Non-existent authority returns null
+      const nonExistent = await findSubscriptionByAuthority('AUTH_NON_EXISTENT_999');
+      assert.equal(nonExistent, null);
+    });
+
+    it('M. Completing User A subscription elevates only User A and leaves User B untouched', async () => {
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_annual',
+        amount: 590000,
+        authority: 'AUTH_ALICE_ANNUAL_01',
+        description: 'ارتقا سالانه آلیس'
+      });
+
+      const completed = await completeSubscription('AUTH_ALICE_ANNUAL_01', 'REF_ALICE_100', '6037-99**-****-1111');
+      assert.ok(completed);
+      assert.equal(completed.status, 'SUCCESS');
+      assert.equal(completed.userId, userAId);
+
+      // Verify User A profile is elevated to VIP
+      const aliceProfile = await findUserById(userAId);
+      assert.ok(aliceProfile);
+      assert.equal(aliceProfile.isVip, true);
+      assert.equal(aliceProfile.tier, 'vip_samurai');
+      assert.equal(aliceProfile.paymentRefId, 'REF_ALICE_100');
+
+      // Verify User B profile remains unchanged (Free Ronin)
+      const bobProfile = await findUserById(userBId);
+      assert.ok(bobProfile);
+      assert.equal(bobProfile.isVip, false);
+      assert.equal(bobProfile.tier, 'ronin_free');
+      assert.equal(bobProfile.vipSince, null);
+      assert.equal(bobProfile.vipExpiresAt, null);
+      assert.equal(bobProfile.paymentRefId, null);
     });
   });
 });

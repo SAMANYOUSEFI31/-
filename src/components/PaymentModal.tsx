@@ -137,9 +137,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     setPaymentError('');
 
     try {
+      const token = localStorage.getItem('bushido_auth_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch('/api/payment/verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           authority: authority || 'MOCK-AUTH-1234',
           amount: selectedPlan.priceToman

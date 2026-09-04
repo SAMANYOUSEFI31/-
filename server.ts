@@ -26,6 +26,7 @@ import {
   createSubscriptionRecord,
   completeSubscription,
   markSubscriptionFailed,
+  findSubscriptionByAuthority,
   getUserSubscriptions,
   adminGetAllUsers,
   adminUpdateUser,
@@ -1099,17 +1100,24 @@ app.post('/api/payment/request', optionalAuthMiddleware, validateBody(paymentReq
   }
 });
 
-app.post('/api/payment/verify', validateBody(paymentVerifySchema), async (req, res, next) => {
+app.post('/api/payment/verify', optionalAuthMiddleware, validateBody(paymentVerifySchema), async (req: AuthenticatedRequest, res, next) => {
   try {
     const { authority } = req.body;
 
-    const allSubs = await adminGetAllSubscriptions();
-    const existingSub = allSubs.find(s => s.authority === authority);
+    const existingSub = await findSubscriptionByAuthority(authority);
 
     if (!existingSub) {
       return res.status(404).json({
         code: 'NOT_FOUND',
         messageFa: 'رکورد تراکنش یافت نشد.'
+      });
+    }
+
+    // Ownership boundary enforcement: If authenticated, user can only verify their own subscription
+    if (req.user?.userId && existingSub.userId && existingSub.userId !== req.user.userId && !req.user.isAdmin) {
+      return res.status(403).json({
+        code: 'FORBIDDEN',
+        messageFa: 'شما دسترسی به تایید یا مشاهده تراکنش کاربر دیگری را ندارید.'
       });
     }
     

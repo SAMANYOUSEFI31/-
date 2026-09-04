@@ -224,6 +224,38 @@ export async function markSubscriptionFailed(
   return sub;
 }
 
+export async function findSubscriptionByAuthority(authority: string): Promise<DBSubscription | null> {
+  if (isPrismaAvailable && prisma) {
+    try {
+      const match = await prisma.subscription.findUnique({
+        where: { authority }
+      });
+      if (match) {
+        return {
+          id: match.id,
+          userId: match.userId,
+          planId: match.planId,
+          amount: match.amount,
+          authority: match.authority,
+          refId: match.refId,
+          cardPan: match.cardPan,
+          status: match.status,
+          description: match.description,
+          expiresAt: match.expiresAt ? match.expiresAt.toISOString() : null,
+          createdAt: match.createdAt.toISOString(),
+          updatedAt: match.updatedAt.toISOString()
+        };
+      }
+      return null;
+    } catch (e) {
+      console.warn('[Database] Prisma findSubscriptionByAuthority failed, reading local store:', e);
+    }
+  }
+
+  const found = memoryStore.subscriptions.find(s => s.authority === authority);
+  return found || null;
+}
+
 export async function getUserSubscriptions(userId: string): Promise<DBSubscription[]> {
   let subs: DBSubscription[] = [];
 
