@@ -284,6 +284,18 @@ export type OfflineMutationType =
   | 'UPDATE_PROFILE'
   | 'UPDATE_SETTINGS';
 
+export type ReplayFailureClassification =
+  | 'SUCCESS'
+  | 'AUTH_REQUIRED'
+  | 'FORBIDDEN'
+  | 'VALIDATION_ERROR'
+  | 'CONFLICT_DEFERRED'
+  | 'RATE_LIMITED'
+  | 'SERVER_RETRYABLE'
+  | 'NETWORK_ERROR'
+  | 'ENTITY_MISSING'
+  | 'UNKNOWN_MUTATION';
+
 export interface OfflineQueueItem {
   id: string;
   ownerId: string; // Canonical user ID (e.g. 'admin-master-001', 'user-123') or 'guest'
@@ -293,6 +305,7 @@ export interface OfflineQueueItem {
   retryCount?: number;
   nextRetryAt?: number;
   lastError?: string;
+  classification?: ReplayFailureClassification;
   dedupKey?: string;
 }
 

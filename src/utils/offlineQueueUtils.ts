@@ -1,4 +1,4 @@
-import { OfflineMutationType, OfflineQueueItem } from '../types';
+import { OfflineMutationType, OfflineQueueItem, ReplayFailureClassification } from '../types';
 import { 
   normalizeUserId, 
   normalizeQueueOwner,
@@ -21,6 +21,17 @@ export {
   LEGACY_OFFLINE_QUEUE_KEY
 };
 
+/**
+ * CROSS-TAB CONCURRENCY & REPLAY CONTRACT:
+ * 1. The localStorage lease mechanism (acquireReplayLock, verifyReplayLock, renewReplayLock, releaseReplayLock)
+ *    provides best-effort cross-tab concurrency coordination. Because localStorage does not offer hardware-level
+ *    atomic Compare-And-Swap primitives, read-back verification and lease timestamps minimize overlap windows.
+ * 2. Pre-request renewal and post-response verification prevent stale lock holders from committing stale state.
+ * 3. Delivery Guarantee: At-least-once delivery with server-side idempotent deduplication
+ *    (stable clientOperationId, entity UUIDs, unique composite constraints). Server-side idempotency
+ *    remains the authoritative defense against ambiguous duplicate delivery.
+ */
+
 export const OFFLINE_QUARANTINE_PREFIX = 'bushido_quarantine_';
 export const LEGACY_AMBIGUOUS_QUARANTINE_KEY = 'bushido_quarantine_legacy_ambiguous';
 export const LEGACY_OFFLINE_QUARANTINE_KEY = 'bushido_offline_queue_quarantine';
@@ -29,6 +40,20 @@ export const OFFLINE_QUARANTINE_KEY = 'bushido_offline_queue_quarantine';
 export const MAX_REPLAY_RETRIES = 5;
 export const REPLAY_LOCK_PREFIX = 'bushido_replay_lock_';
 export const REPLAY_LOCK_TIMEOUT_MS = 10000;
+
+export const INITIAL_REPLAY_BACKOFF_MS = 2000;
+export const MAX_REPLAY_BACKOFF_MS = 30000;
+export const MAX_SANITIZATION_DEPTH = 5;
+
+/**
+ * Computes bounded exponential backoff with randomized jitter to prevent thundering herd.
+ */
+export function calculateReplayBackoffMs(retryCount: number): number {
+  const safeCount = Math.max(1, retryCount);
+  const base = INITIAL_REPLAY_BACKOFF_MS * Math.pow(2, Math.min(safeCount - 1, 4));
+  const jitter = Math.floor(Math.random() * 1000);
+  return Math.min(MAX_REPLAY_BACKOFF_MS, base + jitter);
+}
 
 // In-flight replay promise tracker per account to prevent intra-tab concurrent replays
 const inFlightReplayPromises = new Map<string, Promise<ReplayResult>>();
@@ -68,6 +93,53 @@ export function acquireReplayLock(owner: string): string | null {
   }
 
   return null;
+}
+
+/**
+ * Verifies that the cross-tab lease is currently active and belongs to the given lockId.
+ */
+export function verifyReplayLock(owner: string, lockId: string): boolean {
+  if (!lockId) return false;
+  const normOwner = normalizeQueueOwner(owner);
+  const lockKey = `${REPLAY_LOCK_PREFIX}${normOwner}`;
+  const raw = safeGetLocalStorage(lockKey);
+  if (!raw) return false;
+  try {
+    const parsed = JSON.parse(raw);
+    const now = Date.now();
+    if (parsed?.lockId === lockId && typeof parsed.timestamp === 'number' && (now - parsed.timestamp) < REPLAY_LOCK_TIMEOUT_MS) {
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
+/**
+ * Renews the cross-tab lease timestamp for the current lockId holder.
+ * Only the active holder can renew. Returns false if ownership was lost or expired.
+ */
+export function renewReplayLock(owner: string, lockId: string): boolean {
+  if (!lockId) return false;
+  const normOwner = normalizeQueueOwner(owner);
+  const lockKey = `${REPLAY_LOCK_PREFIX}${normOwner}`;
+  const raw = safeGetLocalStorage(lockKey);
+  if (!raw) return false;
+  try {
+    const parsed = JSON.parse(raw);
+    const now = Date.now();
+    if (parsed?.lockId !== lockId) {
+      // Lock has been taken over by another tab
+      return false;
+    }
+    // Update timestamp
+    safeSetLocalStorage(lockKey, JSON.stringify({ lockId, timestamp: now }));
+    const verifyRaw = safeGetLocalStorage(lockKey);
+    if (verifyRaw) {
+      const verifyParsed = JSON.parse(verifyRaw);
+      return verifyParsed?.lockId === lockId;
+    }
+  } catch {}
+  return false;
 }
 
 /**
@@ -115,6 +187,40 @@ export function clearAllReplayLocks(): void {
       }
     }
   } catch {}
+}
+
+/**
+ * Classifies replay HTTP status codes and mutation types into explicit outcome categories.
+ */
+export function classifyReplayResponse(
+  status: number,
+  mutationType: OfflineMutationType | string
+): ReplayFailureClassification {
+  if (status >= 200 && status < 300) {
+    return 'SUCCESS';
+  }
+  if (status === 404) {
+    return mutationType === 'DELETE_CYCLE' ? 'SUCCESS' : 'ENTITY_MISSING';
+  }
+  if (status === 401) {
+    return 'AUTH_REQUIRED';
+  }
+  if (status === 403) {
+    return 'FORBIDDEN';
+  }
+  if (status === 400 || status === 422) {
+    return 'VALIDATION_ERROR';
+  }
+  if (status === 409) {
+    return 'CONFLICT_DEFERRED';
+  }
+  if (status === 429) {
+    return 'RATE_LIMITED';
+  }
+  if (status === 408 || (status >= 500 && status <= 599)) {
+    return 'SERVER_RETRYABLE';
+  }
+  return 'VALIDATION_ERROR';
 }
 
 /**
@@ -423,13 +529,27 @@ export function removeReplayedQueueItems(
 }
 
 /**
- * Records retry count increment, last error, and optional exponential backoff on a failed queue item.
+ * Redacts sensitive credentials (tokens, passwords, OTPs, auth headers) from error messages
+ * and limits string length to prevent storage exhaustion in audit ledgers.
+ */
+export function sanitizeErrorMessage(msg: string): string {
+  if (!msg || typeof msg !== 'string') return '';
+  const clamped = msg.slice(0, 500);
+  return clamped
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, 'Bearer [REDACTED]')
+    .replace(/(token|password|authtoken|secret|otp|authorization)\s*[:=]\s*([^\s&,;]+)/gi, '$1=[REDACTED]')
+    .replace(/"(token|password|authtoken|secret|otp|authorization)":\s*"[^"]+"/gi, '"$1":"[REDACTED]"');
+}
+
+/**
+ * Records retry count increment, last error, classification, and optional exponential backoff on a failed queue item.
  */
 export function recordQueueItemFailure(
   ownerId: string | null | undefined,
   itemId: string,
   errorMsg: string,
-  backoffMs = 0
+  backoffMs = 0,
+  classification?: ReplayFailureClassification
 ): void {
   const normOwner = normalizeQueueOwner(ownerId);
   const currentQueue = getOfflineQueue(normOwner);
@@ -439,7 +559,8 @@ export function recordQueueItemFailure(
     currentQueue[idx] = {
       ...currentQueue[idx],
       retryCount: nextRetryCount,
-      lastError: errorMsg,
+      lastError: sanitizeErrorMessage(errorMsg),
+      classification: classification || currentQueue[idx].classification,
       nextRetryAt: backoffMs > 0 ? Date.now() + backoffMs : undefined
     };
     saveOfflineQueue(normOwner, currentQueue);
@@ -461,15 +582,22 @@ const SENSITIVE_KEYS = new Set([
 
 /**
  * Redacts sensitive credentials (tokens, passwords, OTPs, auth headers) from payloads
- * before storing them in quarantine records.
+ * before storing them in quarantine records. Never returns unexamined original structures past recursion limits.
  */
-export function sanitizePayloadCredentials(val: any, depth = 0): any {
-  if (depth > 5 || val === null || val === undefined) return val;
+export function sanitizePayloadCredentials(val: any, depth = 0, seen = new WeakSet()): any {
+  if (val === null || val === undefined) return val;
   if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') return val;
-  if (Array.isArray(val)) {
-    return val.map(item => sanitizePayloadCredentials(item, depth + 1));
+  if (depth > MAX_SANITIZATION_DEPTH) {
+    return Array.isArray(val) ? ['[TRUNCATED_ARRAY]'] : { _truncated: true };
   }
   if (typeof val === 'object') {
+    if (seen.has(val)) {
+      return '[CIRCULAR]';
+    }
+    seen.add(val);
+    if (Array.isArray(val)) {
+      return val.map(item => sanitizePayloadCredentials(item, depth + 1, seen));
+    }
     const cleaned: Record<string, any> = {};
     for (const [k, v] of Object.entries(val)) {
       const lower = k.toLowerCase().replace(/[-_]/g, '');
@@ -483,13 +611,15 @@ export function sanitizePayloadCredentials(val: any, depth = 0): any {
       ) {
         cleaned[k] = '[REDACTED]';
       } else {
-        cleaned[k] = sanitizePayloadCredentials(v, depth + 1);
+        cleaned[k] = sanitizePayloadCredentials(v, depth + 1, seen);
       }
     }
     return cleaned;
   }
   return val;
 }
+
+export const sanitizePayloadForQuarantine = sanitizePayloadCredentials;
 
 export interface QuarantineAuditItem {
   id: string | null;
@@ -499,6 +629,7 @@ export interface QuarantineAuditItem {
   dedupKey?: string;
   retryCount: number;
   lastError?: string;
+  classification?: ReplayFailureClassification;
   hasPayload: boolean;
 }
 
@@ -514,7 +645,8 @@ export function toSafeQuarantineAuditItem(item: any): QuarantineAuditItem {
     timestamp: typeof item?.timestamp === 'number' ? item.timestamp : Date.now(),
     dedupKey: typeof item?.dedupKey === 'string' ? item.dedupKey : undefined,
     retryCount: typeof item?.retryCount === 'number' ? item.retryCount : 0,
-    lastError: typeof item?.lastError === 'string' ? item.lastError : undefined,
+    lastError: typeof item?.lastError === 'string' ? sanitizeErrorMessage(item.lastError) : undefined,
+    classification: typeof item?.classification === 'string' ? item.classification : undefined,
     hasPayload: item?.payload !== undefined
   };
 }
@@ -602,15 +734,16 @@ export function quarantineQueueItems(items: any[], reason: string, defaultOwnerI
 
 /**
  * Preserves unparseable or corrupted raw string data in quarantine before clearing storage keys.
- * Full raw string is preserved ONLY in ambiguous quarantine partition; global audit ledger
- * records safe metadata (length, timestamp, parse error) without storing arbitrary raw strings.
+ * Full raw string is sanitized to strip tokens/passwords and preserved ONLY in ambiguous quarantine partition;
+ * global audit ledger records safe metadata (length, timestamp, parse error) without storing arbitrary raw strings.
  */
 export function quarantineCorruptedRawData(raw: string, reason: string, error?: any): void {
   try {
+    const sanitizedRaw = typeof raw === 'string' ? sanitizeErrorMessage(raw) : raw;
     const entry = {
       quarantinedAt: new Date().toISOString(),
       reason,
-      rawCorruptedData: raw,
+      rawCorruptedData: sanitizedRaw,
       parseError: error ? String(error) : undefined
     };
 
@@ -748,6 +881,7 @@ export interface ReplayResult {
   failedCount: number;
   stoppedDueToAuth: boolean;
   stoppedDueToAccountChange: boolean;
+  stoppedDueToLockLoss?: boolean;
   remainingQueueCount: number;
 }
 
@@ -759,10 +893,13 @@ export interface ReplayResult {
  * 3. Never replays User A mutations while User B, Guest, Admin, or an impersonated user is active.
  * 4. Intra-tab mutex & cross-tab lock lease prevent duplicate concurrent replays.
  * 5. Verifies active account hasn't changed before and after each network request.
- * 6. 401/403 stops replay immediately while preserving items in the owner's queue.
- * 7. Only confirmed successful items (or quarantined non-retryable poison pills) are removed from the queue.
- * 8. Re-verifies fresh item existence and compacted payloads before each network invocation.
- * 9. Retryable errors (network, 5xx, 408, 429) are preserved indefinitely with exponential backoff and never quarantined.
+ * 6. 401 stops replay immediately while preserving items in the owner's queue.
+ * 7. 403 stops replay and safely quarantines the item with FORBIDDEN classification.
+ * 8. Only confirmed successful items (or quarantined non-retryable poison pills) are removed from the active queue.
+ * 9. Re-verifies fresh item existence and compacted payloads before each network invocation.
+ * 10. Retryable errors (network, 5xx, 408, 429) are preserved indefinitely with exponential backoff and never quarantined.
+ * 11. Lease ownership is verified before and after each network request; lost leases halt replay safely without stale commits.
+ * 12. Unknown mutations perform NO network requests and are quarantined immediately.
  */
 export async function replayAccountOfflineQueue(options: ReplayOptions): Promise<ReplayResult> {
   const initialOwner = normalizeQueueOwner(options.activeAccountId);
@@ -831,9 +968,14 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
     };
   }
 
+  const effectiveOptions: ReplayOptions = {
+    ...options,
+    respectBackoff: options.respectBackoff !== undefined ? options.respectBackoff : true
+  };
+
   const runReplay = async (): Promise<ReplayResult> => {
     try {
-      return await executeReplayLoop(options, initialOwner);
+      return await executeReplayLoop(effectiveOptions, initialOwner, lockId);
     } finally {
       releaseReplayLock(initialOwner, lockId);
       inFlightReplayPromises.delete(initialOwner);
@@ -845,7 +987,11 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
   return replayPromise;
 }
 
-async function executeReplayLoop(options: ReplayOptions, initialOwner: string): Promise<ReplayResult> {
+async function executeReplayLoop(
+  options: ReplayOptions, 
+  initialOwner: string,
+  lockId?: string | null
+): Promise<ReplayResult> {
   const fetchFn = options.fetchImpl || options.fetchFn || (typeof fetch !== 'undefined' ? fetch : undefined);
   if (!fetchFn) {
     return {
@@ -895,6 +1041,18 @@ async function executeReplayLoop(options: ReplayOptions, initialOwner: string): 
       quarantineQueueItems([item], `Embedded owner mismatch during replay: item owner ${item.ownerId} != replay owner ${initialOwner}`, initialOwner);
       removeReplayedQueueItems(initialOwner, [item.id]);
       continue;
+    }
+
+    // 4. Pre-request Lease Ownership & Heartbeat Renewal Check
+    if (lockId && !renewReplayLock(initialOwner, lockId)) {
+      return {
+        syncedCount,
+        failedCount,
+        stoppedDueToAuth: false,
+        stoppedDueToAccountChange: false,
+        stoppedDueToLockLoss: true,
+        remainingQueueCount: getOfflineQueue(initialOwner).length
+      };
     }
 
     try {
@@ -972,6 +1130,12 @@ async function executeReplayLoop(options: ReplayOptions, initialOwner: string): 
           continue;
         }
         default: {
+          // Section C: Unknown Mutation Safety
+          // Unknown mutations MUST NEVER call arbitrary endpoints and MUST NOT loop forever in active queue.
+          quarantineQueueItems([{ ...item, classification: 'UNKNOWN_MUTATION' }], `UNKNOWN_MUTATION: Unknown mutation type: ${(item as any).type}`, initialOwner);
+          removeReplayedQueueItems(initialOwner, [item.id]);
+          failedCount++;
+          options.onItemFailure?.(item, new Error(`Unknown mutation type: ${(item as any).type}`));
           continue;
         }
       }
@@ -993,27 +1157,18 @@ async function executeReplayLoop(options: ReplayOptions, initialOwner: string): 
         const errMsg = networkErr?.message || String(networkErr);
         const nextRetryCount = (item.retryCount || 0) + 1;
         const backoffMs = Math.min(30000, 1000 * Math.pow(2, Math.min(nextRetryCount, 5)));
-        recordQueueItemFailure(initialOwner, item.id, errMsg, backoffMs);
+        recordQueueItemFailure(initialOwner, item.id, errMsg, backoffMs, 'NETWORK_ERROR');
         options.onItemFailure?.(item, networkErr);
         // Fail-fast on network error: stop replay run to preserve downstream retry budgets and avoid tight loops
         break;
       }
 
-      // 4. Auth Failure (401 / 403)
-      if (res.status === 401 || res.status === 403) {
-        return {
-          syncedCount,
-          failedCount,
-          stoppedDueToAuth: true,
-          stoppedDueToAccountChange: false,
-          remainingQueueCount: getOfflineQueue(initialOwner).length
-        };
-      }
+      // Explicit Replay Failure Classification Contract
+      const classification = classifyReplayResponse(res.status, item.type);
 
-      const isSuccess = res.ok || (item.type === 'DELETE_CYCLE' && res.status === 404);
-
-      if (isSuccess) {
-        // 5. Post-fetch Account Switch Verification before committing success
+      // Branch 1: SUCCESS (2xx or DELETE_CYCLE 404)
+      if (classification === 'SUCCESS') {
+        // Post-fetch Account Switch Verification before committing success
         if (options.getCurrentActiveAccountId) {
           const currentAcc = normalizeQueueOwner(options.getCurrentActiveAccountId());
           if (currentAcc !== initialOwner) {
@@ -1027,38 +1182,104 @@ async function executeReplayLoop(options: ReplayOptions, initialOwner: string): 
           }
         }
 
+        // Post-fetch Lease Ownership Verification:
+        // Ensure this tab still holds the active lease before removing from queue and committing success
+        if (lockId && !verifyReplayLock(initialOwner, lockId)) {
+          return {
+            syncedCount,
+            failedCount,
+            stoppedDueToAuth: false,
+            stoppedDueToAccountChange: false,
+            stoppedDueToLockLoss: true,
+            remainingQueueCount: getOfflineQueue(initialOwner).length
+          };
+        }
+
         removeReplayedQueueItems(initialOwner, [item.id]);
         options.onItemSuccess?.(item);
         syncedCount++;
-      } else {
-        failedCount++;
-        const errMsg = `Server returned HTTP ${res.status}`;
-
-        // Retryable server and rate-limit errors (5xx, 408, 429)
-        // Must NEVER automatically quarantine valid mutations regardless of retry count!
-        const isRetryable = res.status === 408 || res.status === 429 || (res.status >= 500 && res.status <= 599);
-
-        if (isRetryable) {
-          const nextRetryCount = (item.retryCount || 0) + 1;
-          const backoffMs = Math.min(30000, 1000 * Math.pow(2, Math.min(nextRetryCount, 5)));
-          recordQueueItemFailure(initialOwner, item.id, errMsg, backoffMs);
-          options.onItemFailure?.(item, new Error(errMsg));
-          // Stop replay run on server/gateway failure to avoid hammering during outage
-          break;
-        }
-
-        // Permanent client rejections (400 schema validation, 422, 409 collision, 404 non-existent resource for updates)
-        // Quarantine to prevent permanently blocking the queue
-        quarantineQueueItems([item], `Permanent server rejection (${res.status}): ${errMsg}`, initialOwner);
-        removeReplayedQueueItems(initialOwner, [item.id]);
-        options.onItemFailure?.(item, new Error(errMsg));
+        continue;
       }
+
+      // Branch 2: AUTH_REQUIRED (401) -> Stops replay immediately, preserves unresolved item in queue
+      if (classification === 'AUTH_REQUIRED') {
+        failedCount++;
+        recordQueueItemFailure(initialOwner, item.id, 'HTTP 401 Unauthorized', 0, 'AUTH_REQUIRED');
+        return {
+          syncedCount,
+          failedCount,
+          stoppedDueToAuth: true,
+          stoppedDueToAccountChange: false,
+          remainingQueueCount: getOfflineQueue(initialOwner).length
+        };
+      }
+
+      // Branch 3: FORBIDDEN (403) -> Stops replay, marks item as action-required/quarantine
+      if (classification === 'FORBIDDEN') {
+        quarantineQueueItems([{ ...item, classification: 'FORBIDDEN' }], 'HTTP 403 Forbidden - permission denied', initialOwner);
+        removeReplayedQueueItems(initialOwner, [item.id]);
+        failedCount++;
+        options.onItemFailure?.(item, new Error('HTTP 403 Forbidden'));
+        return {
+          syncedCount,
+          failedCount,
+          stoppedDueToAuth: true,
+          stoppedDueToAccountChange: false,
+          remainingQueueCount: getOfflineQueue(initialOwner).length
+        };
+      }
+
+      // Branch 4: CONFLICT_DEFERRED (409) -> Exclude from later automatic replay, quarantine for resolution
+      if (classification === 'CONFLICT_DEFERRED') {
+        quarantineQueueItems([{ ...item, classification: 'CONFLICT_DEFERRED' }], 'HTTP 409 Conflict - mutation deferred for manual/reconciliation resolution', initialOwner);
+        removeReplayedQueueItems(initialOwner, [item.id]);
+        failedCount++;
+        options.onItemFailure?.(item, new Error('HTTP 409 Conflict'));
+        continue;
+      }
+
+      // Branch 5: VALIDATION_ERROR (400, 422) -> Non-retryable validation failures quarantined immediately
+      if (classification === 'VALIDATION_ERROR') {
+        quarantineQueueItems([{ ...item, classification: 'VALIDATION_ERROR' }], `HTTP ${res.status} Validation Error`, initialOwner);
+        removeReplayedQueueItems(initialOwner, [item.id]);
+        failedCount++;
+        options.onItemFailure?.(item, new Error(`HTTP ${res.status} Validation Error`));
+        continue;
+      }
+
+      // Branch 6: ENTITY_MISSING (non-delete 404) -> Target missing, non-retryable
+      if (classification === 'ENTITY_MISSING') {
+        quarantineQueueItems([{ ...item, classification: 'ENTITY_MISSING' }], `HTTP 404 Entity Missing for ${item.type}`, initialOwner);
+        removeReplayedQueueItems(initialOwner, [item.id]);
+        failedCount++;
+        options.onItemFailure?.(item, new Error(`HTTP 404 Entity Missing`));
+        continue;
+      }
+
+      // Branch 7: RATE_LIMITED (429) & SERVER_RETRYABLE (408, 5xx) -> Preserved with exponential backoff
+      if (classification === 'RATE_LIMITED' || classification === 'SERVER_RETRYABLE') {
+        failedCount++;
+        const errMsg = `Server returned HTTP ${res.status} (${classification})`;
+        const nextRetryCount = (item.retryCount || 0) + 1;
+        const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+        recordQueueItemFailure(initialOwner, item.id, errMsg, backoffMs, classification);
+        options.onItemFailure?.(item, new Error(errMsg));
+        // Stop current replay run on server/gateway failure to prevent hammering
+        break;
+      }
+
+      // Fallback: Permanent unknown error
+      failedCount++;
+      const errMsg = `Server returned unhandled HTTP ${res.status}`;
+      quarantineQueueItems([item], errMsg, initialOwner);
+      removeReplayedQueueItems(initialOwner, [item.id]);
+      options.onItemFailure?.(item, new Error(errMsg));
     } catch (generalErr: any) {
       failedCount++;
       const errMsg = generalErr?.message || String(generalErr);
       const nextRetryCount = (item.retryCount || 0) + 1;
-      const backoffMs = Math.min(30000, 1000 * Math.pow(2, Math.min(nextRetryCount, 5)));
-      recordQueueItemFailure(initialOwner, item.id, errMsg, backoffMs);
+      const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+      recordQueueItemFailure(initialOwner, item.id, errMsg, backoffMs, 'NETWORK_ERROR');
       options.onItemFailure?.(item, generalErr);
       break;
     }

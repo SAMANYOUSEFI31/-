@@ -237,7 +237,11 @@ export default function App() {
     activeAccountRef.current = systemState.userProfile?.id || null;
   }, [systemState.userProfile?.id]);
 
-  const syncOfflineDataToServer = useCallback(async (targetOwnerId?: string | null, targetToken?: string | null) => {
+  const syncOfflineDataToServer = useCallback(async (
+    targetOwnerId?: string | null, 
+    targetToken?: string | null,
+    force = false
+  ) => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       return;
     }
@@ -254,6 +258,8 @@ export default function App() {
     const result = await replayAccountOfflineQueue({
       activeAccountId: ownerId,
       authToken: currentToken,
+      force,
+      respectBackoff: !force,
       getCurrentActiveAccountId: () => activeAccountRef.current,
       onItemSuccess: (item) => {
         if (item.type === 'UPDATE_LOG') {

@@ -62,6 +62,8 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
 
   after(async () => {
     if (server) {
+      (server as any).closeAllConnections?.();
+      server.unref?.();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
@@ -72,6 +74,8 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
     clearAllReplayLocks();
 
     setPrismaState(null, false);
+    memoryStore.cycles = [];
+    memoryStore.dailyLogs = [];
     if (!memoryStore.users.some(u => u.id === ambUser)) {
       memoryStore.users.push({
         id: ambUser,
@@ -160,6 +164,7 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
       const res2 = await replayAccountOfflineQueue({
         activeAccountId: user,
         authToken: token,
+        force: true,
         fetchFn: fetchRun2 as any
       });
 
@@ -402,6 +407,7 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
         const res = await replayAccountOfflineQueue({
           activeAccountId: user,
           authToken: token,
+          force: true,
           fetchFn: fetch500 as any
         });
         assert.equal(res.failedCount, 1);
@@ -722,6 +728,7 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
       const res2 = await replayAccountOfflineQueue({
         activeAccountId: ambUser,
         authToken: ambToken,
+        force: true,
         fetchFn: normalFetch as any
       });
 
@@ -739,9 +746,16 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
     });
 
     it('UPDATE_LOG: server success -> client dropped connection -> queue retry -> idempotent upsert without duplicates', async () => {
-      const cycleId = 'cyc_amb_create_01';
+      const cycleId = 'cyc_amb_log_01';
       const logDate = '1403-12-05';
       clearOfflineQueue(ambUser);
+
+      await createCycle(ambUser, {
+        id: cycleId,
+        title: 'Cycle for Log Test',
+        startDate: '1403-12-01',
+        endDate: '1403-12-25'
+      });
 
       enqueueOfflineMutation(ambUser, {
         type: 'UPDATE_LOG',
@@ -780,6 +794,7 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
       const res2 = await replayAccountOfflineQueue({
         activeAccountId: ambUser,
         authToken: ambToken,
+        force: true,
         fetchFn: liveLogFetch as any
       });
 
@@ -796,8 +811,15 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
     });
 
     it('UPDATE_CYCLE: server success -> client dropped connection -> queue retry -> correct updated cycle in place', async () => {
-      const cycleId = 'cyc_amb_create_01';
+      const cycleId = 'cyc_amb_update_01';
       clearOfflineQueue(ambUser);
+
+      await createCycle(ambUser, {
+        id: cycleId,
+        title: 'Original Initial Title',
+        startDate: '1403-12-01',
+        endDate: '1403-12-25'
+      });
 
       enqueueOfflineMutation(ambUser, {
         type: 'UPDATE_CYCLE',
@@ -831,6 +853,7 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
       const res2 = await replayAccountOfflineQueue({
         activeAccountId: ambUser,
         authToken: ambToken,
+        force: true,
         fetchFn: liveFetch as any
       });
 
@@ -878,6 +901,7 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
       const res2 = await replayAccountOfflineQueue({
         activeAccountId: ambUser,
         authToken: ambToken,
+        force: true,
         fetchFn: liveFetch as any
       });
 
