@@ -1,5 +1,6 @@
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import {
   getScopedOfflineQueueKey,
   getOfflineQueue,
@@ -21,14 +22,71 @@ import {
   REPLAY_LOCK_PREFIX
 } from '../src/utils/offlineQueueUtils.js';
 import { OfflineQueueItem } from '../src/types.js';
+import { app } from '../server.js';
+import { generateToken } from '../server/auth.js';
+import {
+  memoryStore,
+  setPrismaState,
+  getUserCycles,
+  getCycleById,
+  getUserDailyLogs,
+  getDailyLogByDate,
+  findUserById,
+  createCycle,
+  upsertDailyLog
+} from '../server/db/index.js';
 
 describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
   const storageMock: Record<string, string> = {};
+  const ambUser = 'usr_ambiguous_tester';
+  const ambToken = generateToken({
+    userId: ambUser,
+    phoneNumber: '09129998877',
+    isVip: true,
+    tier: 'VIP'
+  });
+
+  let server: http.Server;
+  let baseUrl = '';
+
+  before(async () => {
+    server = http.createServer(app);
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', () => {
+        const addr = server.address() as any;
+        baseUrl = `http://127.0.0.1:${addr.port}`;
+        resolve();
+      });
+    });
+  });
+
+  after(async () => {
+    if (server) {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 
   beforeEach(() => {
     // Clear storage mock
     for (const k in storageMock) delete storageMock[k];
     clearAllReplayLocks();
+
+    setPrismaState(null, false);
+    if (!memoryStore.users.some(u => u.id === ambUser)) {
+      memoryStore.users.push({
+        id: ambUser,
+        phoneNumber: '09129998877',
+        email: 'ambiguous@bushido.local',
+        name: 'Ambiguous Master',
+        passwordHash: 'hashed_pwd',
+        tier: 'vip_samurai',
+        isVip: true,
+        isAdmin: false,
+        tokenVersion: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
 
     (globalThis as any).window = {
       localStorage: {
@@ -156,17 +214,27 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
 
     it('ephemeral storage lock blocks overlapping tab execution while lock is fresh', async () => {
       const user = 'usr_cross_tab';
-      // Simulate another tab already holding active lock
+      // Simulate another tab acquiring active lock lease
       const acquired = acquireReplayLock(user);
-      assert.equal(acquired, true, 'First lock acquisition should succeed');
+      assert.ok(acquired, 'First lock acquisition should succeed and return lease string');
+      assert.equal(typeof acquired, 'string');
 
       const secondAcquire = acquireReplayLock(user);
-      assert.equal(secondAcquire, false, 'Second lock attempt while held must fail');
+      assert.equal(secondAcquire, null, 'Second lock attempt while held must fail and return null');
 
-      releaseReplayLock(user);
+      // Attempting to release with wrong lockId must fail and NOT delete active lock
+      const staleRelease = releaseReplayLock(user, 'stale_expired_lock_id');
+      assert.equal(staleRelease, false, 'Expired previous holder cannot release a newer holder lease');
+
+      const stillHeld = acquireReplayLock(user);
+      assert.equal(stillHeld, null, 'Lock must still be held after invalid release attempt');
+
+      const correctRelease = releaseReplayLock(user, acquired!);
+      assert.equal(correctRelease, true, 'Matching lockId release must succeed');
+
       const thirdAcquire = acquireReplayLock(user);
-      assert.equal(thirdAcquire, true, 'Lock should be acquirable after release');
-      releaseReplayLock(user);
+      assert.ok(thirdAcquire, 'Lock should be acquirable after legitimate release');
+      releaseReplayLock(user, thirdAcquire!);
     });
   });
 
@@ -318,30 +386,127 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
       assert.equal(quarantined[0].items[0].id, badItem.id);
     });
 
-    it('quarantines items that exceed MAX_REPLAY_RETRIES on repeated 500 errors', async () => {
-      const user = 'usr_max_retry';
-      const token = 'tok_max_retry';
+    it('preserves valid mutations in active queue across repeated 500 / retryable errors without quarantining', async () => {
+      const user = 'usr_max_retry_preserve';
+      const token = 'tok_max_retry_preserve';
 
-      enqueueOfflineMutation(user, {
+      const item = enqueueOfflineMutation(user, {
         type: 'UPDATE_PROFILE',
-        payload: { name: 'Valid Name' }
+        payload: { name: 'Valid Persistent Name' }
       });
 
-      const fetch500 = async () => ({ ok: false, status: 500 });
+      const fetch500 = async () => ({ ok: false, status: 500, statusText: 'Internal Server Error' });
 
-      // Run replay MAX_REPLAY_RETRIES times
-      for (let i = 0; i < MAX_REPLAY_RETRIES; i++) {
-        await replayAccountOfflineQueue({
+      // Run replay multiple times (even exceeding legacy 5-attempt limit)
+      for (let i = 0; i < 7; i++) {
+        const res = await replayAccountOfflineQueue({
           activeAccountId: user,
           authToken: token,
           fetchFn: fetch500 as any
         });
+        assert.equal(res.failedCount, 1);
+        assert.equal(res.syncedCount, 0);
       }
 
-      // After 5 retries, the item must be quarantined and queue emptied
-      assert.equal(getOfflineQueue(user).length, 0, 'Active queue must be emptied after max retries');
+      // Valid mutation MUST remain in the active queue with retryCount and nextRetryAt metadata
+      const activeQueue = getOfflineQueue(user);
+      assert.equal(activeQueue.length, 1, 'Active queue must preserve valid mutations during server outages');
+      assert.equal(activeQueue[0].id, item.id);
+      assert.equal(activeQueue[0].retryCount, 7, 'Retry count must accurately track failure attempts');
+      assert.ok(activeQueue[0].nextRetryAt && activeQueue[0].nextRetryAt > Date.now(), 'Exponential backoff timestamp must be set');
+      assert.ok(activeQueue[0].lastError?.includes('500'), 'Last error message must be recorded');
+
+      // Quarantine MUST remain completely empty
       const quarantined = getQuarantinedItems(user);
-      assert.equal(quarantined.length, 1, 'Exceeded retry item must be safely quarantined');
+      assert.equal(quarantined.length, 0, 'Retryable 500 errors must never be quarantined or lost');
+    });
+
+    it('preserves mutations on 502, 503, 504, 408, 429 and network exceptions without loss', async () => {
+      const user = 'usr_retryable_codes';
+      const token = 'tok_retryable_codes';
+
+      const statusCodes = [502, 503, 504, 408, 429];
+      for (const code of statusCodes) {
+        clearOfflineQueue(user);
+        clearQuarantine(user);
+
+        enqueueOfflineMutation(user, {
+          type: 'UPDATE_PROFILE',
+          payload: { name: `Name for ${code}` }
+        });
+
+        await replayAccountOfflineQueue({
+          activeAccountId: user,
+          authToken: token,
+          fetchFn: (async () => ({ ok: false, status: code })) as any
+        });
+
+        assert.equal(getOfflineQueue(user).length, 1, `Mutation must be preserved on HTTP ${code}`);
+        assert.equal(getQuarantinedItems(user).length, 0, `HTTP ${code} must not quarantine valid mutations`);
+      }
+
+      // Network Exception
+      clearOfflineQueue(user);
+      enqueueOfflineMutation(user, {
+        type: 'UPDATE_PROFILE',
+        payload: { name: 'Network Error Test' }
+      });
+
+      await replayAccountOfflineQueue({
+        activeAccountId: user,
+        authToken: token,
+        fetchFn: (async () => { throw new Error('Fetch failed / connection reset'); }) as any
+      });
+
+      assert.equal(getOfflineQueue(user).length, 1, 'Mutation must be preserved on network exception');
+      assert.equal(getQuarantinedItems(user).length, 0, 'Network exception must not quarantine');
+    });
+
+    it('respects backoff deferral when respectBackoff option is enabled', async () => {
+      const user = 'usr_backoff_deferral';
+      const token = 'tok_backoff_deferral';
+
+      enqueueOfflineMutation(user, {
+        type: 'UPDATE_PROFILE',
+        payload: { name: 'Backoff Name' }
+      });
+
+      // Fail once on 503 to establish backoff timestamp in future
+      await replayAccountOfflineQueue({
+        activeAccountId: user,
+        authToken: token,
+        fetchFn: (async () => ({ ok: false, status: 503 })) as any
+      });
+
+      let netCalls = 0;
+      const countingFetch = async () => {
+        netCalls++;
+        return { ok: true, status: 200, json: async () => ({}) };
+      };
+
+      // Second replay with respectBackoff: true must defer because backoff window is still active
+      const resDeferred = await replayAccountOfflineQueue({
+        activeAccountId: user,
+        authToken: token,
+        respectBackoff: true,
+        fetchFn: countingFetch as any
+      });
+
+      assert.equal(netCalls, 0, 'Should not issue network call while backoff is active');
+      assert.equal(resDeferred.syncedCount, 0);
+      assert.equal(getOfflineQueue(user).length, 1);
+
+      // Force replay bypasses backoff when user or system requests immediate sync
+      const resForced = await replayAccountOfflineQueue({
+        activeAccountId: user,
+        authToken: token,
+        force: true,
+        fetchFn: countingFetch as any
+      });
+
+      assert.equal(netCalls, 1, 'Forced sync must execute immediately');
+      assert.equal(resForced.syncedCount, 1);
+      assert.equal(getOfflineQueue(user).length, 0);
     });
 
     it('quarantines corrupted UPDATE_CYCLE payload missing cycle id without throwing unhandled exceptions', async () => {
@@ -500,6 +665,230 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
 
       const queueAfterRun2 = getOfflineQueue(ownerId);
       assert.equal(queueAfterRun2.length, 1, 'Queue must not duplicate the item');
+    });
+  });
+
+  // ===========================================================================
+  // 9. AMBIGUOUS SUCCESS & LIVE SERVER REPLAY DEDUPLICATION
+  // ===========================================================================
+  describe('9. Ambiguous Success & Live Server Deduplication', () => {
+    it('CREATE_CYCLE: server success -> client dropped connection -> queue retry -> exactly 1 cycle with no duplicates', async () => {
+      const cycleId = 'cyc_amb_create_01';
+      clearOfflineQueue(ambUser);
+
+      const item = enqueueOfflineMutation(ambUser, {
+        type: 'CREATE_CYCLE',
+        payload: {
+          id: cycleId,
+          title: 'Ambiguous Cycle',
+          startDate: '1403-12-01',
+          endDate: '1403-12-25',
+          targetTheme: 'Bushido Iron'
+        }
+      });
+
+      // Attempt 1: Call live HTTP server, but simulate client dropped connection before parsing response
+      let serverHitCount = 0;
+      const dropAfterServerFetch = async (endpoint: string, opts: any) => {
+        serverHitCount++;
+        const realRes = await fetch(`${baseUrl}${endpoint}`, opts);
+        assert.ok(realRes.status === 200 || realRes.status === 201);
+        // Simulate client network connection drop after server processed mutation
+        throw new Error('ECONNRESET: Client dropped connection before receiving HTTP 200/201');
+      };
+
+      const res1 = await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        fetchFn: dropAfterServerFetch as any
+      });
+
+      assert.equal(res1.failedCount, 1);
+      assert.equal(res1.syncedCount, 0);
+      assert.equal(getOfflineQueue(ambUser).length, 1, 'Item must be preserved in queue on network drop');
+      assert.equal(getOfflineQueue(ambUser)[0].retryCount, 1);
+
+      // Verify that cycle already exists on server
+      const cyclesMidway = await getUserCycles(ambUser);
+      const createdMidway = cyclesMidway.filter(c => c.id === cycleId);
+      assert.equal(createdMidway.length, 1, 'Server created the cycle during attempt 1');
+
+      // Attempt 2: Queue retries the exact same mutation against live HTTP server
+      const normalFetch = async (endpoint: string, opts: any) => {
+        serverHitCount++;
+        return fetch(`${baseUrl}${endpoint}`, opts);
+      };
+
+      const res2 = await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        fetchFn: normalFetch as any
+      });
+
+      assert.equal(res2.syncedCount, 1, 'Retry attempt must succeed via server deduplication');
+      assert.equal(res2.failedCount, 0);
+      assert.equal(getOfflineQueue(ambUser).length, 0, 'Queue must be cleanly pruned after confirmed resolution');
+
+      // Final State Verification: DB must contain exactly 1 cycle with matching fields
+      const cyclesFinal = await getUserCycles(ambUser);
+      const finalCycleList = cyclesFinal.filter(c => c.id === cycleId);
+      assert.equal(finalCycleList.length, 1, 'Must not duplicate cycle record in database');
+      assert.equal(finalCycleList[0].title, 'Ambiguous Cycle');
+      assert.equal(finalCycleList[0].targetTheme, 'Bushido Iron');
+      assert.equal(serverHitCount, 2, 'Live server was invoked exactly twice across the ambiguous sequence');
+    });
+
+    it('UPDATE_LOG: server success -> client dropped connection -> queue retry -> idempotent upsert without duplicates', async () => {
+      const cycleId = 'cyc_amb_create_01';
+      const logDate = '1403-12-05';
+      clearOfflineQueue(ambUser);
+
+      enqueueOfflineMutation(ambUser, {
+        type: 'UPDATE_LOG',
+        payload: {
+          cycleId,
+          date: logDate,
+          workout: true,
+          study: true,
+          journal: true,
+          wakeUp: true,
+          hardTask: false
+        }
+      });
+
+      // Attempt 1: Call live server /api/logs, then simulate client abort
+      const dropAfterLogFetch = async (endpoint: string, opts: any) => {
+        const realRes = await fetch(`${baseUrl}${endpoint}`, opts);
+        assert.equal(realRes.status, 200);
+        throw new Error('Socket closed prematurely');
+      };
+
+      const res1 = await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        fetchFn: dropAfterLogFetch as any
+      });
+
+      assert.equal(res1.failedCount, 1);
+      assert.equal(getOfflineQueue(ambUser).length, 1);
+
+      // Attempt 2: Queue retries the exact same UPDATE_LOG mutation
+      const liveLogFetch = async (endpoint: string, opts: any) => {
+        return fetch(`${baseUrl}${endpoint}`, opts);
+      };
+
+      const res2 = await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        fetchFn: liveLogFetch as any
+      });
+
+      assert.equal(res2.syncedCount, 1);
+      assert.equal(getOfflineQueue(ambUser).length, 0);
+
+      // Final State Verification: DB must contain exactly 1 dailyLog record for that date
+      const logs = await getUserDailyLogs(ambUser);
+      const matchingLogs = logs.filter(l => l.date === logDate);
+      assert.equal(matchingLogs.length, 1, 'Exactly one daily log must exist for date');
+      assert.equal(matchingLogs[0].workout, true);
+      assert.equal(matchingLogs[0].study, true);
+      assert.equal(matchingLogs[0].wakeUp, true);
+    });
+
+    it('UPDATE_CYCLE: server success -> client dropped connection -> queue retry -> correct updated cycle in place', async () => {
+      const cycleId = 'cyc_amb_create_01';
+      clearOfflineQueue(ambUser);
+
+      enqueueOfflineMutation(ambUser, {
+        type: 'UPDATE_CYCLE',
+        payload: {
+          id: cycleId,
+          title: 'Updated Master Title',
+          targetTheme: 'Golden Armor'
+        }
+      });
+
+      // Attempt 1: Fail client after server update
+      const dropFetch = async (endpoint: string, opts: any) => {
+        const realRes = await fetch(`${baseUrl}${endpoint}`, opts);
+        assert.equal(realRes.status, 200);
+        throw new Error('Client dropped connection');
+      };
+
+      await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        fetchFn: dropFetch as any
+      });
+
+      assert.equal(getOfflineQueue(ambUser).length, 1);
+
+      // Attempt 2: Replay retry
+      const liveFetch = async (endpoint: string, opts: any) => {
+        return fetch(`${baseUrl}${endpoint}`, opts);
+      };
+
+      const res2 = await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        fetchFn: liveFetch as any
+      });
+
+      assert.equal(res2.syncedCount, 1);
+      assert.equal(getOfflineQueue(ambUser).length, 0);
+
+      const cycle = await getCycleById(ambUser, cycleId);
+      assert.ok(cycle);
+      assert.equal(cycle.title, 'Updated Master Title');
+      assert.equal(cycle.targetTheme, 'Golden Armor');
+    });
+
+    it('UPDATE_PROFILE: server success -> client dropped connection -> queue retry -> correct updated profile in place', async () => {
+      clearOfflineQueue(ambUser);
+
+      enqueueOfflineMutation(ambUser, {
+        type: 'UPDATE_PROFILE',
+        payload: {
+          name: 'Warrior Master Kenji',
+          nightOwlCutoffHour: 4,
+          accentTheme: 'emerald'
+        }
+      });
+
+      // Attempt 1: Drop after server success
+      const dropFetch = async (endpoint: string, opts: any) => {
+        const realRes = await fetch(`${baseUrl}${endpoint}`, opts);
+        assert.equal(realRes.status, 200);
+        throw new Error('Client dropped connection');
+      };
+
+      await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        fetchFn: dropFetch as any
+      });
+
+      assert.equal(getOfflineQueue(ambUser).length, 1);
+
+      // Attempt 2: Replay retry
+      const liveFetch = async (endpoint: string, opts: any) => {
+        return fetch(`${baseUrl}${endpoint}`, opts);
+      };
+
+      const res2 = await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        fetchFn: liveFetch as any
+      });
+
+      assert.equal(res2.syncedCount, 1);
+      assert.equal(getOfflineQueue(ambUser).length, 0);
+
+      const userRecord = await findUserById(ambUser);
+      assert.ok(userRecord);
+      assert.equal(userRecord.name, 'Warrior Master Kenji');
+      assert.equal(userRecord.nightOwlCutoffHour, 4);
+      assert.equal(userRecord.accentTheme, 'emerald');
     });
   });
 });

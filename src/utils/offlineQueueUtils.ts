@@ -34,32 +34,66 @@ export const REPLAY_LOCK_TIMEOUT_MS = 10000;
 const inFlightReplayPromises = new Map<string, Promise<ReplayResult>>();
 
 /**
- * Acquires a cross-tab ephemeral storage lock for replay execution.
+ * Acquires a cross-tab ephemeral storage lease for replay execution.
+ * Returns the acquired unique lockId string on success, or null on failure/contention.
  */
-export function acquireReplayLock(owner: string): boolean {
-  const lockKey = `${REPLAY_LOCK_PREFIX}${owner}`;
+export function acquireReplayLock(owner: string): string | null {
+  const normOwner = normalizeQueueOwner(owner);
+  const lockKey = `${REPLAY_LOCK_PREFIX}${normOwner}`;
   const now = Date.now();
   const existingRaw = safeGetLocalStorage(lockKey);
   if (existingRaw) {
     try {
       const parsed = JSON.parse(existingRaw);
       if (parsed && typeof parsed.timestamp === 'number' && (now - parsed.timestamp) < REPLAY_LOCK_TIMEOUT_MS) {
-        return false;
+        return null;
       }
     } catch {
       // Corrupted lock payload, overwrite safely
     }
   }
-  safeSetLocalStorage(lockKey, JSON.stringify({ lockId: `lock_${now}_${Math.random().toString(36).substring(2, 8)}`, timestamp: now }));
-  return true;
+
+  const lockId = `lease_${now}_${Math.random().toString(36).substring(2, 10)}`;
+  safeSetLocalStorage(lockKey, JSON.stringify({ lockId, timestamp: now }));
+
+  // Read-back verification (CAS check): Verify that the stored lockId still belongs to this caller
+  const readBackRaw = safeGetLocalStorage(lockKey);
+  if (readBackRaw) {
+    try {
+      const readBack = JSON.parse(readBackRaw);
+      if (readBack?.lockId === lockId) {
+        return lockId;
+      }
+    } catch {}
+  }
+
+  return null;
 }
 
 /**
  * Releases the cross-tab ephemeral storage lock for an account.
+ * When lockId is supplied, verifies that the stored lock belongs to this holder,
+ * ensuring an expired previous holder cannot delete a newer holder's lock.
  */
-export function releaseReplayLock(owner: string): void {
-  const lockKey = `${REPLAY_LOCK_PREFIX}${owner}`;
+export function releaseReplayLock(owner: string, lockId?: string): boolean {
+  const normOwner = normalizeQueueOwner(owner);
+  const lockKey = `${REPLAY_LOCK_PREFIX}${normOwner}`;
+  
+  if (lockId) {
+    const raw = safeGetLocalStorage(lockKey);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.lockId && parsed.lockId !== lockId) {
+          // Stored lock belongs to a newer/different holder; do NOT delete
+          return false;
+        }
+      } catch {}
+    }
+  }
+
   safeRemoveLocalStorage(lockKey);
+  return true;
 }
 
 /**
@@ -389,21 +423,24 @@ export function removeReplayedQueueItems(
 }
 
 /**
- * Records retry count increment and last error on a failed queue item.
+ * Records retry count increment, last error, and optional exponential backoff on a failed queue item.
  */
 export function recordQueueItemFailure(
   ownerId: string | null | undefined,
   itemId: string,
-  errorMsg: string
+  errorMsg: string,
+  backoffMs = 0
 ): void {
   const normOwner = normalizeQueueOwner(ownerId);
   const currentQueue = getOfflineQueue(normOwner);
   const idx = currentQueue.findIndex(item => item.id === itemId);
   if (idx >= 0) {
+    const nextRetryCount = (currentQueue[idx].retryCount || 0) + 1;
     currentQueue[idx] = {
       ...currentQueue[idx],
-      retryCount: (currentQueue[idx].retryCount || 0) + 1,
-      lastError: errorMsg
+      retryCount: nextRetryCount,
+      lastError: errorMsg,
+      nextRetryAt: backoffMs > 0 ? Date.now() + backoffMs : undefined
     };
     saveOfflineQueue(normOwner, currentQueue);
   }
@@ -699,6 +736,8 @@ export interface ReplayOptions {
   authToken: string | null;
   fetchImpl?: typeof fetch;
   fetchFn?: typeof fetch;
+  force?: boolean;
+  respectBackoff?: boolean;
   onItemSuccess?: (item: OfflineQueueItem) => void;
   onItemFailure?: (item: OfflineQueueItem, error: any) => void;
   getCurrentActiveAccountId?: () => string | null;
@@ -718,11 +757,12 @@ export interface ReplayResult {
  * 1. Guest state never replays mutations to the server.
  * 2. Authenticated user mutations are only replayed with a valid auth token.
  * 3. Never replays User A mutations while User B, Guest, Admin, or an impersonated user is active.
- * 4. Intra-tab mutex & cross-tab lock prevent duplicate concurrent replays.
+ * 4. Intra-tab mutex & cross-tab lock lease prevent duplicate concurrent replays.
  * 5. Verifies active account hasn't changed before and after each network request.
  * 6. 401/403 stops replay immediately while preserving items in the owner's queue.
- * 7. Only confirmed successful items (or quarantined poison pills) are removed from the queue.
+ * 7. Only confirmed successful items (or quarantined non-retryable poison pills) are removed from the queue.
  * 8. Re-verifies fresh item existence and compacted payloads before each network invocation.
+ * 9. Retryable errors (network, 5xx, 408, 429) are preserved indefinitely with exponential backoff and never quarantined.
  */
 export async function replayAccountOfflineQueue(options: ReplayOptions): Promise<ReplayResult> {
   const initialOwner = normalizeQueueOwner(options.activeAccountId);
@@ -780,7 +820,8 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
   }
 
   // 4. Concurrency Protection (Inter-tab): Acquire cross-tab storage lease
-  if (!acquireReplayLock(initialOwner)) {
+  const lockId = acquireReplayLock(initialOwner);
+  if (!lockId) {
     return {
       syncedCount: 0,
       failedCount: 0,
@@ -794,7 +835,7 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
     try {
       return await executeReplayLoop(options, initialOwner);
     } finally {
-      releaseReplayLock(initialOwner);
+      releaseReplayLock(initialOwner, lockId);
       inFlightReplayPromises.delete(initialOwner);
     }
   };
@@ -827,6 +868,11 @@ async function executeReplayLoop(options: ReplayOptions, initialOwner: string): 
     if (!item) {
       // Item was already synced, compacted, or pruned
       continue;
+    }
+
+    // 1b. Deferral check: If respectBackoff is enabled and item is in exponential backoff window, defer safely
+    if (options.respectBackoff && item.nextRetryAt && Date.now() < item.nextRetryAt && !options.force) {
+      break;
     }
 
     // 2. Pre-flight Account Switch Check
@@ -945,9 +991,11 @@ async function executeReplayLoop(options: ReplayOptions, initialOwner: string): 
       } catch (networkErr: any) {
         failedCount++;
         const errMsg = networkErr?.message || String(networkErr);
-        recordQueueItemFailure(initialOwner, item.id, errMsg);
+        const nextRetryCount = (item.retryCount || 0) + 1;
+        const backoffMs = Math.min(30000, 1000 * Math.pow(2, Math.min(nextRetryCount, 5)));
+        recordQueueItemFailure(initialOwner, item.id, errMsg, backoffMs);
         options.onItemFailure?.(item, networkErr);
-        // Fail-fast on network error: stop replay run to preserve downstream retry budgets
+        // Fail-fast on network error: stop replay run to preserve downstream retry budgets and avoid tight loops
         break;
       }
 
@@ -986,28 +1034,33 @@ async function executeReplayLoop(options: ReplayOptions, initialOwner: string): 
         failedCount++;
         const errMsg = `Server returned HTTP ${res.status}`;
 
-        // Fatal client errors (400, 422) can never succeed on retry; quarantine to prevent blocking the queue
-        if (res.status === 400 || res.status === 422) {
-          quarantineQueueItems([item], `Permanent server rejection (${res.status}): ${errMsg}`, initialOwner);
-          removeReplayedQueueItems(initialOwner, [item.id]);
+        // Retryable server and rate-limit errors (5xx, 408, 429)
+        // Must NEVER automatically quarantine valid mutations regardless of retry count!
+        const isRetryable = res.status === 408 || res.status === 429 || (res.status >= 500 && res.status <= 599);
+
+        if (isRetryable) {
+          const nextRetryCount = (item.retryCount || 0) + 1;
+          const backoffMs = Math.min(30000, 1000 * Math.pow(2, Math.min(nextRetryCount, 5)));
+          recordQueueItemFailure(initialOwner, item.id, errMsg, backoffMs);
           options.onItemFailure?.(item, new Error(errMsg));
-          continue;
+          // Stop replay run on server/gateway failure to avoid hammering during outage
+          break;
         }
 
-        const nextRetryCount = (item.retryCount || 0) + 1;
-        if (nextRetryCount >= MAX_REPLAY_RETRIES) {
-          quarantineQueueItems([item], `Exceeded max retry attempts (${MAX_REPLAY_RETRIES}): ${errMsg}`, initialOwner);
-          removeReplayedQueueItems(initialOwner, [item.id]);
-        } else {
-          recordQueueItemFailure(initialOwner, item.id, errMsg);
-        }
+        // Permanent client rejections (400 schema validation, 422, 409 collision, 404 non-existent resource for updates)
+        // Quarantine to prevent permanently blocking the queue
+        quarantineQueueItems([item], `Permanent server rejection (${res.status}): ${errMsg}`, initialOwner);
+        removeReplayedQueueItems(initialOwner, [item.id]);
         options.onItemFailure?.(item, new Error(errMsg));
       }
     } catch (generalErr: any) {
       failedCount++;
       const errMsg = generalErr?.message || String(generalErr);
-      recordQueueItemFailure(initialOwner, item.id, errMsg);
+      const nextRetryCount = (item.retryCount || 0) + 1;
+      const backoffMs = Math.min(30000, 1000 * Math.pow(2, Math.min(nextRetryCount, 5)));
+      recordQueueItemFailure(initialOwner, item.id, errMsg, backoffMs);
       options.onItemFailure?.(item, generalErr);
+      break;
     }
   }
 

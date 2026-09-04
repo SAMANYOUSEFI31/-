@@ -291,6 +291,7 @@ export interface OfflineQueueItem {
   payload: any;
   timestamp: number;
   retryCount?: number;
+  nextRetryAt?: number;
   lastError?: string;
   dedupKey?: string;
 }
