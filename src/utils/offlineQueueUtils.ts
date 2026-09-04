@@ -26,6 +26,63 @@ export const LEGACY_AMBIGUOUS_QUARANTINE_KEY = 'bushido_quarantine_legacy_ambigu
 export const LEGACY_OFFLINE_QUARANTINE_KEY = 'bushido_offline_queue_quarantine';
 export const OFFLINE_QUARANTINE_KEY = 'bushido_offline_queue_quarantine';
 
+export const MAX_REPLAY_RETRIES = 5;
+export const REPLAY_LOCK_PREFIX = 'bushido_replay_lock_';
+export const REPLAY_LOCK_TIMEOUT_MS = 10000;
+
+// In-flight replay promise tracker per account to prevent intra-tab concurrent replays
+const inFlightReplayPromises = new Map<string, Promise<ReplayResult>>();
+
+/**
+ * Acquires a cross-tab ephemeral storage lock for replay execution.
+ */
+export function acquireReplayLock(owner: string): boolean {
+  const lockKey = `${REPLAY_LOCK_PREFIX}${owner}`;
+  const now = Date.now();
+  const existingRaw = safeGetLocalStorage(lockKey);
+  if (existingRaw) {
+    try {
+      const parsed = JSON.parse(existingRaw);
+      if (parsed && typeof parsed.timestamp === 'number' && (now - parsed.timestamp) < REPLAY_LOCK_TIMEOUT_MS) {
+        return false;
+      }
+    } catch {
+      // Corrupted lock payload, overwrite safely
+    }
+  }
+  safeSetLocalStorage(lockKey, JSON.stringify({ lockId: `lock_${now}_${Math.random().toString(36).substring(2, 8)}`, timestamp: now }));
+  return true;
+}
+
+/**
+ * Releases the cross-tab ephemeral storage lock for an account.
+ */
+export function releaseReplayLock(owner: string): void {
+  const lockKey = `${REPLAY_LOCK_PREFIX}${owner}`;
+  safeRemoveLocalStorage(lockKey);
+}
+
+/**
+ * Clears all active replay locks and in-flight promises (used during test teardown or hard reset).
+ */
+export function clearAllReplayLocks(): void {
+  inFlightReplayPromises.clear();
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(REPLAY_LOCK_PREFIX)) {
+          keysToRemove.push(key);
+        }
+      }
+      for (const k of keysToRemove) {
+        safeRemoveLocalStorage(k);
+      }
+    }
+  } catch {}
+}
+
 /**
  * Generates an account-scoped storage key for quarantined queue items.
  * Guarantees sensitive payloads from different users are never intermingled.
@@ -188,6 +245,31 @@ export function enqueueOfflineMutation(
       const updatedItem: OfflineQueueItem = {
         ...currentQueue[existingIdx],
         payload: mutation.payload,
+        timestamp: Date.now(),
+        retryCount: 0
+      };
+      currentQueue[existingIdx] = updatedItem;
+      saveOfflineQueue(normOwner, currentQueue);
+      return updatedItem;
+    }
+  }
+
+  // Rule 1b: CREATE_CYCLE compaction (prevent duplicate CREATE_CYCLE items for same cycle)
+  if (mutation.type === 'CREATE_CYCLE') {
+    const cycleId = mutation.payload?.id;
+    const existingIdx = currentQueue.findIndex(
+      item => item.type === 'CREATE_CYCLE' && (
+        item.dedupKey === dedupKey ||
+        (cycleId && item.payload?.id === cycleId)
+      )
+    );
+    if (existingIdx >= 0) {
+      const updatedItem: OfflineQueueItem = {
+        ...currentQueue[existingIdx],
+        payload: {
+          ...currentQueue[existingIdx].payload,
+          ...mutation.payload
+        },
         timestamp: Date.now(),
         retryCount: 0
       };
@@ -580,10 +662,16 @@ export function migrateLegacyGlobalQueue(): { migratedCount: number; quarantined
         normalizeUserId(item.ownerId)
       ) {
         const owner = normalizeQueueOwner(item.ownerId);
+        const existingQueue = getOfflineQueue(owner);
+        const itemDedupKey = item.dedupKey || buildDedupKey(owner, { type: item.type, payload: item.payload, dedupKey: item.dedupKey });
+        if (existingQueue.some(q => (item.id && q.id === item.id) || (q.dedupKey && q.dedupKey === itemDedupKey))) {
+          // Item with same ID or dedupKey already exists in owner queue, skip duplicate migration
+          continue;
+        }
         enqueueOfflineMutation(owner, {
           type: item.type,
           payload: item.payload,
-          dedupKey: item.dedupKey
+          dedupKey: itemDedupKey
         });
         migratedCount++;
       } else {
@@ -630,9 +718,11 @@ export interface ReplayResult {
  * 1. Guest state never replays mutations to the server.
  * 2. Authenticated user mutations are only replayed with a valid auth token.
  * 3. Never replays User A mutations while User B, Guest, Admin, or an impersonated user is active.
- * 4. Verifies active account hasn't changed before and after each network request.
- * 5. 401/403 stops replay immediately while preserving items in the owner's queue.
- * 6. Only confirmed successful items are removed from the queue.
+ * 4. Intra-tab mutex & cross-tab lock prevent duplicate concurrent replays.
+ * 5. Verifies active account hasn't changed before and after each network request.
+ * 6. 401/403 stops replay immediately while preserving items in the owner's queue.
+ * 7. Only confirmed successful items (or quarantined poison pills) are removed from the queue.
+ * 8. Re-verifies fresh item existence and compacted payloads before each network invocation.
  */
 export async function replayAccountOfflineQueue(options: ReplayOptions): Promise<ReplayResult> {
   const initialOwner = normalizeQueueOwner(options.activeAccountId);
@@ -659,6 +749,62 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
     };
   }
 
+  // 3. Concurrency Protection (Intra-tab): Await any active replay for this owner
+  const inFlight = inFlightReplayPromises.get(initialOwner);
+  if (inFlight) {
+    return inFlight.then(() => {
+      if (options.getCurrentActiveAccountId) {
+        const currentAcc = normalizeQueueOwner(options.getCurrentActiveAccountId());
+        if (currentAcc !== initialOwner) {
+          return {
+            syncedCount: 0,
+            failedCount: 0,
+            stoppedDueToAuth: false,
+            stoppedDueToAccountChange: true,
+            remainingQueueCount: getOfflineQueue(initialOwner).length
+          };
+        }
+      }
+      const remainingQueue = getOfflineQueue(initialOwner);
+      if (remainingQueue.length === 0) {
+        return {
+          syncedCount: 0,
+          failedCount: 0,
+          stoppedDueToAuth: false,
+          stoppedDueToAccountChange: false,
+          remainingQueueCount: 0
+        };
+      }
+      return replayAccountOfflineQueue(options);
+    });
+  }
+
+  // 4. Concurrency Protection (Inter-tab): Acquire cross-tab storage lease
+  if (!acquireReplayLock(initialOwner)) {
+    return {
+      syncedCount: 0,
+      failedCount: 0,
+      stoppedDueToAuth: false,
+      stoppedDueToAccountChange: false,
+      remainingQueueCount: getOfflineQueue(initialOwner).length
+    };
+  }
+
+  const runReplay = async (): Promise<ReplayResult> => {
+    try {
+      return await executeReplayLoop(options, initialOwner);
+    } finally {
+      releaseReplayLock(initialOwner);
+      inFlightReplayPromises.delete(initialOwner);
+    }
+  };
+
+  const replayPromise = runReplay();
+  inFlightReplayPromises.set(initialOwner, replayPromise);
+  return replayPromise;
+}
+
+async function executeReplayLoop(options: ReplayOptions, initialOwner: string): Promise<ReplayResult> {
   const fetchFn = options.fetchImpl || options.fetchFn || (typeof fetch !== 'undefined' ? fetch : undefined);
   if (!fetchFn) {
     return {
@@ -670,12 +816,20 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
     };
   }
 
-  const queue = getOfflineQueue(initialOwner);
+  const initialQueue = getOfflineQueue(initialOwner);
   let syncedCount = 0;
   let failedCount = 0;
 
-  for (const item of queue) {
-    // 3. Pre-flight Account Switch Check
+  for (const queueItem of initialQueue) {
+    // 1. Freshness check: Verify that the item has not been removed, compacted, or already synced
+    const currentQueue = getOfflineQueue(initialOwner);
+    const item = currentQueue.find(q => q.id === queueItem.id);
+    if (!item) {
+      // Item was already synced, compacted, or pruned
+      continue;
+    }
+
+    // 2. Pre-flight Account Switch Check
     if (options.getCurrentActiveAccountId) {
       const currentAcc = normalizeQueueOwner(options.getCurrentActiveAccountId());
       if (currentAcc !== initialOwner) {
@@ -689,10 +843,10 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
       }
     }
 
-    // 4. Embedded Ownership Verification
+    // 3. Embedded Ownership Verification
     if (normalizeQueueOwner(item.ownerId) !== initialOwner) {
       console.warn(`[Offline Replay] Embedded owner mismatch: item owner ${item.ownerId} != replay owner ${initialOwner}`);
-      quarantineQueueItems([item], `Embedded owner mismatch during replay: item owner ${item.ownerId} != replay owner ${initialOwner}`);
+      quarantineQueueItems([item], `Embedded owner mismatch during replay: item owner ${item.ownerId} != replay owner ${initialOwner}`, initialOwner);
       removeReplayedQueueItems(initialOwner, [item.id]);
       continue;
     }
@@ -706,11 +860,26 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
         case 'UPDATE_LOG': {
           endpoint = '/api/logs';
           method = 'POST';
+          body = {
+            ...item.payload,
+            clientOperationId: item.id
+          };
           break;
         }
         case 'UPDATE_CYCLE': {
-          endpoint = `/api/cycles/${item.payload?.id}`;
+          const cycleId = item.payload?.id;
+          if (!cycleId) {
+            quarantineQueueItems([item], 'Missing cycle id in UPDATE_CYCLE payload', initialOwner);
+            removeReplayedQueueItems(initialOwner, [item.id]);
+            failedCount++;
+            continue;
+          }
+          endpoint = `/api/cycles/${cycleId}`;
           method = 'PUT';
+          body = {
+            ...item.payload,
+            clientOperationId: item.id
+          };
           break;
         }
         case 'CREATE_CYCLE': {
@@ -728,6 +897,12 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
         }
         case 'DELETE_CYCLE': {
           const cycleId = typeof item.payload === 'string' ? item.payload : item.payload?.id;
+          if (!cycleId) {
+            quarantineQueueItems([item], 'Missing cycle id in DELETE_CYCLE payload', initialOwner);
+            removeReplayedQueueItems(initialOwner, [item.id]);
+            failedCount++;
+            continue;
+          }
           endpoint = `/api/cycles/${cycleId}`;
           method = 'DELETE';
           body = undefined;
@@ -736,6 +911,10 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
         case 'UPDATE_PROFILE': {
           endpoint = '/api/user/profile';
           method = 'PUT';
+          body = {
+            ...item.payload,
+            clientOperationId: item.id
+          };
           break;
         }
         case 'UPDATE_SETTINGS': {
@@ -756,13 +935,23 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
         'Authorization': `Bearer ${options.authToken}`
       };
 
-      const res = await fetchFn(endpoint, {
-        method,
-        headers,
-        body: body !== undefined ? JSON.stringify(body) : undefined
-      });
+      let res: any;
+      try {
+        res = await fetchFn(endpoint, {
+          method,
+          headers,
+          body: body !== undefined ? JSON.stringify(body) : undefined
+        });
+      } catch (networkErr: any) {
+        failedCount++;
+        const errMsg = networkErr?.message || String(networkErr);
+        recordQueueItemFailure(initialOwner, item.id, errMsg);
+        options.onItemFailure?.(item, networkErr);
+        // Fail-fast on network error: stop replay run to preserve downstream retry budgets
+        break;
+      }
 
-      // 5. Auth Failure (401 / 403)
+      // 4. Auth Failure (401 / 403)
       if (res.status === 401 || res.status === 403) {
         return {
           syncedCount,
@@ -776,7 +965,7 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
       const isSuccess = res.ok || (item.type === 'DELETE_CYCLE' && res.status === 404);
 
       if (isSuccess) {
-        // 6. Post-fetch Account Switch Verification before committing success
+        // 5. Post-fetch Account Switch Verification before committing success
         if (options.getCurrentActiveAccountId) {
           const currentAcc = normalizeQueueOwner(options.getCurrentActiveAccountId());
           if (currentAcc !== initialOwner) {
@@ -796,14 +985,29 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
       } else {
         failedCount++;
         const errMsg = `Server returned HTTP ${res.status}`;
-        recordQueueItemFailure(initialOwner, item.id, errMsg);
+
+        // Fatal client errors (400, 422) can never succeed on retry; quarantine to prevent blocking the queue
+        if (res.status === 400 || res.status === 422) {
+          quarantineQueueItems([item], `Permanent server rejection (${res.status}): ${errMsg}`, initialOwner);
+          removeReplayedQueueItems(initialOwner, [item.id]);
+          options.onItemFailure?.(item, new Error(errMsg));
+          continue;
+        }
+
+        const nextRetryCount = (item.retryCount || 0) + 1;
+        if (nextRetryCount >= MAX_REPLAY_RETRIES) {
+          quarantineQueueItems([item], `Exceeded max retry attempts (${MAX_REPLAY_RETRIES}): ${errMsg}`, initialOwner);
+          removeReplayedQueueItems(initialOwner, [item.id]);
+        } else {
+          recordQueueItemFailure(initialOwner, item.id, errMsg);
+        }
         options.onItemFailure?.(item, new Error(errMsg));
       }
-    } catch (networkErr: any) {
+    } catch (generalErr: any) {
       failedCount++;
-      const errMsg = networkErr?.message || String(networkErr);
+      const errMsg = generalErr?.message || String(generalErr);
       recordQueueItemFailure(initialOwner, item.id, errMsg);
-      options.onItemFailure?.(item, networkErr);
+      options.onItemFailure?.(item, generalErr);
     }
   }
 

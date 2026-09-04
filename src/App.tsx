@@ -276,11 +276,16 @@ export default function App() {
   }, [authToken, systemState.userProfile?.id, showAppToast]);
 
   useEffect(() => {
+    let onlineTimer: any = null;
     const handleOnline = () => {
-      syncOfflineDataToServer();
+      if (onlineTimer) clearTimeout(onlineTimer);
+      onlineTimer = setTimeout(() => {
+        syncOfflineDataToServer();
+      }, 300);
     };
     window.addEventListener('online', handleOnline);
     return () => {
+      if (onlineTimer) clearTimeout(onlineTimer);
       window.removeEventListener('online', handleOnline);
     };
   }, [syncOfflineDataToServer]);
@@ -463,8 +468,13 @@ export default function App() {
       return;
     }
 
+    const logPayload = {
+      ...updatedLog,
+      cycleId: updatedLog.cycleId || activeCycleId
+    };
+
     if (guard.shouldQueue) {
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload });
       return;
     }
 
@@ -475,10 +485,7 @@ export default function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
         },
-        body: JSON.stringify({
-          ...updatedLog,
-          cycleId: updatedLog.cycleId || activeCycleId
-        })
+        body: JSON.stringify(logPayload)
       });
       if (res.ok) {
         setSystemState(prev => ({
@@ -486,11 +493,11 @@ export default function App() {
           logs: prev.logs.map(l => l.date === updatedLog.date ? { ...l, isSynced: true } : l)
         }));
       } else {
-        enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
+        enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload });
       }
     } catch (e) {
       console.warn('Failed to sync log to server backend (added to offline queue):', e);
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload });
     }
   }, [authToken, activeCycleId, systemState.userProfile?.id]);
 

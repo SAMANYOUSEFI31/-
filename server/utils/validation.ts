@@ -189,6 +189,7 @@ export const createCycleSchema = z.object({
  * Update Cycle Schema
  */
 export const updateCycleSchema = z.object({
+  clientOperationId: z.string().max(120).optional(),
   title: z.string().min(1).max(120).optional(),
   targetTheme: z.string().max(200).optional().nullable(),
   rules: z.array(z.string().max(200)).max(20).optional(),
@@ -201,6 +202,8 @@ export const updateCycleSchema = z.object({
  * Daily Log Upsert Schema (Foundation Habits & Autopsy details)
  */
 export const upsertDailyLogSchema = z.object({
+  id: z.string().max(120).optional(),
+  clientOperationId: z.string().max(120).optional(),
   cycleId: z.string().min(1, { message: 'شناسه چرخه الزامی است.' }),
   date: dateStringSchema,
   wakeUp: z.boolean().default(false),
@@ -221,6 +224,8 @@ export const upsertDailyLogSchema = z.object({
  * Daily Log Update Schema
  */
 export const updateDailyLogSchema = z.object({
+  id: z.string().max(120).optional(),
+  clientOperationId: z.string().max(120).optional(),
   cycleId: z.string().min(1).optional(),
   wakeUp: z.boolean().optional(),
   workout: z.boolean().optional(),
@@ -257,6 +262,7 @@ export const autopsySchema = z.object({
  * All privilege-bearing, identity, and internal fields are stripped or rejected.
  */
 export const updateProfileSchema = z.object({
+  clientOperationId: z.string().max(120).optional(),
   name: z.string().max(80, { message: 'نام کاربری حداکثر ۸۰ کاراکتر می‌باشد.' }).optional(),
   nightOwlCutoffHour: z.number().int({ message: 'ساعت کات‌آف باید عدد صحیح باشد.' }).min(0).max(23, { message: 'ساعت کات‌آف شبانه باید عددی بین ۰ تا ۲۳ باشد.' }).optional(),
   accentTheme: z.enum(['amber', 'emerald', 'crimson', 'cyan'], { message: 'تم انتخابی نامعتبر است.' }).optional(),
