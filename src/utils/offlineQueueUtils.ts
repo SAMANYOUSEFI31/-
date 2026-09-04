@@ -40,6 +40,7 @@ export const OFFLINE_QUARANTINE_KEY = 'bushido_offline_queue_quarantine';
 export const MAX_REPLAY_RETRIES = 5;
 export const REPLAY_LOCK_PREFIX = 'bushido_replay_lock_';
 export const REPLAY_LOCK_TIMEOUT_MS = 10000;
+export const REPLAY_LOCK_HEARTBEAT_INTERVAL_MS = 3000;
 
 export const INITIAL_REPLAY_BACKOFF_MS = 2000;
 export const MAX_REPLAY_BACKOFF_MS = 30000;
@@ -128,7 +129,11 @@ export function renewReplayLock(owner: string, lockId: string): boolean {
     const parsed = JSON.parse(raw);
     const now = Date.now();
     if (parsed?.lockId !== lockId) {
-      // Lock has been taken over by another tab
+      // Lock has been taken over by another tab/holder
+      return false;
+    }
+    if (typeof parsed.timestamp !== 'number' || (now - parsed.timestamp) >= REPLAY_LOCK_TIMEOUT_MS) {
+      // Lease already expired; cannot revive an expired lease
       return false;
     }
     // Update timestamp
@@ -871,6 +876,7 @@ export interface ReplayOptions {
   fetchFn?: typeof fetch;
   force?: boolean;
   respectBackoff?: boolean;
+  heartbeatIntervalMs?: number;
   onItemSuccess?: (item: OfflineQueueItem) => void;
   onItemFailure?: (item: OfflineQueueItem, error: any) => void;
   getCurrentActiveAccountId?: () => string | null;
@@ -1146,6 +1152,26 @@ async function executeReplayLoop(
       };
 
       let res: any;
+      let networkErrorOccurred = false;
+      let caughtNetworkErr: any = null;
+      let leaseLostDuringFlight = false;
+      let heartbeatTimer: any = null;
+
+      const heartbeatIntervalMs = options.heartbeatIntervalMs || REPLAY_LOCK_HEARTBEAT_INTERVAL_MS;
+
+      if (lockId) {
+        heartbeatTimer = setInterval(() => {
+          const renewed = renewReplayLock(initialOwner, lockId);
+          if (!renewed) {
+            leaseLostDuringFlight = true;
+            if (heartbeatTimer) {
+              clearInterval(heartbeatTimer);
+              heartbeatTimer = null;
+            }
+          }
+        }, heartbeatIntervalMs);
+      }
+
       try {
         res = await fetchFn(endpoint, {
           method,
@@ -1153,12 +1179,35 @@ async function executeReplayLoop(
           body: body !== undefined ? JSON.stringify(body) : undefined
         });
       } catch (networkErr: any) {
+        networkErrorOccurred = true;
+        caughtNetworkErr = networkErr;
+      } finally {
+        if (heartbeatTimer) {
+          clearInterval(heartbeatTimer);
+          heartbeatTimer = null;
+        }
+      }
+
+      // In-flight Lease Ownership Verification:
+      // If heartbeat failed during network execution or lease was lost/expired, abort safely
+      if (lockId && (leaseLostDuringFlight || !verifyReplayLock(initialOwner, lockId))) {
+        return {
+          syncedCount,
+          failedCount,
+          stoppedDueToAuth: false,
+          stoppedDueToAccountChange: false,
+          stoppedDueToLockLoss: true,
+          remainingQueueCount: getOfflineQueue(initialOwner).length
+        };
+      }
+
+      if (networkErrorOccurred) {
         failedCount++;
-        const errMsg = networkErr?.message || String(networkErr);
+        const errMsg = caughtNetworkErr?.message || String(caughtNetworkErr);
         const nextRetryCount = (item.retryCount || 0) + 1;
         const backoffMs = Math.min(30000, 1000 * Math.pow(2, Math.min(nextRetryCount, 5)));
         recordQueueItemFailure(initialOwner, item.id, errMsg, backoffMs, 'NETWORK_ERROR');
-        options.onItemFailure?.(item, networkErr);
+        options.onItemFailure?.(item, caughtNetworkErr);
         // Fail-fast on network error: stop replay run to preserve downstream retry budgets and avoid tight loops
         break;
       }

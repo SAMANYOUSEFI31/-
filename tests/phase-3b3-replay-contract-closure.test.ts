@@ -318,9 +318,9 @@ describe('Phase 3B.3: Replay Contract Final Closure Suite', () => {
   });
 
   // ===========================================================================
-  // 4. CROSS-TAB LEASE & CAS LOCK SAFETY
+  // 4. CROSS-TAB LEASE & CAS LOCK SAFETY & IN-FLIGHT HEARTBEAT
   // ===========================================================================
-  describe('4. Cross-Tab Lease & CAS Lock Safety', () => {
+  describe('4. Cross-Tab Lease & CAS Lock Safety & In-Flight Heartbeat', () => {
     it('renews replay lock while held and prevents expiration', () => {
       const lockId = acquireReplayLock(testUser);
       assert.ok(lockId);
@@ -338,7 +338,22 @@ describe('Phase 3B.3: Replay Contract Final Closure Suite', () => {
       releaseReplayLock(testUser, lockId!);
     });
 
-    it('stale lock holder cannot release or overwrite a newly acquired lease', () => {
+    it('expired lease cannot be renewed by its former holder', () => {
+      const lockId = acquireReplayLock(testUser);
+      assert.ok(lockId);
+
+      // Force expiration in storage
+      const lockKey = `bushido_replay_lock_${testUser}`;
+      storageMock[lockKey] = JSON.stringify({
+        lockId,
+        timestamp: Date.now() - 15000 // 15 seconds ago > 10s timeout
+      });
+
+      const renewed = renewReplayLock(testUser, lockId!);
+      assert.equal(renewed, false, 'Expired lease cannot be renewed by former holder');
+    });
+
+    it('stale lock holder cannot renew or release a newly acquired lease', () => {
       const lock1 = acquireReplayLock(testUser);
       assert.ok(lock1);
 
@@ -349,16 +364,149 @@ describe('Phase 3B.3: Replay Contract Final Closure Suite', () => {
       const lock2 = acquireReplayLock(testUser);
       assert.ok(lock2);
 
+      // Tab 1 tries to renew with stale lock1
+      const staleRenew = renewReplayLock(testUser, lock1!);
+      assert.equal(staleRenew, false, 'Stale holder cannot renew newer lease');
+
       // Tab 1 tries to release with its stale lock1
       const staleRelease = releaseReplayLock(testUser, lock1!);
       assert.equal(staleRelease, false, 'Stale lock release must fail');
 
-      // Verify Tab 2 still owns the lock
+      // Verify Tab 2 still owns the lock intact
       assert.equal(verifyReplayLock(testUser, lock2!), true);
       releaseReplayLock(testUser, lock2!);
     });
 
-    it('aborts replay loop immediately if lease ownership is lost during network execution', async () => {
+    it('in-flight request running longer than original lease timeout keeps lease alive through heartbeat renewal', async () => {
+      clearOfflineQueue(testUser);
+      enqueueOfflineMutation(testUser, {
+        type: 'UPDATE_LOG',
+        payload: { date: '1403-12-01', workout: true }
+      });
+
+      let observedTimestamps: number[] = [];
+      const slowFetch = async () => {
+        // Record initial timestamp
+        const lockKey = `bushido_replay_lock_${testUser}`;
+        const initialParsed = JSON.parse(storageMock[lockKey]);
+        observedTimestamps.push(initialParsed.timestamp);
+
+        // Sleep with short heartbeat interval
+        await new Promise(r => setTimeout(r, 60));
+
+        const updatedParsed = JSON.parse(storageMock[lockKey]);
+        observedTimestamps.push(updatedParsed.timestamp);
+
+        return { ok: true, status: 200, json: async () => ({}) };
+      };
+
+      const res = await replayAccountOfflineQueue({
+        activeAccountId: testUser,
+        authToken: testToken,
+        fetchFn: slowFetch as any,
+        heartbeatIntervalMs: 15
+      });
+
+      assert.equal(res.syncedCount, 1);
+      assert.ok(observedTimestamps.length >= 2);
+      assert.ok(observedTimestamps[1] > observedTimestamps[0], 'Heartbeat must advance lease timestamp during in-flight request');
+    });
+
+    it('second simulated tab cannot acquire account lease while in-flight heartbeat is active', async () => {
+      clearOfflineQueue(testUser);
+      enqueueOfflineMutation(testUser, {
+        type: 'UPDATE_LOG',
+        payload: { date: '1403-12-01', workout: true }
+      });
+
+      let tab2AcquisitionAttempt: string | null = 'not_attempted';
+
+      const slowFetch = async () => {
+        await new Promise(r => setTimeout(r, 40));
+        // Simulate Tab 2 attempting to acquire lease during Tab 1 in-flight fetch
+        tab2AcquisitionAttempt = acquireReplayLock(testUser);
+        return { ok: true, status: 200, json: async () => ({}) };
+      };
+
+      const res = await replayAccountOfflineQueue({
+        activeAccountId: testUser,
+        authToken: testToken,
+        fetchFn: slowFetch as any,
+        heartbeatIntervalMs: 10
+      });
+
+      assert.equal(res.syncedCount, 1);
+      assert.equal(tab2AcquisitionAttempt, null, 'Second tab must not acquire lease while heartbeat is active');
+    });
+
+    it('heartbeat stops after request completes and cleans up all timer resources', async () => {
+      clearOfflineQueue(testUser);
+      enqueueOfflineMutation(testUser, {
+        type: 'UPDATE_LOG',
+        payload: { date: '1403-12-01', workout: true }
+      });
+
+      const res = await replayAccountOfflineQueue({
+        activeAccountId: testUser,
+        authToken: testToken,
+        fetchFn: (async () => ({ ok: true, status: 200, json: async () => ({}) })) as any,
+        heartbeatIntervalMs: 10
+      });
+
+      assert.equal(res.syncedCount, 1);
+
+      // Wait a moment and ensure no lease exists and no lingering timer fires
+      const lockKey = `bushido_replay_lock_${testUser}`;
+      assert.equal(storageMock[lockKey], undefined, 'Lease must be cleanly released upon replay completion');
+    });
+
+    it('heartbeat stops after a network exception and does not leak timers', async () => {
+      clearOfflineQueue(testUser);
+      enqueueOfflineMutation(testUser, {
+        type: 'UPDATE_LOG',
+        payload: { date: '1403-12-01', workout: true }
+      });
+
+      const failingFetch = async () => {
+        await new Promise(r => setTimeout(r, 20));
+        throw new Error('Simulated network connection drop');
+      };
+
+      const res = await replayAccountOfflineQueue({
+        activeAccountId: testUser,
+        authToken: testToken,
+        fetchFn: failingFetch as any,
+        heartbeatIntervalMs: 10
+      });
+
+      assert.equal(res.failedCount, 1);
+      const lockKey = `bushido_replay_lock_${testUser}`;
+      assert.equal(storageMock[lockKey], undefined, 'Lease must be cleanly released after network error');
+    });
+
+    it('heartbeat stops after HTTP failure (400 / 500)', async () => {
+      clearOfflineQueue(testUser);
+      enqueueOfflineMutation(testUser, {
+        type: 'UPDATE_LOG',
+        payload: { date: '1403-12-01', workout: true }
+      });
+
+      const res = await replayAccountOfflineQueue({
+        activeAccountId: testUser,
+        authToken: testToken,
+        fetchFn: (async () => {
+          await new Promise(r => setTimeout(r, 20));
+          return { ok: false, status: 500, statusText: 'Internal Server Error' };
+        }) as any,
+        heartbeatIntervalMs: 10
+      });
+
+      assert.equal(res.failedCount, 1);
+      const lockKey = `bushido_replay_lock_${testUser}`;
+      assert.equal(storageMock[lockKey], undefined, 'Lease must be released after HTTP failure');
+    });
+
+    it('failed heartbeat prevents queue-item removal, prevents onItemSuccess, and returns stoppedDueToLockLoss', async () => {
       clearOfflineQueue(testUser);
 
       enqueueOfflineMutation(testUser, {
@@ -371,26 +519,35 @@ describe('Phase 3B.3: Replay Contract Final Closure Suite', () => {
       });
 
       let fetchCount = 0;
+      let successCallbackCalled = false;
+
       const stealLockFetch = async (url: string, opts: any) => {
         fetchCount++;
-        // Simulate external lease theft (e.g. another tab took over lock during first network call)
+        // Wait a tick then simulate external lease takeover
+        await new Promise(r => setTimeout(r, 20));
         const stealKey = `bushido_replay_lock_${testUser}`;
         storageMock[stealKey] = JSON.stringify({
           lockId: 'foreign_thief_tab_lock',
           timestamp: Date.now() + 60000,
           ownerId: testUser
         });
+        await new Promise(r => setTimeout(r, 20));
         return { ok: true, status: 200, json: async () => ({}) };
       };
 
       const res = await replayAccountOfflineQueue({
         activeAccountId: testUser,
         authToken: testToken,
-        fetchFn: stealLockFetch as any
+        fetchFn: stealLockFetch as any,
+        heartbeatIntervalMs: 10,
+        onItemSuccess: () => {
+          successCallbackCalled = true;
+        }
       });
 
-      // Item 1 was processed by fetch, but lease verification prevented commit of item 1 and stopped item 2
       assert.equal(fetchCount, 1, 'Replay loop must abort and not proceed to item 2 when lease is lost');
+      assert.equal(successCallbackCalled, false, 'onItemSuccess MUST NOT be called when lease is lost');
+      assert.equal(res.stoppedDueToLockLoss, true, 'Result must indicate stoppedDueToLockLoss');
       assert.equal(res.remainingQueueCount, 2, 'Queue must remain intact if lease verification fails');
     });
   });
