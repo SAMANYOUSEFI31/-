@@ -22,6 +22,11 @@ export type ImpersonationEventType =
 export interface ImpersonationAuditEvent {
   eventType: ImpersonationEventType;
   impersonatorAdminId: string | null;
+  /**
+   * targetUserId:
+   * - On 'impersonation_started' and 'impersonation_denied': Server-authoritative target ID from route parameter.
+   * - On 'impersonation_exited': Client-reported metadata originating from exit request body (non-authoritative).
+   */
   targetUserId: string | null;
   result: 'success' | 'failure';
   errorCode: string | null;

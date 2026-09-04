@@ -1445,11 +1445,18 @@ app.post(['/api/admin/impersonate/exit', '/api/admin/exit-impersonation'], async
       return res.status(403).json({ code: 'NOT_AN_ADMIN', messageFa: 'حساب معتبر مدیریت نمی‌باشد.' });
     }
 
-    const targetUserId = req.body?.targetUserId || null;
+    // Note: targetUserId originates from request body and is client-reported metadata (non-authoritative).
+    // The server does not treat this as server-authoritative session state because impersonation context
+    // is held client-side during session simulation.
+    const rawTargetUserId = req.body?.targetUserId;
+    const clientReportedTargetUserId = typeof rawTargetUserId === 'string' && rawTargetUserId.trim()
+      ? rawTargetUserId.trim()
+      : null;
+
     logImpersonationAudit({
       eventType: 'impersonation_exited',
       impersonatorAdminId: adminUser.id,
-      targetUserId,
+      targetUserId: clientReportedTargetUserId,
       result: 'success'
     });
 

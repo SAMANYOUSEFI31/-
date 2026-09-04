@@ -48,6 +48,7 @@ import {
   IMPERSONATOR_TOKEN_KEY,
   IMPERSONATING_USER_KEY,
   validateAdminTokenForExit,
+  processExitImpersonationOutcome,
   buildExitImpersonationSuccessState,
   buildExitImpersonationRevokedState,
   executeLogoutDuringImpersonation
@@ -838,83 +839,73 @@ export default function App() {
 
     // 1. Read saved Admin token & validate through /api/auth/me BEFORE modifying local state
     const outcome = await validateAdminTokenForExit(adminToken);
+    const result = processExitImpersonationOutcome(outcome, systemState);
 
-    if (outcome.status === 'SUCCESS') {
+    if (result.action === 'SUCCESS_TRANSITION') {
       // 2. Validation succeeds:
       // - Transition back to verified Admin account
       // - Replace active token
       // - Clear impersonation metadata
       // - Replay only Admin queue
       // - Display success
-      safeSetLocalStorage(TOKEN_KEY, outcome.adminToken);
-      setAuthToken(outcome.adminToken);
-
-      safeRemoveSessionStorage(IMPERSONATOR_TOKEN_KEY);
-      safeRemoveSessionStorage(IMPERSONATING_USER_KEY);
+      setAuthToken(result.newAuthToken!);
       setImpersonatingUser(null);
       setImpersonatorAdminToken(null);
-
-      const transition = buildExitImpersonationSuccessState(systemState, outcome.adminUser);
-      setSystemState(transition.nextState);
-      if (transition.nextState.cycles.length > 0) {
-        setActiveCycleId(transition.nextActiveCycleId);
+      if (result.nextSystemState) {
+        setSystemState(result.nextSystemState);
+      }
+      if (result.nextActiveCycleId) {
+        setActiveCycleId(result.nextActiveCycleId);
       }
 
-      // Replay only the Admin's own queue
-      syncOfflineDataToServer(outcome.adminUser.id, outcome.adminToken);
+      if (outcome.status === 'SUCCESS') {
+        // Replay only the Admin's own queue
+        syncOfflineDataToServer(outcome.adminUser.id, outcome.adminToken);
+
+        // Notify server of exit for audit trail (non-authoritative metadata)
+        fetch('/api/admin/impersonate/exit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${outcome.adminToken}`
+          },
+          body: JSON.stringify({ targetUserId: impersonatingUser?.id || null })
+        }).catch(() => {});
+      }
 
       setActiveTab('admin');
-      showAppToast(outcome.messageFa);
-
-      // Notify server of exit for audit trail
-      fetch('/api/admin/impersonate/exit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${outcome.adminToken}`
-        },
-        body: JSON.stringify({ targetUserId: impersonatingUser?.id || null })
-      }).catch(() => {});
+      showAppToast(result.messageFa);
       return;
     }
 
-    if (outcome.status === 'AUTH_REVOKED' || outcome.status === 'INVALID_ADMIN_IDENTITY') {
-      // Validation fails due to 401, SESSION_REVOKED or invalid Admin identity:
+    if (result.action === 'REVOKED_SIGN_OUT') {
+      // Validation fails due to confirmed auth rejection or invalid Admin identity:
       // - Do NOT display a success message
       // - Clear unsafe authentication and impersonation state
       // - Return to a signed-out state
       // - Require authentication again
-      safeRemoveLocalStorage(TOKEN_KEY);
-      safeRemoveSessionStorage(IMPERSONATOR_TOKEN_KEY);
-      safeRemoveSessionStorage(IMPERSONATING_USER_KEY);
-      safeSetSessionStorage('bushido_explicit_logout', 'true');
-
       setAuthToken(null);
       setImpersonatingUser(null);
       setImpersonatorAdminToken(null);
-
-      const transition = buildExitImpersonationRevokedState(systemState);
-      setSystemState(transition.nextState);
-      setActiveCycleId(transition.nextActiveCycleId);
+      if (result.nextSystemState) {
+        setSystemState(result.nextSystemState);
+      }
+      if (result.nextActiveCycleId) {
+        setActiveCycleId(result.nextActiveCycleId);
+      }
 
       setIsAuthModalOpen(true);
-      showAppToast(outcome.messageFa);
+      showAppToast(result.messageFa);
       return;
     }
 
-    if (outcome.status === 'NETWORK_ERROR') {
-      // Temporary network failure:
-      // - Do NOT destroy the only recoverable Admin token prematurely
-      // - Do NOT claim that exit succeeded
-      // - Keep a safe recoverable state and show an error
-      showAppToast(outcome.messageFa);
-      return;
-    }
-
-    if (outcome.status === 'NO_ADMIN_TOKEN') {
-      showAppToast(outcome.messageFa);
-      return;
-    }
+    // For PRESERVE_RETRYABLE (TEMPORARY_SERVER_ERROR and NETWORK_ERROR) or NO_OP:
+    // - Do NOT destroy the only recoverable Admin token prematurely
+    // - Do NOT clear impersonation metadata
+    // - Do NOT change active account
+    // - Do NOT claim that exit succeeded
+    // - Show a retryable Persian error message
+    showAppToast(result.messageFa);
   };
 
   const handleLogout = () => {

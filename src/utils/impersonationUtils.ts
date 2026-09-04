@@ -15,6 +15,7 @@ import {
   safeRemoveSessionStorage,
   transitionAccountState
 } from './storageUtils';
+import { toPersianDigits } from './numberUtils';
 import type { SystemState, UserSubscriptionTier } from '../types';
 
 export const IMPERSONATOR_TOKEN_KEY = 'bushido_impersonator_token';
@@ -50,6 +51,14 @@ export type ExitImpersonationResult =
     }
   | {
       success: false;
+      status: 'TEMPORARY_SERVER_ERROR';
+      httpStatus: number;
+      code: string;
+      retryAfterSeconds?: number | null;
+      messageFa: string;
+    }
+  | {
+      success: false;
       status: 'NETWORK_ERROR';
       error: string;
       messageFa: string;
@@ -65,7 +74,12 @@ export type ExitImpersonationResult =
  * Fail-safe order:
  * 1. Read token
  * 2. Validate with /api/auth/me
- * 3. Return explicit structured outcome
+ * 3. Return explicit structured outcome:
+ *    - SUCCESS: admin verified
+ *    - AUTH_REVOKED: confirmed auth rejection (401, SESSION_REVOKED, INVALID_TOKEN, USER_NOT_FOUND)
+ *    - INVALID_ADMIN_IDENTITY: valid account but lacks admin privileges
+ *    - TEMPORARY_SERVER_ERROR: 429, 500, 502, 503, 504, 408 (preserves admin token & retryable)
+ *    - NETWORK_ERROR: fetch exception or offline (preserves admin token & retryable)
  */
 export async function validateAdminTokenForExit(
   adminToken: string | null | undefined,
@@ -97,12 +111,22 @@ export async function validateAdminTokenForExit(
       data = null;
     }
 
-    if (
+    // 1. Confirmed Authentication Rejection
+    // Return AUTH_REVOKED only when authentication is actually rejected:
+    // - HTTP 401
+    // - SESSION_REVOKED
+    // - INVALID_TOKEN
+    // - USER_NOT_FOUND
+    // - UNAUTHORIZED / EXPIRED_TOKEN
+    const isConfirmedAuthInvalid =
       res.status === 401 ||
       data?.code === 'SESSION_REVOKED' ||
       data?.code === 'INVALID_TOKEN' ||
-      data?.code === 'USER_NOT_FOUND'
-    ) {
+      data?.code === 'USER_NOT_FOUND' ||
+      data?.code === 'UNAUTHORIZED' ||
+      data?.code === 'EXPIRED_TOKEN';
+
+    if (isConfirmedAuthInvalid) {
       return {
         success: false,
         status: 'AUTH_REVOKED',
@@ -111,15 +135,49 @@ export async function validateAdminTokenForExit(
       };
     }
 
-    if (!res.ok) {
+    // 2. HTTP 429 Rate Limiting (Temporary / Retryable Server Error)
+    if (res.status === 429) {
+      let retryAfterSeconds: number | null = null;
+      try {
+        const headerVal = res.headers?.get ? res.headers.get('Retry-After') : null;
+        if (headerVal) {
+          const parsed = parseInt(headerVal, 10);
+          if (!isNaN(parsed) && parsed > 0) {
+            retryAfterSeconds = parsed;
+          }
+        }
+      } catch {}
+
+      const messageFa = retryAfterSeconds
+        ? `تعداد درخواست‌ها بیش از حد مجاز است. لطفاً پس از ${toPersianDigits(retryAfterSeconds)} ثانیه مجدداً تلاش نمایید.`
+        : 'تعداد درخواست‌ها بیش از حد مجاز است. لطفاً لحظاتی بعد مجدداً تلاش نمایید.';
+
       return {
         success: false,
-        status: 'AUTH_REVOKED',
-        code: data?.code || `HTTP_${res.status}`,
-        messageFa: data?.messageFa || 'احراز هویت حساب مدیریت با خطا مواجه شد.'
+        status: 'TEMPORARY_SERVER_ERROR',
+        httpStatus: 429,
+        code: data?.code || 'RATE_LIMITED',
+        retryAfterSeconds,
+        messageFa
       };
     }
 
+    // 3. HTTP 5xx or temporary / ambiguous non-ok server responses (500, 502, 503, 504, 408, etc.)
+    if (!res.ok) {
+      const isUnavailable = res.status === 503 || res.status === 504;
+      return {
+        success: false,
+        status: 'TEMPORARY_SERVER_ERROR',
+        httpStatus: res.status,
+        code: data?.code || `HTTP_${res.status}`,
+        retryAfterSeconds: null,
+        messageFa: isUnavailable
+          ? 'سرویس مدیریت موقتاً در دسترس نیست. لطفاً چند لحظه بعد مجدداً تلاش نمایید.'
+          : 'سرور موقتاً پاسخگو نیست. لطفاً چند لحظه بعد مجدداً تلاش نمایید.'
+      };
+    }
+
+    // 4. HTTP OK (200): Check Admin authority
     const user = data?.user;
     if (!user || !user.id || !user.isAdmin) {
       return {
@@ -130,6 +188,7 @@ export async function validateAdminTokenForExit(
       };
     }
 
+    // 5. Success
     return {
       success: true,
       status: 'SUCCESS',
@@ -146,12 +205,12 @@ export async function validateAdminTokenForExit(
       messageFa: 'به حساب مدیریت بازگشتید.'
     };
   } catch (err: any) {
-    // Temporary network failure: do not clear tokens prematurely
+    // 6. Network failure or fetch exception: do not clear tokens prematurely
     return {
       success: false,
       status: 'NETWORK_ERROR',
       error: err?.message || 'Network error',
-      messageFa: 'خطا در برقراری ارتباط با سرور. لطفاً مجدداً تلاش نمایید.'
+      messageFa: 'خطا در برقراری ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کرده و مجدداً تلاش نمایید.'
     };
   }
 }
@@ -253,5 +312,92 @@ export function resolveImpersonationStateOnBoot(
     activeToken,
     impersonatorAdminToken,
     impersonatingUser
+  };
+}
+
+export interface ImpersonationStorageDriver {
+  setLocal?: (key: string, val: string) => void;
+  removeLocal?: (key: string) => void;
+  setSession?: (key: string, val: string) => void;
+  removeSession?: (key: string) => void;
+}
+
+export interface ProcessExitOutcomeResult {
+  action: 'SUCCESS_TRANSITION' | 'REVOKED_SIGN_OUT' | 'PRESERVE_RETRYABLE' | 'NO_OP';
+  nextSystemState?: SystemState;
+  nextActiveCycleId?: string | null;
+  newAuthToken?: string | null;
+  openAuthModal?: boolean;
+  messageFa: string;
+  isSuccess: boolean;
+}
+
+/**
+ * Pure dispatcher for exit impersonation outcome:
+ * - SUCCESS: updates localStorage with admin token, purges impersonator metadata, transitions system state to Admin.
+ * - AUTH_REVOKED / INVALID_ADMIN_IDENTITY: removes tokens, clears impersonation metadata, marks explicit logout, transitions to signed out.
+ * - TEMPORARY_SERVER_ERROR / NETWORK_ERROR: strictly PRESERVES tokens & metadata, does not change account, returns retryable message.
+ * - NO_ADMIN_TOKEN: no-op with warning.
+ */
+export function processExitImpersonationOutcome(
+  outcome: ExitImpersonationResult,
+  currentSystemState: SystemState,
+  storageDriver?: ImpersonationStorageDriver
+): ProcessExitOutcomeResult {
+  const setLocal = storageDriver?.setLocal ?? safeSetLocalStorage;
+  const removeLocal = storageDriver?.removeLocal ?? safeRemoveLocalStorage;
+  const setSession = storageDriver?.setSession ?? safeSetSessionStorage;
+  const removeSession = storageDriver?.removeSession ?? safeRemoveSessionStorage;
+
+  if (outcome.status === 'SUCCESS') {
+    setLocal(TOKEN_KEY, outcome.adminToken);
+    removeSession(IMPERSONATOR_TOKEN_KEY);
+    removeSession(IMPERSONATING_USER_KEY);
+
+    const transition = buildExitImpersonationSuccessState(currentSystemState, outcome.adminUser);
+    return {
+      action: 'SUCCESS_TRANSITION',
+      nextSystemState: transition.nextState,
+      nextActiveCycleId: transition.nextActiveCycleId,
+      newAuthToken: outcome.adminToken,
+      openAuthModal: false,
+      messageFa: outcome.messageFa,
+      isSuccess: true
+    };
+  }
+
+  if (outcome.status === 'AUTH_REVOKED' || outcome.status === 'INVALID_ADMIN_IDENTITY') {
+    removeLocal(TOKEN_KEY);
+    removeSession(IMPERSONATOR_TOKEN_KEY);
+    removeSession(IMPERSONATING_USER_KEY);
+    setSession('bushido_explicit_logout', 'true');
+
+    const transition = buildExitImpersonationRevokedState(currentSystemState);
+    return {
+      action: 'REVOKED_SIGN_OUT',
+      nextSystemState: transition.nextState,
+      nextActiveCycleId: transition.nextActiveCycleId,
+      newAuthToken: null,
+      openAuthModal: true,
+      messageFa: outcome.messageFa,
+      isSuccess: false
+    };
+  }
+
+  if (outcome.status === 'TEMPORARY_SERVER_ERROR' || outcome.status === 'NETWORK_ERROR') {
+    // Fail-safe requirement: do not clear the saved Admin token,
+    // do not clear impersonation metadata, do not change the active account,
+    // and do not report exit success.
+    return {
+      action: 'PRESERVE_RETRYABLE',
+      messageFa: outcome.messageFa,
+      isSuccess: false
+    };
+  }
+
+  return {
+    action: 'NO_OP',
+    messageFa: outcome.messageFa,
+    isSuccess: false
   };
 }

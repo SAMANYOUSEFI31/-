@@ -14,6 +14,7 @@ import {
   IMPERSONATOR_TOKEN_KEY,
   IMPERSONATING_USER_KEY,
   validateAdminTokenForExit,
+  processExitImpersonationOutcome,
   buildExitImpersonationSuccessState,
   buildExitImpersonationRevokedState,
   executeLogoutDuringImpersonation,
@@ -748,5 +749,259 @@ describe('Phase 3A.5: Admin & Impersonation Boundary Suite', () => {
     assert.equal(data.success, true);
     assert.equal(data.user.id, adminId);
     assert.equal(data.user.isAdmin, true);
+  });
+
+  it('25. 429 Too Many Requests returns TEMPORARY_SERVER_ERROR, parses Retry-After, and preserves Admin recovery token', async () => {
+    const mock429Fetch = async () => {
+      return new Response(JSON.stringify({ code: 'RATE_LIMITED' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '12' }
+      });
+    };
+
+    const storage: Record<string, string> = {
+      [TOKEN_KEY]: 'active-user-token',
+      [IMPERSONATOR_TOKEN_KEY]: adminToken,
+      [IMPERSONATING_USER_KEY]: JSON.stringify({ id: normalUserId, name: 'کاربر تست' })
+    };
+    const storageDriver = {
+      setLocal: (k: string, v: string) => { storage[k] = v; },
+      removeLocal: (k: string) => { delete storage[k]; },
+      setSession: (k: string, v: string) => { storage[k] = v; },
+      removeSession: (k: string) => { delete storage[k]; }
+    };
+
+    const outcome = await validateAdminTokenForExit(adminToken, mock429Fetch as any);
+    assert.equal(outcome.success, false);
+    assert.equal(outcome.status, 'TEMPORARY_SERVER_ERROR');
+    if (outcome.status === 'TEMPORARY_SERVER_ERROR') {
+      assert.equal(outcome.httpStatus, 429);
+      assert.equal(outcome.retryAfterSeconds, 12);
+      assert.match(outcome.messageFa, /۱۲/); // Persian digit representation
+    }
+
+    const dummyState = createInitialSystemState({ id: normalUserId, name: 'کاربر تست' });
+    const result = processExitImpersonationOutcome(outcome, dummyState, storageDriver);
+
+    // Tokens and impersonation metadata MUST remain preserved
+    assert.equal(result.isSuccess, false);
+    assert.equal(result.action, 'PRESERVE_RETRYABLE');
+    assert.equal(storage[IMPERSONATOR_TOKEN_KEY], adminToken);
+    assert.equal(storage[TOKEN_KEY], 'active-user-token');
+    assert.ok(storage[IMPERSONATING_USER_KEY]);
+  });
+
+  it('26. 500 Internal Server Error returns TEMPORARY_SERVER_ERROR and preserves Admin recovery token', async () => {
+    const mock500Fetch = async () => {
+      return new Response(JSON.stringify({ code: 'INTERNAL_ERROR' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    };
+
+    const storage: Record<string, string> = {
+      [TOKEN_KEY]: 'active-user-token',
+      [IMPERSONATOR_TOKEN_KEY]: adminToken,
+      [IMPERSONATING_USER_KEY]: JSON.stringify({ id: normalUserId })
+    };
+    const storageDriver = {
+      removeLocal: (k: string) => { delete storage[k]; },
+      removeSession: (k: string) => { delete storage[k]; }
+    };
+
+    const outcome = await validateAdminTokenForExit(adminToken, mock500Fetch as any);
+    assert.equal(outcome.success, false);
+    assert.equal(outcome.status, 'TEMPORARY_SERVER_ERROR');
+    if (outcome.status === 'TEMPORARY_SERVER_ERROR') {
+      assert.equal(outcome.httpStatus, 500);
+    }
+
+    const dummyState = createInitialSystemState({ id: normalUserId, name: 'کاربر تست' });
+    const result = processExitImpersonationOutcome(outcome, dummyState, storageDriver);
+
+    assert.equal(result.isSuccess, false);
+    assert.equal(result.action, 'PRESERVE_RETRYABLE');
+    assert.equal(storage[IMPERSONATOR_TOKEN_KEY], adminToken);
+    assert.equal(storage[TOKEN_KEY], 'active-user-token');
+  });
+
+  it('27. 503 Service Unavailable returns TEMPORARY_SERVER_ERROR and preserves Admin recovery token', async () => {
+    const mock503Fetch = async () => {
+      return new Response(JSON.stringify({ code: 'SERVICE_UNAVAILABLE' }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    };
+
+    const storage: Record<string, string> = {
+      [TOKEN_KEY]: 'active-user-token',
+      [IMPERSONATOR_TOKEN_KEY]: adminToken,
+      [IMPERSONATING_USER_KEY]: JSON.stringify({ id: normalUserId })
+    };
+    const storageDriver = {
+      removeLocal: (k: string) => { delete storage[k]; },
+      removeSession: (k: string) => { delete storage[k]; }
+    };
+
+    const outcome = await validateAdminTokenForExit(adminToken, mock503Fetch as any);
+    assert.equal(outcome.success, false);
+    assert.equal(outcome.status, 'TEMPORARY_SERVER_ERROR');
+    if (outcome.status === 'TEMPORARY_SERVER_ERROR') {
+      assert.equal(outcome.httpStatus, 503);
+      assert.match(outcome.messageFa, /موقتاً در دسترس نیست/);
+    }
+
+    const dummyState = createInitialSystemState({ id: normalUserId, name: 'کاربر تست' });
+    const result = processExitImpersonationOutcome(outcome, dummyState, storageDriver);
+
+    assert.equal(result.isSuccess, false);
+    assert.equal(result.action, 'PRESERVE_RETRYABLE');
+    assert.equal(storage[IMPERSONATOR_TOKEN_KEY], adminToken);
+  });
+
+  it('28. 502 Bad Gateway and 504 Gateway Timeout return TEMPORARY_SERVER_ERROR and preserve recovery token', async () => {
+    for (const status of [502, 504]) {
+      const mockFetch = async () => {
+        return new Response('Gateway Error', { status });
+      };
+
+      const storage: Record<string, string> = {
+        [TOKEN_KEY]: 'active-user-token',
+        [IMPERSONATOR_TOKEN_KEY]: adminToken,
+        [IMPERSONATING_USER_KEY]: JSON.stringify({ id: normalUserId })
+      };
+      const storageDriver = {
+        removeLocal: (k: string) => { delete storage[k]; },
+        removeSession: (k: string) => { delete storage[k]; }
+      };
+
+      const outcome = await validateAdminTokenForExit(adminToken, mockFetch as any);
+      assert.equal(outcome.success, false);
+      assert.equal(outcome.status, 'TEMPORARY_SERVER_ERROR');
+
+      const dummyState = createInitialSystemState({ id: normalUserId, name: 'کاربر تست' });
+      const result = processExitImpersonationOutcome(outcome, dummyState, storageDriver);
+
+      assert.equal(result.isSuccess, false);
+      assert.equal(result.action, 'PRESERVE_RETRYABLE');
+      assert.equal(storage[IMPERSONATOR_TOKEN_KEY], adminToken);
+    }
+  });
+
+  it('29. Network exception returns NETWORK_ERROR and preserves Admin recovery token', async () => {
+    const mockNetworkErrorFetch = async () => {
+      throw new TypeError('Failed to fetch: Connection refused');
+    };
+
+    const storage: Record<string, string> = {
+      [TOKEN_KEY]: 'active-user-token',
+      [IMPERSONATOR_TOKEN_KEY]: adminToken,
+      [IMPERSONATING_USER_KEY]: JSON.stringify({ id: normalUserId })
+    };
+    const storageDriver = {
+      removeLocal: (k: string) => { delete storage[k]; },
+      removeSession: (k: string) => { delete storage[k]; }
+    };
+
+    const outcome = await validateAdminTokenForExit(adminToken, mockNetworkErrorFetch as any);
+    assert.equal(outcome.success, false);
+    assert.equal(outcome.status, 'NETWORK_ERROR');
+
+    const dummyState = createInitialSystemState({ id: normalUserId, name: 'کاربر تست' });
+    const result = processExitImpersonationOutcome(outcome, dummyState, storageDriver);
+
+    assert.equal(result.isSuccess, false);
+    assert.equal(result.action, 'PRESERVE_RETRYABLE');
+    assert.equal(storage[IMPERSONATOR_TOKEN_KEY], adminToken);
+  });
+
+  it('30. 401 Unauthorized still clears unsafe authentication state (AUTH_REVOKED)', async () => {
+    const mock401Fetch = async () => {
+      return new Response(JSON.stringify({ code: 'UNAUTHORIZED' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    };
+
+    const storage: Record<string, string> = {
+      [TOKEN_KEY]: 'active-user-token',
+      [IMPERSONATOR_TOKEN_KEY]: adminToken,
+      [IMPERSONATING_USER_KEY]: JSON.stringify({ id: normalUserId })
+    };
+    const storageDriver = {
+      removeLocal: (k: string) => { delete storage[k]; },
+      removeSession: (k: string) => { delete storage[k]; },
+      setSession: (k: string, v: string) => { storage[k] = v; }
+    };
+
+    const outcome = await validateAdminTokenForExit(adminToken, mock401Fetch as any);
+    assert.equal(outcome.success, false);
+    assert.equal(outcome.status, 'AUTH_REVOKED');
+
+    const dummyState = createInitialSystemState({ id: normalUserId, name: 'کاربر تست' });
+    const result = processExitImpersonationOutcome(outcome, dummyState, storageDriver);
+
+    assert.equal(result.isSuccess, false);
+    assert.equal(result.action, 'REVOKED_SIGN_OUT');
+    assert.equal(result.openAuthModal, true);
+    assert.equal(storage[TOKEN_KEY], undefined);
+    assert.equal(storage[IMPERSONATOR_TOKEN_KEY], undefined);
+    assert.equal(storage[IMPERSONATING_USER_KEY], undefined);
+    assert.equal(storage['bushido_explicit_logout'], 'true');
+  });
+
+  it('31. SESSION_REVOKED code still clears unsafe authentication state (AUTH_REVOKED)', async () => {
+    const mockSessionRevokedFetch = async () => {
+      return new Response(JSON.stringify({ code: 'SESSION_REVOKED' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    };
+
+    const storage: Record<string, string> = {
+      [TOKEN_KEY]: 'active-user-token',
+      [IMPERSONATOR_TOKEN_KEY]: adminToken,
+      [IMPERSONATING_USER_KEY]: JSON.stringify({ id: normalUserId })
+    };
+    const storageDriver = {
+      removeLocal: (k: string) => { delete storage[k]; },
+      removeSession: (k: string) => { delete storage[k]; },
+      setSession: (k: string, v: string) => { storage[k] = v; }
+    };
+
+    const outcome = await validateAdminTokenForExit(adminToken, mockSessionRevokedFetch as any);
+    assert.equal(outcome.success, false);
+    assert.equal(outcome.status, 'AUTH_REVOKED');
+
+    const dummyState = createInitialSystemState({ id: normalUserId, name: 'کاربر تست' });
+    const result = processExitImpersonationOutcome(outcome, dummyState, storageDriver);
+
+    assert.equal(result.isSuccess, false);
+    assert.equal(result.action, 'REVOKED_SIGN_OUT');
+    assert.equal(storage[TOKEN_KEY], undefined);
+    assert.equal(storage[IMPERSONATOR_TOKEN_KEY], undefined);
+    assert.equal(storage['bushido_explicit_logout'], 'true');
+  });
+
+  it('32. UI dispatcher never reports successful exit for temporary failures', async () => {
+    const outcomes: Array<{ label: string; fetcher: () => Promise<Response> }> = [
+      { label: '429', fetcher: async () => new Response('{}', { status: 429 }) },
+      { label: '500', fetcher: async () => new Response('{}', { status: 500 }) },
+      { label: '503', fetcher: async () => new Response('{}', { status: 503 }) }
+    ];
+
+    const dummyState = createInitialSystemState({ id: normalUserId, name: 'کاربر تست' });
+
+    for (const item of outcomes) {
+      const outcome = await validateAdminTokenForExit(adminToken, item.fetcher as any);
+      const result = processExitImpersonationOutcome(outcome, dummyState);
+
+      // Must NEVER claim success or return nextSystemState transition to Admin
+      assert.equal(result.isSuccess, false, `${item.label} should not claim success`);
+      assert.equal(result.action, 'PRESERVE_RETRYABLE', `${item.label} should preserve retryable state`);
+      assert.equal(result.nextSystemState, undefined, `${item.label} should not transition system state`);
+      assert.equal(result.newAuthToken, undefined, `${item.label} should not assign new auth token`);
+      assert.ok(result.messageFa.length > 0, `${item.label} must return informative Persian error`);
+    }
   });
 });
