@@ -140,7 +140,7 @@ export async function upsertDailyLog(
       const lastOpId = (existing as any).lastClientOperationId;
 
       // Idempotent retry: if clientOperationId matches the operation that created or updated this log
-      if (data.clientOperationId && lastOpId === data.clientOperationId && (expectedRevision === undefined || expectedRevision === existing.revision)) {
+      if (data.clientOperationId && lastOpId === data.clientOperationId && (expectedRevision === undefined || expectedRevision === existing.revision || expectedRevision === (existing.revision ?? 1) - 1)) {
         return {
           ...existing,
           revision: existing.revision ?? 1,
@@ -310,7 +310,7 @@ export async function upsertDailyLog(
     const currentRev = existing.revision ?? 1;
 
     // Idempotent retry: if clientOperationId matches existing operation
-    if (data.clientOperationId && existing.lastClientOperationId === data.clientOperationId && (expectedRevision === undefined || expectedRevision === currentRev)) {
+    if (data.clientOperationId && existing.lastClientOperationId === data.clientOperationId && (expectedRevision === undefined || expectedRevision === currentRev || expectedRevision === currentRev - 1)) {
       return existing;
     }
 
