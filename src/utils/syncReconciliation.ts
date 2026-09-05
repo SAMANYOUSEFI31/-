@@ -1,11 +1,11 @@
-import { Cycle, DailyLog, UserProfile, OfflineQueueItem } from '../types';
+import type { Cycle, DailyLog, UserProfile, OfflineQueueItem } from '../types';
 import { resolveBackendSyncDecision } from './storageUtils';
 import { normalizeQueueOwner, isGuestQueueOwner, isDevelopmentEnvironment } from './storageCore';
 import {
   emitSyncDiagnostic,
-  SyncDiagnosticSink,
   getSyncDiagnosticSink
 } from './syncDiagnostics';
+import type { SyncDiagnosticSink } from './syncDiagnostics';
 
 export interface ReconcileBootStateInput {
   authenticatedOwnerId?: string | null;

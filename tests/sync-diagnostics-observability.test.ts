@@ -1058,4 +1058,368 @@ describe('Phase 4: Production-Safe Sync Observability and Diagnostics', () => {
       assert.equal(classifySafeError('Arbitrary runtime string error'), 'UNKNOWN');
     });
   });
+
+  describe('7. Truthful Terminal Replay Outcomes and Diagnostic Consistency', () => {
+    it('(a) stoppedDueToAuth=true and syncedCount=0 produces status FAILED, RUN_FAILED, outcomeStatus FAILED, errorCategory AUTH, safeReason AUTH_REQUIRED, no RUN_COMPLETED, and no onResult callback', async () => {
+      const sink = new InMemoryDiagnosticSink(50);
+      let resultCallbackInvoked = false;
+
+      const orch = createSyncOrchestrator({
+        currentActiveAccountResolver: () => 'user-alpha',
+        isOnlineResolver: () => true,
+        diagnosticSink: sink,
+        replayExecutor: async () => createSampleReplayResult({
+          syncedCount: 0,
+          failedCount: 0,
+          remainingQueueCount: 3,
+          stoppedDueToAuth: true
+        })
+      });
+
+      const outcome = await orch.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha',
+        onResult: () => {
+          resultCallbackInvoked = true;
+        }
+      });
+
+      // 1. Terminal outcome status must be FAILED, never COMPLETED
+      assert.equal(outcome.status, 'FAILED');
+      assert.equal(outcome.stoppedDueToAuth, true);
+      assert.equal(outcome.syncedCount, 0);
+      assert.equal(outcome.remainingQueueCount, 3);
+      assert.equal(resultCallbackInvoked, false, 'No success callback should be invoked on auth stop');
+
+      // 2. Diagnostic events must be truthful and consistent
+      const records = sink.getRecords();
+      const failedRecord = records.find(r => r.eventType === 'RUN_FAILED');
+      assert.ok(failedRecord, 'Must emit RUN_FAILED event');
+      assert.equal(failedRecord.outcomeStatus, 'FAILED');
+      assert.equal(failedRecord.errorCategory, 'AUTH');
+      assert.equal(failedRecord.safeReason, 'AUTH_REQUIRED');
+
+      const completedRecord = records.find(r => r.eventType === 'RUN_COMPLETED');
+      assert.equal(completedRecord, undefined, 'Must NEVER emit RUN_COMPLETED on auth stop');
+    });
+
+    it('(b) stoppedDueToAuth=true after partial success preserves actual aggregate counts and item commits but reports status FAILED without success notification', async () => {
+      const sink = new InMemoryDiagnosticSink(50);
+      let resultCallbackInvoked = false;
+      const committedItems: OfflineQueueItem[] = [];
+
+      const orch = createSyncOrchestrator({
+        currentActiveAccountResolver: () => 'user-alpha',
+        isOnlineResolver: () => true,
+        diagnosticSink: sink,
+        replayExecutor: async (opts) => {
+          // Simulate two items committing successfully before auth failure on the 3rd
+          const sampleItem1: OfflineQueueItem = {
+            id: 'mutation-1',
+            clientMutationId: 'c-1',
+            ownerId: 'user-alpha',
+            type: 'CREATE_CYCLE',
+            entityId: 'cycle-1',
+            payload: { title: 'Iron Will' },
+            timestamp: Date.now(),
+            createdAt: new Date().toISOString(),
+            retryCount: 0
+          };
+          const sampleItem2: OfflineQueueItem = {
+            id: 'mutation-2',
+            clientMutationId: 'c-2',
+            ownerId: 'user-alpha',
+            type: 'UPDATE_LOG',
+            entityId: 'log-1',
+            payload: { date: '2026-09-05', cycleId: 'cycle-1', completedHabitIds: ['h1'] },
+            timestamp: Date.now(),
+            createdAt: new Date().toISOString(),
+            retryCount: 0
+          };
+
+          if (opts.onItemSuccess) {
+            opts.onItemSuccess(sampleItem1);
+            opts.onItemSuccess(sampleItem2);
+          }
+
+          return createSampleReplayResult({
+            syncedCount: 2,
+            failedCount: 1,
+            remainingQueueCount: 3,
+            stoppedDueToAuth: true
+          });
+        }
+      });
+
+      const outcome = await orch.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha',
+        onItemSuccess: (item) => {
+          committedItems.push(item);
+        },
+        onResult: () => {
+          resultCallbackInvoked = true;
+        }
+      });
+
+      // 1. Partial success preserves actual counts and committed item callbacks
+      assert.equal(committedItems.length, 2, 'Both committed items triggered onItemSuccess');
+      assert.equal(outcome.status, 'FAILED', 'Outcome status must be FAILED, not COMPLETED');
+      assert.equal(outcome.stoppedDueToAuth, true);
+      assert.equal(outcome.syncedCount, 2);
+      assert.equal(outcome.failedCount, 1);
+      assert.equal(outcome.remainingQueueCount, 3);
+      assert.equal(resultCallbackInvoked, false, 'No overall success onResult callback when stopped by auth');
+
+      // 2. Diagnostic record check
+      const records = sink.getRecords();
+      const failedRecord = records.find(r => r.eventType === 'RUN_FAILED');
+      assert.ok(failedRecord);
+      assert.equal(failedRecord.outcomeStatus, 'FAILED');
+      assert.equal(failedRecord.errorCategory, 'AUTH');
+      assert.equal(failedRecord.safeReason, 'AUTH_REQUIRED');
+      assert.equal(failedRecord.syncedCount, 2);
+      assert.equal(failedRecord.failedCount, 1);
+      assert.equal(failedRecord.remainingQueueCount, 3);
+
+      const completedRecord = records.find(r => r.eventType === 'RUN_COMPLETED');
+      assert.equal(completedRecord, undefined, 'Must not emit RUN_COMPLETED even with partial syncedCount > 0');
+    });
+
+    it('(c) stoppedDueToLockLoss=true produces status FAILED, LOCK_LOST diagnostic with outcomeStatus FAILED, and no RUN_COMPLETED event', async () => {
+      const sink = new InMemoryDiagnosticSink(50);
+      let resultCallbackInvoked = false;
+
+      const orch = createSyncOrchestrator({
+        currentActiveAccountResolver: () => 'user-alpha',
+        isOnlineResolver: () => true,
+        diagnosticSink: sink,
+        replayExecutor: async () => createSampleReplayResult({
+          syncedCount: 1,
+          failedCount: 0,
+          remainingQueueCount: 2,
+          stoppedDueToLockLoss: true
+        })
+      });
+
+      const outcome = await orch.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha',
+        onResult: () => {
+          resultCallbackInvoked = true;
+        }
+      });
+
+      // Outcome status must be FAILED
+      assert.equal(outcome.status, 'FAILED');
+      assert.equal(outcome.stoppedDueToLockLoss, true);
+      assert.equal(resultCallbackInvoked, false);
+
+      const records = sink.getRecords();
+      const lockLost = records.find(r => r.eventType === 'LOCK_LOST');
+      assert.ok(lockLost);
+      assert.equal(lockLost.outcomeStatus, 'FAILED');
+      assert.equal(lockLost.errorCategory, 'LOCK_LOSS');
+      assert.equal(lockLost.safeReason, 'LOCK_LOST');
+
+      const completedRecord = records.find(r => r.eventType === 'RUN_COMPLETED');
+      assert.equal(completedRecord, undefined);
+    });
+
+    it('(d) Account-change behavior remains DISCARDED_STALE with matching RUN_DISCARDED_STALE diagnostic', async () => {
+      const sink = new InMemoryDiagnosticSink(50);
+      let currentAccount = 'user-alpha';
+
+      const orch = createSyncOrchestrator({
+        currentActiveAccountResolver: () => currentAccount,
+        isOnlineResolver: () => true,
+        diagnosticSink: sink,
+        replayExecutor: async () => {
+          currentAccount = 'user-beta'; // Account changed during execution
+          return createSampleReplayResult({
+            syncedCount: 0,
+            stoppedDueToAccountChange: true
+          });
+        }
+      });
+
+      const outcome = await orch.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+
+      assert.equal(outcome.status, 'DISCARDED_STALE');
+      assert.equal(outcome.stoppedDueToAccountChange, true);
+
+      const records = sink.getRecords();
+      const discarded = records.find(r => r.eventType === 'RUN_DISCARDED_STALE');
+      assert.ok(discarded);
+      assert.equal(discarded.outcomeStatus, 'DISCARDED_STALE');
+      assert.equal(discarded.errorCategory, 'ACCOUNT_CHANGE');
+      assert.equal(discarded.safeReason, 'ACCOUNT_CHANGED');
+    });
+
+    it('(e) Normal replay remains COMPLETED and emits exactly one RUN_COMPLETED diagnostic with outcomeStatus COMPLETED', async () => {
+      const sink = new InMemoryDiagnosticSink(50);
+      let resultCallbackInvoked = false;
+
+      const orch = createSyncOrchestrator({
+        currentActiveAccountResolver: () => 'user-alpha',
+        isOnlineResolver: () => true,
+        diagnosticSink: sink,
+        replayExecutor: async () => createSampleReplayResult({
+          syncedCount: 4,
+          failedCount: 0,
+          remainingQueueCount: 0
+        })
+      });
+
+      const outcome = await orch.requestSync({
+        trigger: 'BOOT_AUTH_VERIFIED',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha',
+        onResult: (out) => {
+          resultCallbackInvoked = true;
+          assert.equal(out.status, 'COMPLETED');
+        }
+      });
+
+      assert.equal(outcome.status, 'COMPLETED');
+      assert.equal(outcome.syncedCount, 4);
+      assert.equal(resultCallbackInvoked, true);
+
+      const records = sink.getRecords();
+      const completedList = records.filter(r => r.eventType === 'RUN_COMPLETED');
+      assert.equal(completedList.length, 1);
+      assert.equal(completedList[0].outcomeStatus, 'COMPLETED');
+      assert.equal(completedList[0].safeReason, 'SUCCESS');
+      assert.equal(completedList[0].syncedCount, 4);
+    });
+
+    it('(f) Diagnostic eventType and outcomeStatus cannot form contradictory terminal pairs in the diagnostic sink', () => {
+      const sink = new InMemoryDiagnosticSink(50);
+
+      // 1. RUN_COMPLETED with contradictory FAILED status must be sanitized to COMPLETED
+      sink.record({
+        eventType: 'RUN_COMPLETED',
+        timestamp: Date.now(),
+        outcomeStatus: 'FAILED' as any
+      });
+
+      // 2. RUN_FAILED with contradictory COMPLETED status must be sanitized to FAILED
+      sink.record({
+        eventType: 'RUN_FAILED',
+        timestamp: Date.now(),
+        outcomeStatus: 'COMPLETED' as any
+      });
+
+      // 3. RUN_DISCARDED_STALE with contradictory COMPLETED status must be sanitized to DISCARDED_STALE
+      sink.record({
+        eventType: 'RUN_DISCARDED_STALE',
+        timestamp: Date.now(),
+        outcomeStatus: 'COMPLETED' as any
+      });
+
+      // 4. RUN_ABORTED with contradictory COMPLETED status must be sanitized to ABORTED
+      sink.record({
+        eventType: 'RUN_ABORTED',
+        timestamp: Date.now(),
+        outcomeStatus: 'COMPLETED' as any
+      });
+
+      // 5. LOCK_LOST with contradictory COMPLETED status must be sanitized to FAILED
+      sink.record({
+        eventType: 'LOCK_LOST',
+        timestamp: Date.now(),
+        outcomeStatus: 'COMPLETED' as any
+      });
+
+      // 6. RUN_SKIPPED with OFFLINE error category must map to SKIPPED_OFFLINE
+      sink.record({
+        eventType: 'RUN_SKIPPED',
+        timestamp: Date.now(),
+        errorCategory: 'OFFLINE',
+        outcomeStatus: 'COMPLETED' as any
+      });
+
+      const records = sink.getRecords();
+      assert.equal(records.length, 6);
+
+      assert.equal(records[0].eventType, 'RUN_COMPLETED');
+      assert.equal(records[0].outcomeStatus, 'COMPLETED');
+
+      assert.equal(records[1].eventType, 'RUN_FAILED');
+      assert.equal(records[1].outcomeStatus, 'FAILED');
+
+      assert.equal(records[2].eventType, 'RUN_DISCARDED_STALE');
+      assert.equal(records[2].outcomeStatus, 'DISCARDED_STALE');
+
+      assert.equal(records[3].eventType, 'RUN_ABORTED');
+      assert.equal(records[3].outcomeStatus, 'ABORTED');
+
+      assert.equal(records[4].eventType, 'LOCK_LOST');
+      assert.equal(records[4].outcomeStatus, 'FAILED');
+
+      assert.equal(records[5].eventType, 'RUN_SKIPPED');
+      assert.equal(records[5].outcomeStatus, 'SKIPPED_OFFLINE');
+    });
+
+    it('(g) Callback cardinality is strictly preserved across single and coalesced runs with zero duplicate notifications', async () => {
+      let callCount1 = 0;
+      let callCount2 = 0;
+      let itemSuccessCount = 0;
+
+      const deferred = createDeferred<ReplayResult>();
+      const orch = createSyncOrchestrator({
+        currentActiveAccountResolver: () => 'user-alpha',
+        isOnlineResolver: () => true,
+        replayExecutor: () => deferred.promise
+      });
+
+      // Request 1 starts active run
+      const p1 = orch.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha',
+        onItemSuccess: () => {
+          itemSuccessCount++;
+        },
+        onResult: () => {
+          callCount1++;
+        }
+      });
+
+      // Request 2 and Request 3 are coalesced into a single pending trailing run
+      const p2 = orch.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha',
+        onResult: () => {
+          callCount2++;
+        }
+      });
+
+      const p3 = orch.requestSync({
+        trigger: 'MANUAL_FORCE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha'
+      });
+
+      // Resolve active run with 1 item
+      deferred.resolve(createSampleReplayResult({ syncedCount: 1 }));
+      await p1;
+
+      assert.equal(callCount1, 1, 'First run onResult called exactly once');
+
+      // Trailing run finishes with 0 items
+      const [out2, out3] = await Promise.all([p2, p3]);
+      assert.equal(out2.status, 'COMPLETED');
+      assert.equal(out3.status, 'COMPLETED');
+      assert.equal(callCount2, 1, 'Trailing run onResult called exactly once for registered callback');
+    });
+  });
 });

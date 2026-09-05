@@ -1,19 +1,18 @@
-import { OfflineQueueItem } from '../types';
+import type { OfflineQueueItem } from '../types';
 import {
   replayAccountOfflineQueue,
-  ReplayOptions,
-  ReplayResult,
   normalizeQueueOwner,
   isGuestQueueOwner
 } from './offlineQueueUtils';
+import type { ReplayOptions, ReplayResult } from './offlineQueueUtils';
 import { isDevelopmentEnvironment } from './storageCore';
 import {
   generateDiagnosticRunId,
   emitSyncDiagnostic,
   classifySafeError,
-  SyncDiagnosticSink,
   getSyncDiagnosticSink
 } from './syncDiagnostics';
+import type { SyncDiagnosticSink } from './syncDiagnostics';
 
 /**
  * =============================================================================
@@ -559,6 +558,21 @@ export class SyncOrchestrator {
 
       const stoppedDueToAccountChange =
         replayResult.stoppedDueToAccountChange || !isStillActiveOwner;
+      const stoppedDueToLockLoss = Boolean(replayResult.stoppedDueToLockLoss);
+      const stoppedDueToAuth = Boolean(replayResult.stoppedDueToAuth);
+
+      // Derive SyncRunOutcome.status truthfully from terminal stopping states:
+      // - Account change: DISCARDED_STALE
+      // - Auth required or Lock loss: FAILED
+      // - Normal replay: COMPLETED
+      let finalStatus: SyncRunStatus = 'COMPLETED';
+      if (stoppedDueToAccountChange) {
+        finalStatus = 'DISCARDED_STALE';
+      } else if (stoppedDueToAuth || stoppedDueToLockLoss) {
+        finalStatus = 'FAILED';
+      } else {
+        finalStatus = 'COMPLETED';
+      }
 
       const outcome: SyncRunOutcome = {
         ownerId: runSpec.ownerId,
@@ -566,32 +580,17 @@ export class SyncOrchestrator {
         syncedCount: replayResult.syncedCount,
         failedCount: replayResult.failedCount,
         remainingQueueCount: replayResult.remainingQueueCount,
-        stoppedDueToAuth: replayResult.stoppedDueToAuth,
+        stoppedDueToAuth,
         stoppedDueToAccountChange,
-        stoppedDueToLockLoss: Boolean(replayResult.stoppedDueToLockLoss),
-        status: stoppedDueToAccountChange ? 'DISCARDED_STALE' : 'COMPLETED',
+        stoppedDueToLockLoss,
+        status: finalStatus,
         runId
       };
 
       const durationMs = Date.now() - startTime;
 
-      // Emit specific diagnostic event matching actual outcome
-      if (outcome.stoppedDueToLockLoss) {
-        emitSyncDiagnostic({
-          eventType: 'LOCK_LOST',
-          timestamp: Date.now(),
-          runId,
-          triggers: Array.from(runSpec.triggers),
-          force: runSpec.force,
-          syncedCount: replayResult.syncedCount,
-          failedCount: replayResult.failedCount,
-          remainingQueueCount: replayResult.remainingQueueCount,
-          outcomeStatus: outcome.status,
-          errorCategory: 'LOCK_LOSS',
-          safeReason: 'LOCK_LOST',
-          durationMs
-        }, sink);
-      } else if (stoppedDueToAccountChange) {
+      // Emit specific diagnostic event matching actual outcome truthfully
+      if (stoppedDueToAccountChange) {
         emitSyncDiagnostic({
           eventType: 'RUN_DISCARDED_STALE',
           timestamp: Date.now(),
@@ -606,9 +605,9 @@ export class SyncOrchestrator {
           safeReason: 'ACCOUNT_CHANGED',
           durationMs
         }, sink);
-      } else if (outcome.stoppedDueToAuth) {
+      } else if (stoppedDueToLockLoss) {
         emitSyncDiagnostic({
-          eventType: outcome.syncedCount > 0 ? 'RUN_COMPLETED' : 'RUN_FAILED',
+          eventType: 'LOCK_LOST',
           timestamp: Date.now(),
           runId,
           triggers: Array.from(runSpec.triggers),
@@ -616,7 +615,22 @@ export class SyncOrchestrator {
           syncedCount: replayResult.syncedCount,
           failedCount: replayResult.failedCount,
           remainingQueueCount: replayResult.remainingQueueCount,
-          outcomeStatus: outcome.status,
+          outcomeStatus: 'FAILED',
+          errorCategory: 'LOCK_LOSS',
+          safeReason: 'LOCK_LOST',
+          durationMs
+        }, sink);
+      } else if (stoppedDueToAuth) {
+        emitSyncDiagnostic({
+          eventType: 'RUN_FAILED',
+          timestamp: Date.now(),
+          runId,
+          triggers: Array.from(runSpec.triggers),
+          force: runSpec.force,
+          syncedCount: replayResult.syncedCount,
+          failedCount: replayResult.failedCount,
+          remainingQueueCount: replayResult.remainingQueueCount,
+          outcomeStatus: 'FAILED',
           errorCategory: 'AUTH',
           safeReason: 'AUTH_REQUIRED',
           durationMs
@@ -631,14 +645,14 @@ export class SyncOrchestrator {
           syncedCount: replayResult.syncedCount,
           failedCount: replayResult.failedCount,
           remainingQueueCount: replayResult.remainingQueueCount,
-          outcomeStatus: outcome.status,
+          outcomeStatus: 'COMPLETED',
           safeReason: 'SUCCESS',
           durationMs
         }, sink);
       }
 
       // Safe result notification:
-      // Only invoke when account still matches and run was not invalidated
+      // Only invoke when account still matches and run was not invalidated or stopped prematurely
       if (
         isStillActiveOwner &&
         !outcome.stoppedDueToAccountChange &&

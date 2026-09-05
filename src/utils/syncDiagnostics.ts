@@ -1,5 +1,5 @@
-import { OfflineQueueItem, ReplayFailureClassification } from '../types';
-import { SyncTrigger, SyncRunStatus, SyncRunOutcome } from './syncOrchestrator';
+import type { ReplayFailureClassification } from '../types';
+import type { SyncTrigger, SyncRunStatus } from './syncOrchestrator';
 import { isDevelopmentEnvironment } from './storageCore';
 
 /**
@@ -254,13 +254,14 @@ export class InMemoryDiagnosticSink implements SyncDiagnosticSink {
       return;
     }
 
+    const eventType = event.eventType as SyncDiagnosticEventType;
     const timestamp =
       typeof event.timestamp === 'number' && Number.isFinite(event.timestamp) && event.timestamp > 0
         ? event.timestamp
         : Date.now();
 
     const safeRecord: SyncDiagnosticRecord = {
-      eventType: event.eventType as SyncDiagnosticEventType,
+      eventType,
       timestamp
     };
 
@@ -300,7 +301,35 @@ export class InMemoryDiagnosticSink implements SyncDiagnosticSink {
     const itemCount = sanitizeCount(event.itemCount);
     if (itemCount !== undefined) safeRecord.itemCount = itemCount;
 
-    if (typeof event.outcomeStatus === 'string' && VALID_OUTCOME_STATUSES.has(event.outcomeStatus)) {
+    // Terminal outcome consistency enforcement:
+    // Guarantees eventType and outcomeStatus never form contradictory terminal pairs.
+    if (eventType === 'RUN_COMPLETED') {
+      safeRecord.outcomeStatus = 'COMPLETED';
+    } else if (eventType === 'RUN_FAILED') {
+      safeRecord.outcomeStatus = 'FAILED';
+    } else if (eventType === 'RUN_DISCARDED_STALE' || eventType === 'RECONCILIATION_DISCARDED_STALE') {
+      safeRecord.outcomeStatus = 'DISCARDED_STALE';
+    } else if (eventType === 'RUN_ABORTED') {
+      safeRecord.outcomeStatus = 'ABORTED';
+    } else if (eventType === 'LOCK_LOST') {
+      safeRecord.outcomeStatus =
+        typeof event.outcomeStatus === 'string' &&
+        VALID_OUTCOME_STATUSES.has(event.outcomeStatus) &&
+        event.outcomeStatus !== 'COMPLETED'
+          ? (event.outcomeStatus as SyncRunStatus)
+          : 'FAILED';
+    } else if (eventType === 'RUN_SKIPPED') {
+      if (
+        event.outcomeStatus === 'SKIPPED_OFFLINE' ||
+        event.outcomeStatus === 'SKIPPED_GUEST_OR_ANONYMOUS'
+      ) {
+        safeRecord.outcomeStatus = event.outcomeStatus;
+      } else if (event.safeReason === 'OFFLINE' || event.errorCategory === 'OFFLINE') {
+        safeRecord.outcomeStatus = 'SKIPPED_OFFLINE';
+      } else {
+        safeRecord.outcomeStatus = 'SKIPPED_GUEST_OR_ANONYMOUS';
+      }
+    } else if (typeof event.outcomeStatus === 'string' && VALID_OUTCOME_STATUSES.has(event.outcomeStatus)) {
       safeRecord.outcomeStatus = event.outcomeStatus as SyncRunStatus;
     }
 
