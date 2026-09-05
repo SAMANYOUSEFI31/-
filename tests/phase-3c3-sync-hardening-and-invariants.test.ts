@@ -735,10 +735,58 @@ describe('Phase 3C.3: Sync Hardening, Edge Scenarios & Invariant Validation', ()
       assert.equal(out.userProfile?.name, 'Confirmed Name');
       assert.equal(out.userProfile?.accentTheme, 'amber');
     });
+
+    it('Guarantee 3.7: Active assertReconciliationInvariant checks in reconcileBootState validate the 6 core invariants cleanly without diagnostic leakage', () => {
+      const originalWarn = console.warn;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+
+      try {
+        const out = reconcileBootState({
+          authenticatedOwnerId: 'user-alpha',
+          remoteCycles: [createSampleCycle({ id: 'c1' })],
+          remoteLogs: [createSampleLog({ date: '1403-01-01', cycleId: 'c1' })],
+          currentLocalState: {
+            cycles: [createSampleCycle({ id: 'c1' })],
+            logs: [createSampleLog({ date: '1403-01-01', cycleId: 'c1' })]
+          },
+          pendingQueue: [
+            {
+              id: 'mut-valid-1',
+              ownerId: 'user-alpha',
+              type: 'CREATE_CYCLE',
+              payload: { id: 'c-created-1', title: 'New Cycle', status: 'ACTIVE' },
+              timestamp: 1000
+            },
+            {
+              id: 'mut-valid-2',
+              ownerId: 'user-alpha',
+              type: 'UPDATE_LOG',
+              payload: { date: '1403-01-01', cycleId: 'c1', note: 'Reconciled note' },
+              timestamp: 2000
+            }
+          ],
+          isDemoConsumed: true
+        });
+
+        // Verify valid reconciliation result
+        assert.ok(out.cycles !== null);
+        assert.equal(out.cycles.length, 2);
+        assert.equal(out.cycles.find(c => c.id === 'c-created-1')?.isSynced, false);
+        assert.equal(out.logs?.[0]?.isSynced, false);
+
+        // Verify zero invariant violation warnings emitted during valid reconciliation
+        const invariantViolations = warnings.filter(w => w.includes('[ReconciliationInvariantViolation]'));
+        assert.equal(invariantViolations.length, 0, 'Reconciliation must satisfy all 6 invariant assertions without warnings');
+      } finally {
+        console.warn = originalWarn;
+      }
+    });
   });
 
   // ===========================================================================
   // 4. SYNC CONTRACT TEST MATRIX
+
   // ===========================================================================
   describe('4. Sync Contract Test Matrix (All 7 Lifecycle Triggers)', () => {
     it('Trigger 1: AUTH_SUCCESS (owner: user.id, token: verified token, queue: user-scoped, target: user queue, cancellation: cancels on account switch)', async () => {

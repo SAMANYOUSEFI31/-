@@ -1,7 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { reconcileBootState, ReconcileBootStateInput } from '../src/utils/syncReconciliation.js';
+import {
+  reconcileBootState,
+  ReconcileBootStateInput,
+  assertReconciliationInvariant
+} from '../src/utils/syncReconciliation.js';
 import { Cycle, DailyLog, UserProfile, OfflineQueueItem } from '../src/types.js';
 
 function createSampleCycle(overrides: Partial<Cycle> = {}): Cycle {
@@ -743,4 +747,77 @@ describe('Phase 3C.2: Safe Boot Reconciliation with Pending Offline Mutations', 
       );
     });
   });
+
+  describe('7. Reconciliation Invariant Assertions & Diagnostics Validation', () => {
+    it('(r) reconcileBootState executes all invariant checks and does not emit warnings on valid input', () => {
+      const originalWarn = console.warn;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+
+      try {
+        const result = reconcileBootState({
+          authenticatedOwnerId: 'user-alpha',
+          remoteCycles: [createSampleCycle({ id: 'c1' })],
+          remoteLogs: [createSampleLog({ date: '1403-01-01', cycleId: 'c1' })],
+          currentLocalState: {
+            cycles: [createSampleCycle({ id: 'c1' })],
+            logs: [createSampleLog({ date: '1403-01-01', cycleId: 'c1' })]
+          },
+          pendingQueue: [
+            {
+              id: 'm1',
+              ownerId: 'user-alpha',
+              type: 'UPDATE_LOG',
+              payload: { date: '1403-01-01', cycleId: 'c1', note: 'Reconciled note' },
+              timestamp: 1000
+            }
+          ],
+          isDemoConsumed: true
+        });
+
+        assert.ok(result.logs !== null);
+        assert.equal(result.logs[0].isSynced, false);
+        const invariantWarnings = warnings.filter(w => w.includes('[ReconciliationInvariantViolation]'));
+        assert.equal(invariantWarnings.length, 0, 'Valid reconciliation must not produce any invariant violations');
+      } finally {
+        console.warn = originalWarn;
+      }
+    });
+
+    it('(s) assertReconciliationInvariant emits sanitized diagnostic in development and suppresses in production', () => {
+      const originalWarn = console.warn;
+      const originalEnv = process.env.NODE_ENV;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+
+      try {
+        // Development mode: invariant failure emits sanitized warning
+        process.env.NODE_ENV = 'development';
+        warnings.length = 0;
+        
+        assertReconciliationInvariant(true, 'Test passed invariant');
+        assert.equal(warnings.length, 0);
+
+        assertReconciliationInvariant(false, 'Test failed invariant');
+        assert.equal(warnings.length, 1);
+        assert.equal(warnings[0], '[ReconciliationInvariantViolation] Test failed invariant');
+
+        // Verify diagnostic contains no sensitive payload, tokens, or stack trace
+        assert.ok(!warnings[0].includes('Bearer'));
+        assert.ok(!warnings[0].includes('token'));
+        assert.ok(!warnings[0].includes('password'));
+        assert.ok(!warnings[0].includes('Error:'));
+
+        // Production mode: invariant failure is strictly silenced
+        process.env.NODE_ENV = 'production';
+        warnings.length = 0;
+        assertReconciliationInvariant(false, 'Production test failure');
+        assert.equal(warnings.length, 0, 'Production mode must not emit invariant warning');
+      } finally {
+        console.warn = originalWarn;
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
+  });
 });
+
