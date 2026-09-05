@@ -80,7 +80,9 @@ import {
   replayAccountOfflineQueue,
   migrateLegacyGlobalQueue,
   normalizeQueueOwner,
-  isGuestQueueOwner
+  isGuestQueueOwner,
+  parseSafeConflictDetails,
+  recordClientConflict
 } from '../utils/offlineQueueUtils';
 
 const parseApiError = async (res: Response): Promise<string> => {
@@ -533,6 +535,20 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
           ...prev,
           logs: prev.logs.map(l => l.date === updatedLog.date ? { ...(serverLog || l), isSynced: true } : l)
         }));
+      } else if (res.status === 409 || res.status === 428) {
+        const conflictJson = await res.json().catch(() => null);
+        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'DAILY_LOG', updatedLog.date);
+        recordClientConflict(ownerId, {
+          mutationType: 'UPDATE_LOG',
+          entityType: parsedConflict.entityType,
+          entityId: parsedConflict.entityId,
+          conflictType: parsedConflict.conflictType,
+          statusCode: parsedConflict.statusCode,
+          expectedRevision: parsedConflict.expectedRevision ?? updatedLog.revision,
+          currentRevision: parsedConflict.currentRevision,
+          messageFa: parsedConflict.messageFa,
+          clientPayload: updatedLog
+        });
       } else {
         const errorMsg = await parseApiError(res);
         console.warn('API Error updating log:', errorMsg);
@@ -579,6 +595,20 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
           ...prev,
           cycles: prev.cycles.map(c => (c.id === updatedCycle.id ? { ...(serverCycle || c), isSynced: true } : c))
         }));
+      } else if (res.status === 409 || res.status === 428) {
+        const conflictJson = await res.json().catch(() => null);
+        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'CYCLE', updatedCycle.id);
+        recordClientConflict(ownerId, {
+          mutationType: 'UPDATE_CYCLE',
+          entityType: parsedConflict.entityType,
+          entityId: parsedConflict.entityId,
+          conflictType: parsedConflict.conflictType,
+          statusCode: parsedConflict.statusCode,
+          expectedRevision: parsedConflict.expectedRevision ?? updatedCycle.revision,
+          currentRevision: parsedConflict.currentRevision,
+          messageFa: parsedConflict.messageFa,
+          clientPayload: updatedCycle
+        });
       } else {
         const errorMsg = await parseApiError(res);
         console.warn('API Error updating cycle:', errorMsg);
@@ -596,7 +626,9 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     safeSetLocalStorage(scopedDemoKey, 'true');
     const targetCycle = systemState.cycles.find(c => c.id === cycleId);
     const expectedRevision = targetCycle?.revision;
+    const targetLogs = systemState.logs.filter(l => l.cycleId === cycleId);
     const remainingCycles = systemState.cycles.filter(c => c.id !== cycleId);
+    const previousActiveCycleId = activeCycleId;
 
     setSystemState(prev => ({
       ...prev,
@@ -629,14 +661,44 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
           'Authorization': `Bearer ${authToken}`
         }
       });
-      if (!res.ok) {
+      if (res.ok || res.status === 404) {
+        // Success
+      } else if (res.status === 409 || res.status === 428) {
+        const conflictJson = await res.json().catch(() => null);
+        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'CYCLE', cycleId);
+        recordClientConflict(ownerId, {
+          mutationType: 'DELETE_CYCLE',
+          entityType: parsedConflict.entityType,
+          entityId: parsedConflict.entityId,
+          conflictType: parsedConflict.conflictType,
+          statusCode: parsedConflict.statusCode,
+          expectedRevision: parsedConflict.expectedRevision ?? expectedRevision,
+          currentRevision: parsedConflict.currentRevision,
+          messageFa: parsedConflict.messageFa,
+          clientPayload: deletePayload
+        });
+
+        // Rollback optimistic delete
+        setSystemState(prev => {
+          const hasCycle = prev.cycles.some(c => c.id === cycleId);
+          if (hasCycle || !targetCycle) return prev;
+          return {
+            ...prev,
+            cycles: [...prev.cycles, targetCycle],
+            logs: [...prev.logs, ...targetLogs.filter(tl => !prev.logs.some(pl => pl.date === tl.date))]
+          };
+        });
+        if (previousActiveCycleId === cycleId) {
+          setActiveCycleId(cycleId);
+        }
+      } else {
         enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: deletePayload, expectedRevision });
       }
     } catch (e) {
       console.warn('Failed to sync cycle deletion to server, added to offline queue:', e);
       enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: deletePayload, expectedRevision });
     }
-  }, [authToken, activeCycleId, systemState.cycles, systemState.userProfile?.id]);
+  }, [authToken, activeCycleId, systemState.cycles, systemState.logs, systemState.userProfile?.id]);
 
   const createNewCycle = useCallback(async (title: string, startDate: string, targetTheme: string) => {
     const ownerId = systemState.userProfile?.id;

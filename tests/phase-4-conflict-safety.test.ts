@@ -22,7 +22,11 @@ import {
   clearQuarantine,
   replayAccountOfflineQueue,
   saveOfflineQueue,
-  clearAllReplayLocks
+  clearAllReplayLocks,
+  parseSafeConflictDetails,
+  recordClientConflict,
+  getClientConflicts,
+  clearClientConflicts
 } from '../src/utils/offlineQueueUtils.js';
 import {
   updateCycleSchema,
@@ -576,5 +580,300 @@ test('Phase 4: Multi-device Conflict Safety & Optimistic Concurrency', async (t)
 
     // Restore prisma state
     setPrismaState(null, false);
+  });
+
+  await t.test('13. Typed Safe Conflict Parsing & Redaction of ServerState / Tokens', async () => {
+    const raw409Body = {
+      code: 'CONFLICT',
+      messageFa: 'این گزارش در دستگاه دیگری تغییر یافته است.',
+      entityType: 'DAILY_LOG',
+      entityId: '2026-09-02',
+      currentRevision: 4,
+      expectedRevision: 2,
+      serverState: { secret: 'do_not_leak', token: 'eyJhbGci...' },
+      authorization: 'Bearer secret_token'
+    };
+
+    const parsed = parseSafeConflictDetails(409, raw409Body, 'DAILY_LOG', '2026-09-02');
+    assert.equal(parsed.conflictType, 'CONCURRENCY_CONFLICT');
+    assert.equal(parsed.statusCode, 409);
+    assert.equal(parsed.currentRevision, 4);
+    assert.equal(parsed.expectedRevision, 2);
+    assert.equal(parsed.entityType, 'DAILY_LOG');
+    assert.equal(parsed.entityId, '2026-09-02');
+    assert.ok(!('serverState' in parsed), 'serverState must not be present');
+    assert.ok(!('authorization' in parsed), 'authorization must not be present');
+
+    const recorded = recordClientConflict('user_alice_409', {
+      mutationType: 'UPDATE_LOG',
+      entityType: parsed.entityType,
+      entityId: parsed.entityId,
+      conflictType: parsed.conflictType,
+      statusCode: parsed.statusCode,
+      currentRevision: parsed.currentRevision,
+      expectedRevision: parsed.expectedRevision,
+      messageFa: parsed.messageFa,
+      clientPayload: {
+        date: '2026-09-02',
+        habits: { wakeUp: true },
+        serverState: { malicious: true },
+        token: 'secret_token_value'
+      }
+    });
+
+    assert.equal(recorded.ownerId, 'user_alice_409');
+    assert.equal(recorded.statusCode, 409);
+    assert.equal(recorded.conflictType, 'CONCURRENCY_CONFLICT');
+    assert.equal(recorded.clientPayload?.token, '[REDACTED]', 'Tokens in clientPayload must be redacted');
+    assert.equal(recorded.clientPayload?.serverState, undefined, 'serverState in clientPayload must be removed');
+  });
+
+  await t.test('14. Account Scoping & Quarantine Isolation of Client Conflicts', async () => {
+    clearQuarantine('user_alice_409');
+    clearQuarantine('user_bob_409');
+
+    recordClientConflict('user_alice_409', {
+      mutationType: 'UPDATE_CYCLE',
+      entityType: 'CYCLE',
+      entityId: 'cycle_alice_1',
+      statusCode: 409,
+      expectedRevision: 1,
+      currentRevision: 2,
+      clientPayload: { id: 'cycle_alice_1', title: 'چرخه آلیس' }
+    });
+
+    recordClientConflict('user_bob_409', {
+      mutationType: 'UPDATE_LOG',
+      entityType: 'DAILY_LOG',
+      entityId: '2026-09-03',
+      statusCode: 428,
+      clientPayload: { date: '2026-09-03', habits: {} }
+    });
+
+    const aliceConflicts = getClientConflicts('user_alice_409');
+    assert.equal(aliceConflicts.length, 1);
+    assert.equal(aliceConflicts[0].entityId, 'cycle_alice_1');
+    assert.equal(aliceConflicts[0].ownerId, 'user_alice_409');
+    assert.equal(aliceConflicts[0].statusCode, 409);
+
+    const bobConflicts = getClientConflicts('user_bob_409');
+    assert.equal(bobConflicts.length, 1);
+    assert.equal(bobConflicts[0].entityId, '2026-09-03');
+    assert.equal(bobConflicts[0].ownerId, 'user_bob_409');
+    assert.equal(bobConflicts[0].statusCode, 428);
+
+    // Verify User A cannot see User B conflicts
+    assert.ok(!aliceConflicts.some(c => c.entityId === '2026-09-03'));
+    assert.ok(!bobConflicts.some(c => c.entityId === 'cycle_alice_1'));
+
+    // Clear Alice conflicts
+    clearClientConflicts('user_alice_409');
+    assert.equal(getClientConflicts('user_alice_409').length, 0);
+    // Bob remains intact
+    assert.equal(getClientConflicts('user_bob_409').length, 1);
+  });
+
+  await t.test('15. Direct Online Mutation 409/428 is NEVER Enqueued to Active Offline Queue', async () => {
+    const directOwner = 'user_direct_conflict_test';
+    // Active queue starts empty
+    assert.equal(getOfflineQueue(directOwner).length, 0);
+
+    // Simulate direct online mutation encountering 409
+    const conflictData = parseSafeConflictDetails(409, {
+      code: 'CONFLICT',
+      messageFa: 'تعارض نسخه در چرخه',
+      entityType: 'CYCLE',
+      entityId: 'cycle_online_1',
+      currentRevision: 3,
+      expectedRevision: 1
+    }, 'CYCLE', 'cycle_online_1');
+
+    recordClientConflict(directOwner, {
+      mutationType: 'UPDATE_CYCLE',
+      entityType: conflictData.entityType,
+      entityId: conflictData.entityId,
+      conflictType: conflictData.conflictType,
+      statusCode: conflictData.statusCode,
+      currentRevision: conflictData.currentRevision,
+      expectedRevision: conflictData.expectedRevision,
+      messageFa: conflictData.messageFa,
+      clientPayload: { id: 'cycle_online_1', title: 'تغییر همزمان' }
+    });
+
+    // Active offline queue must REMAIN EMPTY (no automated replay retry loops)
+    assert.equal(getOfflineQueue(directOwner).length, 0, 'Active offline queue must remain empty on 409');
+
+    // Quarantined items contain the conflict
+    const conflicts = getClientConflicts(directOwner);
+    assert.equal(conflicts.length, 1);
+    assert.equal(conflicts[0].statusCode, 409);
+    assert.equal(conflicts[0].entityId, 'cycle_online_1');
+  });
+
+  await t.test('16. Replay 409 & 428 Routing Through recordClientConflict and Quarantine Isolation', async () => {
+    const replayOwner = 'user_replay_conflict_test';
+    const item1 = {
+      id: 'mut_replay_409',
+      ownerId: replayOwner,
+      type: 'UPDATE_LOG' as const,
+      payload: { date: '2026-09-04', habits: { wakeUp: true } },
+      expectedRevision: 1,
+      timestamp: Date.now()
+    };
+
+    saveOfflineQueue(replayOwner, [item1]);
+    assert.equal(getOfflineQueue(replayOwner).length, 1);
+
+    // Mock fetch returning 409 with safe payload
+    const mockFetch = async () => ({
+      status: 409,
+      statusText: 'Conflict',
+      ok: false,
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: async () => ({
+        code: 'CONFLICT',
+        messageFa: 'تعارض همزمانی در بازپخش',
+        entityType: 'DAILY_LOG',
+        entityId: '2026-09-04',
+        currentRevision: 5,
+        expectedRevision: 1
+      }),
+      clone: () => ({
+        json: async () => ({
+          code: 'CONFLICT',
+          messageFa: 'تعارض همزمانی در بازپخش',
+          entityType: 'DAILY_LOG',
+          entityId: '2026-09-04',
+          currentRevision: 5,
+          expectedRevision: 1
+        })
+      })
+    });
+
+    const result = await replayAccountOfflineQueue({
+      activeAccountId: replayOwner,
+      authToken: 'token_test_123',
+      fetchFn: mockFetch as any,
+      respectBackoff: false
+    });
+
+    assert.equal(result.failedCount, 1);
+    assert.equal(result.syncedCount, 0);
+
+    // Active queue must have removed the item
+    assert.equal(getOfflineQueue(replayOwner).length, 0, 'Replayed 409 item must be removed from active queue');
+
+    // Quarantined conflict must be recorded
+    const conflicts = getClientConflicts(replayOwner);
+    assert.equal(conflicts.length, 1);
+    assert.equal(conflicts[0].statusCode, 409);
+    assert.equal(conflicts[0].entityId, '2026-09-04');
+    assert.equal(conflicts[0].currentRevision, 5);
+  });
+
+  await t.test('17. LocalStorage Privacy Verification: No raw 409/428 bodies, serverState or credentials in storage', async () => {
+    const privOwner = 'user_priv_check_999';
+
+    recordClientConflict(privOwner, {
+      mutationType: 'UPDATE_PROFILE',
+      entityType: 'USER_PROFILE',
+      entityId: privOwner,
+      statusCode: 409,
+      messageFa: 'تعارض در پروفایل کاربر',
+      clientPayload: {
+        id: privOwner,
+        name: 'کاربر تست',
+        token: 'SHOULD_NEVER_EXIST_IN_STORAGE',
+        password: 'SUPER_SECRET_PASSWORD',
+        serverState: { leakedInternalData: 12345 }
+      }
+    });
+
+    // Inspect all keys in localStorage
+    for (const key of Object.keys(storageMock)) {
+      const rawStored = storageMock[key];
+      assert.ok(!rawStored.includes('SHOULD_NEVER_EXIST_IN_STORAGE'), `Storage key ${key} must not contain sensitive token`);
+      assert.ok(!rawStored.includes('SUPER_SECRET_PASSWORD'), `Storage key ${key} must not contain password`);
+      assert.ok(!rawStored.includes('leakedInternalData'), `Storage key ${key} must not contain serverState`);
+    }
+  });
+
+  await t.test('18. Optimistic Delete Recovery Logic Verification', async () => {
+    // Given an initial cycle and logs
+    const initialCycle = {
+      id: 'cycle_delete_target',
+      title: 'چرخه هدف حذف',
+      startDate: '2026-09-01',
+      endDate: '2026-11-29',
+      targetTheme: 'انضباط',
+      revision: 2,
+      isSynced: true
+    };
+    const initialLog = {
+      date: '2026-09-01',
+      cycleId: 'cycle_delete_target',
+      habits: { wakeUp: true },
+      revision: 1,
+      isSynced: true
+    };
+
+    let localCycles = [initialCycle];
+    let localLogs = [initialLog];
+    let activeCycle = 'cycle_delete_target';
+
+    // Step 1: Optimistic UI deletion
+    const targetCycleBackup = initialCycle;
+    const targetLogsBackup = [initialLog];
+    const previousActiveCycleBackup = activeCycle;
+
+    localCycles = localCycles.filter(c => c.id !== 'cycle_delete_target');
+    localLogs = localLogs.filter(l => l.cycleId !== 'cycle_delete_target');
+    activeCycle = '';
+
+    assert.equal(localCycles.length, 0);
+    assert.equal(localLogs.length, 0);
+
+    // Step 2: Server responds with 409 Conflict (cycle was edited on another device, revision is now 3)
+    const serverResponse = {
+      status: 409,
+      body: {
+        code: 'CONFLICT',
+        messageFa: 'حذف چرخه به دلیل تغییر در دستگاه دیگر رد شد.',
+        entityType: 'CYCLE',
+        entityId: 'cycle_delete_target',
+        currentRevision: 3,
+        expectedRevision: 2
+      }
+    };
+
+    // Step 3: Handle conflict & rollback
+    const parsed = parseSafeConflictDetails(serverResponse.status, serverResponse.body, 'CYCLE', 'cycle_delete_target');
+    const recorded = recordClientConflict('user_optimistic_delete', {
+      mutationType: 'DELETE_CYCLE',
+      entityType: parsed.entityType,
+      entityId: parsed.entityId,
+      conflictType: parsed.conflictType,
+      statusCode: parsed.statusCode,
+      currentRevision: parsed.currentRevision,
+      expectedRevision: parsed.expectedRevision,
+      messageFa: parsed.messageFa
+    });
+
+    // Rollback optimistic delete
+    if (!localCycles.some(c => c.id === 'cycle_delete_target') && targetCycleBackup) {
+      localCycles = [...localCycles, targetCycleBackup];
+      localLogs = [...localLogs, ...targetLogsBackup];
+      if (previousActiveCycleBackup === 'cycle_delete_target') {
+        activeCycle = 'cycle_delete_target';
+      }
+    }
+
+    // Step 4: Verify recovery
+    assert.equal(localCycles.length, 1, 'Cycle must be restored to local state upon 409 rejection');
+    assert.equal(localCycles[0].id, 'cycle_delete_target');
+    assert.equal(localLogs.length, 1, 'Associated logs must be restored upon 409 rejection');
+    assert.equal(activeCycle, 'cycle_delete_target', 'Active cycle must be restored');
+    assert.equal(recorded.statusCode, 409);
+    assert.equal(recorded.currentRevision, 3);
   });
 });

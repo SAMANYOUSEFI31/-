@@ -313,3 +313,21 @@ export interface OfflineQueueItem {
   dedupKey?: string;
 }
 
+export type ConflictType = 'CONCURRENCY_CONFLICT' | 'PRECONDITION_REQUIRED';
+
+export interface ClientConflictMetadata {
+  id: string;
+  ownerId: string;
+  entityType: 'CYCLE' | 'DAILY_LOG' | 'USER_PROFILE' | 'SYSTEM_SETTINGS' | string;
+  entityId: string;
+  mutationType: OfflineMutationType;
+  conflictType: ConflictType;
+  statusCode: 409 | 428;
+  timestamp: number;
+  expectedRevision?: number;
+  currentRevision?: number;
+  messageFa?: string;
+  dedupKey?: string;
+  clientPayload?: any;
+}
+

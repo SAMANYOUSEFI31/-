@@ -41,7 +41,7 @@ import {
   isGuestQueueOwner,
   shouldQueueOfflineMutation
 } from './utils/storageUtils';
-import { getOfflineQueue } from './utils/offlineQueueUtils';
+import { getOfflineQueue, parseSafeConflictDetails, recordClientConflict } from './utils/offlineQueueUtils';
 import { reconcileBootState } from './utils/syncReconciliation';
 import { emitSyncDiagnostic } from './utils/syncDiagnostics';
 import { 
@@ -518,6 +518,22 @@ export default function App() {
           ...prev,
           logs: prev.logs.map(l => l.date === updatedLog.date ? { ...(serverLog || l), isSynced: true } : l)
         }));
+      } else if (res.status === 409 || res.status === 428) {
+        const conflictJson = await res.json().catch(() => null);
+        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'DAILY_LOG', updatedLog.date);
+        recordClientConflict(ownerId, {
+          mutationType: 'UPDATE_LOG',
+          entityType: parsedConflict.entityType,
+          entityId: parsedConflict.entityId,
+          conflictType: parsedConflict.conflictType,
+          statusCode: parsedConflict.statusCode,
+          expectedRevision: parsedConflict.expectedRevision ?? updatedLog.revision,
+          currentRevision: parsedConflict.currentRevision,
+          messageFa: parsedConflict.messageFa,
+          clientPayload: logPayload
+        });
+        showAppToast(parsedConflict.messageFa, 'warning');
+        requestSync('NETWORK_ONLINE', ownerId, authToken, true);
       } else {
         enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload, expectedRevision: updatedLog.revision });
       }
@@ -525,7 +541,7 @@ export default function App() {
       console.warn('Failed to sync log to server backend (added to offline queue):', e);
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload, expectedRevision: updatedLog.revision });
     }
-  }, [authToken, activeCycleId, systemState.userProfile?.id]);
+  }, [authToken, activeCycleId, systemState.userProfile?.id, showAppToast, requestSync]);
 
   const handleUpdateCycle = useCallback(async (updatedCycle: Cycle) => {
     setSystemState(prev => ({
@@ -562,6 +578,22 @@ export default function App() {
             cycles: prev.cycles.map(c => c.id === serverCycle.id ? { ...serverCycle, isSynced: true } : c)
           }));
         }
+      } else if (res.status === 409 || res.status === 428) {
+        const conflictJson = await res.json().catch(() => null);
+        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'CYCLE', updatedCycle.id);
+        recordClientConflict(ownerId, {
+          mutationType: 'UPDATE_CYCLE',
+          entityType: parsedConflict.entityType,
+          entityId: parsedConflict.entityId,
+          conflictType: parsedConflict.conflictType,
+          statusCode: parsedConflict.statusCode,
+          expectedRevision: parsedConflict.expectedRevision ?? updatedCycle.revision,
+          currentRevision: parsedConflict.currentRevision,
+          messageFa: parsedConflict.messageFa,
+          clientPayload: updatedCycle
+        });
+        showAppToast(parsedConflict.messageFa, 'warning');
+        requestSync('NETWORK_ONLINE', ownerId, authToken, true);
       } else {
         enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle, expectedRevision: updatedCycle.revision });
       }
@@ -569,7 +601,7 @@ export default function App() {
       console.warn('Failed to sync cycle update to server:', e);
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle, expectedRevision: updatedCycle.revision });
     }
-  }, [authToken, systemState.userProfile?.id]);
+  }, [authToken, systemState.userProfile?.id, showAppToast, requestSync]);
 
   const handleDeleteCycle = useCallback(async (cycleId: string) => {
     // Explicit deletion permanently marks starter demo as consumed to prevent re-seeding
@@ -578,6 +610,8 @@ export default function App() {
 
     const targetCycle = systemState.cycles.find(c => c.id === cycleId);
     const expectedRevision = targetCycle?.revision;
+    const targetLogs = systemState.logs.filter(l => l.cycleId === cycleId);
+    const previousActiveCycleId = activeCycleId;
 
     // 1. Calculate remaining cycles first
     const remainingCycles = systemState.cycles.filter(c => c.id !== cycleId);
@@ -626,14 +660,49 @@ export default function App() {
           'Authorization': `Bearer ${authToken}`
         }
       });
-      if (!res.ok && res.status !== 404) {
+      if (res.ok || res.status === 404) {
+        // Successful deletion or already deleted on server
+      } else if (res.status === 409 || res.status === 428) {
+        // Concurrency conflict / precondition failure:
+        // Cycle still exists on server. Recover optimistic deletion in local UI state.
+        const conflictJson = await res.json().catch(() => null);
+        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'CYCLE', cycleId);
+        recordClientConflict(ownerId, {
+          mutationType: 'DELETE_CYCLE',
+          entityType: parsedConflict.entityType,
+          entityId: parsedConflict.entityId,
+          conflictType: parsedConflict.conflictType,
+          statusCode: parsedConflict.statusCode,
+          expectedRevision: parsedConflict.expectedRevision ?? expectedRevision,
+          currentRevision: parsedConflict.currentRevision,
+          messageFa: parsedConflict.messageFa,
+          clientPayload: deletePayload
+        });
+
+        // Rollback optimistic deletion: restore cycle and logs
+        setSystemState(prev => {
+          const hasCycle = prev.cycles.some(c => c.id === cycleId);
+          if (hasCycle || !targetCycle) return prev;
+          return {
+            ...prev,
+            cycles: [...prev.cycles, targetCycle],
+            logs: [...prev.logs, ...targetLogs.filter(tl => !prev.logs.some(pl => pl.date === tl.date))]
+          };
+        });
+        if (previousActiveCycleId === cycleId) {
+          setActiveCycleId(cycleId);
+        }
+
+        showAppToast(parsedConflict.messageFa || 'حذف چرخه به دلیل تغییر در دستگاه دیگر رد شد. داده‌های چرخه بازگردانی شدند.', 'error');
+        requestSync('NETWORK_ONLINE', ownerId, authToken, true);
+      } else {
         enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: deletePayload, expectedRevision });
       }
     } catch (e) {
       console.warn('Failed to sync cycle deletion to server:', e);
       enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: deletePayload, expectedRevision });
     }
-  }, [authToken, activeCycleId, systemState.cycles, systemState.logs, systemState.userProfile?.id, showAppToast]);
+  }, [authToken, activeCycleId, systemState.cycles, systemState.logs, systemState.userProfile?.id, showAppToast, requestSync]);
 
   const handleUpdateUserProfile = useCallback(async (updatedProfile: UserProfile) => {
     setSystemState(prev => ({
@@ -661,14 +730,30 @@ export default function App() {
         },
         body: JSON.stringify(updatedProfile)
       });
-      if (!res.ok) {
+      if (res.ok) {
+        // Profile updated successfully
+      } else if (res.status === 409 || res.status === 428) {
+        const conflictJson = await res.json().catch(() => null);
+        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'USER_PROFILE', updatedProfile.id);
+        recordClientConflict(ownerId, {
+          mutationType: 'UPDATE_PROFILE',
+          entityType: parsedConflict.entityType,
+          entityId: parsedConflict.entityId,
+          conflictType: parsedConflict.conflictType,
+          statusCode: parsedConflict.statusCode,
+          messageFa: parsedConflict.messageFa,
+          clientPayload: updatedProfile
+        });
+        showAppToast(parsedConflict.messageFa, 'warning');
+        requestSync('NETWORK_ONLINE', ownerId, authToken, true);
+      } else {
         enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
       }
     } catch (e) {
       console.warn('Failed to sync user profile:', e);
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
     }
-  }, [authToken, systemState.userProfile?.id]);
+  }, [authToken, systemState.userProfile?.id, showAppToast, requestSync]);
 
   const handleCreateNewCycle = useCallback(async (title: string, startDate: string, targetTheme: string) => {
     // User created their own real cycle; demo is permanently consumed

@@ -1,4 +1,10 @@
-import { OfflineMutationType, OfflineQueueItem, ReplayFailureClassification } from '../types';
+import { 
+  OfflineMutationType, 
+  OfflineQueueItem, 
+  ReplayFailureClassification,
+  ConflictType,
+  ClientConflictMetadata
+} from '../types';
 import { 
   normalizeUserId, 
   normalizeQueueOwner,
@@ -983,6 +989,192 @@ export function clearQuarantine(ownerId?: string | null): void {
 }
 
 /**
+ * Parses safe conflict metadata from HTTP 409/428 error payloads.
+ * Strictly guarantees serverState and sensitive credentials/raw headers are NEVER returned or stored.
+ */
+export function parseSafeConflictDetails(
+  status: number,
+  responseBody: any,
+  defaultEntityType = 'UNKNOWN',
+  defaultEntityId = 'UNKNOWN'
+): {
+  conflictType: ConflictType;
+  statusCode: 409 | 428;
+  currentRevision?: number;
+  expectedRevision?: number;
+  entityType: string;
+  entityId: string;
+  messageFa: string;
+} {
+  const is428 = status === 428;
+  const conflictType: ConflictType = is428 ? 'PRECONDITION_REQUIRED' : 'CONCURRENCY_CONFLICT';
+  const statusCode: 409 | 428 = is428 ? 428 : 409;
+
+  const currentRevision = typeof responseBody?.currentRevision === 'number' && Number.isInteger(responseBody.currentRevision) && responseBody.currentRevision > 0
+    ? responseBody.currentRevision
+    : undefined;
+
+  const expectedRevision = typeof responseBody?.expectedRevision === 'number' && Number.isInteger(responseBody.expectedRevision) && responseBody.expectedRevision > 0
+    ? responseBody.expectedRevision
+    : undefined;
+
+  const entityType = typeof responseBody?.entityType === 'string' && responseBody.entityType.trim()
+    ? responseBody.entityType
+    : defaultEntityType;
+
+  const entityId = typeof responseBody?.entityId === 'string' && responseBody.entityId.trim()
+    ? responseBody.entityId
+    : defaultEntityId;
+
+  const rawMsg = responseBody?.messageFa || (is428
+    ? 'عملیات به دلیل عدم ارسال نسخه مورد انتظار (HTTP 428) رد شد.'
+    : 'این مورد در دستگاه دیگری تغییر یافته است و دارای تعارض همزمانی است.');
+  const messageFa = sanitizeErrorMessage(rawMsg);
+
+  return {
+    conflictType,
+    statusCode,
+    currentRevision,
+    expectedRevision,
+    entityType,
+    entityId,
+    messageFa
+  };
+}
+
+/**
+ * Shared, typed, account-scoped conflict recording path extending owner-scoped quarantine.
+ * Guarantees:
+ * - Privacy invariants: serverState is never persisted, credentials are sanitized, raw response bodies are omitted.
+ * - Owner isolation: recorded strictly into the account's partition key.
+ * - Deduplication: records are identifiable and compactable.
+ */
+export function recordClientConflict(
+  ownerId: string | null | undefined,
+  input: {
+    mutationType: OfflineMutationType;
+    entityType: string;
+    entityId: string;
+    conflictType?: ConflictType;
+    statusCode?: 409 | 428;
+    expectedRevision?: number;
+    currentRevision?: number;
+    messageFa?: string;
+    clientPayload?: any;
+    dedupKey?: string;
+    id?: string;
+    timestamp?: number;
+  }
+): ClientConflictMetadata {
+  const normOwner = normalizeQueueOwner(ownerId);
+  const is428 = input.statusCode === 428 || input.conflictType === 'PRECONDITION_REQUIRED';
+  const conflictType: ConflictType = is428 ? 'PRECONDITION_REQUIRED' : 'CONCURRENCY_CONFLICT';
+  const statusCode: 409 | 428 = is428 ? 428 : 409;
+  const classification: ReplayFailureClassification = is428 ? 'PRECONDITION_REQUIRED' : 'CONFLICT_DEFERRED';
+
+  let sanitizedPayload = input.clientPayload !== undefined ? sanitizePayloadCredentials(input.clientPayload) : undefined;
+  // Explicit privacy invariant: serverState is never persisted
+  if (sanitizedPayload && typeof sanitizedPayload === 'object') {
+    if ('serverState' in sanitizedPayload) {
+      const copy = { ...sanitizedPayload };
+      delete copy.serverState;
+      sanitizedPayload = copy;
+    }
+  }
+
+  const safeMsg = sanitizeErrorMessage(
+    input.messageFa || (is428
+      ? 'عملیات به دلیل عدم ارسال نسخه مورد انتظار (HTTP 428) رد شد.'
+      : 'این مورد در دستگاه دیگری تغییر یافته است و دارای تعارض همزمانی است.')
+  );
+
+  const conflictMetadata: ClientConflictMetadata = {
+    id: input.id || `conflict_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+    ownerId: normOwner,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    mutationType: input.mutationType,
+    conflictType,
+    statusCode,
+    timestamp: typeof input.timestamp === 'number' ? input.timestamp : Date.now(),
+    ...(typeof input.expectedRevision === 'number' && Number.isInteger(input.expectedRevision) && input.expectedRevision > 0 ? { expectedRevision: input.expectedRevision } : {}),
+    ...(typeof input.currentRevision === 'number' && Number.isInteger(input.currentRevision) && input.currentRevision > 0 ? { currentRevision: input.currentRevision } : {}),
+    messageFa: safeMsg,
+    dedupKey: input.dedupKey,
+    clientPayload: sanitizedPayload
+  };
+
+  const quarantinedQueueItem: OfflineQueueItem & { currentRevision?: number } = {
+    id: conflictMetadata.id,
+    ownerId: normOwner,
+    type: input.mutationType,
+    payload: sanitizedPayload,
+    timestamp: conflictMetadata.timestamp,
+    expectedRevision: conflictMetadata.expectedRevision,
+    currentRevision: conflictMetadata.currentRevision,
+    lastError: safeMsg,
+    classification,
+    dedupKey: input.dedupKey
+  };
+
+  quarantineQueueItems(
+    [quarantinedQueueItem],
+    statusCode === 428
+      ? 'HTTP 428 Precondition Required - missing or invalid expectedRevision'
+      : 'HTTP 409 Conflict - mutation deferred for manual/reconciliation resolution',
+    normOwner
+  );
+
+  return conflictMetadata;
+}
+
+/**
+ * Returns recorded conflicts for a specific owner partition.
+ */
+export function getClientConflicts(ownerId?: string | null): ClientConflictMetadata[] {
+  const normOwner = normalizeQueueOwner(ownerId);
+  const quarantined = getQuarantinedItems(normOwner);
+  const conflicts: ClientConflictMetadata[] = [];
+
+  for (const group of quarantined) {
+    if (group && Array.isArray(group.items)) {
+      for (const item of group.items) {
+        if (
+          item &&
+          (item.classification === 'CONFLICT_DEFERRED' || item.classification === 'PRECONDITION_REQUIRED')
+        ) {
+          const is428 = item.classification === 'PRECONDITION_REQUIRED';
+          conflicts.push({
+            id: item.id || `conflict_${item.timestamp || Date.now()}`,
+            ownerId: normalizeQueueOwner(item.ownerId || group.ownerId),
+            entityType: item.type === 'UPDATE_LOG' ? 'DAILY_LOG' : (item.type.includes('CYCLE') ? 'CYCLE' : item.type),
+            entityId: item.payload?.id || item.payload?.date || (typeof item.payload === 'string' ? item.payload : 'unknown'),
+            mutationType: item.type,
+            conflictType: is428 ? 'PRECONDITION_REQUIRED' : 'CONCURRENCY_CONFLICT',
+            statusCode: is428 ? 428 : 409,
+            timestamp: typeof item.timestamp === 'number' ? item.timestamp : Date.now(),
+            expectedRevision: item.expectedRevision,
+            currentRevision: item.currentRevision,
+            messageFa: item.lastError,
+            dedupKey: item.dedupKey,
+            clientPayload: item.payload
+          });
+        }
+      }
+    }
+  }
+
+  return conflicts;
+}
+
+/**
+ * Clears recorded conflicts for a specific owner partition.
+ */
+export function clearClientConflicts(ownerId?: string | null): void {
+  clearQuarantine(ownerId);
+}
+
+/**
  * Migrates legacy global offline queue ('bushido_offline_queue') into account-scoped queues.
  * - Items with verifiable ownerId are safely routed to that owner's partition.
  * - Items with no ownerId or ambiguous structure are quarantined in LEGACY_AMBIGUOUS_QUARANTINE_KEY.
@@ -1502,16 +1694,35 @@ async function executeReplayLoop(
           }
         } catch {}
 
-        const quarantinedItem: OfflineQueueItem = {
-          ...item,
-          classification: 'CONFLICT_DEFERRED',
-          lastError: conflictDetails?.messageFa || 'این آیتم در دستگاه دیگری به‌روزرسانی شده و دارای تعارض همزمانی است.'
-        };
+        const parsedConflict = parseSafeConflictDetails(
+          409,
+          conflictDetails,
+          item.type === 'UPDATE_LOG' ? 'DAILY_LOG' : (item.type.includes('CYCLE') ? 'CYCLE' : item.type),
+          item.payload?.id || item.payload?.date || item.id
+        );
 
-        quarantineQueueItems([quarantinedItem], 'HTTP 409 Conflict - mutation deferred for manual/reconciliation resolution', initialOwner);
+        const conflictMeta = recordClientConflict(initialOwner, {
+          id: item.id,
+          mutationType: item.type,
+          entityType: parsedConflict.entityType,
+          entityId: parsedConflict.entityId,
+          conflictType: 'CONCURRENCY_CONFLICT',
+          statusCode: 409,
+          expectedRevision: parsedConflict.expectedRevision ?? item.expectedRevision,
+          currentRevision: parsedConflict.currentRevision,
+          messageFa: parsedConflict.messageFa,
+          clientPayload: item.payload,
+          dedupKey: item.dedupKey,
+          timestamp: item.timestamp
+        });
+
         removeReplayedQueueItems(initialOwner, [item.id]);
         failedCount++;
-        options.onItemFailure?.(quarantinedItem, new Error('HTTP 409 Conflict'));
+        options.onItemFailure?.({
+          ...item,
+          classification: 'CONFLICT_DEFERRED',
+          lastError: conflictMeta.messageFa
+        }, new Error('HTTP 409 Conflict'));
         continue;
       }
 
@@ -1526,16 +1737,35 @@ async function executeReplayLoop(
           }
         } catch {}
 
-        const quarantinedItem: OfflineQueueItem = {
-          ...item,
-          classification: 'PRECONDITION_REQUIRED',
-          lastError: preconditionDetails?.messageFa || 'عملیات به دلیل عدم ارسال نسخه مورد انتظار (HTTP 428) متوقف شد.'
-        };
+        const parsedConflict = parseSafeConflictDetails(
+          428,
+          preconditionDetails,
+          item.type === 'UPDATE_LOG' ? 'DAILY_LOG' : (item.type.includes('CYCLE') ? 'CYCLE' : item.type),
+          item.payload?.id || item.payload?.date || item.id
+        );
 
-        quarantineQueueItems([quarantinedItem], 'HTTP 428 Precondition Required - missing or invalid expectedRevision', initialOwner);
+        const conflictMeta = recordClientConflict(initialOwner, {
+          id: item.id,
+          mutationType: item.type,
+          entityType: parsedConflict.entityType,
+          entityId: parsedConflict.entityId,
+          conflictType: 'PRECONDITION_REQUIRED',
+          statusCode: 428,
+          expectedRevision: parsedConflict.expectedRevision ?? item.expectedRevision,
+          currentRevision: parsedConflict.currentRevision,
+          messageFa: parsedConflict.messageFa,
+          clientPayload: item.payload,
+          dedupKey: item.dedupKey,
+          timestamp: item.timestamp
+        });
+
         removeReplayedQueueItems(initialOwner, [item.id]);
         failedCount++;
-        options.onItemFailure?.(quarantinedItem, new Error('HTTP 428 Precondition Required'));
+        options.onItemFailure?.({
+          ...item,
+          classification: 'PRECONDITION_REQUIRED',
+          lastError: conflictMeta.messageFa
+        }, new Error('HTTP 428 Precondition Required'));
         continue;
       }
 
