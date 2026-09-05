@@ -106,6 +106,7 @@ interface PendingTrailingState {
   itemSuccessCallbacks: Set<(item: OfflineQueueItem) => void>;
   resultCallbacks: Set<(outcome: SyncRunOutcome) => void>;
   deferredResolvers: Array<(outcome: SyncRunOutcome) => void>;
+  diagnosticSink: SyncDiagnosticSink;
 }
 
 /**
@@ -297,7 +298,8 @@ export class SyncOrchestrator {
           replayExecutor,
           itemSuccessCallbacks: itemCbs,
           resultCallbacks: resCbs,
-          deferredResolvers: [resolver]
+          deferredResolvers: [resolver],
+          diagnosticSink: sink
         };
 
         emitSyncDiagnostic({
@@ -317,6 +319,7 @@ export class SyncOrchestrator {
         // - force=true dominates force=false
         // - newer token snapshot replaces older snapshot
         // - trigger metadata is added to deduplicated set
+        // - preserve exact selected diagnostic sink already assigned to this pending run
         this.pendingTrailing.force = this.pendingTrailing.force || isForce;
         this.pendingTrailing.token = rawToken;
         this.pendingTrailing.triggers.add(request.trigger);
@@ -333,14 +336,14 @@ export class SyncOrchestrator {
           trigger: request.trigger,
           force: isForce,
           safeReason: 'COALESCED'
-        }, sink);
+        }, this.pendingTrailing.diagnosticSink);
 
         return new Promise<SyncRunOutcome>((res) => {
           this.pendingTrailing?.deferredResolvers.push(res);
         });
       } else {
         // Different owner: account transition occurred during active run!
-        // Discard previous owner's pending trailing request
+        // Discard previous owner's pending trailing request using its own sink
         const oldPending = this.pendingTrailing;
         const discardedOutcome: SyncRunOutcome = {
           ownerId: oldPending.ownerId,
@@ -362,13 +365,13 @@ export class SyncOrchestrator {
           outcomeStatus: 'DISCARDED_STALE',
           errorCategory: 'ACCOUNT_CHANGE',
           safeReason: 'ACCOUNT_CHANGED'
-        }, sink);
+        }, oldPending.diagnosticSink);
 
         for (const res of oldPending.deferredResolvers) {
           res(discardedOutcome);
         }
 
-        // Install new owner's request as the single pending trailing request
+        // Install new owner's request as the single pending trailing request with its own sink
         let resolver!: (outcome: SyncRunOutcome) => void;
         const promise = new Promise<SyncRunOutcome>((res) => {
           resolver = res;
@@ -383,7 +386,8 @@ export class SyncOrchestrator {
           replayExecutor,
           itemSuccessCallbacks: itemCbs,
           resultCallbacks: resCbs,
-          deferredResolvers: [resolver]
+          deferredResolvers: [resolver],
+          diagnosticSink: sink
         };
 
         emitSyncDiagnostic({
@@ -693,9 +697,9 @@ export class SyncOrchestrator {
       return;
     }
 
-    const sink = this.getSink();
     const pending = this.pendingTrailing;
     this.pendingTrailing = null;
+    const sink = pending.diagnosticSink;
 
     // Revalidate pending request against CURRENT active account:
     const currentActive = normalizeQueueOwner(pending.currentActiveAccountResolver());
@@ -790,7 +794,7 @@ export class SyncOrchestrator {
       return;
     }
 
-    // 4. Start trailing run with new runId and pipe outcome to deferredResolvers
+    // 4. Start trailing run with retained sink and pipe outcome to deferredResolvers
     const runPromise = this.startActiveRun({
       ownerId: pending.ownerId,
       token: pending.token,
@@ -832,9 +836,10 @@ export class SyncOrchestrator {
    */
   public cancelPendingSync(): void {
     if (this.pendingTrailing) {
-      const sink = this.getSink();
       const pending = this.pendingTrailing;
       this.pendingTrailing = null;
+      const sink = pending.diagnosticSink;
+
       const outcome: SyncRunOutcome = {
         ownerId: pending.ownerId,
         triggers: Array.from(pending.triggers),

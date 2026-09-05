@@ -12,9 +12,10 @@ import { isDevelopmentEnvironment } from './storageCore';
  * Principles:
  * 1. Zero Sensitive Data: No tokens, passwords, owner IDs, phone numbers, emails,
  *    mutation payloads, notes, or cycle titles are ever stored or emitted.
- * 2. Closed Typed Vocabulary: Events and error categories are strictly enumerated.
- * 3. Non-Invasive & Isolated: Diagnostic sink errors never throw into sync execution.
- * 4. Bounded In-Memory Retention: Small FIFO ring buffer with no default disk/network persistence.
+ * 2. Closed Typed Vocabulary: Events, statuses, and error categories are strictly enumerated.
+ * 3. Runtime Sanitization: Strong validation at diagnostic boundary discards invalid fields/types.
+ * 4. Non-Invasive & Isolated: Diagnostic sink errors never throw into sync execution.
+ * 5. Bounded In-Memory Retention: Small FIFO ring buffer with no default disk/network persistence.
  * =============================================================================
  */
 
@@ -64,9 +65,9 @@ export interface SyncDiagnosticRecord {
   failedCount?: number;
   remainingQueueCount?: number;
   itemCount?: number;
-  outcomeStatus?: SyncRunStatus | string;
+  outcomeStatus?: SyncRunStatus;
   errorCategory?: SafeSyncErrorCategory;
-  safeReason?: SafeSyncReason | string;
+  safeReason?: SafeSyncReason;
   durationMs?: number;
 
   // Aggregate-only reconciliation counts
@@ -83,6 +84,79 @@ export interface SyncDiagnosticSink {
 }
 
 export const MAX_DIAGNOSTIC_RECORDS = 50;
+
+const VALID_EVENT_TYPES: ReadonlySet<string> = new Set<SyncDiagnosticEventType>([
+  'RUN_REQUESTED',
+  'RUN_STARTED',
+  'RUN_COALESCED',
+  'RUN_SKIPPED',
+  'RUN_COMPLETED',
+  'RUN_FAILED',
+  'RUN_DISCARDED_STALE',
+  'RUN_ABORTED',
+  'LOCK_LOST',
+  'RECONCILIATION_COMPLETED',
+  'RECONCILIATION_DISCARDED_STALE'
+]);
+
+const VALID_TRIGGERS: ReadonlySet<string> = new Set<SyncTrigger>([
+  'BOOT_AUTH_VERIFIED',
+  'NETWORK_ONLINE',
+  'AUTH_SUCCESS',
+  'QUICK_LOGIN_SUCCESS',
+  'IMPERSONATION_START',
+  'IMPERSONATION_EXIT',
+  'MANUAL_FORCE'
+]);
+
+const VALID_OUTCOME_STATUSES: ReadonlySet<string> = new Set<SyncRunStatus>([
+  'COMPLETED',
+  'SKIPPED_OFFLINE',
+  'SKIPPED_GUEST_OR_ANONYMOUS',
+  'DISCARDED_STALE',
+  'ABORTED',
+  'FAILED'
+]);
+
+const VALID_ERROR_CATEGORIES: ReadonlySet<string> = new Set<SafeSyncErrorCategory>([
+  'NETWORK',
+  'AUTH',
+  'HTTP_RETRYABLE',
+  'HTTP_PERMANENT',
+  'LOCK_LOSS',
+  'ACCOUNT_CHANGE',
+  'OFFLINE',
+  'UNKNOWN'
+]);
+
+const VALID_SAFE_REASONS: ReadonlySet<string> = new Set<SafeSyncReason>([
+  'OFFLINE',
+  'GUEST_OR_ANONYMOUS',
+  'ACCOUNT_CHANGED',
+  'LOCK_LOST',
+  'AUTH_REQUIRED',
+  'USER_ABORT',
+  'ERROR',
+  'SUCCESS',
+  'COALESCED',
+  'PENDING_TRAILING'
+]);
+
+const RUN_ID_PATTERN = /^sync_run_\d+_\d+_[a-z0-9]+$/;
+
+function sanitizeCount(val: unknown): number | undefined {
+  if (typeof val === 'number' && Number.isFinite(val) && val >= 0) {
+    return Math.floor(val);
+  }
+  return undefined;
+}
+
+function sanitizeDuration(val: unknown): number | undefined {
+  if (typeof val === 'number' && Number.isFinite(val) && val >= 0) {
+    return val;
+  }
+  return undefined;
+}
 
 let runIdCounter = 0;
 
@@ -160,40 +234,105 @@ export function classifySafeError(
 }
 
 /**
- * In-memory bounded FIFO ring buffer diagnostic sink.
+ * In-memory bounded FIFO ring buffer diagnostic sink with runtime schema sanitization.
  */
 export class InMemoryDiagnosticSink implements SyncDiagnosticSink {
   private buffer: SyncDiagnosticRecord[] = [];
   private maxRecords: number;
 
   constructor(maxRecords = MAX_DIAGNOSTIC_RECORDS) {
-    this.maxRecords = maxRecords;
+    this.maxRecords = typeof maxRecords === 'number' && maxRecords > 0 ? maxRecords : MAX_DIAGNOSTIC_RECORDS;
   }
 
   public record(event: SyncDiagnosticRecord): void {
-    // Construct sanitized record containing only approved metadata
+    if (!event || typeof event !== 'object' || Array.isArray(event)) {
+      return;
+    }
+
+    // Reject/discard if eventType is not in the closed vocabulary
+    if (typeof event.eventType !== 'string' || !VALID_EVENT_TYPES.has(event.eventType)) {
+      return;
+    }
+
+    const timestamp =
+      typeof event.timestamp === 'number' && Number.isFinite(event.timestamp) && event.timestamp > 0
+        ? event.timestamp
+        : Date.now();
+
     const safeRecord: SyncDiagnosticRecord = {
-      eventType: event.eventType,
-      timestamp: typeof event.timestamp === 'number' ? event.timestamp : Date.now(),
-      ...(event.runId !== undefined && { runId: String(event.runId) }),
-      ...(event.trigger !== undefined && { trigger: event.trigger }),
-      ...(event.triggers !== undefined && { triggers: [...event.triggers] }),
-      ...(event.force !== undefined && { force: Boolean(event.force) }),
-      ...(event.syncedCount !== undefined && { syncedCount: Number(event.syncedCount) }),
-      ...(event.failedCount !== undefined && { failedCount: Number(event.failedCount) }),
-      ...(event.remainingQueueCount !== undefined && { remainingQueueCount: Number(event.remainingQueueCount) }),
-      ...(event.itemCount !== undefined && { itemCount: Number(event.itemCount) }),
-      ...(event.outcomeStatus !== undefined && { outcomeStatus: event.outcomeStatus }),
-      ...(event.errorCategory !== undefined && { errorCategory: event.errorCategory }),
-      ...(event.safeReason !== undefined && { safeReason: event.safeReason }),
-      ...(event.durationMs !== undefined && { durationMs: Number(event.durationMs) }),
-      ...(event.remoteCyclesCount !== undefined && { remoteCyclesCount: Number(event.remoteCyclesCount) }),
-      ...(event.remoteLogsCount !== undefined && { remoteLogsCount: Number(event.remoteLogsCount) }),
-      ...(event.pendingMutationsCount !== undefined && { pendingMutationsCount: Number(event.pendingMutationsCount) }),
-      ...(event.reconciledCyclesCount !== undefined && { reconciledCyclesCount: Number(event.reconciledCyclesCount) }),
-      ...(event.reconciledLogsCount !== undefined && { reconciledLogsCount: Number(event.reconciledLogsCount) }),
-      ...(event.demoConsumedChanged !== undefined && { demoConsumedChanged: Boolean(event.demoConsumedChanged) })
+      eventType: event.eventType as SyncDiagnosticEventType,
+      timestamp
     };
+
+    if (typeof event.runId === 'string' && RUN_ID_PATTERN.test(event.runId)) {
+      safeRecord.runId = event.runId;
+    }
+
+    if (typeof event.trigger === 'string' && VALID_TRIGGERS.has(event.trigger)) {
+      safeRecord.trigger = event.trigger as SyncTrigger;
+    }
+
+    if (Array.isArray(event.triggers)) {
+      const validTriggers: SyncTrigger[] = [];
+      for (const t of event.triggers) {
+        if (typeof t === 'string' && VALID_TRIGGERS.has(t)) {
+          validTriggers.push(t as SyncTrigger);
+        }
+      }
+      if (validTriggers.length > 0) {
+        safeRecord.triggers = validTriggers;
+      }
+    }
+
+    if (typeof event.force === 'boolean') {
+      safeRecord.force = event.force;
+    }
+
+    const syncedCount = sanitizeCount(event.syncedCount);
+    if (syncedCount !== undefined) safeRecord.syncedCount = syncedCount;
+
+    const failedCount = sanitizeCount(event.failedCount);
+    if (failedCount !== undefined) safeRecord.failedCount = failedCount;
+
+    const remainingQueueCount = sanitizeCount(event.remainingQueueCount);
+    if (remainingQueueCount !== undefined) safeRecord.remainingQueueCount = remainingQueueCount;
+
+    const itemCount = sanitizeCount(event.itemCount);
+    if (itemCount !== undefined) safeRecord.itemCount = itemCount;
+
+    if (typeof event.outcomeStatus === 'string' && VALID_OUTCOME_STATUSES.has(event.outcomeStatus)) {
+      safeRecord.outcomeStatus = event.outcomeStatus as SyncRunStatus;
+    }
+
+    if (typeof event.errorCategory === 'string' && VALID_ERROR_CATEGORIES.has(event.errorCategory)) {
+      safeRecord.errorCategory = event.errorCategory as SafeSyncErrorCategory;
+    }
+
+    if (typeof event.safeReason === 'string' && VALID_SAFE_REASONS.has(event.safeReason)) {
+      safeRecord.safeReason = event.safeReason as SafeSyncReason;
+    }
+
+    const durationMs = sanitizeDuration(event.durationMs);
+    if (durationMs !== undefined) safeRecord.durationMs = durationMs;
+
+    const remoteCyclesCount = sanitizeCount(event.remoteCyclesCount);
+    if (remoteCyclesCount !== undefined) safeRecord.remoteCyclesCount = remoteCyclesCount;
+
+    const remoteLogsCount = sanitizeCount(event.remoteLogsCount);
+    if (remoteLogsCount !== undefined) safeRecord.remoteLogsCount = remoteLogsCount;
+
+    const pendingMutationsCount = sanitizeCount(event.pendingMutationsCount);
+    if (pendingMutationsCount !== undefined) safeRecord.pendingMutationsCount = pendingMutationsCount;
+
+    const reconciledCyclesCount = sanitizeCount(event.reconciledCyclesCount);
+    if (reconciledCyclesCount !== undefined) safeRecord.reconciledCyclesCount = reconciledCyclesCount;
+
+    const reconciledLogsCount = sanitizeCount(event.reconciledLogsCount);
+    if (reconciledLogsCount !== undefined) safeRecord.reconciledLogsCount = reconciledLogsCount;
+
+    if (typeof event.demoConsumedChanged === 'boolean') {
+      safeRecord.demoConsumedChanged = event.demoConsumedChanged;
+    }
 
     this.buffer.push(safeRecord);
     if (this.buffer.length > this.maxRecords) {

@@ -233,6 +233,179 @@ describe('Phase 4: Production-Safe Sync Observability and Diagnostics', () => {
     });
   });
 
+  describe('1.1 Sink Ownership Across Trailing Runs', () => {
+    it('(a & b) Request-specific sink receives both pending and trailing lifecycle events; global sink does not receive trailing events', async () => {
+      const globalSink = new InMemoryDiagnosticSink(100);
+      setSyncDiagnosticSink(globalSink);
+
+      const customSinkOrchestrator = createSyncOrchestrator({
+        currentActiveAccountResolver: () => 'user-alpha',
+        isOnlineResolver: () => true,
+        replayExecutor: (options: ReplayOptions) => {
+          const deferred = createDeferred<ReplayResult>();
+          replayCalls.push({ options, deferred });
+          return deferred.promise;
+        }
+      });
+
+      // 1. Start active run with global sink
+      const p1 = customSinkOrchestrator.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha-1'
+      });
+
+      assert.equal(replayCalls.length, 1);
+      assert.equal(globalSink.getRecords().filter(r => r.eventType === 'RUN_STARTED').length, 1);
+
+      // 2. Request a pending trailing run with a SPECIFIC custom sink
+      const requestSpecificSink = new InMemoryDiagnosticSink(100);
+      const p2 = customSinkOrchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha-2',
+        diagnosticSink: requestSpecificSink
+      });
+
+      // Pending event is in requestSpecificSink
+      const pendingReqEvents = requestSpecificSink.getRecords().filter(r => r.eventType === 'RUN_REQUESTED');
+      assert.equal(pendingReqEvents.length, 1, 'requestSpecificSink recorded RUN_REQUESTED for pending trailing');
+
+      // 3. Resolve first run
+      replayCalls[0].deferred.resolve(createSampleReplayResult({ syncedCount: 1 }));
+      await p1;
+
+      // Trailing run starts
+      assert.equal(replayCalls.length, 2);
+
+      // Verify requestSpecificSink received RUN_STARTED for trailing run
+      const trailingStarted = requestSpecificSink.getRecords().filter(r => r.eventType === 'RUN_STARTED');
+      assert.equal(trailingStarted.length, 1, 'requestSpecificSink received RUN_STARTED for the trailing run');
+
+      // 4. Complete trailing run
+      replayCalls[1].deferred.resolve(createSampleReplayResult({ syncedCount: 2 }));
+      const out2 = await p2;
+      assert.equal(out2.status, 'COMPLETED');
+
+      // Verify requestSpecificSink received RUN_COMPLETED
+      const trailingCompleted = requestSpecificSink.getRecords().filter(r => r.eventType === 'RUN_COMPLETED');
+      assert.equal(trailingCompleted.length, 1, 'requestSpecificSink received RUN_COMPLETED for the trailing run');
+
+      // Verify globalSink DID NOT receive the trailing RUN_STARTED or RUN_COMPLETED
+      const globalStarted = globalSink.getRecords().filter(r => r.eventType === 'RUN_STARTED');
+      assert.equal(globalStarted.length, 1, 'globalSink only has the initial run started event');
+      const globalCompleted = globalSink.getRecords().filter(r => r.eventType === 'RUN_COMPLETED');
+      assert.equal(globalCompleted.length, 1, 'globalSink only has the initial run completed event');
+    });
+
+    it('(c) Replaced different-owner pending request routes discard to old sink and lifecycle to new sink', async () => {
+      let currentActiveUser = 'user-alpha';
+      const multiOwnerOrchestrator = createSyncOrchestrator({
+        currentActiveAccountResolver: () => currentActiveUser,
+        isOnlineResolver: () => true,
+        replayExecutor: (options: ReplayOptions) => {
+          const deferred = createDeferred<ReplayResult>();
+          replayCalls.push({ options, deferred });
+          return deferred.promise;
+        }
+      });
+
+      // Start active run for user-alpha
+      const p1 = multiOwnerOrchestrator.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha-1'
+      });
+
+      // User-alpha creates pending trailing run with sink-alpha
+      const sinkAlpha = new InMemoryDiagnosticSink(100);
+      const pPendingAlpha = multiOwnerOrchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha-2',
+        diagnosticSink: sinkAlpha
+      });
+
+      // Account transition to user-beta during active run
+      currentActiveUser = 'user-beta';
+      const sinkBeta = new InMemoryDiagnosticSink(100);
+      const pPendingBeta = multiOwnerOrchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-beta',
+        targetToken: 'token-beta-1',
+        diagnosticSink: sinkBeta
+      });
+
+      // Old pending sink received RUN_DISCARDED_STALE
+      const discardedAlpha = sinkAlpha.getRecords().find(r => r.eventType === 'RUN_DISCARDED_STALE');
+      assert.ok(discardedAlpha, 'sinkAlpha received RUN_DISCARDED_STALE');
+      assert.equal(discardedAlpha.safeReason, 'ACCOUNT_CHANGED');
+
+      const outAlpha = await pPendingAlpha;
+      assert.equal(outAlpha.status, 'DISCARDED_STALE');
+
+      // Finish initial run
+      replayCalls[0].deferred.resolve(createSampleReplayResult({ syncedCount: 1, stoppedDueToAccountChange: true }));
+      await p1;
+
+      // Trailing run for user-beta begins
+      assert.equal(replayCalls.length, 2);
+      const betaStarted = sinkBeta.getRecords().find(r => r.eventType === 'RUN_STARTED');
+      assert.ok(betaStarted, 'sinkBeta received RUN_STARTED for user-beta trailing run');
+
+      // Resolve trailing run for user-beta
+      replayCalls[1].deferred.resolve(createSampleReplayResult({ syncedCount: 3 }));
+      const outBeta = await pPendingBeta;
+      assert.equal(outBeta.status, 'COMPLETED');
+
+      const betaCompleted = sinkBeta.getRecords().find(r => r.eventType === 'RUN_COMPLETED');
+      assert.ok(betaCompleted, 'sinkBeta received RUN_COMPLETED');
+    });
+
+    it('(d) Coalescing same-owner pending requests preserves the bound sink without duplicating RUN_STARTED', async () => {
+      const sinkFirst = new InMemoryDiagnosticSink(100);
+      const sinkSecond = new InMemoryDiagnosticSink(100);
+
+      const p1 = orchestrator.requestSync({
+        trigger: 'NETWORK_ONLINE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha-1'
+      });
+
+      const p2 = orchestrator.requestSync({
+        trigger: 'AUTH_SUCCESS',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha-2',
+        diagnosticSink: sinkFirst
+      });
+
+      const p3 = orchestrator.requestSync({
+        trigger: 'MANUAL_FORCE',
+        targetOwnerId: 'user-alpha',
+        targetToken: 'token-alpha-3',
+        diagnosticSink: sinkSecond
+      });
+
+      // sinkFirst received RUN_REQUESTED and RUN_COALESCED
+      const firstRecords = sinkFirst.getRecords();
+      assert.ok(firstRecords.some(r => r.eventType === 'RUN_REQUESTED'));
+      assert.ok(firstRecords.some(r => r.eventType === 'RUN_COALESCED'));
+
+      // Finish active run
+      replayCalls[0].deferred.resolve(createSampleReplayResult({ syncedCount: 1 }));
+      await p1;
+
+      // Trailing run executes on sinkFirst
+      replayCalls[1].deferred.resolve(createSampleReplayResult({ syncedCount: 2 }));
+      const [out2, out3] = await Promise.all([p2, p3]);
+      assert.equal(out2.status, 'COMPLETED');
+      assert.equal(out3.status, 'COMPLETED');
+
+      const firstStarted = sinkFirst.getRecords().filter(r => r.eventType === 'RUN_STARTED');
+      assert.equal(firstStarted.length, 1, 'Exactly one RUN_STARTED event emitted to sinkFirst');
+    });
+  });
+
   describe('2. Truthful Outcome Categories & Stopping Reasons', () => {
     it('(e1) Offline outcome emits truthful RUN_SKIPPED with OFFLINE category', async () => {
       const offlineOrchestrator = createSyncOrchestrator({
@@ -404,7 +577,7 @@ describe('Phase 4: Production-Safe Sync Observability and Diagnostics', () => {
       for (let i = 0; i < 10; i++) {
         boundedSink.record({
           eventType: 'RUN_REQUESTED',
-          timestamp: i,
+          timestamp: i + 1,
           itemCount: i
         });
       }
@@ -741,6 +914,125 @@ describe('Phase 4: Production-Safe Sync Observability and Diagnostics', () => {
         false,
         'CRITICAL: Error source paths must NOT appear anywhere in serialized diagnostics'
       );
+    });
+  });
+
+  describe('5.1 Adversarial Runtime Boundary Validation & Type-Bypass Sanitization', () => {
+    it('Strips unapproved properties, invalid vocabulary, and hostile sensitive injections', () => {
+      const sink = new InMemoryDiagnosticSink(50);
+
+      const SENSITIVE_TOKEN = 'adversarial_bearer_token_999888';
+      const SENSITIVE_PHONE = '+989000000000';
+      const SENSITIVE_EMAIL = 'adversary@evil.com';
+      const SENSITIVE_NOTE = 'adversary personal note';
+      const SENSITIVE_TITLE = 'malicious cycle title';
+      const SENSITIVE_PAYLOAD = 'raw mutation body JSON';
+
+      // 1. Hostile record attempting to inject sensitive values in standard and custom fields
+      const hostileRecord: any = {
+        eventType: 'RUN_REQUESTED',
+        timestamp: 1725500000000,
+        runId: `sync_run_invalid_${SENSITIVE_TOKEN}`, // invalid runId format with token
+        trigger: `INVALID_TRIGGER_${SENSITIVE_PHONE}`, // invalid trigger
+        triggers: ['BOOT_AUTH_VERIFIED', `INVALID_${SENSITIVE_EMAIL}`, 'MANUAL_FORCE'],
+        force: true,
+        syncedCount: '10' as any, // non-number string
+        failedCount: -5, // negative number
+        remainingQueueCount: NaN, // invalid number
+        outcomeStatus: `STATUS_${SENSITIVE_TITLE}`, // invalid outcome status
+        errorCategory: `ERR_${SENSITIVE_NOTE}`, // invalid error category
+        safeReason: `REASON_${SENSITIVE_PAYLOAD}`, // invalid safe reason
+        durationMs: 'slow' as any, // non-number string
+        // Unauthorized arbitrary root fields
+        token: SENSITIVE_TOKEN,
+        authToken: SENSITIVE_TOKEN,
+        phoneNumber: SENSITIVE_PHONE,
+        email: SENSITIVE_EMAIL,
+        note: SENSITIVE_NOTE,
+        title: SENSITIVE_TITLE,
+        payload: { sensitive: SENSITIVE_PAYLOAD },
+        nestedUser: { id: 'secret-id', pass: 'secret-pass' }
+      };
+
+      sink.record(hostileRecord);
+
+      const records = sink.getRecords();
+      assert.equal(records.length, 1);
+      const cleanRecord = records[0];
+
+      // Assert that valid fields are kept
+      assert.equal(cleanRecord.eventType, 'RUN_REQUESTED');
+      assert.equal(cleanRecord.timestamp, 1725500000000);
+      assert.equal(cleanRecord.force, true);
+      assert.deepEqual(cleanRecord.triggers, ['BOOT_AUTH_VERIFIED', 'MANUAL_FORCE']);
+
+      // Assert that malformed / sensitive fields are sanitized out
+      assert.equal(cleanRecord.runId, undefined, 'Invalid runId format must be omitted');
+      assert.equal(cleanRecord.trigger, undefined, 'Invalid trigger must be omitted');
+      assert.equal(cleanRecord.syncedCount, undefined, 'String syncedCount must be omitted');
+      assert.equal(cleanRecord.failedCount, undefined, 'Negative failedCount must be omitted');
+      assert.equal(cleanRecord.remainingQueueCount, undefined, 'NaN remainingQueueCount must be omitted');
+      assert.equal(cleanRecord.outcomeStatus, undefined, 'Invalid outcomeStatus must be omitted');
+      assert.equal(cleanRecord.errorCategory, undefined, 'Invalid errorCategory must be omitted');
+      assert.equal(cleanRecord.safeReason, undefined, 'Invalid safeReason must be omitted');
+      assert.equal(cleanRecord.durationMs, undefined, 'String durationMs must be omitted');
+
+      // Assert unauthorized root properties are completely absent
+      assert.equal((cleanRecord as any).token, undefined);
+      assert.equal((cleanRecord as any).authToken, undefined);
+      assert.equal((cleanRecord as any).phoneNumber, undefined);
+      assert.equal((cleanRecord as any).email, undefined);
+      assert.equal((cleanRecord as any).note, undefined);
+      assert.equal((cleanRecord as any).title, undefined);
+      assert.equal((cleanRecord as any).payload, undefined);
+      assert.equal((cleanRecord as any).nestedUser, undefined);
+
+      // Serialize and check for zero leakage
+      const serialized = JSON.stringify(cleanRecord);
+      assert.equal(serialized.includes(SENSITIVE_TOKEN), false);
+      assert.equal(serialized.includes(SENSITIVE_PHONE), false);
+      assert.equal(serialized.includes(SENSITIVE_EMAIL), false);
+      assert.equal(serialized.includes(SENSITIVE_NOTE), false);
+      assert.equal(serialized.includes(SENSITIVE_TITLE), false);
+      assert.equal(serialized.includes(SENSITIVE_PAYLOAD), false);
+    });
+
+    it('Safely discards records with invalid or hostile eventType', () => {
+      const sink = new InMemoryDiagnosticSink(50);
+
+      const hostileEventTypes: any[] = [
+        'UNKNOWN_CUSTOM_EVENT',
+        'INJECTED_TOKEN_abc123',
+        null,
+        undefined,
+        123,
+        {},
+        []
+      ];
+
+      for (const invalidType of hostileEventTypes) {
+        sink.record({
+          eventType: invalidType,
+          timestamp: Date.now()
+        } as any);
+      }
+
+      assert.equal(sink.getRecords().length, 0, 'All records with unapproved eventType were safely discarded');
+    });
+
+    it('Safely handles null, undefined, non-object, and array inputs without throwing', () => {
+      const sink = new InMemoryDiagnosticSink(50);
+
+      assert.doesNotThrow(() => {
+        sink.record(null as any);
+        sink.record(undefined as any);
+        sink.record('string' as any);
+        sink.record(12345 as any);
+        sink.record([] as any);
+        sink.record(true as any);
+      });
+
+      assert.equal(sink.getRecords().length, 0);
     });
   });
 
