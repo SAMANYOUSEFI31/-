@@ -270,3 +270,72 @@ export function verifyActiveAccount(
   if (!normInitial || normInitial === 'guest') return false;
   return normInitial === normCurrent;
 }
+
+/**
+ * Propagates authoritative server replay results and revisions into active React state.
+ * Supports:
+ * - UPDATE_LOG: updates matching date log with server fields, revision, and isSynced: true
+ * - UPDATE_CYCLE & CREATE_CYCLE: updates or inserts matching cycle with server fields, revision, and isSynced: true
+ * - DELETE_CYCLE: removes matching cycle and all associated logs from active state
+ */
+export function applyReplayItemToActiveState(
+  currentState: { cycles: Cycle[]; logs: DailyLog[] },
+  item: { type: string; payload?: any; id?: string },
+  serverResult?: any
+): { cycles: Cycle[]; logs: DailyLog[] } {
+  const { cycles, logs } = currentState;
+
+  if (item.type === 'UPDATE_LOG') {
+    const serverLog = serverResult?.log || serverResult;
+    const targetDate = item.payload?.date || serverLog?.date;
+    const nextLogs = logs.map(l => {
+      if (l.date === targetDate) {
+        return {
+          ...l,
+          ...(serverLog && typeof serverLog === 'object' ? serverLog : {}),
+          isSynced: true
+        };
+      }
+      return l;
+    });
+    return { cycles, logs: nextLogs };
+  }
+
+  if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
+    const serverCycle = serverResult?.cycle || serverResult;
+    const targetId = serverCycle?.id || item.payload?.id || item.id;
+    const exists = cycles.some(c => c.id === targetId);
+
+    let nextCycles: Cycle[];
+    if (exists) {
+      nextCycles = cycles.map(c => {
+        if (c.id === targetId) {
+          return {
+            ...c,
+            ...(serverCycle && typeof serverCycle === 'object' ? serverCycle : {}),
+            isSynced: true
+          };
+        }
+        return c;
+      });
+    } else if (serverCycle && typeof serverCycle === 'object') {
+      nextCycles = [...cycles, { ...serverCycle, isSynced: true }];
+    } else {
+      nextCycles = cycles;
+    }
+    return { cycles: nextCycles, logs };
+  }
+
+  if (item.type === 'DELETE_CYCLE') {
+    const cycleId = typeof item.payload === 'string' ? item.payload : item.payload?.id;
+    if (cycleId) {
+      return {
+        cycles: cycles.filter(c => c.id !== cycleId),
+        logs: logs.filter(l => l.cycleId !== cycleId)
+      };
+    }
+  }
+
+  return currentState;
+}
+

@@ -50,7 +50,8 @@ import {
   rollbackOptimisticCycleDelete,
   prepareDirectLogPayload,
   prepareDirectCyclePayload,
-  verifyActiveAccount
+  verifyActiveAccount,
+  applyReplayItemToActiveState
 } from './utils/directMutationUtils';
 import { reconcileBootState } from './utils/syncReconciliation';
 import { emitSyncDiagnostic } from './utils/syncDiagnostics';
@@ -204,18 +205,22 @@ export default function App() {
     showAppToastRef.current = showAppToast;
   }, [showAppToast]);
 
-  const handleAppItemSuccess = useCallback((item: OfflineQueueItem) => {
-    if (item.type === 'UPDATE_LOG') {
-      setSystemState(prev => ({
-        ...prev,
-        logs: prev.logs.map(l => l.date === item.payload.date ? { ...l, isSynced: true } : l)
-      }));
-    } else if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
-      setSystemState(prev => ({
-        ...prev,
-        cycles: prev.cycles.map(c => c.id === item.payload.id ? { ...c, isSynced: true } : c)
-      }));
+  const handleAppItemSuccess = useCallback((item: OfflineQueueItem, serverResult?: any) => {
+    if (!verifyActiveAccount(activeAccountRef.current, item.ownerId)) {
+      return;
     }
+    setSystemState(prev => {
+      const nextState = applyReplayItemToActiveState(
+        { cycles: prev.cycles, logs: prev.logs },
+        item,
+        serverResult
+      );
+      return {
+        ...prev,
+        cycles: nextState.cycles,
+        logs: nextState.logs
+      };
+    });
   }, []);
 
   const handleAppSyncResult = useCallback((outcome: SyncRunOutcome) => {
@@ -497,11 +502,37 @@ export default function App() {
       return;
     }
 
-    const { payload: logPayload, expectedRevision } = prepareDirectLogPayload(
+    const { payload: logPayload, expectedRevision, isExisting, isValid } = prepareDirectLogPayload(
       updatedLog,
       existingLog,
       activeCycleId
     );
+
+    if (isExisting && !isValid) {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        return {
+          ...prev,
+          logs: rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot)
+        };
+      });
+
+      recordClientConflict(ownerId, {
+        mutationType: 'UPDATE_LOG',
+        entityType: 'DAILY_LOG',
+        entityId: updatedLog.date,
+        conflictType: 'PRECONDITION_REQUIRED',
+        statusCode: 428,
+        expectedRevision: undefined,
+        currentRevision: undefined,
+        messageFa: 'نسخه تأیید شده این گزارش در حافظه محلی معتبر نیست. در حال همگام‌سازی مجدد با سرور...',
+        clientPayload: logPayload
+      });
+
+      showAppToast('نسخه معتبر گزارش یافت نشد. همگام‌سازی مجدد با سرور انجام می‌شود.', 'warning');
+      requestSync('MANUAL_FORCE', ownerId, authToken, true);
+      return;
+    }
 
     if (guard.shouldQueue) {
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload, expectedRevision });
@@ -585,10 +616,36 @@ export default function App() {
       return;
     }
 
-    const { payload: cyclePayload, expectedRevision } = prepareDirectCyclePayload(
+    const { payload: cyclePayload, expectedRevision, isValid } = prepareDirectCyclePayload(
       updatedCycle,
       existingCycle
     );
+
+    if (existingCycle && !isValid) {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        return {
+          ...prev,
+          cycles: rollbackOptimisticCycleUpdate(prev.cycles, updatedCycle.id, previousConfirmedSnapshot)
+        };
+      });
+
+      recordClientConflict(ownerId, {
+        mutationType: 'UPDATE_CYCLE',
+        entityType: 'CYCLE',
+        entityId: updatedCycle.id,
+        conflictType: 'PRECONDITION_REQUIRED',
+        statusCode: 428,
+        expectedRevision: undefined,
+        currentRevision: undefined,
+        messageFa: 'نسخه تأیید شده این چرخه در حافظه محلی معتبر نیست. در حال همگام‌سازی مجدد با سرور...',
+        clientPayload: cyclePayload
+      });
+
+      showAppToast('نسخه معتبر چرخه یافت نشد. همگام‌سازی مجدد با سرور انجام می‌شود.', 'warning');
+      requestSync('MANUAL_FORCE', ownerId, authToken, true);
+      return;
+    }
 
     if (guard.shouldQueue) {
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: cyclePayload, expectedRevision });
@@ -663,9 +720,32 @@ export default function App() {
     safeSetLocalStorage(scopedDemoKey, 'true');
 
     const targetCycle = systemState.cycles.find(c => c.id === cycleId) || null;
+    const isExistingCycle = Boolean(targetCycle);
     const expectedRevision = (typeof targetCycle?.revision === 'number' && Number.isInteger(targetCycle.revision) && targetCycle.revision > 0)
       ? targetCycle.revision
       : undefined;
+
+    const ownerId = systemState.userProfile?.id;
+    const initialOwner = ownerId;
+
+    if (isExistingCycle && expectedRevision === undefined) {
+      recordClientConflict(ownerId, {
+        mutationType: 'DELETE_CYCLE',
+        entityType: 'CYCLE',
+        entityId: cycleId,
+        conflictType: 'PRECONDITION_REQUIRED',
+        statusCode: 428,
+        expectedRevision: undefined,
+        currentRevision: undefined,
+        messageFa: 'نسخه تأیید شده این چرخه برای حذف معتبر نیست. در حال همگام‌سازی مجدد با سرور...',
+        clientPayload: { id: cycleId }
+      });
+
+      showAppToast('نسخه معتبر چرخه برای حذف یافت نشد. همگام‌سازی مجدد با سرور انجام می‌شود.', 'warning');
+      requestSync('MANUAL_FORCE', ownerId, authToken, true);
+      return;
+    }
+
     const targetLogs = systemState.logs.filter(l => l.cycleId === cycleId);
     const previousActiveCycleId = activeCycleId;
 
@@ -695,8 +775,6 @@ export default function App() {
       showAppToast('چرخه مورد نظر با موفقیت حذف شد.', 'success');
     }
 
-    const ownerId = systemState.userProfile?.id;
-    const initialOwner = ownerId;
     const guard = shouldQueueOfflineMutation({ ownerId, authToken });
     if (!guard.canSendToServer && !guard.shouldQueue) {
       return;
@@ -897,7 +975,19 @@ export default function App() {
       if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) {
         return;
       }
-      if (!res.ok) {
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        const serverCycle = data?.cycle;
+        if (serverCycle) {
+          setSystemState(prev => {
+            if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+            return {
+              ...prev,
+              cycles: prev.cycles.map(c => c.id === newCycle.id ? { ...c, ...serverCycle, isSynced: true } : c)
+            };
+          });
+        }
+      } else {
         enqueueOfflineMutation(ownerId, { type: 'CREATE_CYCLE', payload: newCycle });
       }
     } catch (e) {

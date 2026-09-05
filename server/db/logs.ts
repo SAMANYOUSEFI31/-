@@ -101,9 +101,18 @@ export async function getDailyLogByDate(userId: string, date: string): Promise<D
   return log ? { ...log, revision: log.revision ?? 1 } : null;
 }
 
+// Tracks clientOperationId for daily logs: key = `${userId}:${date}` -> clientOperationId
+const logOperationIdMap = new Map<string, string>();
+
+export function clearDailyLogOperationIds() {
+  logOperationIdMap.clear();
+}
+
 export async function upsertDailyLog(
   userId: string,
   data: {
+    id?: string;
+    clientOperationId?: string;
     cycleId: string;
     date: string;
     wakeUp: boolean;
@@ -143,6 +152,30 @@ export async function upsertDailyLog(
     });
 
     if (existing) {
+      const opKey = `${userId}:${data.date}`;
+      const lastOpId = logOperationIdMap.get(opKey) || (existing as any).clientOperationId;
+
+      // Idempotent retry: if clientOperationId matches the operation that created or updated this log
+      if (data.clientOperationId && lastOpId === data.clientOperationId && (expectedRevision === undefined || expectedRevision === existing.revision)) {
+        return {
+          ...existing,
+          revision: existing.revision ?? 1,
+          createdAt: existing.createdAt instanceof Date ? existing.createdAt.toISOString() : existing.createdAt,
+          updatedAt: existing.updatedAt instanceof Date ? existing.updatedAt.toISOString() : existing.updatedAt
+        };
+      }
+
+      // First-create collision: client sent clientOperationId with undefined expectedRevision, but log already exists
+      if (data.clientOperationId && expectedRevision === undefined) {
+        throw new ConcurrencyConflictError({
+          entityType: 'DAILY_LOG',
+          entityId: existing.id,
+          currentRevision: existing.revision ?? 1,
+          expectedRevision: 0,
+          message: 'گزارش این روز همزمان توسط دستگاه دیگری ایجاد شده است.'
+        });
+      }
+
       if (expectedRevision === undefined || typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0) {
         throw new PreconditionRequiredError({
           entityType: 'DAILY_LOG',
@@ -187,6 +220,10 @@ export async function upsertDailyLog(
         });
       }
 
+      if (data.clientOperationId) {
+        logOperationIdMap.set(opKey, data.clientOperationId);
+      }
+
       const updated = await prisma.dailyLog.findFirst({
         where: { id: existing.id, userId }
       });
@@ -197,33 +234,67 @@ export async function upsertDailyLog(
         updatedAt: updated!.updatedAt instanceof Date ? updated!.updatedAt.toISOString() : updated!.updatedAt
       };
     } else {
-      const created = await prisma.dailyLog.create({
-        data: {
-          id: `log-${userId}-${data.date}`,
-          userId,
-          cycleId: data.cycleId,
-          date: data.date,
-          wakeUp: Boolean(data.wakeUp),
-          workout: Boolean(data.workout),
-          study: Boolean(data.study),
-          journal: Boolean(data.journal),
-          hardTask: Boolean(data.hardTask),
-          specialMission: Boolean(data.specialMission),
-          failureReason: data.failureReason || null,
-          failureTime: data.failureTime || null,
-          autopsyNotes: data.autopsyNotes || null,
-          countermeasure: data.countermeasure || null,
-          aiFeedback: data.aiFeedback || null,
-          notes: data.notes || null,
-          revision: 1
+      // First create attempt: exactly one database record created, starts at revision 1
+      try {
+        const created = await prisma.dailyLog.create({
+          data: {
+            id: data.id || `log-${userId}-${data.date}`,
+            userId,
+            cycleId: data.cycleId,
+            date: data.date,
+            wakeUp: Boolean(data.wakeUp),
+            workout: Boolean(data.workout),
+            study: Boolean(data.study),
+            journal: Boolean(data.journal),
+            hardTask: Boolean(data.hardTask),
+            specialMission: Boolean(data.specialMission),
+            failureReason: data.failureReason || null,
+            failureTime: data.failureTime || null,
+            autopsyNotes: data.autopsyNotes || null,
+            countermeasure: data.countermeasure || null,
+            aiFeedback: data.aiFeedback || null,
+            notes: data.notes || null,
+            revision: 1
+          }
+        });
+        const opKey = `${userId}:${data.date}`;
+        if (data.clientOperationId) {
+          logOperationIdMap.set(opKey, data.clientOperationId);
         }
-      });
-      return {
-        ...created,
-        revision: created.revision ?? 1,
-        createdAt: created.createdAt instanceof Date ? created.createdAt.toISOString() : created.createdAt,
-        updatedAt: created.updatedAt instanceof Date ? created.updatedAt.toISOString() : created.updatedAt
-      };
+        return {
+          ...created,
+          revision: created.revision ?? 1,
+          createdAt: created.createdAt instanceof Date ? created.createdAt.toISOString() : created.createdAt,
+          updatedAt: created.updatedAt instanceof Date ? created.updatedAt.toISOString() : created.updatedAt
+        };
+      } catch (e: any) {
+        // Handle concurrent first-create unique constraint race condition intentionally
+        if (e?.code === 'P2002' || e?.message?.includes('Unique constraint failed') || e?.message?.includes('P2002')) {
+          const raced = await prisma.dailyLog.findFirst({
+            where: { userId, date: data.date }
+          });
+          if (raced) {
+            const opKey = `${userId}:${data.date}`;
+            const lastOpId = logOperationIdMap.get(opKey) || (raced as any).clientOperationId;
+            if (data.clientOperationId && lastOpId === data.clientOperationId) {
+              return {
+                ...raced,
+                revision: raced.revision ?? 1,
+                createdAt: raced.createdAt instanceof Date ? raced.createdAt.toISOString() : raced.createdAt,
+                updatedAt: raced.updatedAt instanceof Date ? raced.updatedAt.toISOString() : raced.updatedAt
+              };
+            }
+            throw new ConcurrencyConflictError({
+              entityType: 'DAILY_LOG',
+              entityId: raced.id,
+              currentRevision: raced.revision ?? 1,
+              expectedRevision: expectedRevision ?? 0,
+              message: 'گزارش این روز همزمان توسط دستگاه دیگری ایجاد شده است.'
+            });
+          }
+        }
+        throw e;
+      }
     }
   }
 
@@ -242,6 +313,7 @@ export async function upsertDailyLog(
   const cleanLogData = {
     cycleId: data.cycleId,
     date: data.date,
+    clientOperationId: data.clientOperationId || null,
     wakeUp: Boolean(data.wakeUp),
     workout: Boolean(data.workout),
     study: Boolean(data.study),
@@ -259,6 +331,22 @@ export async function upsertDailyLog(
   if (existingIdx >= 0) {
     const existing = memoryStore.dailyLogs[existingIdx];
     const currentRev = existing.revision ?? 1;
+
+    // Idempotent retry: if clientOperationId matches existing operation
+    if (data.clientOperationId && existing.clientOperationId === data.clientOperationId && (expectedRevision === undefined || expectedRevision === currentRev)) {
+      return existing;
+    }
+
+    // First-create collision: client sent clientOperationId with undefined expectedRevision, but log already exists
+    if (data.clientOperationId && expectedRevision === undefined) {
+      throw new ConcurrencyConflictError({
+        entityType: 'DAILY_LOG',
+        entityId: existing.id,
+        currentRevision: currentRev,
+        expectedRevision: 0,
+        message: 'گزارش این روز همزمان توسط دستگاه دیگری ایجاد شده است.'
+      });
+    }
 
     if (expectedRevision === undefined || typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0) {
       throw new PreconditionRequiredError({
@@ -289,8 +377,24 @@ export async function upsertDailyLog(
     saveLocalStore();
     return memoryStore.dailyLogs[existingIdx];
   } else {
+    // Check if targetId or unique constraint collision exists in memoryStore
+    const targetId = data.id || `log-${userId}-${data.date}`;
+    const idCollided = memoryStore.dailyLogs.find(l => l.id === targetId || (l.userId === userId && l.date === data.date));
+    if (idCollided) {
+      if (data.clientOperationId && idCollided.clientOperationId === data.clientOperationId) {
+        return idCollided;
+      }
+      throw new ConcurrencyConflictError({
+        entityType: 'DAILY_LOG',
+        entityId: idCollided.id,
+        currentRevision: idCollided.revision ?? 1,
+        expectedRevision: expectedRevision ?? 0,
+        message: 'گزارش این روز همزمان توسط دستگاه دیگری ایجاد شده است.'
+      });
+    }
+
     const newLog: DBDailyLog = {
-      id: `log-${userId}-${data.date}`,
+      id: targetId,
       userId,
       ...cleanLogData,
       revision: 1,

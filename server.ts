@@ -975,7 +975,7 @@ const handleUpsertDailyLog = async (req: AuthenticatedRequest, res: express.Resp
     if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
       return res.status(409).json({
         code: 'CONFLICT',
-        messageFa: 'این گزارش روزانه در دستگاه دیگری به‌روزرسانی شده است.',
+        messageFa: error.messageFa || error.message || 'این گزارش روزانه در دستگاه دیگری به‌روزرسانی شده است.',
         entityType: error.entityType,
         entityId: error.entityId,
         currentRevision: error.currentRevision,

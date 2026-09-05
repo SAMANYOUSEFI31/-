@@ -1459,7 +1459,7 @@ export interface ReplayOptions {
   leaseTimeoutMs?: number;
   lockTiming?: ReplayLockTimingConfig;
   timing?: ReplayTimingDependencies;
-  onItemSuccess?: (item: OfflineQueueItem) => void;
+  onItemSuccess?: (item: OfflineQueueItem, serverResult?: any) => void;
   onItemFailure?: (item: OfflineQueueItem, error: any) => void;
   getCurrentActiveAccountId?: () => string | null;
 }
@@ -1961,8 +1961,16 @@ async function executeReplayLoop(
 
         syncConfirmedEntitiesToLocalStorage(initialOwner, confirmedEntities);
 
+        const serverResult = (item.type === 'UPDATE_LOG')
+          ? resJson?.log
+          : (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE')
+            ? resJson?.cycle
+            : (item.type === 'DELETE_CYCLE')
+              ? (typeof item.payload === 'string' ? item.payload : item.payload?.id)
+              : resJson;
+
         removeReplayedQueueItems(initialOwner, [item.id]);
-        options.onItemSuccess?.(item);
+        options.onItemSuccess?.(item, serverResult);
         syncedCount++;
         continue;
       }
