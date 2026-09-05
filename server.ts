@@ -23,6 +23,7 @@ import {
   upsertDailyLog,
   updateDailyLog,
   deleteDailyLog,
+  ConcurrencyConflictError,
   createSubscriptionRecord,
   completeSubscription,
   markSubscriptionFailed,
@@ -789,17 +790,52 @@ app.post('/api/cycles', authMiddleware, validateBody(createCycleSchema), async (
   }
 });
 
+function parseExpectedRevision(req: express.Request): number | undefined {
+  if (typeof req.body?.expectedRevision === 'number' && Number.isInteger(req.body.expectedRevision) && req.body.expectedRevision > 0) {
+    return req.body.expectedRevision;
+  }
+  if (typeof req.body?.revision === 'number' && Number.isInteger(req.body.revision) && req.body.revision > 0) {
+    return req.body.revision;
+  }
+  const queryRev = req.query.expectedRevision ?? req.query.revision;
+  if (typeof queryRev === 'string' && /^\d+$/.test(queryRev)) {
+    const num = parseInt(queryRev, 10);
+    if (num > 0) return num;
+  }
+  const ifMatch = req.headers['if-match'];
+  if (typeof ifMatch === 'string') {
+    const cleanMatch = ifMatch.replace(/^"|"$/g, '').trim();
+    if (/^\d+$/.test(cleanMatch)) {
+      const num = parseInt(cleanMatch, 10);
+      if (num > 0) return num;
+    }
+  }
+  return undefined;
+}
+
 app.put('/api/cycles/:id', authMiddleware, validateBody(updateCycleSchema), async (req: AuthenticatedRequest, res, next) => {
   try {
     const userId = req.user!.userId;
     const cycleId = req.params.id;
-    const updated = await updateCycle(userId, cycleId, req.body);
+    const expectedRevision = parseExpectedRevision(req);
+    const updated = await updateCycle(userId, cycleId, req.body, expectedRevision);
 
     if (!updated) {
       return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'چرخه مورد نظر یافت نشد.' });
     }
     res.json({ cycle: updated });
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
+      return res.status(409).json({
+        code: 'CONFLICT',
+        messageFa: 'این چرخه در دستگاه دیگری به‌روزرسانی شده است.',
+        entityType: error.entityType,
+        entityId: error.entityId,
+        currentRevision: error.currentRevision,
+        expectedRevision: error.expectedRevision,
+        serverState: error.serverState
+      });
+    }
     next(error);
   }
 });
@@ -808,12 +844,24 @@ app.put('/api/cycles/:id/archive', authMiddleware, async (req: AuthenticatedRequ
   try {
     const userId = req.user!.userId;
     const cycleId = req.params.id;
-    const updated = await archiveCycle(userId, cycleId);
+    const expectedRevision = parseExpectedRevision(req);
+    const updated = await archiveCycle(userId, cycleId, expectedRevision);
     if (!updated) {
       return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'چرخه مورد نظر یافت نشد.' });
     }
     res.json({ cycle: updated, success: true });
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
+      return res.status(409).json({
+        code: 'CONFLICT',
+        messageFa: 'این چرخه در دستگاه دیگری به‌روزرسانی شده است.',
+        entityType: error.entityType,
+        entityId: error.entityId,
+        currentRevision: error.currentRevision,
+        expectedRevision: error.expectedRevision,
+        serverState: error.serverState
+      });
+    }
     next(error);
   }
 });
@@ -822,12 +870,24 @@ app.put('/api/cycles/:id/restore', authMiddleware, async (req: AuthenticatedRequ
   try {
     const userId = req.user!.userId;
     const cycleId = req.params.id;
-    const updated = await restoreCycle(userId, cycleId);
+    const expectedRevision = parseExpectedRevision(req);
+    const updated = await restoreCycle(userId, cycleId, expectedRevision);
     if (!updated) {
       return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'چرخه مورد نظر یافت نشد.' });
     }
     res.json({ cycle: updated, success: true });
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
+      return res.status(409).json({
+        code: 'CONFLICT',
+        messageFa: 'این چرخه در دستگاه دیگری به‌روزرسانی شده است.',
+        entityType: error.entityType,
+        entityId: error.entityId,
+        currentRevision: error.currentRevision,
+        expectedRevision: error.expectedRevision,
+        serverState: error.serverState
+      });
+    }
     next(error);
   }
 });
@@ -836,13 +896,25 @@ app.delete('/api/cycles/:id', authMiddleware, async (req: AuthenticatedRequest, 
   try {
     const userId = req.user!.userId;
     const cycleId = req.params.id;
-    const success = await deleteCycle(userId, cycleId);
+    const expectedRevision = parseExpectedRevision(req);
+    const success = await deleteCycle(userId, cycleId, expectedRevision);
 
     if (!success) {
       return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'چرخه مورد نظر برای حذف یافت نشد.' });
     }
     res.json({ success: true, messageFa: 'چرخه و گزارش‌های مرتبط حذف شدند.' });
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
+      return res.status(409).json({
+        code: 'CONFLICT',
+        messageFa: 'این چرخه در دستگاه دیگری تغییر یافته است.',
+        entityType: error.entityType,
+        entityId: error.entityId,
+        currentRevision: error.currentRevision,
+        expectedRevision: error.expectedRevision,
+        serverState: error.serverState
+      });
+    }
     next(error);
   }
 });
@@ -854,9 +926,21 @@ app.delete('/api/cycles/:id', authMiddleware, async (req: AuthenticatedRequest, 
 const handleUpsertDailyLog = async (req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) => {
   try {
     const userId = req.user!.userId;
-    const log = await upsertDailyLog(userId, req.body);
+    const expectedRevision = parseExpectedRevision(req);
+    const log = await upsertDailyLog(userId, req.body, expectedRevision);
     res.json({ log, success: true });
   } catch (error: any) {
+    if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
+      return res.status(409).json({
+        code: 'CONFLICT',
+        messageFa: 'این گزارش روزانه در دستگاه دیگری به‌روزرسانی شده است.',
+        entityType: error.entityType,
+        entityId: error.entityId,
+        currentRevision: error.currentRevision,
+        expectedRevision: error.expectedRevision,
+        serverState: error.serverState
+      });
+    }
     if (error?.code === 'CYCLE_NOT_FOUND' || error?.message?.includes('Cycle not found')) {
       return res.status(404).json({
         code: 'CYCLE_NOT_FOUND',
@@ -896,12 +980,24 @@ const handleUpdateDailyLog = async (req: AuthenticatedRequest, res: express.Resp
   try {
     const userId = req.user!.userId;
     const logId = req.params.id;
-    const updated = await updateDailyLog(userId, logId, req.body);
+    const expectedRevision = parseExpectedRevision(req);
+    const updated = await updateDailyLog(userId, logId, req.body, expectedRevision);
     if (!updated) {
       return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'گزارش روزانه مورد نظر یافت نشد.' });
     }
     res.json({ log: updated, success: true });
   } catch (error: any) {
+    if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
+      return res.status(409).json({
+        code: 'CONFLICT',
+        messageFa: 'این گزارش روزانه در دستگاه دیگری به‌روزرسانی شده است.',
+        entityType: error.entityType,
+        entityId: error.entityId,
+        currentRevision: error.currentRevision,
+        expectedRevision: error.expectedRevision,
+        serverState: error.serverState
+      });
+    }
     if (error?.code === 'CYCLE_NOT_FOUND' || error?.message?.includes('Cycle not found')) {
       return res.status(404).json({
         code: 'CYCLE_NOT_FOUND',
@@ -916,12 +1012,24 @@ const handleDeleteDailyLog = async (req: AuthenticatedRequest, res: express.Resp
   try {
     const userId = req.user!.userId;
     const logId = req.params.id;
-    const success = await deleteDailyLog(userId, logId);
+    const expectedRevision = parseExpectedRevision(req);
+    const success = await deleteDailyLog(userId, logId, expectedRevision);
     if (!success) {
       return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'گزارش روزانه برای حذف یافت نشد.' });
     }
     res.json({ success: true, messageFa: 'گزارش روزانه با موفقیت حذف شد.' });
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
+      return res.status(409).json({
+        code: 'CONFLICT',
+        messageFa: 'این گزارش روزانه در دستگاه دیگری تغییر یافته است.',
+        entityType: error.entityType,
+        entityId: error.entityId,
+        currentRevision: error.currentRevision,
+        expectedRevision: error.expectedRevision,
+        serverState: error.serverState
+      });
+    }
     next(error);
   }
 };

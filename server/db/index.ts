@@ -141,7 +141,8 @@ export {
   saveLocalStore,
   loadLocalStore,
   ensureDefaultAdminAndUsers,
-  setPrismaState
+  setPrismaState,
+  ConcurrencyConflictError
 } from './base.js';
 export type { DBSubscriptionStatus, DBSubscription } from './base.js';
 

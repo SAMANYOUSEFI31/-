@@ -88,6 +88,7 @@ model Cycle {
   isArchived      Boolean    @default(false)
   reportRead      Boolean    @default(false)
   verdict         Json?
+  revision        Int        @default(1)
   
   dailyLogs       DailyLog[]
   
@@ -97,6 +98,7 @@ model Cycle {
   @@index([userId])
   @@index([userId, isArchived])
   @@index([userId, startDate])
+  @@index([id, userId, revision])
 }
 
 model DailyLog {
@@ -107,6 +109,7 @@ model DailyLog {
   cycle          Cycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
   date           String     // YYYY-MM-DD
   status         DayStatus  @default(STANDARD)
+  revision       Int        @default(1)
   
   wakeUp         Boolean    @default(false)
   workout        Boolean    @default(false)
@@ -131,6 +134,7 @@ model DailyLog {
   @@index([cycleId])
   @@index([userId, date])
   @@index([userId, cycleId])
+  @@index([id, userId, revision])
 }
 
 model OtpCode {

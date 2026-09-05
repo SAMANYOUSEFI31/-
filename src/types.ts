@@ -49,6 +49,7 @@ export interface DailyLog {
   date: string; // YYYY-MM-DD
   createdAt: string;
   isSynced?: boolean; // نشانگر همگام‌سازی ابری آفلاین به آنلاین
+  revision?: number;
   
   // Foundation 5 Core Habits
   wakeUp: boolean;     // سحرخیزی
@@ -93,6 +94,7 @@ export interface Cycle {
   reportRead?: boolean;   // چک‌پوینت تأیید گزارش
   verdict?: CycleVerdict;
   isSynced?: boolean;     // نشانگر همگام‌سازی ابری آفلاین به آنلاین
+  revision?: number;
 }
 
 export interface SystemSettings {
@@ -302,6 +304,7 @@ export interface OfflineQueueItem {
   type: OfflineMutationType;
   payload: any;
   timestamp: number;
+  expectedRevision?: number;
   retryCount?: number;
   nextRetryAt?: number;
   lastError?: string;

@@ -156,6 +156,19 @@ export class AppError extends Error {
 export function errorHandler(err: any, req: Request, res: Response, next: NextFunction): void {
   const isProd = isProduction();
 
+  if (err.name === 'ConcurrencyConflictError' || err.code === 'CONFLICT') {
+    res.status(409).json({
+      code: 'CONFLICT',
+      messageFa: err.messageFa || 'این داده در دستگاه دیگری تغییر یافته است. برای حفظ یکپارچگی، عملیات متوقف شد.',
+      entityType: err.entityType,
+      entityId: err.entityId,
+      currentRevision: err.currentRevision,
+      expectedRevision: err.expectedRevision,
+      serverState: err.serverState
+    });
+    return;
+  }
+
   const statusCode = err.statusCode || err.status || 500;
   const code = err.code || (statusCode === 500 ? 'INTERNAL_SERVER_ERROR' : 'API_ERROR');
   const messageFa = err.messageFa || 'خطایی در پردازش درخواست روی داد.';

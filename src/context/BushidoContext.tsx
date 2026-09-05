@@ -508,7 +508,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
 
     if (guard.shouldQueue) {
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog, expectedRevision: updatedLog.revision });
       return;
     }
 
@@ -521,23 +521,26 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
         },
         body: JSON.stringify({
           ...updatedLog,
-          cycleId: updatedLog.cycleId || activeCycleId
+          cycleId: updatedLog.cycleId || activeCycleId,
+          ...(updatedLog.revision ? { expectedRevision: updatedLog.revision } : {})
         })
       });
 
       if (res.ok) {
+        const data = await res.json().catch(() => null);
+        const serverLog = data?.log;
         setSystemState(prev => ({
           ...prev,
-          logs: prev.logs.map(l => l.date === updatedLog.date ? { ...l, isSynced: true } : l)
+          logs: prev.logs.map(l => l.date === updatedLog.date ? { ...(serverLog || l), isSynced: true } : l)
         }));
       } else {
         const errorMsg = await parseApiError(res);
         console.warn('API Error updating log:', errorMsg);
-        enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
+        enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog, expectedRevision: updatedLog.revision });
       }
     } catch (e) {
       console.warn('Failed to sync log to server backend, added to offline queue:', e);
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: updatedLog, expectedRevision: updatedLog.revision });
     }
   }, [authToken, activeCycleId, systemState.userProfile?.id]);
 
@@ -555,7 +558,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
 
     if (guard.shouldQueue) {
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle, expectedRevision: updatedCycle.revision });
       return;
     }
 
@@ -570,18 +573,20 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       });
 
       if (res.ok) {
+        const data = await res.json().catch(() => null);
+        const serverCycle = data?.cycle;
         setSystemState(prev => ({
           ...prev,
-          cycles: prev.cycles.map(c => (c.id === updatedCycle.id ? { ...c, isSynced: true } : c))
+          cycles: prev.cycles.map(c => (c.id === updatedCycle.id ? { ...(serverCycle || c), isSynced: true } : c))
         }));
       } else {
         const errorMsg = await parseApiError(res);
         console.warn('API Error updating cycle:', errorMsg);
-        enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
+        enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle, expectedRevision: updatedCycle.revision });
       }
     } catch (e) {
       console.warn('Failed to sync cycle update to server, added to offline queue:', e);
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle, expectedRevision: updatedCycle.revision });
     }
   }, [authToken, systemState.userProfile?.id]);
 
@@ -589,6 +594,8 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     const ownerId = systemState.userProfile?.id;
     const scopedDemoKey = getScopedDemoConsumedKey(ownerId);
     safeSetLocalStorage(scopedDemoKey, 'true');
+    const targetCycle = systemState.cycles.find(c => c.id === cycleId);
+    const expectedRevision = targetCycle?.revision;
     const remainingCycles = systemState.cycles.filter(c => c.id !== cycleId);
 
     setSystemState(prev => ({
@@ -607,24 +614,27 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       return;
     }
 
+    const deletePayload = { id: cycleId, revision: expectedRevision };
+
     if (guard.shouldQueue) {
-      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
+      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: deletePayload, expectedRevision });
       return;
     }
 
     try {
-      const res = await fetch(`/api/cycles/${cycleId}`, {
+      const url = `/api/cycles/${cycleId}${expectedRevision ? `?expectedRevision=${expectedRevision}` : ''}`;
+      const res = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
       });
       if (!res.ok) {
-        enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
+        enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: deletePayload, expectedRevision });
       }
     } catch (e) {
       console.warn('Failed to sync cycle deletion to server, added to offline queue:', e);
-      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
+      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: deletePayload, expectedRevision });
     }
   }, [authToken, activeCycleId, systemState.cycles, systemState.userProfile?.id]);
 

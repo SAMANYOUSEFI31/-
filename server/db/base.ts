@@ -76,6 +76,7 @@ export interface DBCycle {
   isArchived: boolean;
   reportRead: boolean;
   verdict?: any;
+  revision: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -97,8 +98,36 @@ export interface DBDailyLog {
   countermeasure?: string | null;
   aiFeedback?: string | null;
   notes?: string | null;
+  revision: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export class ConcurrencyConflictError extends Error {
+  code = 'CONFLICT' as const;
+  entityType: 'CYCLE' | 'DAILY_LOG';
+  entityId: string;
+  currentRevision: number;
+  expectedRevision?: number;
+  serverState?: any;
+
+  constructor(options: {
+    entityType: 'CYCLE' | 'DAILY_LOG';
+    entityId: string;
+    currentRevision: number;
+    expectedRevision?: number;
+    serverState?: any;
+    message?: string;
+  }) {
+    super(options.message || 'Concurrency conflict: record has been modified by another client');
+    this.name = 'ConcurrencyConflictError';
+    this.code = 'CONFLICT';
+    this.entityType = options.entityType;
+    this.entityId = options.entityId;
+    this.currentRevision = options.currentRevision;
+    this.expectedRevision = options.expectedRevision;
+    this.serverState = options.serverState;
+  }
 }
 
 export interface DBOtpCode {
@@ -156,13 +185,39 @@ export function loadLocalStore(): LocalStore {
     const primaryPath = getStorageFilePath();
     if (fs.existsSync(primaryPath)) {
       const data = fs.readFileSync(primaryPath, 'utf-8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === 'object') {
+        if (Array.isArray(parsed.cycles)) {
+          parsed.cycles.forEach((c: any) => {
+            if (typeof c.revision !== 'number' || c.revision < 1) c.revision = 1;
+          });
+        }
+        if (Array.isArray(parsed.dailyLogs)) {
+          parsed.dailyLogs.forEach((l: any) => {
+            if (typeof l.revision !== 'number' || l.revision < 1) l.revision = 1;
+          });
+        }
+      }
+      return parsed;
     }
     // Also check cwd fallback if /tmp doesn't have it yet
     const cwdPath = path.join(process.cwd(), 'bushido_local_db.json');
     if (primaryPath !== cwdPath && fs.existsSync(cwdPath)) {
       const data = fs.readFileSync(cwdPath, 'utf-8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === 'object') {
+        if (Array.isArray(parsed.cycles)) {
+          parsed.cycles.forEach((c: any) => {
+            if (typeof c.revision !== 'number' || c.revision < 1) c.revision = 1;
+          });
+        }
+        if (Array.isArray(parsed.dailyLogs)) {
+          parsed.dailyLogs.forEach((l: any) => {
+            if (typeof l.revision !== 'number' || l.revision < 1) l.revision = 1;
+          });
+        }
+      }
+      return parsed;
     }
   } catch (e) {
     // Silent safe parse fallback
@@ -235,6 +290,7 @@ export function seedUserData(userId: string): { cycle: DBCycle; logs: DBDailyLog
     ],
     isArchived: false,
     reportRead: false,
+    revision: 1,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -258,6 +314,7 @@ export function seedUserData(userId: string): { cycle: DBCycle; logs: DBDailyLog
         hardTask: true,
         specialMission: true,
         notes: 'تمرکز بالا روی وظایف روزانه و شروع عالی صبح',
+        revision: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -277,6 +334,7 @@ export function seedUserData(userId: string): { cycle: DBCycle; logs: DBDailyLog
         failureTime: 'وسط روز',
         autopsyNotes: 'سفر کاری اضطراری و عدم دسترسی به امکانات عادی. ریتم فریز شد.',
         countermeasure: 'حفظ استانداردهای ذهنی و ژورنال‌نویسی شبانه در شرایط بحران.',
+        revision: 1,
         createdAt: new Date(Date.now() - (24 - i) * 86400000).toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -297,6 +355,7 @@ export function seedUserData(userId: string): { cycle: DBCycle; logs: DBDailyLog
         autopsyNotes: 'اتلاف وقت در شبکه‌های اجتماعی در ساعات اولیه صبح باعث به تعویق افتادن کار سخت شد.',
         countermeasure: 'قانون صفر دسترسی: گوشی قبل از ساعت ۹ صبح در اتاق دیگر قفل می‌شود.',
         aiFeedback: 'افت اصلی ناشی از تصمیم‌گیری واکنشی به جای کنشگرانه بوده است.',
+        revision: 1,
         createdAt: new Date(Date.now() - (24 - i) * 86400000).toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -313,6 +372,7 @@ export function seedUserData(userId: string): { cycle: DBCycle; logs: DBDailyLog
         hardTask: true,
         specialMission: i % 3 === 0,
         notes: i % 4 === 0 ? 'انرژی و تمرکز فوق‌العاده. تسلط کامل بر زمان.' : undefined,
+        revision: 1,
         createdAt: new Date(Date.now() - (24 - i) * 86400000).toISOString(),
         updatedAt: new Date().toISOString()
       });

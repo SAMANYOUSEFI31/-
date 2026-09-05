@@ -412,6 +412,7 @@ export interface EnqueueMutationInput {
   type: OfflineMutationType;
   payload: any;
   dedupKey?: string;
+  expectedRevision?: number;
 }
 
 /**
@@ -537,6 +538,7 @@ export function enqueueOfflineMutation(
   const normOwner = normalizeQueueOwner(ownerId);
   const currentQueue = getOfflineQueue(normOwner);
   const dedupKey = buildDedupKey(normOwner, mutation);
+  const expectedRev = mutation.expectedRevision ?? (typeof mutation.payload === 'object' ? (mutation.payload?.expectedRevision ?? mutation.payload?.revision) : undefined);
 
   const newItem: OfflineQueueItem = {
     id: `queue_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
@@ -545,7 +547,8 @@ export function enqueueOfflineMutation(
     payload: mutation.payload,
     timestamp: Date.now(),
     retryCount: 0,
-    dedupKey
+    dedupKey,
+    ...(typeof expectedRev === 'number' && Number.isInteger(expectedRev) && expectedRev > 0 ? { expectedRevision: expectedRev } : {})
   };
 
   // Compaction & Dependency Ordering Rules:
@@ -556,11 +559,13 @@ export function enqueueOfflineMutation(
       item => item.type === 'UPDATE_LOG' && item.dedupKey === dedupKey
     );
     if (existingIdx >= 0) {
+      const mergedRev = expectedRev ?? currentQueue[existingIdx].expectedRevision;
       const updatedItem: OfflineQueueItem = {
         ...currentQueue[existingIdx],
         payload: mutation.payload,
         timestamp: Date.now(),
-        retryCount: 0
+        retryCount: 0,
+        ...(typeof mergedRev === 'number' && Number.isInteger(mergedRev) && mergedRev > 0 ? { expectedRevision: mergedRev } : {})
       };
       currentQueue[existingIdx] = updatedItem;
       saveOfflineQueue(normOwner, currentQueue);
@@ -599,11 +604,13 @@ export function enqueueOfflineMutation(
       item => item.type === 'UPDATE_CYCLE' && item.dedupKey === dedupKey
     );
     if (existingUpdateIdx >= 0) {
+      const mergedRev = expectedRev ?? currentQueue[existingUpdateIdx].expectedRevision;
       const updatedItem: OfflineQueueItem = {
         ...currentQueue[existingUpdateIdx],
         payload: mutation.payload,
         timestamp: Date.now(),
-        retryCount: 0
+        retryCount: 0,
+        ...(typeof mergedRev === 'number' && Number.isInteger(mergedRev) && mergedRev > 0 ? { expectedRevision: mergedRev } : {})
       };
       currentQueue[existingUpdateIdx] = updatedItem;
       saveOfflineQueue(normOwner, currentQueue);
@@ -1270,9 +1277,11 @@ async function executeReplayLoop(
         case 'UPDATE_LOG': {
           endpoint = '/api/logs';
           method = 'POST';
+          const expectedRev = item.expectedRevision ?? item.payload?.expectedRevision ?? item.payload?.revision;
           body = {
             ...item.payload,
-            clientOperationId: item.id
+            clientOperationId: item.id,
+            ...(typeof expectedRev === 'number' && Number.isInteger(expectedRev) && expectedRev > 0 ? { expectedRevision: expectedRev } : {})
           };
           break;
         }
@@ -1286,9 +1295,11 @@ async function executeReplayLoop(
           }
           endpoint = `/api/cycles/${cycleId}`;
           method = 'PUT';
+          const expectedRev = item.expectedRevision ?? item.payload?.expectedRevision ?? item.payload?.revision;
           body = {
             ...item.payload,
-            clientOperationId: item.id
+            clientOperationId: item.id,
+            ...(typeof expectedRev === 'number' && Number.isInteger(expectedRev) && expectedRev > 0 ? { expectedRevision: expectedRev } : {})
           };
           break;
         }
@@ -1313,7 +1324,8 @@ async function executeReplayLoop(
             failedCount++;
             continue;
           }
-          endpoint = `/api/cycles/${cycleId}`;
+          const expectedRev = item.expectedRevision ?? (typeof item.payload === 'object' ? (item.payload?.expectedRevision ?? item.payload?.revision) : undefined);
+          endpoint = `/api/cycles/${cycleId}${typeof expectedRev === 'number' && Number.isInteger(expectedRev) && expectedRev > 0 ? `?expectedRevision=${expectedRev}` : ''}`;
           method = 'DELETE';
           body = undefined;
           break;
@@ -1478,10 +1490,25 @@ async function executeReplayLoop(
 
       // Branch 4: CONFLICT_DEFERRED (409) -> Exclude from later automatic replay, quarantine for resolution
       if (classification === 'CONFLICT_DEFERRED') {
-        quarantineQueueItems([{ ...item, classification: 'CONFLICT_DEFERRED' }], 'HTTP 409 Conflict - mutation deferred for manual/reconciliation resolution', initialOwner);
+        let conflictDetails: any = null;
+        try {
+          if (typeof res?.clone === 'function') {
+            conflictDetails = await res.clone().json();
+          } else if (typeof res?.json === 'function') {
+            conflictDetails = await res.json();
+          }
+        } catch {}
+
+        const quarantinedItem: OfflineQueueItem = {
+          ...item,
+          classification: 'CONFLICT_DEFERRED',
+          lastError: conflictDetails?.messageFa || 'این آیتم در دستگاه دیگری به‌روزرسانی شده و دارای تعارض همزمانی است.'
+        };
+
+        quarantineQueueItems([quarantinedItem], 'HTTP 409 Conflict - mutation deferred for manual/reconciliation resolution', initialOwner);
         removeReplayedQueueItems(initialOwner, [item.id]);
         failedCount++;
-        options.onItemFailure?.(item, new Error('HTTP 409 Conflict'));
+        options.onItemFailure?.(quarantinedItem, new Error('HTTP 409 Conflict'));
         continue;
       }
 

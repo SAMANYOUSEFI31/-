@@ -4,7 +4,8 @@ import {
   memoryStore,
   saveLocalStore,
   DBCycle,
-  seedUserData
+  seedUserData,
+  ConcurrencyConflictError
 } from './base';
 
 export async function getUserCycles(userId: string): Promise<DBCycle[]> {
@@ -16,6 +17,7 @@ export async function getUserCycles(userId: string): Promise<DBCycle[]> {
       });
       return cycles.map((c: any) => ({
         ...c,
+        revision: c.revision ?? 1,
         rules: Array.isArray(c.rules) ? c.rules : []
       }));
     } catch (e) {
@@ -24,7 +26,9 @@ export async function getUserCycles(userId: string): Promise<DBCycle[]> {
   }
 
   const cycles = memoryStore.cycles.filter(c => c.userId === userId);
-  return cycles.sort((a, b) => a.startDate.localeCompare(b.startDate));
+  return cycles
+    .map(c => ({ ...c, revision: c.revision ?? 1 }))
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
 }
 
 export async function getCycleById(userId: string, cycleId: string): Promise<DBCycle | null> {
@@ -36,6 +40,7 @@ export async function getCycleById(userId: string, cycleId: string): Promise<DBC
       if (!cycle) return null;
       return {
         ...cycle,
+        revision: cycle.revision ?? 1,
         rules: Array.isArray(cycle.rules) ? cycle.rules : []
       };
     } catch (e) {
@@ -44,7 +49,7 @@ export async function getCycleById(userId: string, cycleId: string): Promise<DBC
   }
 
   const cycle = memoryStore.cycles.find(c => c.id === cycleId && c.userId === userId);
-  return cycle ? { ...cycle } : null;
+  return cycle ? { ...cycle, revision: cycle.revision ?? 1 } : null;
 }
 
 export async function createCycle(
@@ -71,6 +76,7 @@ export async function createCycle(
           if (globalCycle.userId === userId) {
             return {
               ...globalCycle,
+              revision: globalCycle.revision ?? 1,
               rules: Array.isArray(globalCycle.rules) ? globalCycle.rules : []
             };
           }
@@ -87,7 +93,7 @@ export async function createCycle(
     const globalStoreCycle = memoryStore.cycles.find(c => c.id === targetId);
     if (globalStoreCycle) {
       if (globalStoreCycle.userId === userId) {
-        return { ...globalStoreCycle };
+        return { ...globalStoreCycle, revision: globalStoreCycle.revision ?? 1 };
       }
       const err: any = new Error('Cycle ID collision: ID already belongs to another user');
       err.code = 'CYCLE_ID_COLLISION';
@@ -107,6 +113,7 @@ export async function createCycle(
     rules: data.rules || [],
     isArchived: false,
     reportRead: false,
+    revision: 1,
     createdAt: now,
     updatedAt: now
   };
@@ -124,11 +131,13 @@ export async function createCycle(
           inheritedStreak: newCycle.inheritedStreak,
           rules: newCycle.rules,
           isArchived: newCycle.isArchived,
-          reportRead: newCycle.reportRead
+          reportRead: newCycle.reportRead,
+          revision: 1
         }
       });
       return {
         ...created,
+        revision: created.revision ?? 1,
         rules: Array.isArray(created.rules) ? created.rules : []
       };
     } catch (e: any) {
@@ -150,7 +159,8 @@ export async function createCycle(
 export async function updateCycle(
   userId: string,
   cycleId: string,
-  data: Partial<Omit<DBCycle, 'id' | 'userId' | 'createdAt'>>
+  data: Partial<Omit<DBCycle, 'id' | 'userId' | 'createdAt'>>,
+  expectedRevision?: number
 ): Promise<DBCycle | null> {
   const now = new Date().toISOString();
 
@@ -173,18 +183,56 @@ export async function updateCycle(
       });
       if (!existing) return null;
 
-      const updated = await prisma.cycle.update({
-        where: { id: cycleId },
-        data: {
-          ...safeData,
-          updatedAt: new Date()
+      if (expectedRevision !== undefined) {
+        const result = await prisma.cycle.updateMany({
+          where: {
+            id: cycleId,
+            userId,
+            revision: expectedRevision
+          },
+          data: {
+            ...safeData,
+            revision: { increment: 1 },
+            updatedAt: new Date()
+          }
+        });
+
+        if (result.count === 0) {
+          const current = await prisma.cycle.findFirst({
+            where: { id: cycleId, userId }
+          });
+          throw new ConcurrencyConflictError({
+            entityType: 'CYCLE',
+            entityId: cycleId,
+            currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
+            expectedRevision,
+            serverState: current ? { ...current, revision: current.revision ?? 1, rules: Array.isArray(current.rules) ? current.rules : [] } : { ...existing, revision: existing.revision ?? 1, rules: Array.isArray(existing.rules) ? existing.rules : [] }
+          });
         }
+      } else {
+        await prisma.cycle.updateMany({
+          where: { id: cycleId, userId },
+          data: {
+            ...safeData,
+            revision: { increment: 1 },
+            updatedAt: new Date()
+          }
+        });
+      }
+
+      const updated = await prisma.cycle.findFirst({
+        where: { id: cycleId, userId }
       });
+      if (!updated) return null;
       return {
         ...updated,
+        revision: updated.revision ?? 1,
         rules: Array.isArray(updated.rules) ? updated.rules : []
       };
-    } catch (e) {
+    } catch (e: any) {
+      if (e instanceof ConcurrencyConflictError || e?.code === 'CONFLICT') {
+        throw e;
+      }
       console.warn('[Database] Prisma updateCycle failed, updating local store:', e);
     }
   }
@@ -193,9 +241,23 @@ export async function updateCycle(
   if (idx === -1) return null;
 
   const existing = memoryStore.cycles[idx];
+  const currentRev = existing.revision ?? 1;
+
+  if (expectedRevision !== undefined && currentRev !== expectedRevision) {
+    throw new ConcurrencyConflictError({
+      entityType: 'CYCLE',
+      entityId: cycleId,
+      currentRevision: currentRev,
+      expectedRevision,
+      serverState: { ...existing, revision: currentRev }
+    });
+  }
+
+  const nextRev = currentRev + 1;
   memoryStore.cycles[idx] = {
     ...existing,
     ...safeData,
+    revision: nextRev,
     id: existing.id,
     userId: existing.userId,
     createdAt: existing.createdAt,
@@ -206,15 +268,15 @@ export async function updateCycle(
   return memoryStore.cycles[idx];
 }
 
-export async function archiveCycle(userId: string, cycleId: string): Promise<DBCycle | null> {
-  return updateCycle(userId, cycleId, { isArchived: true });
+export async function archiveCycle(userId: string, cycleId: string, expectedRevision?: number): Promise<DBCycle | null> {
+  return updateCycle(userId, cycleId, { isArchived: true }, expectedRevision);
 }
 
-export async function restoreCycle(userId: string, cycleId: string): Promise<DBCycle | null> {
-  return updateCycle(userId, cycleId, { isArchived: false });
+export async function restoreCycle(userId: string, cycleId: string, expectedRevision?: number): Promise<DBCycle | null> {
+  return updateCycle(userId, cycleId, { isArchived: false }, expectedRevision);
 }
 
-export async function deleteCycle(userId: string, cycleId: string): Promise<boolean> {
+export async function deleteCycle(userId: string, cycleId: string, expectedRevision?: number): Promise<boolean> {
   if (isPrismaAvailable && prisma) {
     try {
       const existing = await prisma.cycle.findFirst({
@@ -222,16 +284,57 @@ export async function deleteCycle(userId: string, cycleId: string): Promise<bool
       });
       if (!existing) return false;
 
-      await prisma.dailyLog.deleteMany({ where: { cycleId, userId } });
-      await prisma.cycle.delete({ where: { id: cycleId } });
-      return true;
-    } catch (e) {
+      if (expectedRevision !== undefined) {
+        const result = await prisma.cycle.deleteMany({
+          where: {
+            id: cycleId,
+            userId,
+            revision: expectedRevision
+          }
+        });
+
+        if (result.count === 0) {
+          const current = await prisma.cycle.findFirst({
+            where: { id: cycleId, userId }
+          });
+          throw new ConcurrencyConflictError({
+            entityType: 'CYCLE',
+            entityId: cycleId,
+            currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
+            expectedRevision,
+            serverState: current ? { ...current, revision: current.revision ?? 1, rules: Array.isArray(current.rules) ? current.rules : [] } : { ...existing, revision: existing.revision ?? 1, rules: Array.isArray(existing.rules) ? existing.rules : [] }
+          });
+        }
+        await prisma.dailyLog.deleteMany({ where: { cycleId, userId } });
+        return true;
+      } else {
+        await prisma.dailyLog.deleteMany({ where: { cycleId, userId } });
+        await prisma.cycle.delete({ where: { id: cycleId } });
+        return true;
+      }
+    } catch (e: any) {
+      if (e instanceof ConcurrencyConflictError || e?.code === 'CONFLICT') {
+        throw e;
+      }
       console.warn('[Database] Prisma deleteCycle failed, deleting in local store:', e);
     }
   }
 
   const existingIdx = memoryStore.cycles.findIndex(c => c.id === cycleId && c.userId === userId);
   if (existingIdx === -1) return false;
+
+  const existing = memoryStore.cycles[existingIdx];
+  const currentRev = existing.revision ?? 1;
+
+  if (expectedRevision !== undefined && currentRev !== expectedRevision) {
+    throw new ConcurrencyConflictError({
+      entityType: 'CYCLE',
+      entityId: cycleId,
+      currentRevision: currentRev,
+      expectedRevision,
+      serverState: { ...existing, revision: currentRev }
+    });
+  }
 
   memoryStore.cycles.splice(existingIdx, 1);
   memoryStore.dailyLogs = memoryStore.dailyLogs.filter(l => !(l.cycleId === cycleId && l.userId === userId));

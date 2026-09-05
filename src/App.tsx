@@ -498,7 +498,7 @@ export default function App() {
     };
 
     if (guard.shouldQueue) {
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload, expectedRevision: updatedLog.revision });
       return;
     }
 
@@ -512,16 +512,18 @@ export default function App() {
         body: JSON.stringify(logPayload)
       });
       if (res.ok) {
+        const data = await res.json().catch(() => null);
+        const serverLog = data?.log;
         setSystemState(prev => ({
           ...prev,
-          logs: prev.logs.map(l => l.date === updatedLog.date ? { ...l, isSynced: true } : l)
+          logs: prev.logs.map(l => l.date === updatedLog.date ? { ...(serverLog || l), isSynced: true } : l)
         }));
       } else {
-        enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload });
+        enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload, expectedRevision: updatedLog.revision });
       }
     } catch (e) {
       console.warn('Failed to sync log to server backend (added to offline queue):', e);
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload, expectedRevision: updatedLog.revision });
     }
   }, [authToken, activeCycleId, systemState.userProfile?.id]);
 
@@ -538,7 +540,7 @@ export default function App() {
     }
 
     if (guard.shouldQueue) {
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle, expectedRevision: updatedCycle.revision });
       return;
     }
 
@@ -551,12 +553,21 @@ export default function App() {
         },
         body: JSON.stringify(updatedCycle)
       });
-      if (!res.ok) {
-        enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        const serverCycle = data?.cycle;
+        if (serverCycle) {
+          setSystemState(prev => ({
+            ...prev,
+            cycles: prev.cycles.map(c => c.id === serverCycle.id ? { ...serverCycle, isSynced: true } : c)
+          }));
+        }
+      } else {
+        enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle, expectedRevision: updatedCycle.revision });
       }
     } catch (e) {
       console.warn('Failed to sync cycle update to server:', e);
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle });
+      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: updatedCycle, expectedRevision: updatedCycle.revision });
     }
   }, [authToken, systemState.userProfile?.id]);
 
@@ -564,6 +575,9 @@ export default function App() {
     // Explicit deletion permanently marks starter demo as consumed to prevent re-seeding
     const scopedDemoKey = getScopedDemoConsumedKey(systemState.userProfile?.id);
     safeSetLocalStorage(scopedDemoKey, 'true');
+
+    const targetCycle = systemState.cycles.find(c => c.id === cycleId);
+    const expectedRevision = targetCycle?.revision;
 
     // 1. Calculate remaining cycles first
     const remainingCycles = systemState.cycles.filter(c => c.id !== cycleId);
@@ -597,24 +611,27 @@ export default function App() {
       return;
     }
 
+    const deletePayload = { id: cycleId, revision: expectedRevision };
+
     if (guard.shouldQueue) {
-      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
+      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: deletePayload, expectedRevision });
       return;
     }
 
     try {
-      const res = await fetch(`/api/cycles/${cycleId}`, {
+      const url = `/api/cycles/${cycleId}${expectedRevision ? `?expectedRevision=${expectedRevision}` : ''}`;
+      const res = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
       });
       if (!res.ok && res.status !== 404) {
-        enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
+        enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: deletePayload, expectedRevision });
       }
     } catch (e) {
       console.warn('Failed to sync cycle deletion to server:', e);
-      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: { id: cycleId } });
+      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: deletePayload, expectedRevision });
     }
   }, [authToken, activeCycleId, systemState.cycles, systemState.logs, systemState.userProfile?.id, showAppToast]);
 

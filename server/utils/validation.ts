@@ -196,6 +196,8 @@ export const updateCycleSchema = z.object({
   isArchived: z.boolean().optional(),
   reportRead: z.boolean().optional(),
   verdict: z.any().optional(),
+  expectedRevision: z.number().int().positive().optional(),
+  revision: z.number().int().positive().optional(),
 });
 
 /**
@@ -218,6 +220,8 @@ export const upsertDailyLogSchema = z.object({
   countermeasure: z.string().max(2000).optional().nullable(),
   aiFeedback: z.string().max(2000).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
+  expectedRevision: z.number().int().positive().optional(),
+  revision: z.number().int().positive().optional(),
 });
 
 /**
@@ -239,6 +243,8 @@ export const updateDailyLogSchema = z.object({
   countermeasure: z.string().max(2000).optional().nullable(),
   aiFeedback: z.string().max(2000).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
+  expectedRevision: z.number().int().positive().optional(),
+  revision: z.number().int().positive().optional(),
 });
 
 /**
