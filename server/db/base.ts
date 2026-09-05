@@ -109,14 +109,12 @@ export class ConcurrencyConflictError extends Error {
   entityId: string;
   currentRevision: number;
   expectedRevision?: number;
-  serverState?: any;
 
   constructor(options: {
     entityType: 'CYCLE' | 'DAILY_LOG';
     entityId: string;
     currentRevision: number;
     expectedRevision?: number;
-    serverState?: any;
     message?: string;
   }) {
     super(options.message || 'Concurrency conflict: record has been modified by another client');
@@ -126,7 +124,24 @@ export class ConcurrencyConflictError extends Error {
     this.entityId = options.entityId;
     this.currentRevision = options.currentRevision;
     this.expectedRevision = options.expectedRevision;
-    this.serverState = options.serverState;
+  }
+}
+
+export class PreconditionRequiredError extends Error {
+  code = 'PRECONDITION_REQUIRED' as const;
+  entityType: 'CYCLE' | 'DAILY_LOG';
+  entityId?: string;
+
+  constructor(options: {
+    entityType: 'CYCLE' | 'DAILY_LOG';
+    entityId?: string;
+    message?: string;
+  }) {
+    super(options.message || `Precondition Required: expectedRevision must be provided for ${options.entityType}${options.entityId ? ` (${options.entityId})` : ''}.`);
+    this.name = 'PreconditionRequiredError';
+    this.code = 'PRECONDITION_REQUIRED';
+    this.entityType = options.entityType;
+    this.entityId = options.entityId;
   }
 }
 

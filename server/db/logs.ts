@@ -4,8 +4,9 @@ import {
   memoryStore,
   saveLocalStore,
   DBDailyLog,
-  ConcurrencyConflictError
-} from './base';
+  ConcurrencyConflictError,
+  PreconditionRequiredError
+} from './base.js';
 
 export async function getUserDailyLogs(userId: string, cycleId?: string): Promise<DBDailyLog[]> {
   if (isPrismaAvailable && prisma) {
@@ -127,109 +128,37 @@ export async function upsertDailyLog(
   // A user cannot create or upsert a DailyLog referencing another user's cycle.
   // -------------------------------------------------------------------------
   if (isPrismaAvailable && prisma) {
-    try {
-      const parentCycle = await prisma.cycle.findFirst({
-        where: { id: data.cycleId, userId }
-      });
+    const parentCycle = await prisma.cycle.findFirst({
+      where: { id: data.cycleId, userId }
+    });
 
-      if (!parentCycle) {
-        const err: any = new Error('Cycle not found or does not belong to the authenticated user');
-        err.code = 'CYCLE_NOT_FOUND';
-        throw err;
+    if (!parentCycle) {
+      const err: any = new Error('Cycle not found or does not belong to the authenticated user');
+      err.code = 'CYCLE_NOT_FOUND';
+      throw err;
+    }
+
+    const existing = await prisma.dailyLog.findFirst({
+      where: { userId, date: data.date }
+    });
+
+    if (existing) {
+      if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0)) {
+        throw new PreconditionRequiredError({
+          entityType: 'DAILY_LOG',
+          entityId: existing.id
+        });
       }
 
-      const existing = await prisma.dailyLog.findFirst({
-        where: { userId, date: data.date }
-      });
-
-      if (existing) {
-        if (expectedRevision !== undefined) {
-          const result = await prisma.dailyLog.updateMany({
-            where: {
-              id: existing.id,
-              userId,
-              revision: expectedRevision
-            },
-            data: {
-              cycleId: data.cycleId,
-              wakeUp: Boolean(data.wakeUp),
-              workout: Boolean(data.workout),
-              study: Boolean(data.study),
-              journal: Boolean(data.journal),
-              hardTask: Boolean(data.hardTask),
-              specialMission: Boolean(data.specialMission),
-              failureReason: data.failureReason || null,
-              failureTime: data.failureTime || null,
-              autopsyNotes: data.autopsyNotes || null,
-              countermeasure: data.countermeasure || null,
-              aiFeedback: data.aiFeedback || null,
-              notes: data.notes || null,
-              revision: { increment: 1 },
-              updatedAt: new Date()
-            }
-          });
-
-          if (result.count === 0) {
-            const current = await prisma.dailyLog.findFirst({
-              where: { id: existing.id, userId }
-            });
-            throw new ConcurrencyConflictError({
-              entityType: 'DAILY_LOG',
-              entityId: existing.id,
-              currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
-              expectedRevision,
-              serverState: current ? {
-                ...current,
-                revision: current.revision ?? 1,
-                createdAt: current.createdAt instanceof Date ? current.createdAt.toISOString() : current.createdAt,
-                updatedAt: current.updatedAt instanceof Date ? current.updatedAt.toISOString() : current.updatedAt
-              } : {
-                ...existing,
-                revision: existing.revision ?? 1,
-                createdAt: existing.createdAt instanceof Date ? existing.createdAt.toISOString() : existing.createdAt,
-                updatedAt: existing.updatedAt instanceof Date ? existing.updatedAt.toISOString() : existing.updatedAt
-              }
-            });
-          }
-        } else {
-          await prisma.dailyLog.updateMany({
-            where: { id: existing.id, userId },
-            data: {
-              cycleId: data.cycleId,
-              wakeUp: Boolean(data.wakeUp),
-              workout: Boolean(data.workout),
-              study: Boolean(data.study),
-              journal: Boolean(data.journal),
-              hardTask: Boolean(data.hardTask),
-              specialMission: Boolean(data.specialMission),
-              failureReason: data.failureReason || null,
-              failureTime: data.failureTime || null,
-              autopsyNotes: data.autopsyNotes || null,
-              countermeasure: data.countermeasure || null,
-              aiFeedback: data.aiFeedback || null,
-              notes: data.notes || null,
-              revision: { increment: 1 },
-              updatedAt: new Date()
-            }
-          });
-        }
-
-        const updated = await prisma.dailyLog.findFirst({
-          where: { id: existing.id, userId }
-        });
-        return {
-          ...updated!,
-          revision: updated!.revision ?? 1,
-          createdAt: updated!.createdAt instanceof Date ? updated!.createdAt.toISOString() : updated!.createdAt,
-          updatedAt: updated!.updatedAt instanceof Date ? updated!.updatedAt.toISOString() : updated!.updatedAt
-        };
-      } else {
-        const created = await prisma.dailyLog.create({
-          data: {
-            id: `log-${userId}-${data.date}`,
+      if (expectedRevision !== undefined) {
+        const result = await prisma.dailyLog.updateMany({
+          where: {
+            id: existing.id,
             userId,
+            revision: expectedRevision
+          },
+          data: {
             cycleId: data.cycleId,
-            date: data.date,
             wakeUp: Boolean(data.wakeUp),
             workout: Boolean(data.workout),
             study: Boolean(data.study),
@@ -242,21 +171,82 @@ export async function upsertDailyLog(
             countermeasure: data.countermeasure || null,
             aiFeedback: data.aiFeedback || null,
             notes: data.notes || null,
-            revision: 1
+            revision: { increment: 1 },
+            updatedAt: new Date()
           }
         });
-        return {
-          ...created,
-          revision: created.revision ?? 1,
-          createdAt: created.createdAt instanceof Date ? created.createdAt.toISOString() : created.createdAt,
-          updatedAt: created.updatedAt instanceof Date ? created.updatedAt.toISOString() : created.updatedAt
-        };
+
+        if (result.count === 0) {
+          const current = await prisma.dailyLog.findFirst({
+            where: { id: existing.id, userId }
+          });
+          throw new ConcurrencyConflictError({
+            entityType: 'DAILY_LOG',
+            entityId: existing.id,
+            currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
+            expectedRevision
+          });
+        }
+      } else {
+        await prisma.dailyLog.update({
+          where: { id: existing.id },
+          data: {
+            cycleId: data.cycleId,
+            wakeUp: Boolean(data.wakeUp),
+            workout: Boolean(data.workout),
+            study: Boolean(data.study),
+            journal: Boolean(data.journal),
+            hardTask: Boolean(data.hardTask),
+            specialMission: Boolean(data.specialMission),
+            failureReason: data.failureReason || null,
+            failureTime: data.failureTime || null,
+            autopsyNotes: data.autopsyNotes || null,
+            countermeasure: data.countermeasure || null,
+            aiFeedback: data.aiFeedback || null,
+            notes: data.notes || null,
+            revision: { increment: 1 },
+            updatedAt: new Date()
+          }
+        });
       }
-    } catch (e: any) {
-      if (e instanceof ConcurrencyConflictError || e?.code === 'CONFLICT' || e?.code === 'CYCLE_NOT_FOUND') {
-        throw e;
-      }
-      console.warn('[Database] Prisma upsertDailyLog failed, falling back to local store:', e);
+
+      const updated = await prisma.dailyLog.findFirst({
+        where: { id: existing.id, userId }
+      });
+      return {
+        ...updated!,
+        revision: updated!.revision ?? 1,
+        createdAt: updated!.createdAt instanceof Date ? updated!.createdAt.toISOString() : updated!.createdAt,
+        updatedAt: updated!.updatedAt instanceof Date ? updated!.updatedAt.toISOString() : updated!.updatedAt
+      };
+    } else {
+      const created = await prisma.dailyLog.create({
+        data: {
+          id: `log-${userId}-${data.date}`,
+          userId,
+          cycleId: data.cycleId,
+          date: data.date,
+          wakeUp: Boolean(data.wakeUp),
+          workout: Boolean(data.workout),
+          study: Boolean(data.study),
+          journal: Boolean(data.journal),
+          hardTask: Boolean(data.hardTask),
+          specialMission: Boolean(data.specialMission),
+          failureReason: data.failureReason || null,
+          failureTime: data.failureTime || null,
+          autopsyNotes: data.autopsyNotes || null,
+          countermeasure: data.countermeasure || null,
+          aiFeedback: data.aiFeedback || null,
+          notes: data.notes || null,
+          revision: 1
+        }
+      });
+      return {
+        ...created,
+        revision: created.revision ?? 1,
+        createdAt: created.createdAt instanceof Date ? created.createdAt.toISOString() : created.createdAt,
+        updatedAt: created.updatedAt instanceof Date ? created.updatedAt.toISOString() : created.updatedAt
+      };
     }
   }
 
@@ -293,13 +283,19 @@ export async function upsertDailyLog(
     const existing = memoryStore.dailyLogs[existingIdx];
     const currentRev = existing.revision ?? 1;
 
+    if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0)) {
+      throw new PreconditionRequiredError({
+        entityType: 'DAILY_LOG',
+        entityId: existing.id
+      });
+    }
+
     if (expectedRevision !== undefined && currentRev !== expectedRevision) {
       throw new ConcurrencyConflictError({
         entityType: 'DAILY_LOG',
         entityId: existing.id,
         currentRevision: currentRev,
-        expectedRevision,
-        serverState: { ...existing, revision: currentRev }
+        expectedRevision
       });
     }
 
@@ -338,6 +334,14 @@ export async function updateDailyLog(
 ): Promise<DBDailyLog | null> {
   const now = new Date().toISOString();
 
+  // Validate expectedRevision format if provided
+  if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0)) {
+    throw new PreconditionRequiredError({
+      entityType: 'DAILY_LOG',
+      entityId: logId
+    });
+  }
+
   // Validate and sanitize update fields to prevent immutable field overrides
   const safeData: any = {};
   if (typeof data.wakeUp === 'boolean') safeData.wakeUp = data.wakeUp;
@@ -354,88 +358,70 @@ export async function updateDailyLog(
   if (data.notes !== undefined) safeData.notes = data.notes;
 
   if (isPrismaAvailable && prisma) {
-    try {
-      const existing = await prisma.dailyLog.findFirst({
-        where: { id: logId, userId }
+    const existing = await prisma.dailyLog.findFirst({
+      where: { id: logId, userId }
+    });
+    if (!existing) return null;
+
+    // If cycleId is being moved/updated, verify that target cycle also belongs to the authenticated user
+    if (data.cycleId && data.cycleId !== existing.cycleId) {
+      const parentCycle = await prisma.cycle.findFirst({
+        where: { id: data.cycleId, userId }
       });
-      if (!existing) return null;
-
-      // If cycleId is being moved/updated, verify that target cycle also belongs to the authenticated user
-      if (data.cycleId && data.cycleId !== existing.cycleId) {
-        const parentCycle = await prisma.cycle.findFirst({
-          where: { id: data.cycleId, userId }
-        });
-        if (!parentCycle) {
-          const err: any = new Error('Cycle not found or does not belong to the authenticated user');
-          err.code = 'CYCLE_NOT_FOUND';
-          throw err;
-        }
-        safeData.cycleId = data.cycleId;
+      if (!parentCycle) {
+        const err: any = new Error('Cycle not found or does not belong to the authenticated user');
+        err.code = 'CYCLE_NOT_FOUND';
+        throw err;
       }
-
-      if (expectedRevision !== undefined) {
-        const result = await prisma.dailyLog.updateMany({
-          where: {
-            id: logId,
-            userId,
-            revision: expectedRevision
-          },
-          data: {
-            ...safeData,
-            revision: { increment: 1 },
-            updatedAt: new Date()
-          }
-        });
-
-        if (result.count === 0) {
-          const current = await prisma.dailyLog.findFirst({
-            where: { id: logId, userId }
-          });
-          throw new ConcurrencyConflictError({
-            entityType: 'DAILY_LOG',
-            entityId: logId,
-            currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
-            expectedRevision,
-            serverState: current ? {
-              ...current,
-              revision: current.revision ?? 1,
-              createdAt: current.createdAt instanceof Date ? current.createdAt.toISOString() : current.createdAt,
-              updatedAt: current.updatedAt instanceof Date ? current.updatedAt.toISOString() : current.updatedAt
-            } : {
-              ...existing,
-              revision: existing.revision ?? 1,
-              createdAt: existing.createdAt instanceof Date ? existing.createdAt.toISOString() : existing.createdAt,
-              updatedAt: existing.updatedAt instanceof Date ? existing.updatedAt.toISOString() : existing.updatedAt
-            }
-          });
-        }
-      } else {
-        await prisma.dailyLog.updateMany({
-          where: { id: logId, userId },
-          data: {
-            ...safeData,
-            revision: { increment: 1 },
-            updatedAt: new Date()
-          }
-        });
-      }
-
-      const updated = await prisma.dailyLog.findFirst({
-        where: { id: logId, userId }
-      });
-      if (!updated) return null;
-      return {
-        ...updated,
-        revision: updated.revision ?? 1,
-        createdAt: updated.createdAt instanceof Date ? updated.createdAt.toISOString() : updated.createdAt,
-        updatedAt: updated.updatedAt instanceof Date ? updated.updatedAt.toISOString() : updated.updatedAt
-      };
-    } catch (e: any) {
-      if (e instanceof ConcurrencyConflictError || e?.code === 'CONFLICT' || e?.code === 'CYCLE_NOT_FOUND') {
-        throw e;
-      }
-      console.warn('[Database] Prisma updateDailyLog failed, updating local store:', e);
+      safeData.cycleId = data.cycleId;
     }
+
+    if (expectedRevision !== undefined) {
+      const result = await prisma.dailyLog.updateMany({
+        where: {
+          id: logId,
+          userId,
+          revision: expectedRevision
+        },
+        data: {
+          ...safeData,
+          revision: { increment: 1 },
+          updatedAt: new Date()
+        }
+      });
+
+      if (result.count === 0) {
+        const current = await prisma.dailyLog.findFirst({
+          where: { id: logId, userId }
+        });
+        throw new ConcurrencyConflictError({
+          entityType: 'DAILY_LOG',
+          entityId: logId,
+          currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
+          expectedRevision
+        });
+      }
+    } else {
+      await prisma.dailyLog.update({
+        where: { id: logId },
+        data: {
+          ...safeData,
+          revision: { increment: 1 },
+          updatedAt: new Date()
+        }
+      });
+    }
+
+    const updated = await prisma.dailyLog.findFirst({
+      where: { id: logId, userId }
+    });
+    if (!updated) return null;
+    return {
+      ...updated,
+      revision: updated.revision ?? 1,
+      createdAt: updated.createdAt instanceof Date ? updated.createdAt.toISOString() : updated.createdAt,
+      updatedAt: updated.updatedAt instanceof Date ? updated.updatedAt.toISOString() : updated.updatedAt
+    };
   }
 
   const existingIdx = memoryStore.dailyLogs.findIndex(l => l.id === logId && l.userId === userId);
@@ -460,8 +446,7 @@ export async function updateDailyLog(
       entityType: 'DAILY_LOG',
       entityId: logId,
       currentRevision: currentRev,
-      expectedRevision,
-      serverState: { ...existing, revision: currentRev }
+      expectedRevision
     });
   }
 
@@ -481,55 +466,45 @@ export async function updateDailyLog(
 }
 
 export async function deleteDailyLog(userId: string, logId: string, expectedRevision?: number): Promise<boolean> {
+  if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0)) {
+    throw new PreconditionRequiredError({
+      entityType: 'DAILY_LOG',
+      entityId: logId
+    });
+  }
+
   if (isPrismaAvailable && prisma) {
-    try {
-      const existing = await prisma.dailyLog.findFirst({
+    const existing = await prisma.dailyLog.findFirst({
+      where: { id: logId, userId }
+    });
+    if (!existing) return false;
+
+    if (expectedRevision !== undefined) {
+      const result = await prisma.dailyLog.deleteMany({
+        where: {
+          id: logId,
+          userId,
+          revision: expectedRevision
+        }
+      });
+
+      if (result.count === 0) {
+        const current = await prisma.dailyLog.findFirst({
+          where: { id: logId, userId }
+        });
+        throw new ConcurrencyConflictError({
+          entityType: 'DAILY_LOG',
+          entityId: logId,
+          currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
+          expectedRevision
+        });
+      }
+    } else {
+      await prisma.dailyLog.deleteMany({
         where: { id: logId, userId }
       });
-      if (!existing) return false;
-
-      if (expectedRevision !== undefined) {
-        const result = await prisma.dailyLog.deleteMany({
-          where: {
-            id: logId,
-            userId,
-            revision: expectedRevision
-          }
-        });
-
-        if (result.count === 0) {
-          const current = await prisma.dailyLog.findFirst({
-            where: { id: logId, userId }
-          });
-          throw new ConcurrencyConflictError({
-            entityType: 'DAILY_LOG',
-            entityId: logId,
-            currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
-            expectedRevision,
-            serverState: current ? {
-              ...current,
-              revision: current.revision ?? 1,
-              createdAt: current.createdAt instanceof Date ? current.createdAt.toISOString() : current.createdAt,
-              updatedAt: current.updatedAt instanceof Date ? current.updatedAt.toISOString() : current.updatedAt
-            } : {
-              ...existing,
-              revision: existing.revision ?? 1,
-              createdAt: existing.createdAt instanceof Date ? existing.createdAt.toISOString() : existing.createdAt,
-              updatedAt: existing.updatedAt instanceof Date ? existing.updatedAt.toISOString() : existing.updatedAt
-            }
-          });
-        }
-        return true;
-      } else {
-        await prisma.dailyLog.delete({ where: { id: logId } });
-        return true;
-      }
-    } catch (e: any) {
-      if (e instanceof ConcurrencyConflictError || e?.code === 'CONFLICT') {
-        throw e;
-      }
-      console.warn('[Database] Prisma deleteDailyLog failed, deleting in local store:', e);
     }
+    return true;
   }
 
   const existingIdx = memoryStore.dailyLogs.findIndex(l => l.id === logId && l.userId === userId);
@@ -543,8 +518,7 @@ export async function deleteDailyLog(userId: string, logId: string, expectedRevi
       entityType: 'DAILY_LOG',
       entityId: logId,
       currentRevision: currentRev,
-      expectedRevision,
-      serverState: { ...existing, revision: currentRev }
+      expectedRevision
     });
   }
 
@@ -554,55 +528,44 @@ export async function deleteDailyLog(userId: string, logId: string, expectedRevi
 }
 
 export async function deleteDailyLogByDate(userId: string, date: string, expectedRevision?: number): Promise<boolean> {
+  if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0)) {
+    throw new PreconditionRequiredError({
+      entityType: 'DAILY_LOG'
+    });
+  }
+
   if (isPrismaAvailable && prisma) {
-    try {
-      const existing = await prisma.dailyLog.findFirst({
-        where: { date, userId }
-      });
-      if (!existing) return false;
+    const existing = await prisma.dailyLog.findFirst({
+      where: { date, userId }
+    });
+    if (!existing) return false;
 
-      if (expectedRevision !== undefined) {
-        const result = await prisma.dailyLog.deleteMany({
-          where: {
-            id: existing.id,
-            userId,
-            revision: expectedRevision
-          }
-        });
-
-        if (result.count === 0) {
-          const current = await prisma.dailyLog.findFirst({
-            where: { id: existing.id, userId }
-          });
-          throw new ConcurrencyConflictError({
-            entityType: 'DAILY_LOG',
-            entityId: existing.id,
-            currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
-            expectedRevision,
-            serverState: current ? {
-              ...current,
-              revision: current.revision ?? 1,
-              createdAt: current.createdAt instanceof Date ? current.createdAt.toISOString() : current.createdAt,
-              updatedAt: current.updatedAt instanceof Date ? current.updatedAt.toISOString() : current.updatedAt
-            } : {
-              ...existing,
-              revision: existing.revision ?? 1,
-              createdAt: existing.createdAt instanceof Date ? existing.createdAt.toISOString() : existing.createdAt,
-              updatedAt: existing.updatedAt instanceof Date ? existing.updatedAt.toISOString() : existing.updatedAt
-            }
-          });
+    if (expectedRevision !== undefined) {
+      const result = await prisma.dailyLog.deleteMany({
+        where: {
+          id: existing.id,
+          userId,
+          revision: expectedRevision
         }
-        return true;
-      } else {
-        await prisma.dailyLog.delete({ where: { id: existing.id } });
-        return true;
+      });
+
+      if (result.count === 0) {
+        const current = await prisma.dailyLog.findFirst({
+          where: { id: existing.id, userId }
+        });
+        throw new ConcurrencyConflictError({
+          entityType: 'DAILY_LOG',
+          entityId: existing.id,
+          currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
+          expectedRevision
+        });
       }
-    } catch (e: any) {
-      if (e instanceof ConcurrencyConflictError || e?.code === 'CONFLICT') {
-        throw e;
-      }
-      console.warn('[Database] Prisma deleteDailyLogByDate failed, deleting in local store:', e);
+    } else {
+      await prisma.dailyLog.deleteMany({
+        where: { id: existing.id, userId }
+      });
     }
+    return true;
   }
 
   const existingIdx = memoryStore.dailyLogs.findIndex(l => l.date === date && l.userId === userId);
@@ -616,8 +579,7 @@ export async function deleteDailyLogByDate(userId: string, date: string, expecte
       entityType: 'DAILY_LOG',
       entityId: existing.id,
       currentRevision: currentRev,
-      expectedRevision,
-      serverState: { ...existing, revision: currentRev }
+      expectedRevision
     });
   }
 

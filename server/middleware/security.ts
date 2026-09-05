@@ -156,6 +156,16 @@ export class AppError extends Error {
 export function errorHandler(err: any, req: Request, res: Response, next: NextFunction): void {
   const isProd = isProduction();
 
+  if (err.name === 'PreconditionRequiredError' || err.code === 'PRECONDITION_REQUIRED') {
+    res.status(err.statusCode || 428).json({
+      code: 'PRECONDITION_REQUIRED',
+      messageFa: err.messageFa || 'ارسال expectedRevision برای این عملیات الزامی است.',
+      entityType: err.entityType,
+      entityId: err.entityId
+    });
+    return;
+  }
+
   if (err.name === 'ConcurrencyConflictError' || err.code === 'CONFLICT') {
     res.status(409).json({
       code: 'CONFLICT',
@@ -163,8 +173,7 @@ export function errorHandler(err: any, req: Request, res: Response, next: NextFu
       entityType: err.entityType,
       entityId: err.entityId,
       currentRevision: err.currentRevision,
-      expectedRevision: err.expectedRevision,
-      serverState: err.serverState
+      expectedRevision: err.expectedRevision
     });
     return;
   }

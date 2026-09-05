@@ -198,6 +198,23 @@ export const updateCycleSchema = z.object({
   verdict: z.any().optional(),
   expectedRevision: z.number().int().positive().optional(),
   revision: z.number().int().positive().optional(),
+})
+.superRefine((data, ctx) => {
+  if (data.expectedRevision !== undefined && data.revision !== undefined && data.expectedRevision !== data.revision) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'ارسال همزمان revision و expectedRevision با مقادیر متفاوت نامعتبر است.',
+      path: ['expectedRevision']
+    });
+  }
+})
+.transform((data) => {
+  const expectedRevision = data.expectedRevision ?? data.revision;
+  const { revision, ...rest } = data;
+  return {
+    ...rest,
+    ...(expectedRevision !== undefined ? { expectedRevision } : {})
+  };
 });
 
 /**
@@ -222,6 +239,23 @@ export const upsertDailyLogSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
   expectedRevision: z.number().int().positive().optional(),
   revision: z.number().int().positive().optional(),
+})
+.superRefine((data, ctx) => {
+  if (data.expectedRevision !== undefined && data.revision !== undefined && data.expectedRevision !== data.revision) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'ارسال همزمان revision و expectedRevision با مقادیر متفاوت نامعتبر است.',
+      path: ['expectedRevision']
+    });
+  }
+})
+.transform((data) => {
+  const expectedRevision = data.expectedRevision ?? data.revision;
+  const { revision, ...rest } = data;
+  return {
+    ...rest,
+    ...(expectedRevision !== undefined ? { expectedRevision } : {})
+  };
 });
 
 /**
@@ -245,6 +279,23 @@ export const updateDailyLogSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
   expectedRevision: z.number().int().positive().optional(),
   revision: z.number().int().positive().optional(),
+})
+.superRefine((data, ctx) => {
+  if (data.expectedRevision !== undefined && data.revision !== undefined && data.expectedRevision !== data.revision) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'ارسال همزمان revision و expectedRevision با مقادیر متفاوت نامعتبر است.',
+      path: ['expectedRevision']
+    });
+  }
+})
+.transform((data) => {
+  const expectedRevision = data.expectedRevision ?? data.revision;
+  const { revision, ...rest } = data;
+  return {
+    ...rest,
+    ...(expectedRevision !== undefined ? { expectedRevision } : {})
+  };
 });
 
 /**

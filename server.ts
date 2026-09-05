@@ -24,6 +24,7 @@ import {
   updateDailyLog,
   deleteDailyLog,
   ConcurrencyConflictError,
+  PreconditionRequiredError,
   createSubscriptionRecord,
   completeSubscription,
   markSubscriptionFailed,
@@ -825,6 +826,14 @@ app.put('/api/cycles/:id', authMiddleware, validateBody(updateCycleSchema), asyn
     }
     res.json({ cycle: updated });
   } catch (error: any) {
+    if (error instanceof PreconditionRequiredError || error?.code === 'PRECONDITION_REQUIRED') {
+      return res.status(428).json({
+        code: 'PRECONDITION_REQUIRED',
+        messageFa: error.messageFa || 'ارسال expectedRevision برای این عملیات الزامی است.',
+        entityType: error.entityType,
+        entityId: error.entityId
+      });
+    }
     if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
       return res.status(409).json({
         code: 'CONFLICT',
@@ -832,8 +841,7 @@ app.put('/api/cycles/:id', authMiddleware, validateBody(updateCycleSchema), asyn
         entityType: error.entityType,
         entityId: error.entityId,
         currentRevision: error.currentRevision,
-        expectedRevision: error.expectedRevision,
-        serverState: error.serverState
+        expectedRevision: error.expectedRevision
       });
     }
     next(error);
@@ -851,6 +859,14 @@ app.put('/api/cycles/:id/archive', authMiddleware, async (req: AuthenticatedRequ
     }
     res.json({ cycle: updated, success: true });
   } catch (error: any) {
+    if (error instanceof PreconditionRequiredError || error?.code === 'PRECONDITION_REQUIRED') {
+      return res.status(428).json({
+        code: 'PRECONDITION_REQUIRED',
+        messageFa: error.messageFa || 'ارسال expectedRevision برای این عملیات الزامی است.',
+        entityType: error.entityType,
+        entityId: error.entityId
+      });
+    }
     if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
       return res.status(409).json({
         code: 'CONFLICT',
@@ -858,8 +874,7 @@ app.put('/api/cycles/:id/archive', authMiddleware, async (req: AuthenticatedRequ
         entityType: error.entityType,
         entityId: error.entityId,
         currentRevision: error.currentRevision,
-        expectedRevision: error.expectedRevision,
-        serverState: error.serverState
+        expectedRevision: error.expectedRevision
       });
     }
     next(error);
@@ -877,6 +892,14 @@ app.put('/api/cycles/:id/restore', authMiddleware, async (req: AuthenticatedRequ
     }
     res.json({ cycle: updated, success: true });
   } catch (error: any) {
+    if (error instanceof PreconditionRequiredError || error?.code === 'PRECONDITION_REQUIRED') {
+      return res.status(428).json({
+        code: 'PRECONDITION_REQUIRED',
+        messageFa: error.messageFa || 'ارسال expectedRevision برای این عملیات الزامی است.',
+        entityType: error.entityType,
+        entityId: error.entityId
+      });
+    }
     if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
       return res.status(409).json({
         code: 'CONFLICT',
@@ -884,8 +907,7 @@ app.put('/api/cycles/:id/restore', authMiddleware, async (req: AuthenticatedRequ
         entityType: error.entityType,
         entityId: error.entityId,
         currentRevision: error.currentRevision,
-        expectedRevision: error.expectedRevision,
-        serverState: error.serverState
+        expectedRevision: error.expectedRevision
       });
     }
     next(error);
@@ -904,6 +926,14 @@ app.delete('/api/cycles/:id', authMiddleware, async (req: AuthenticatedRequest, 
     }
     res.json({ success: true, messageFa: 'چرخه و گزارش‌های مرتبط حذف شدند.' });
   } catch (error: any) {
+    if (error instanceof PreconditionRequiredError || error?.code === 'PRECONDITION_REQUIRED') {
+      return res.status(428).json({
+        code: 'PRECONDITION_REQUIRED',
+        messageFa: error.messageFa || 'ارسال expectedRevision برای این عملیات الزامی است.',
+        entityType: error.entityType,
+        entityId: error.entityId
+      });
+    }
     if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
       return res.status(409).json({
         code: 'CONFLICT',
@@ -911,8 +941,7 @@ app.delete('/api/cycles/:id', authMiddleware, async (req: AuthenticatedRequest, 
         entityType: error.entityType,
         entityId: error.entityId,
         currentRevision: error.currentRevision,
-        expectedRevision: error.expectedRevision,
-        serverState: error.serverState
+        expectedRevision: error.expectedRevision
       });
     }
     next(error);
@@ -930,6 +959,14 @@ const handleUpsertDailyLog = async (req: AuthenticatedRequest, res: express.Resp
     const log = await upsertDailyLog(userId, req.body, expectedRevision);
     res.json({ log, success: true });
   } catch (error: any) {
+    if (error instanceof PreconditionRequiredError || error?.code === 'PRECONDITION_REQUIRED') {
+      return res.status(428).json({
+        code: 'PRECONDITION_REQUIRED',
+        messageFa: error.messageFa || 'ارسال expectedRevision برای این عملیات الزامی است.',
+        entityType: error.entityType,
+        entityId: error.entityId
+      });
+    }
     if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
       return res.status(409).json({
         code: 'CONFLICT',
@@ -937,8 +974,7 @@ const handleUpsertDailyLog = async (req: AuthenticatedRequest, res: express.Resp
         entityType: error.entityType,
         entityId: error.entityId,
         currentRevision: error.currentRevision,
-        expectedRevision: error.expectedRevision,
-        serverState: error.serverState
+        expectedRevision: error.expectedRevision
       });
     }
     if (error?.code === 'CYCLE_NOT_FOUND' || error?.message?.includes('Cycle not found')) {
@@ -987,6 +1023,14 @@ const handleUpdateDailyLog = async (req: AuthenticatedRequest, res: express.Resp
     }
     res.json({ log: updated, success: true });
   } catch (error: any) {
+    if (error instanceof PreconditionRequiredError || error?.code === 'PRECONDITION_REQUIRED') {
+      return res.status(428).json({
+        code: 'PRECONDITION_REQUIRED',
+        messageFa: error.messageFa || 'ارسال expectedRevision برای این عملیات الزامی است.',
+        entityType: error.entityType,
+        entityId: error.entityId
+      });
+    }
     if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
       return res.status(409).json({
         code: 'CONFLICT',
@@ -994,8 +1038,7 @@ const handleUpdateDailyLog = async (req: AuthenticatedRequest, res: express.Resp
         entityType: error.entityType,
         entityId: error.entityId,
         currentRevision: error.currentRevision,
-        expectedRevision: error.expectedRevision,
-        serverState: error.serverState
+        expectedRevision: error.expectedRevision
       });
     }
     if (error?.code === 'CYCLE_NOT_FOUND' || error?.message?.includes('Cycle not found')) {
@@ -1019,6 +1062,14 @@ const handleDeleteDailyLog = async (req: AuthenticatedRequest, res: express.Resp
     }
     res.json({ success: true, messageFa: 'گزارش روزانه با موفقیت حذف شد.' });
   } catch (error: any) {
+    if (error instanceof PreconditionRequiredError || error?.code === 'PRECONDITION_REQUIRED') {
+      return res.status(428).json({
+        code: 'PRECONDITION_REQUIRED',
+        messageFa: error.messageFa || 'ارسال expectedRevision برای این عملیات الزامی است.',
+        entityType: error.entityType,
+        entityId: error.entityId
+      });
+    }
     if (error instanceof ConcurrencyConflictError || error?.code === 'CONFLICT') {
       return res.status(409).json({
         code: 'CONFLICT',
@@ -1026,8 +1077,7 @@ const handleDeleteDailyLog = async (req: AuthenticatedRequest, res: express.Resp
         entityType: error.entityType,
         entityId: error.entityId,
         currentRevision: error.currentRevision,
-        expectedRevision: error.expectedRevision,
-        serverState: error.serverState
+        expectedRevision: error.expectedRevision
       });
     }
     next(error);

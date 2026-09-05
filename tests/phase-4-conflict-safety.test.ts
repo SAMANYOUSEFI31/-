@@ -10,6 +10,7 @@ import {
   updateDailyLog, 
   deleteDailyLog,
   ConcurrencyConflictError,
+  PreconditionRequiredError,
   memoryStore,
   setPrismaState
 } from '../server/db/index.js';
@@ -28,6 +29,7 @@ import {
   upsertDailyLogSchema,
   updateDailyLogSchema
 } from '../server/utils/validation.js';
+import { errorHandler } from '../server/middleware/security.js';
 
 test('Phase 4: Multi-device Conflict Safety & Optimistic Concurrency', async (t) => {
   const userId = 'user_conflict_test_101';
@@ -83,8 +85,7 @@ test('Phase 4: Multi-device Conflict Safety & Optimistic Concurrency', async (t)
         assert.equal(err.entityId, cycle.id);
         assert.equal(err.expectedRevision, 1);
         assert.equal(err.currentRevision, 2);
-        assert.ok(err.serverState, 'Server state must be included in conflict error');
-        assert.equal(err.serverState.revision, 2);
+        assert.equal(err.serverState, undefined, 'Server state must NOT be leaked in ConcurrencyConflictError');
         return true;
       }
     );
@@ -182,7 +183,7 @@ test('Phase 4: Multi-device Conflict Safety & Optimistic Concurrency', async (t)
         assert.equal(err.entityType, 'DAILY_LOG');
         assert.equal(err.expectedRevision, 1);
         assert.equal(err.currentRevision, 2);
-        assert.equal(err.serverState.revision, 2);
+        assert.equal(err.serverState, undefined, 'serverState must not be exposed');
         return true;
       }
     );
@@ -252,7 +253,7 @@ test('Phase 4: Multi-device Conflict Safety & Optimistic Concurrency', async (t)
       assert.ok(err instanceof ConcurrencyConflictError);
       assert.equal(err.currentRevision, 2);
       assert.equal(err.expectedRevision, 1);
-      assert.equal(err.serverState.title, 'عنوان ویرایش‌شده توسط دستگاه ۱');
+      assert.equal(err.serverState, undefined, 'serverState must not be leaked');
     }
     assert.equal(conflictCaught, true, 'Device 2 must be rejected with ConcurrencyConflictError');
 
@@ -338,17 +339,33 @@ test('Phase 4: Multi-device Conflict Safety & Optimistic Concurrency', async (t)
   });
 
   await t.test('7. Validation Schemas Accept revision and expectedRevision', () => {
-    // updateCycleSchema
-    const cycleParsed = updateCycleSchema.safeParse({
+    // updateCycleSchema with expectedRevision
+    const cycleParsed1 = updateCycleSchema.safeParse({
       title: 'تست اعتبارسنجی',
-      expectedRevision: 5,
+      expectedRevision: 5
+    });
+    assert.ok(cycleParsed1.success, 'updateCycleSchema must accept expectedRevision');
+    if (cycleParsed1.success) {
+      assert.equal(cycleParsed1.data.expectedRevision, 5);
+    }
+
+    // updateCycleSchema with legacy revision alias normalizes to expectedRevision
+    const cycleParsed2 = updateCycleSchema.safeParse({
+      title: 'تست اعتبارسنجی',
       revision: 5
     });
-    assert.ok(cycleParsed.success, 'updateCycleSchema must accept expectedRevision and revision');
-    if (cycleParsed.success) {
-      assert.equal(cycleParsed.data.expectedRevision, 5);
-      assert.equal(cycleParsed.data.revision, 5);
+    assert.ok(cycleParsed2.success, 'updateCycleSchema must accept revision and normalize to expectedRevision');
+    if (cycleParsed2.success) {
+      assert.equal(cycleParsed2.data.expectedRevision, 5);
     }
+
+    // Mismatched expectedRevision and revision is rejected
+    const cycleParsedMismatched = updateCycleSchema.safeParse({
+      title: 'تست اعتبارسنجی',
+      expectedRevision: 5,
+      revision: 6
+    });
+    assert.equal(cycleParsedMismatched.success, false, 'Mismatched revision and expectedRevision must fail validation');
 
     // upsertDailyLogSchema
     const logParsed = upsertDailyLogSchema.safeParse({
@@ -398,5 +415,153 @@ test('Phase 4: Multi-device Conflict Safety & Optimistic Concurrency', async (t)
 
     assert.equal(cycle2.id, cycle1.id);
     assert.equal(cycle2.revision, 1, 'Idempotent replay must not mutate or duplicate revision');
+  });
+
+  await t.test('9. Invalid expectedRevision Formats Trigger PreconditionRequiredError (428)', async () => {
+    const cycle = await createCycle(userId, {
+      title: 'چرخه تست پیش‌شرط',
+      startDate: '2026-09-01',
+      endDate: '2026-11-29'
+    });
+
+    // Zero revision
+    await assert.rejects(
+      async () => {
+        await updateCycle(userId, cycle.id, { title: 'عنوان جدید' }, 0);
+      },
+      (err: any) => {
+        assert.ok(err instanceof PreconditionRequiredError);
+        assert.equal(err.code, 'PRECONDITION_REQUIRED');
+        return true;
+      }
+    );
+
+    // Negative revision
+    await assert.rejects(
+      async () => {
+        await updateCycle(userId, cycle.id, { title: 'عنوان جدید' }, -5);
+      },
+      (err: any) => {
+        assert.ok(err instanceof PreconditionRequiredError);
+        return true;
+      }
+    );
+
+    // Non-integer float revision
+    await assert.rejects(
+      async () => {
+        await updateCycle(userId, cycle.id, { title: 'عنوان جدید' }, 1.5 as any);
+      },
+      (err: any) => {
+        assert.ok(err instanceof PreconditionRequiredError);
+        return true;
+      }
+    );
+  });
+
+  await t.test('10. Cross-Tenant Concurrency and Isolation Under Concurrent Writes', async () => {
+    const userA = 'user_tenant_alpha';
+    const userB = 'user_tenant_beta';
+
+    const cycleA = await createCycle(userA, {
+      title: 'چرخه کاربر الف',
+      startDate: '2026-09-01',
+      endDate: '2026-11-29'
+    });
+
+    // User B attempts to mutate User A cycle with matching revision
+    const updateAttempt = await updateCycle(userB, cycleA.id, {
+      title: 'تلاش نفوذ کاربر ب'
+    }, 1);
+    assert.equal(updateAttempt, null, 'User B must not be able to mutate User A cycle');
+
+    // User A cycle remains unchanged at revision 1
+    const freshCycleA = await getCycleById(userA, cycleA.id);
+    assert.equal(freshCycleA?.title, 'چرخه کاربر الف');
+    assert.equal(freshCycleA?.revision, 1);
+  });
+
+  await t.test('11. HTTP Error Handler Strips serverState on 409 ConcurrencyConflictError', () => {
+    let statusCode = 0;
+    let jsonPayload: any = null;
+
+    const mockRes: any = {
+      status(code: number) {
+        statusCode = code;
+        return this;
+      },
+      json(data: any) {
+        jsonPayload = data;
+        return this;
+      }
+    };
+
+    const conflictErr = new ConcurrencyConflictError({
+      entityType: 'CYCLE',
+      entityId: 'cycle_test_409',
+      currentRevision: 4,
+      expectedRevision: 2
+    });
+
+    errorHandler(conflictErr, {} as any, mockRes, (() => {}) as any);
+
+    assert.equal(statusCode, 409, 'Status code must be HTTP 409 Conflict');
+    assert.equal(jsonPayload.code, 'CONFLICT');
+    assert.equal(jsonPayload.entityType, 'CYCLE');
+    assert.equal(jsonPayload.entityId, 'cycle_test_409');
+    assert.equal(jsonPayload.currentRevision, 4);
+    assert.equal(jsonPayload.expectedRevision, 2);
+    assert.equal(jsonPayload.serverState, undefined, 'serverState must NOT be present in 409 response');
+  });
+
+  await t.test('12. Fallthrough Prevention on Concurrency Conflicts', async () => {
+    // Mock a prisma client where updateMany returns count: 0 (conflict)
+    const mockPrisma = {
+      cycle: {
+        findFirst: async () => ({
+          id: 'cycle_prisma_1',
+          userId,
+          revision: 3,
+          title: 'چرخه پایگاه اصلی',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }),
+        updateMany: async () => ({ count: 0 })
+      }
+    };
+
+    setPrismaState(mockPrisma, true);
+
+    // Populate memory store with different state
+    memoryStore.cycles = [{
+      id: 'cycle_prisma_1',
+      userId,
+      revision: 1,
+      title: 'چرخه حافظه موقت',
+      startDate: '2026-09-01',
+      endDate: '2026-11-29',
+      createdAt: '2026-09-01T00:00:00.000Z',
+      updatedAt: '2026-09-01T00:00:00.000Z'
+    }];
+
+    // Must throw ConcurrencyConflictError and NOT silently fall through to memoryStore
+    await assert.rejects(
+      async () => {
+        await updateCycle(userId, 'cycle_prisma_1', { title: 'ویرایش بدون فالبک' }, 1);
+      },
+      (err: any) => {
+        assert.ok(err instanceof ConcurrencyConflictError);
+        assert.equal(err.currentRevision, 3);
+        assert.equal(err.expectedRevision, 1);
+        return true;
+      }
+    );
+
+    // Verify memory store was NOT mutated
+    assert.equal(memoryStore.cycles[0].title, 'چرخه حافظه موقت');
+    assert.equal(memoryStore.cycles[0].revision, 1);
+
+    // Restore prisma state
+    setPrismaState(null, false);
   });
 });
