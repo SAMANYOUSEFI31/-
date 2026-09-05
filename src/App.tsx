@@ -37,9 +37,12 @@ import {
   resolveBackendSyncDecision,
   migrateLegacyGlobalQueue,
   enqueueOfflineMutation,
+  normalizeQueueOwner,
   isGuestQueueOwner,
   shouldQueueOfflineMutation
 } from './utils/storageUtils';
+import { getOfflineQueue } from './utils/offlineQueueUtils';
+import { reconcileBootState } from './utils/syncReconciliation';
 import { 
   createSyncOrchestrator, 
   SyncTrigger, 
@@ -365,30 +368,54 @@ export default function App() {
         const activeUserId = fetchedUserProfile?.id || (currentToken ? getActiveAccountId() : null);
         const scopedDemoKey = getScopedDemoConsumedKey(activeUserId);
         const isDemoConsumed = safeGetLocalStorage(scopedDemoKey) === 'true';
-        const syncDecision = resolveBackendSyncDecision({
-          apiCycles,
-          apiLogs,
+
+        // Load only the active owner's offline queue
+        const ownerQueue = activeUserId && !isGuestQueueOwner(activeUserId)
+          ? getOfflineQueue(activeUserId)
+          : [];
+
+        // Safe Boot Reconciliation with Pending Offline Mutations
+        const reconciled = reconcileBootState({
+          authenticatedOwnerId: activeUserId,
+          remoteCycles: apiCycles,
+          remoteLogs: apiLogs,
+          remoteUserProfile: fetchedUserProfile,
+          currentLocalState: {
+            cycles: systemState.cycles,
+            logs: systemState.logs,
+            userProfile: systemState.userProfile
+          },
+          pendingQueue: ownerQueue,
           isDemoConsumed
         });
 
-        if (syncDecision.shouldMarkDemoConsumed) {
+        if (isCancelled) return;
+
+        // Revalidate active identity before committing state (prevent stale boot commitment)
+        const currentActiveOwner = normalizeQueueOwner(activeAccountRef.current);
+        if (activeUserId && currentActiveOwner !== normalizeQueueOwner(activeUserId)) {
+          console.warn(`[SyncReconciliation] Discarding boot hydration for ${activeUserId}; active account changed to ${currentActiveOwner}`);
+          return;
+        }
+
+        if (reconciled.shouldMarkDemoConsumed) {
           safeSetLocalStorage(scopedDemoKey, 'true');
         }
 
-        const { nextCycles, nextLogs, nextActiveCycleId } = syncDecision;
+        const { cycles: reconciledCycles, logs: reconciledLogs, userProfile: reconciledProfile, nextActiveCycleId } = reconciled;
 
         // 3. Batch apply all state updates simultaneously to avoid cascading re-renders
-        if (fetchedUserProfile || nextCycles !== null || nextLogs !== null) {
+        if (reconciledProfile || reconciledCycles !== null || reconciledLogs !== null) {
           setSystemState(prev => ({
             ...prev,
-            userProfile: fetchedUserProfile ? { ...prev.userProfile, ...fetchedUserProfile } : prev.userProfile,
-            cycles: nextCycles !== null ? nextCycles : prev.cycles,
-            logs: nextLogs !== null ? nextLogs : prev.logs
+            userProfile: reconciledProfile ? { ...prev.userProfile, ...reconciledProfile } : prev.userProfile,
+            cycles: reconciledCycles !== null ? reconciledCycles : prev.cycles,
+            logs: reconciledLogs !== null ? reconciledLogs : prev.logs
           }));
 
           if (nextActiveCycleId) {
             setActiveCycleId(prev => {
-              if (!prev || (nextCycles && !nextCycles.some(c => c.id === prev))) {
+              if (!prev || (reconciledCycles && !reconciledCycles.some(c => c.id === prev))) {
                 return nextActiveCycleId!;
               }
               return prev;
