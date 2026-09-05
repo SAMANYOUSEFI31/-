@@ -143,70 +143,47 @@ export async function upsertDailyLog(
     });
 
     if (existing) {
-      if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0)) {
+      if (expectedRevision === undefined || typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0) {
         throw new PreconditionRequiredError({
           entityType: 'DAILY_LOG',
           entityId: existing.id
         });
       }
 
-      if (expectedRevision !== undefined) {
-        const result = await prisma.dailyLog.updateMany({
-          where: {
-            id: existing.id,
-            userId,
-            revision: expectedRevision
-          },
-          data: {
-            cycleId: data.cycleId,
-            wakeUp: Boolean(data.wakeUp),
-            workout: Boolean(data.workout),
-            study: Boolean(data.study),
-            journal: Boolean(data.journal),
-            hardTask: Boolean(data.hardTask),
-            specialMission: Boolean(data.specialMission),
-            failureReason: data.failureReason || null,
-            failureTime: data.failureTime || null,
-            autopsyNotes: data.autopsyNotes || null,
-            countermeasure: data.countermeasure || null,
-            aiFeedback: data.aiFeedback || null,
-            notes: data.notes || null,
-            revision: { increment: 1 },
-            updatedAt: new Date()
-          }
-        });
-
-        if (result.count === 0) {
-          const current = await prisma.dailyLog.findFirst({
-            where: { id: existing.id, userId }
-          });
-          throw new ConcurrencyConflictError({
-            entityType: 'DAILY_LOG',
-            entityId: existing.id,
-            currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
-            expectedRevision
-          });
+      const result = await prisma.dailyLog.updateMany({
+        where: {
+          id: existing.id,
+          userId,
+          revision: expectedRevision
+        },
+        data: {
+          cycleId: data.cycleId,
+          wakeUp: Boolean(data.wakeUp),
+          workout: Boolean(data.workout),
+          study: Boolean(data.study),
+          journal: Boolean(data.journal),
+          hardTask: Boolean(data.hardTask),
+          specialMission: Boolean(data.specialMission),
+          failureReason: data.failureReason || null,
+          failureTime: data.failureTime || null,
+          autopsyNotes: data.autopsyNotes || null,
+          countermeasure: data.countermeasure || null,
+          aiFeedback: data.aiFeedback || null,
+          notes: data.notes || null,
+          revision: { increment: 1 },
+          updatedAt: new Date()
         }
-      } else {
-        await prisma.dailyLog.update({
-          where: { id: existing.id },
-          data: {
-            cycleId: data.cycleId,
-            wakeUp: Boolean(data.wakeUp),
-            workout: Boolean(data.workout),
-            study: Boolean(data.study),
-            journal: Boolean(data.journal),
-            hardTask: Boolean(data.hardTask),
-            specialMission: Boolean(data.specialMission),
-            failureReason: data.failureReason || null,
-            failureTime: data.failureTime || null,
-            autopsyNotes: data.autopsyNotes || null,
-            countermeasure: data.countermeasure || null,
-            aiFeedback: data.aiFeedback || null,
-            notes: data.notes || null,
-            revision: { increment: 1 },
-            updatedAt: new Date()
-          }
+      });
+
+      if (result.count === 0) {
+        const current = await prisma.dailyLog.findFirst({
+          where: { id: existing.id, userId }
+        });
+        throw new ConcurrencyConflictError({
+          entityType: 'DAILY_LOG',
+          entityId: existing.id,
+          currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
+          expectedRevision
         });
       }
 
@@ -283,14 +260,14 @@ export async function upsertDailyLog(
     const existing = memoryStore.dailyLogs[existingIdx];
     const currentRev = existing.revision ?? 1;
 
-    if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0)) {
+    if (expectedRevision === undefined || typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0) {
       throw new PreconditionRequiredError({
         entityType: 'DAILY_LOG',
         entityId: existing.id
       });
     }
 
-    if (expectedRevision !== undefined && currentRev !== expectedRevision) {
+    if (currentRev !== expectedRevision) {
       throw new ConcurrencyConflictError({
         entityType: 'DAILY_LOG',
         entityId: existing.id,
@@ -334,8 +311,8 @@ export async function updateDailyLog(
 ): Promise<DBDailyLog | null> {
   const now = new Date().toISOString();
 
-  // Validate expectedRevision format if provided
-  if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0)) {
+  // Enforce mandatory expectedRevision for optimistic concurrency
+  if (expectedRevision === undefined || typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0) {
     throw new PreconditionRequiredError({
       entityType: 'DAILY_LOG',
       entityId: logId
@@ -376,39 +353,28 @@ export async function updateDailyLog(
       safeData.cycleId = data.cycleId;
     }
 
-    if (expectedRevision !== undefined) {
-      const result = await prisma.dailyLog.updateMany({
-        where: {
-          id: logId,
-          userId,
-          revision: expectedRevision
-        },
-        data: {
-          ...safeData,
-          revision: { increment: 1 },
-          updatedAt: new Date()
-        }
-      });
-
-      if (result.count === 0) {
-        const current = await prisma.dailyLog.findFirst({
-          where: { id: logId, userId }
-        });
-        throw new ConcurrencyConflictError({
-          entityType: 'DAILY_LOG',
-          entityId: logId,
-          currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
-          expectedRevision
-        });
+    const result = await prisma.dailyLog.updateMany({
+      where: {
+        id: logId,
+        userId,
+        revision: expectedRevision
+      },
+      data: {
+        ...safeData,
+        revision: { increment: 1 },
+        updatedAt: new Date()
       }
-    } else {
-      await prisma.dailyLog.update({
-        where: { id: logId },
-        data: {
-          ...safeData,
-          revision: { increment: 1 },
-          updatedAt: new Date()
-        }
+    });
+
+    if (result.count === 0) {
+      const current = await prisma.dailyLog.findFirst({
+        where: { id: logId, userId }
+      });
+      throw new ConcurrencyConflictError({
+        entityType: 'DAILY_LOG',
+        entityId: logId,
+        currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
+        expectedRevision
       });
     }
 
@@ -441,7 +407,7 @@ export async function updateDailyLog(
   }
 
   const currentRev = existing.revision ?? 1;
-  if (expectedRevision !== undefined && currentRev !== expectedRevision) {
+  if (currentRev !== expectedRevision) {
     throw new ConcurrencyConflictError({
       entityType: 'DAILY_LOG',
       entityId: logId,
@@ -466,7 +432,7 @@ export async function updateDailyLog(
 }
 
 export async function deleteDailyLog(userId: string, logId: string, expectedRevision?: number): Promise<boolean> {
-  if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0)) {
+  if (expectedRevision === undefined || typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0) {
     throw new PreconditionRequiredError({
       entityType: 'DAILY_LOG',
       entityId: logId
@@ -479,29 +445,23 @@ export async function deleteDailyLog(userId: string, logId: string, expectedRevi
     });
     if (!existing) return false;
 
-    if (expectedRevision !== undefined) {
-      const result = await prisma.dailyLog.deleteMany({
-        where: {
-          id: logId,
-          userId,
-          revision: expectedRevision
-        }
-      });
-
-      if (result.count === 0) {
-        const current = await prisma.dailyLog.findFirst({
-          where: { id: logId, userId }
-        });
-        throw new ConcurrencyConflictError({
-          entityType: 'DAILY_LOG',
-          entityId: logId,
-          currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
-          expectedRevision
-        });
+    const result = await prisma.dailyLog.deleteMany({
+      where: {
+        id: logId,
+        userId,
+        revision: expectedRevision
       }
-    } else {
-      await prisma.dailyLog.deleteMany({
+    });
+
+    if (result.count === 0) {
+      const current = await prisma.dailyLog.findFirst({
         where: { id: logId, userId }
+      });
+      throw new ConcurrencyConflictError({
+        entityType: 'DAILY_LOG',
+        entityId: logId,
+        currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
+        expectedRevision
       });
     }
     return true;
@@ -513,7 +473,7 @@ export async function deleteDailyLog(userId: string, logId: string, expectedRevi
   const existing = memoryStore.dailyLogs[existingIdx];
   const currentRev = existing.revision ?? 1;
 
-  if (expectedRevision !== undefined && currentRev !== expectedRevision) {
+  if (currentRev !== expectedRevision) {
     throw new ConcurrencyConflictError({
       entityType: 'DAILY_LOG',
       entityId: logId,
@@ -528,7 +488,7 @@ export async function deleteDailyLog(userId: string, logId: string, expectedRevi
 }
 
 export async function deleteDailyLogByDate(userId: string, date: string, expectedRevision?: number): Promise<boolean> {
-  if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0)) {
+  if (expectedRevision === undefined || typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0) {
     throw new PreconditionRequiredError({
       entityType: 'DAILY_LOG'
     });
@@ -540,29 +500,23 @@ export async function deleteDailyLogByDate(userId: string, date: string, expecte
     });
     if (!existing) return false;
 
-    if (expectedRevision !== undefined) {
-      const result = await prisma.dailyLog.deleteMany({
-        where: {
-          id: existing.id,
-          userId,
-          revision: expectedRevision
-        }
-      });
-
-      if (result.count === 0) {
-        const current = await prisma.dailyLog.findFirst({
-          where: { id: existing.id, userId }
-        });
-        throw new ConcurrencyConflictError({
-          entityType: 'DAILY_LOG',
-          entityId: existing.id,
-          currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
-          expectedRevision
-        });
+    const result = await prisma.dailyLog.deleteMany({
+      where: {
+        id: existing.id,
+        userId,
+        revision: expectedRevision
       }
-    } else {
-      await prisma.dailyLog.deleteMany({
+    });
+
+    if (result.count === 0) {
+      const current = await prisma.dailyLog.findFirst({
         where: { id: existing.id, userId }
+      });
+      throw new ConcurrencyConflictError({
+        entityType: 'DAILY_LOG',
+        entityId: existing.id,
+        currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
+        expectedRevision
       });
     }
     return true;
@@ -574,7 +528,7 @@ export async function deleteDailyLogByDate(userId: string, date: string, expecte
   const existing = memoryStore.dailyLogs[existingIdx];
   const currentRev = existing.revision ?? 1;
 
-  if (expectedRevision !== undefined && currentRev !== expectedRevision) {
+  if (currentRev !== expectedRevision) {
     throw new ConcurrencyConflictError({
       entityType: 'DAILY_LOG',
       entityId: existing.id,

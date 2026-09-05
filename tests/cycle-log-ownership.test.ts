@@ -171,19 +171,19 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
       const updateAttempt = await updateCycle(userB, cycleA.id, {
         title: 'تغییر غیرمجاز توسط کاربر B',
         targetTheme: 'crimson'
-      });
+      }, 1);
       assert.equal(updateAttempt, null);
 
       // Non-owner archive
-      const archiveAttempt = await archiveCycle(userB, cycleA.id);
+      const archiveAttempt = await archiveCycle(userB, cycleA.id, 1);
       assert.equal(archiveAttempt, null);
 
       // Non-owner restore
-      const restoreAttempt = await restoreCycle(userB, cycleA.id);
+      const restoreAttempt = await restoreCycle(userB, cycleA.id, 1);
       assert.equal(restoreAttempt, null);
 
       // Non-owner delete
-      const deleteAttempt = await deleteCycle(userB, cycleA.id);
+      const deleteAttempt = await deleteCycle(userB, cycleA.id, 1);
       assert.equal(deleteAttempt, false);
 
       // Persistence unchanged check
@@ -285,15 +285,15 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
       const updateAttempt = await updateDailyLog(userB, logA.id, {
         notes: 'تلاش خرابکاری در یادداشت',
         wakeUp: false
-      });
+      }, 1);
       assert.equal(updateAttempt, null);
 
       // Non-owner delete by ID
-      const deleteById = await deleteDailyLog(userB, logA.id);
+      const deleteById = await deleteDailyLog(userB, logA.id, 1);
       assert.equal(deleteById, false);
 
       // Non-owner delete by Date
-      const deleteByDate = await deleteDailyLogByDate(userB, '2026-09-10');
+      const deleteByDate = await deleteDailyLogByDate(userB, '2026-09-10', 1);
       assert.equal(deleteByDate, false);
 
       // Persistence unchanged: User A log retains all original values
@@ -328,7 +328,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
         async () => {
           await updateDailyLog(userA, logA.id, {
             cycleId: cycleB.id
-          });
+          }, 1);
         },
         (err: any) => {
           assert.equal(err.code, 'CYCLE_NOT_FOUND');
@@ -354,7 +354,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
       const updated = await updateCycle(attackerUser, cycle.id, {
         title: 'عنوان تغییر یافته',
         ...({ userId: userA, id: 'hijacked-id' } as any)
-      });
+      }, 1);
       assert.ok(updated);
       assert.equal(updated.userId, attackerUser);
       assert.equal(updated.id, cycle.id);
@@ -383,7 +383,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
         wakeUp: true
       });
 
-      const deleteRes = await deleteCycle(userA, cycleA.id);
+      const deleteRes = await deleteCycle(userA, cycleA.id, 1);
       assert.equal(deleteRes, true);
 
       // User A records deleted
@@ -474,7 +474,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
             Authorization: `Bearer ${tokenUserA}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ title: 'عنوان به‌روزرسانی‌شده' })
+          body: JSON.stringify({ title: 'عنوان به‌روزرسانی‌شده', expectedRevision: 1 })
         });
         assert.equal(res.status, 200);
         const body: any = await res.json();
@@ -494,7 +494,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
             Authorization: `Bearer ${tokenUserB}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ title: 'تلاش هک توسط کاربر B' })
+          body: JSON.stringify({ title: 'تلاش هک توسط کاربر B', expectedRevision: 1 })
         });
         assert.equal(res.status, 404);
       });
@@ -509,7 +509,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
         const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: 'بدون توکن' })
+          body: JSON.stringify({ title: 'بدون توکن', expectedRevision: 1 })
         });
         assert.equal(res.status, 401);
       });
@@ -529,7 +529,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
             Authorization: `Bearer ${tokenUserB}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ title: 'تلاش تغییر غیرمجاز', targetTheme: 'crimson' })
+          body: JSON.stringify({ title: 'تلاش تغییر غیرمجاز', targetTheme: 'crimson', expectedRevision: 1 })
         });
 
         // Verify cycle is unchanged in store
@@ -554,7 +554,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
         // Archive
         const archRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/archive`, {
           method: 'PUT',
-          headers: { Authorization: `Bearer ${tokenUserA}` }
+          headers: { Authorization: `Bearer ${tokenUserA}`, 'x-expected-revision': '1' }
         });
         assert.equal(archRes.status, 200);
         assert.equal((await archRes.json() as any).cycle.isArchived, true);
@@ -562,7 +562,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
         // Restore
         const restRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/restore`, {
           method: 'PUT',
-          headers: { Authorization: `Bearer ${tokenUserA}` }
+          headers: { Authorization: `Bearer ${tokenUserA}`, 'x-expected-revision': '2' }
         });
         assert.equal(restRes.status, 200);
         assert.equal((await restRes.json() as any).cycle.isArchived, false);
@@ -577,13 +577,13 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
 
         const archRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/archive`, {
           method: 'PUT',
-          headers: { Authorization: `Bearer ${tokenUserB}` }
+          headers: { Authorization: `Bearer ${tokenUserB}`, 'x-expected-revision': '1' }
         });
         assert.equal(archRes.status, 404);
 
         const restRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/restore`, {
           method: 'PUT',
-          headers: { Authorization: `Bearer ${tokenUserB}` }
+          headers: { Authorization: `Bearer ${tokenUserB}`, 'x-expected-revision': '1' }
         });
         assert.equal(restRes.status, 404);
       });
@@ -595,10 +595,16 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
           endDate: '2026-09-30'
         });
 
-        const archRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/archive`, { method: 'PUT' });
+        const archRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/archive`, {
+          method: 'PUT',
+          headers: { 'x-expected-revision': '1' }
+        });
         assert.equal(archRes.status, 401);
 
-        const restRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/restore`, { method: 'PUT' });
+        const restRes = await fetch(`${baseUrl}/api/cycles/${cycle.id}/restore`, {
+          method: 'PUT',
+          headers: { 'x-expected-revision': '1' }
+        });
         assert.equal(restRes.status, 401);
       });
 
@@ -611,7 +617,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
 
         await fetch(`${baseUrl}/api/cycles/${cycle.id}/archive`, {
           method: 'PUT',
-          headers: { Authorization: `Bearer ${tokenUserB}` }
+          headers: { Authorization: `Bearer ${tokenUserB}`, 'x-expected-revision': '1' }
         });
 
         const verify = await getCycleById(userA, cycle.id);
@@ -633,7 +639,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
 
         const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${tokenUserA}` }
+          headers: { Authorization: `Bearer ${tokenUserA}`, 'x-expected-revision': '1' }
         });
         assert.equal(res.status, 200);
 
@@ -650,7 +656,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
 
         const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${tokenUserB}` }
+          headers: { Authorization: `Bearer ${tokenUserB}`, 'x-expected-revision': '1' }
         });
         assert.equal(res.status, 404);
       });
@@ -662,7 +668,10 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
           endDate: '2026-09-30'
         });
 
-        const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`, { method: 'DELETE' });
+        const res = await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
+          method: 'DELETE',
+          headers: { 'x-expected-revision': '1' }
+        });
         assert.equal(res.status, 401);
       });
 
@@ -675,7 +684,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
 
         await fetch(`${baseUrl}/api/cycles/${cycle.id}`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${tokenUserB}` }
+          headers: { Authorization: `Bearer ${tokenUserB}`, 'x-expected-revision': '1' }
         });
 
         const verify = await getCycleById(userA, cycle.id);
@@ -872,7 +881,8 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
           body: JSON.stringify({
             wakeUp: true,
             workout: true,
-            notes: 'یادداشت جدید سامورایی'
+            notes: 'یادداشت جدید سامورایی',
+            expectedRevision: 1
           })
         });
         assert.equal(res.status, 200);
@@ -900,7 +910,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
             Authorization: `Bearer ${tokenUserB}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ wakeUp: false })
+          body: JSON.stringify({ wakeUp: false, expectedRevision: 1 })
         });
         assert.equal(res.status, 404);
       });
@@ -920,7 +930,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
         const res = await fetch(`${baseUrl}/api/logs/${log.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ wakeUp: false })
+          body: JSON.stringify({ wakeUp: false, expectedRevision: 1 })
         });
         assert.equal(res.status, 401);
       });
@@ -945,7 +955,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
             Authorization: `Bearer ${tokenUserB}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ wakeUp: false, notes: 'تخریب توسط هکر' })
+          body: JSON.stringify({ wakeUp: false, notes: 'تخریب توسط هکر', expectedRevision: 1 })
         });
 
         // Verify in DB
@@ -978,7 +988,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
             Authorization: `Bearer ${tokenUserA}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ cycleId: cycleB.id })
+          body: JSON.stringify({ cycleId: cycleB.id, expectedRevision: 1 })
         });
         assert.equal(res.status, 404);
         const body: any = await res.json();
@@ -1009,7 +1019,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
 
         const res = await fetch(`${baseUrl}/api/logs/${log.id}`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${tokenUserA}` }
+          headers: { Authorization: `Bearer ${tokenUserA}`, 'x-expected-revision': '1' }
         });
         assert.equal(res.status, 200);
 
@@ -1031,7 +1041,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
 
         const res = await fetch(`${baseUrl}/api/logs/${log.id}`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${tokenUserB}` }
+          headers: { Authorization: `Bearer ${tokenUserB}`, 'x-expected-revision': '1' }
         });
         assert.equal(res.status, 404);
       });
@@ -1048,7 +1058,10 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
           wakeUp: true
         });
 
-        const res = await fetch(`${baseUrl}/api/logs/${log.id}`, { method: 'DELETE' });
+        const res = await fetch(`${baseUrl}/api/logs/${log.id}`, {
+          method: 'DELETE',
+          headers: { 'x-expected-revision': '1' }
+        });
         assert.equal(res.status, 401);
       });
 
@@ -1068,7 +1081,7 @@ describe('Phase 3A.2: Server-Side Cycle and DailyLog Ownership Integrity Suite',
         // Non-owner delete attempt
         await fetch(`${baseUrl}/api/logs/${log.id}`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${tokenUserB}` }
+          headers: { Authorization: `Bearer ${tokenUserB}`, 'x-expected-revision': '1' }
         });
 
         // Verify log is still in database

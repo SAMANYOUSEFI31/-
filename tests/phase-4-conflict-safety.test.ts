@@ -96,11 +96,19 @@ test('Phase 4: Multi-device Conflict Safety & Optimistic Concurrency', async (t)
     }, 2);
     assert.equal(updated2?.revision, 3, 'Revision must be incremented to 3');
 
-    // Unconditional update (no expectedRevision supplied) succeeds and increments to 4
-    const updated3 = await updateCycle(userId, cycle.id, {
-      title: 'چرخه بدون شرط نسخه'
-    });
-    assert.equal(updated3?.revision, 4, 'Unconditional update must increment revision');
+    // Missing expectedRevision must throw PreconditionRequiredError (428)
+    await assert.rejects(
+      async () => {
+        await updateCycle(userId, cycle.id, { title: 'چرخه بدون شرط نسخه' });
+      },
+      (err: any) => {
+        assert.ok(err instanceof PreconditionRequiredError, 'Missing expectedRevision must throw PreconditionRequiredError');
+        assert.equal(err.code, 'PRECONDITION_REQUIRED');
+        assert.equal(err.entityType, 'CYCLE');
+        assert.equal(err.entityId, cycle.id);
+        return true;
+      }
+    );
   });
 
   await t.test('2. Atomic Conditional Deletions on Cycles', async () => {
@@ -447,16 +455,21 @@ test('Phase 4: Multi-device Conflict Safety & Optimistic Concurrency', async (t)
       }
     );
 
-    // Non-integer float revision
+    // Missing/undefined revision
     await assert.rejects(
       async () => {
-        await updateCycle(userId, cycle.id, { title: 'عنوان جدید' }, 1.5 as any);
+        await updateCycle(userId, cycle.id, { title: 'عنوان جدید' }, undefined);
       },
       (err: any) => {
         assert.ok(err instanceof PreconditionRequiredError);
+        assert.equal(err.code, 'PRECONDITION_REQUIRED');
         return true;
       }
     );
+
+    // HTTP 428 classification check
+    const preconditionClassification = classifyReplayResponse(428, 'UPDATE_CYCLE');
+    assert.equal(preconditionClassification, 'PRECONDITION_REQUIRED', 'HTTP 428 must classify as PRECONDITION_REQUIRED');
   });
 
   await t.test('10. Cross-Tenant Concurrency and Isolation Under Concurrent Writes', async () => {

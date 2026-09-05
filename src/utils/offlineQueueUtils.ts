@@ -388,6 +388,9 @@ export function classifyReplayResponse(
   if (status === 409) {
     return 'CONFLICT_DEFERRED';
   }
+  if (status === 428) {
+    return 'PRECONDITION_REQUIRED';
+  }
   if (status === 429) {
     return 'RATE_LIMITED';
   }
@@ -1509,6 +1512,30 @@ async function executeReplayLoop(
         removeReplayedQueueItems(initialOwner, [item.id]);
         failedCount++;
         options.onItemFailure?.(quarantinedItem, new Error('HTTP 409 Conflict'));
+        continue;
+      }
+
+      // Branch 4b: PRECONDITION_REQUIRED (428) -> Missing/invalid expectedRevision quarantined immediately
+      if (classification === 'PRECONDITION_REQUIRED') {
+        let preconditionDetails: any = null;
+        try {
+          if (typeof res?.clone === 'function') {
+            preconditionDetails = await res.clone().json();
+          } else if (typeof res?.json === 'function') {
+            preconditionDetails = await res.json();
+          }
+        } catch {}
+
+        const quarantinedItem: OfflineQueueItem = {
+          ...item,
+          classification: 'PRECONDITION_REQUIRED',
+          lastError: preconditionDetails?.messageFa || 'عملیات به دلیل عدم ارسال نسخه مورد انتظار (HTTP 428) متوقف شد.'
+        };
+
+        quarantineQueueItems([quarantinedItem], 'HTTP 428 Precondition Required - missing or invalid expectedRevision', initialOwner);
+        removeReplayedQueueItems(initialOwner, [item.id]);
+        failedCount++;
+        options.onItemFailure?.(quarantinedItem, new Error('HTTP 428 Precondition Required'));
         continue;
       }
 

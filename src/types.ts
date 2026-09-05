@@ -292,6 +292,7 @@ export type ReplayFailureClassification =
   | 'FORBIDDEN'
   | 'VALIDATION_ERROR'
   | 'CONFLICT_DEFERRED'
+  | 'PRECONDITION_REQUIRED'
   | 'RATE_LIMITED'
   | 'SERVER_RETRYABLE'
   | 'NETWORK_ERROR'

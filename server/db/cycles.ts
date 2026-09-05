@@ -159,8 +159,8 @@ export async function updateCycle(
 ): Promise<DBCycle | null> {
   const now = new Date().toISOString();
 
-  // Validate expectedRevision format if provided
-  if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0)) {
+  // Enforce mandatory expectedRevision for optimistic concurrency
+  if (expectedRevision === undefined || typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0) {
     throw new PreconditionRequiredError({
       entityType: 'CYCLE',
       entityId: cycleId
@@ -185,39 +185,28 @@ export async function updateCycle(
     });
     if (!existing) return null;
 
-    if (expectedRevision !== undefined) {
-      const result = await prisma.cycle.updateMany({
-        where: {
-          id: cycleId,
-          userId,
-          revision: expectedRevision
-        },
-        data: {
-          ...safeData,
-          revision: { increment: 1 },
-          updatedAt: new Date()
-        }
-      });
-
-      if (result.count === 0) {
-        const current = await prisma.cycle.findFirst({
-          where: { id: cycleId, userId }
-        });
-        throw new ConcurrencyConflictError({
-          entityType: 'CYCLE',
-          entityId: cycleId,
-          currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
-          expectedRevision
-        });
+    const result = await prisma.cycle.updateMany({
+      where: {
+        id: cycleId,
+        userId,
+        revision: expectedRevision
+      },
+      data: {
+        ...safeData,
+        revision: { increment: 1 },
+        updatedAt: new Date()
       }
-    } else {
-      await prisma.cycle.update({
-        where: { id: cycleId },
-        data: {
-          ...safeData,
-          revision: { increment: 1 },
-          updatedAt: new Date()
-        }
+    });
+
+    if (result.count === 0) {
+      const current = await prisma.cycle.findFirst({
+        where: { id: cycleId, userId }
+      });
+      throw new ConcurrencyConflictError({
+        entityType: 'CYCLE',
+        entityId: cycleId,
+        currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
+        expectedRevision
       });
     }
 
@@ -238,7 +227,7 @@ export async function updateCycle(
   const existing = memoryStore.cycles[idx];
   const currentRev = existing.revision ?? 1;
 
-  if (expectedRevision !== undefined && currentRev !== expectedRevision) {
+  if (currentRev !== expectedRevision) {
     throw new ConcurrencyConflictError({
       entityType: 'CYCLE',
       entityId: cycleId,
@@ -271,7 +260,7 @@ export async function restoreCycle(userId: string, cycleId: string, expectedRevi
 }
 
 export async function deleteCycle(userId: string, cycleId: string, expectedRevision?: number): Promise<boolean> {
-  if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0)) {
+  if (expectedRevision === undefined || typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision <= 0) {
     throw new PreconditionRequiredError({
       entityType: 'CYCLE',
       entityId: cycleId
@@ -285,29 +274,23 @@ export async function deleteCycle(userId: string, cycleId: string, expectedRevis
       });
       if (!existing) return false;
 
-      if (expectedRevision !== undefined) {
-        const result = await tx.cycle.deleteMany({
-          where: {
-            id: cycleId,
-            userId,
-            revision: expectedRevision
-          }
-        });
-
-        if (result.count === 0) {
-          const current = await tx.cycle.findFirst({
-            where: { id: cycleId, userId }
-          });
-          throw new ConcurrencyConflictError({
-            entityType: 'CYCLE',
-            entityId: cycleId,
-            currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
-            expectedRevision
-          });
+      const result = await tx.cycle.deleteMany({
+        where: {
+          id: cycleId,
+          userId,
+          revision: expectedRevision
         }
-      } else {
-        await tx.cycle.deleteMany({
+      });
+
+      if (result.count === 0) {
+        const current = await tx.cycle.findFirst({
           where: { id: cycleId, userId }
+        });
+        throw new ConcurrencyConflictError({
+          entityType: 'CYCLE',
+          entityId: cycleId,
+          currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
+          expectedRevision
         });
       }
 
@@ -322,7 +305,7 @@ export async function deleteCycle(userId: string, cycleId: string, expectedRevis
   const existing = memoryStore.cycles[existingIdx];
   const currentRev = existing.revision ?? 1;
 
-  if (expectedRevision !== undefined && currentRev !== expectedRevision) {
+  if (currentRev !== expectedRevision) {
     throw new ConcurrencyConflictError({
       entityType: 'CYCLE',
       entityId: cycleId,

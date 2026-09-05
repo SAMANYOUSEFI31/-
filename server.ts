@@ -811,6 +811,11 @@ function parseExpectedRevision(req: express.Request): number | undefined {
       if (num > 0) return num;
     }
   }
+  const xExpectedRevision = req.headers['x-expected-revision'];
+  if (typeof xExpectedRevision === 'string' && /^\d+$/.test(xExpectedRevision)) {
+    const num = parseInt(xExpectedRevision, 10);
+    if (num > 0) return num;
+  }
   return undefined;
 }
 

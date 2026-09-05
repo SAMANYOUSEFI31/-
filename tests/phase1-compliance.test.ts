@@ -295,11 +295,11 @@ describe('Phase 1 Core Compliance & Acceptance Criteria Verification', () => {
       // User A attempts to update User B's cycle -> Must return null (rejected)
       const tamperedUpdate = await updateCycle(userAId, cycleB.id, {
         title: 'دستکاری مخرب'
-      });
+      }, 1);
       assert.equal(tamperedUpdate, null, 'User A must not be able to mutate User B cycle');
 
       // User A attempts to delete User B's cycle -> Must return false (rejected)
-      const tamperedDelete = await deleteCycle(userAId, cycleB.id);
+      const tamperedDelete = await deleteCycle(userAId, cycleB.id, 1);
       assert.equal(tamperedDelete, false, 'User A must not be able to delete User B cycle');
 
       // User B cycle remains untouched
