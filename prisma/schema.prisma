@@ -125,6 +125,8 @@ model DailyLog {
   aiFeedback     String?
   notes          String?
   
+  lastClientOperationId String?
+  
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 

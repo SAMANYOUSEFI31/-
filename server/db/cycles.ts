@@ -11,19 +11,15 @@ import {
 
 export async function getUserCycles(userId: string): Promise<DBCycle[]> {
   if (isPrismaAvailable && prisma) {
-    try {
-      const cycles = await prisma.cycle.findMany({
-        where: { userId },
-        orderBy: { startDate: 'asc' }
-      });
-      return cycles.map((c: any) => ({
-        ...c,
-        revision: c.revision ?? 1,
-        rules: Array.isArray(c.rules) ? c.rules : []
-      }));
-    } catch (e) {
-      console.warn('[Database] Prisma getUserCycles failed, checking local store:', e);
-    }
+    const cycles = await prisma.cycle.findMany({
+      where: { userId },
+      orderBy: { startDate: 'asc' }
+    });
+    return cycles.map((c: any) => ({
+      ...c,
+      revision: c.revision ?? 1,
+      rules: Array.isArray(c.rules) ? c.rules : []
+    }));
   }
 
   const cycles = memoryStore.cycles.filter(c => c.userId === userId);
@@ -34,19 +30,15 @@ export async function getUserCycles(userId: string): Promise<DBCycle[]> {
 
 export async function getCycleById(userId: string, cycleId: string): Promise<DBCycle | null> {
   if (isPrismaAvailable && prisma) {
-    try {
-      const cycle = await prisma.cycle.findFirst({
-        where: { id: cycleId, userId }
-      });
-      if (!cycle) return null;
-      return {
-        ...cycle,
-        revision: cycle.revision ?? 1,
-        rules: Array.isArray(cycle.rules) ? cycle.rules : []
-      };
-    } catch (e) {
-      console.warn('[Database] Prisma getCycleById failed, checking local store:', e);
-    }
+    const cycle = await prisma.cycle.findFirst({
+      where: { id: cycleId, userId }
+    });
+    if (!cycle) return null;
+    return {
+      ...cycle,
+      revision: cycle.revision ?? 1,
+      rules: Array.isArray(cycle.rules) ? cycle.rules : []
+    };
   }
 
   const cycle = memoryStore.cycles.find(c => c.id === cycleId && c.userId === userId);

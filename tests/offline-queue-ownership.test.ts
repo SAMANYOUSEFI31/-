@@ -182,7 +182,7 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
           auth: init?.headers?.Authorization || '',
           body: init?.body ? JSON.parse(init.body) : null
         });
-        return { ok: true, status: 200, json: async () => ({ success: true }) } as any;
+        return { ok: true, status: 200, json: async () => { const b = typeof init !== 'undefined' && init?.body ? JSON.parse(init.body) : {}; return { success: true, log: { date: b.date || b.id || '1403-12-01', cycleId: 'cyc_test', revision: 2, wakeUp: true, workout: true, study: false, journal: false, hardTask: false, specialMission: false }, cycle: { id: b.id || b.date || 'cyc_test', revision: 2, title: 'test', startDate: '2026-09-01', endDate: '2026-09-30' } }; } } as any;
       };
 
       const replayResult = await replayAccountOfflineQueue({
@@ -225,7 +225,7 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
           // Mid-flight account transition simulates another user logging in before response completes
           currentActiveUser = 'user-beta';
         }
-        return { ok: true, status: 200, json: async () => ({ success: true }) } as any;
+        return { ok: true, status: 200, json: async () => { const b = typeof init !== 'undefined' && init?.body ? JSON.parse(init.body) : {}; return { success: true, log: { date: b.date || b.id || '1403-12-01', cycleId: 'cyc_test', revision: 2, wakeUp: true, workout: true, study: false, journal: false, hardTask: false, specialMission: false }, cycle: { id: b.id || b.date || 'cyc_test', revision: 2, title: 'test', startDate: '2026-09-01', endDate: '2026-09-30' } }; } } as any;
       };
 
       const result = await replayAccountOfflineQueue({
@@ -258,7 +258,7 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
 
       clearQuarantine();
 
-      const mockFetch = async () => {
+      const mockFetch = async (url?: any, init?: any) => {
         assert.fail('Should never make server request for mismatched owner item');
       };
 
@@ -282,7 +282,7 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
         payload: { date: '1405-06-15', score: 10 }
       });
 
-      const mockFetch = async () => {
+      const mockFetch = async (url?: any, init?: any) => {
         return { ok: false, status: 401, json: async () => ({ error: 'Unauthorized' }) } as any;
       };
 
@@ -304,7 +304,7 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
         payload: { date: '1405-06-16', score: 8 }
       });
 
-      const mockFetch = async () => {
+      const mockFetch = async (url?: any, init?: any) => {
         return { ok: false, status: 500, json: async () => ({ error: 'Database Error' }) } as any;
       };
 
@@ -329,7 +329,7 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
         payload: { id: 'cycle-already-deleted' }
       });
 
-      const mockFetch = async () => {
+      const mockFetch = async (url?: any, init?: any) => {
         return { ok: false, status: 404, json: async () => ({ error: 'Not found' }) } as any;
       };
 
@@ -466,7 +466,7 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
         return {
           ok: true,
           status: 200,
-          json: async () => ({ success: true })
+          json: async () => { const b = typeof init !== 'undefined' && init?.body ? JSON.parse(init.body) : {}; return { success: true, log: { date: b.date || b.id || '1403-12-01', cycleId: 'cyc_test', revision: 2, wakeUp: true, workout: true, study: false, journal: false, hardTask: false, specialMission: false }, cycle: { id: b.id || b.date || 'cyc_test', revision: 2, title: 'test', startDate: '2026-09-01', endDate: '2026-09-30' } }; }
         } as any;
       };
 
@@ -510,7 +510,7 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
         return {
           ok: true,
           status: 200,
-          json: async () => ({ success: true })
+          json: async () => { const b = typeof init !== 'undefined' && init?.body ? JSON.parse(init.body) : {}; return { success: true, log: { date: b.date || b.id || '1403-12-01', cycleId: 'cyc_test', revision: 2, wakeUp: true, workout: true, study: false, journal: false, hardTask: false, specialMission: false }, cycle: { id: b.id || b.date || 'cyc_test', revision: 2, title: 'test', startDate: '2026-09-01', endDate: '2026-09-30' } }; }
         } as any;
       };
 
@@ -555,7 +555,7 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
         return {
           ok: true,
           status: 200,
-          json: async () => ({ success: true })
+          json: async () => { const b = typeof init !== 'undefined' && init?.body ? JSON.parse(init.body) : {}; return { success: true, log: { date: b.date || b.id || '1403-12-01', cycleId: 'cyc_test', revision: 2, wakeUp: true, workout: true, study: false, journal: false, hardTask: false, specialMission: false }, cycle: { id: b.id || b.date || 'cyc_test', revision: 2, title: 'test', startDate: '2026-09-01', endDate: '2026-09-30' } }; }
         } as any;
       };
 
@@ -588,12 +588,12 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
 
       // Admin exits impersonation -> triggers explicit replay for admin
       let fetchCalls = 0;
-      const mockFetch = async () => {
+      const mockFetch = async (url?: any, init?: any) => {
         fetchCalls++;
         return {
           ok: true,
           status: 200,
-          json: async () => ({ success: true })
+          json: async () => { const b = typeof init !== 'undefined' && init?.body ? JSON.parse(init.body) : {}; return { success: true, log: { date: b.date || b.id || '1403-12-01', cycleId: 'cyc_test', revision: 2, wakeUp: true, workout: true, study: false, journal: false, hardTask: false, specialMission: false }, cycle: { id: b.id || b.date || 'cyc_test', revision: 2, title: 'test', startDate: '2026-09-01', endDate: '2026-09-30' } }; }
         } as any;
       };
 
@@ -616,7 +616,7 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
       });
 
       let fetchAttempted = false;
-      const mockFetch = async () => {
+      const mockFetch = async (url?: any, init?: any) => {
         fetchAttempted = true;
         assert.fail('Should never invoke fetch for tokenless or guest sessions');
       };
@@ -693,12 +693,12 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
       let activeAccountA = 'user-alpha';
       let callCountA = 0;
 
-      const mockFetchA = async () => {
+      const mockFetchA = async (url?: any, init?: any) => {
         callCountA++;
         return {
           ok: true,
           status: 200,
-          json: async () => ({ success: true })
+          json: async () => { const b = typeof init !== 'undefined' && init?.body ? JSON.parse(init.body) : {}; return { success: true, log: { date: b.date || b.id || '1403-12-01', cycleId: 'cyc_test', revision: 2, wakeUp: true, workout: true, study: false, journal: false, hardTask: false, specialMission: false }, cycle: { id: b.id || b.date || 'cyc_test', revision: 2, title: 'test', startDate: '2026-09-01', endDate: '2026-09-30' } }; }
         } as any;
       };
 
@@ -729,13 +729,13 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
       });
 
       let activeAccountB = 'user-delta';
-      const mockFetchB = async () => {
+      const mockFetchB = async (url?: any, init?: any) => {
         // Account changes while HTTP request is in-flight on the wire
         activeAccountB = 'user-epsilon';
         return {
           ok: true,
           status: 200,
-          json: async () => ({ success: true })
+          json: async () => { const b = typeof init !== 'undefined' && init?.body ? JSON.parse(init.body) : {}; return { success: true, log: { date: b.date || b.id || '1403-12-01', cycleId: 'cyc_test', revision: 2, wakeUp: true, workout: true, study: false, journal: false, hardTask: false, specialMission: false }, cycle: { id: b.id || b.date || 'cyc_test', revision: 2, title: 'test', startDate: '2026-09-01', endDate: '2026-09-30' } }; }
         } as any;
       };
 
@@ -868,9 +868,9 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
 
       // User logs out (active account becomes null / guest)
       let networkCalls = 0;
-      const mockFetch = async () => {
+      const mockFetch = async (url?: any, init?: any) => {
         networkCalls++;
-        return { ok: true, status: 200, json: async () => ({}) } as any;
+        return { ok: true, status: 200, json: async () => { const b = typeof init !== 'undefined' && init?.body ? JSON.parse(init.body) : {}; return { success: true, log: { date: b.date || b.id || '1403-12-01', cycleId: 'cyc_test', revision: 2, wakeUp: true, workout: true, study: false, journal: false, hardTask: false, specialMission: false }, cycle: { id: b.id || b.date || 'cyc_test', revision: 2, title: 'test', startDate: '2026-09-01', endDate: '2026-09-30' } }; } } as any;
       };
 
       // Replay in logged-out / guest state
@@ -1137,9 +1137,9 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
       assert.equal(getOfflineQueue(owner).length, 0);
 
       let fetchInvoked = false;
-      const mockFetch = async () => {
+      const mockFetch = async (url?: any, init?: any) => {
         fetchInvoked = true;
-        return { ok: true, status: 200, json: async () => ({}) } as any;
+        return { ok: true, status: 200, json: async () => { const b = typeof init !== 'undefined' && init?.body ? JSON.parse(init.body) : {}; return { success: true, log: { date: b.date || b.id || '1403-12-01', cycleId: 'cyc_test', revision: 2, wakeUp: true, workout: true, study: false, journal: false, hardTask: false, specialMission: false }, cycle: { id: b.id || b.date || 'cyc_test', revision: 2, title: 'test', startDate: '2026-09-01', endDate: '2026-09-30' } }; } } as any;
       };
 
       const result = await replayAccountOfflineQueue({

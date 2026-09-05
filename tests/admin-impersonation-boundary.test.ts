@@ -677,7 +677,7 @@ describe('Phase 3A.5: Admin & Impersonation Boundary Suite', () => {
   });
 
   it('21. Fail-safe exit: temporary network failure preserves recoverable token without premature destruction', async () => {
-    const mockNetworkFailureFetch = async () => {
+    const mockNetworkFailureFetch = async (url?: any, init?: any) => {
       throw new TypeError('Failed to fetch: Network error');
     };
 
@@ -861,7 +861,7 @@ describe('Phase 3A.5: Admin & Impersonation Boundary Suite', () => {
 
   it('28. 502 Bad Gateway and 504 Gateway Timeout return TEMPORARY_SERVER_ERROR and preserve recovery token', async () => {
     for (const status of [502, 504]) {
-      const mockFetch = async () => {
+      const mockFetch = async (url?: any, init?: any) => {
         return new Response('Gateway Error', { status });
       };
 
@@ -916,7 +916,7 @@ describe('Phase 3A.5: Admin & Impersonation Boundary Suite', () => {
   });
 
   it('30. 401 Unauthorized still clears unsafe authentication state (AUTH_REVOKED)', async () => {
-    const mock401Fetch = async () => {
+    const mock401Fetch = async (url?: any, init?: any) => {
       return new Response(JSON.stringify({ code: 'UNAUTHORIZED' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }

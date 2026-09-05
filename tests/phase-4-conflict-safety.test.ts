@@ -1052,7 +1052,7 @@ test('Phase 4: Multi-device Conflict Safety & Optimistic Concurrency', async (t)
           ok: true,
           json: async () => ({
             ok: true,
-            cycle: { id: 'cycle_chain_1', title: 'عنوان گام اول', revision: 2 }
+            cycle: { id: 'cycle_chain_1', title: 'عنوان گام اول', revision: 2, startDate: '2026-09-01', endDate: '2026-09-30' }
           })
         } as any;
       } else {
@@ -1063,7 +1063,7 @@ test('Phase 4: Multi-device Conflict Safety & Optimistic Concurrency', async (t)
           ok: true,
           json: async () => ({
             ok: true,
-            cycle: { id: 'cycle_chain_1', title: 'عنوان گام دوم', revision: 3 }
+            cycle: { id: 'cycle_chain_1', title: 'عنوان گام دوم', revision: 3, startDate: '2026-09-01', endDate: '2026-09-30' }
           })
         } as any;
       }

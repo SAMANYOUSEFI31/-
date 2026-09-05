@@ -10,7 +10,7 @@
  */
 
 import { Cycle, DailyLog } from '../types';
-import { normalizeQueueOwner } from './offlineQueueUtils';
+import { normalizeQueueOwner, isValidLogResponse, isValidCycleResponse } from './offlineQueueUtils';
 
 export interface OptimisticUpdateResult<T> {
   nextState: T[];
@@ -287,12 +287,15 @@ export function applyReplayItemToActiveState(
 
   if (item.type === 'UPDATE_LOG') {
     const serverLog = serverResult?.log || serverResult;
-    const targetDate = item.payload?.date || serverLog?.date;
+    const targetDate = item.payload?.date;
+    if (!isValidLogResponse(serverLog, targetDate)) {
+      return currentState;
+    }
     const nextLogs = logs.map(l => {
       if (l.date === targetDate) {
         return {
           ...l,
-          ...(serverLog && typeof serverLog === 'object' ? serverLog : {}),
+          ...serverLog,
           isSynced: true
         };
       }
@@ -303,7 +306,10 @@ export function applyReplayItemToActiveState(
 
   if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
     const serverCycle = serverResult?.cycle || serverResult;
-    const targetId = serverCycle?.id || item.payload?.id || item.id;
+    const targetId = item.payload?.id || item.id;
+    if (!isValidCycleResponse(serverCycle, targetId)) {
+      return currentState;
+    }
     const exists = cycles.some(c => c.id === targetId);
 
     let nextCycles: Cycle[];
@@ -312,16 +318,14 @@ export function applyReplayItemToActiveState(
         if (c.id === targetId) {
           return {
             ...c,
-            ...(serverCycle && typeof serverCycle === 'object' ? serverCycle : {}),
+            ...serverCycle,
             isSynced: true
           };
         }
         return c;
       });
-    } else if (serverCycle && typeof serverCycle === 'object') {
-      nextCycles = [...cycles, { ...serverCycle, isSynced: true }];
     } else {
-      nextCycles = cycles;
+      nextCycles = [...cycles, { ...serverCycle, isSynced: true }];
     }
     return { cycles: nextCycles, logs };
   }

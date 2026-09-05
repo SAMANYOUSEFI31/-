@@ -10,33 +10,29 @@ import {
 
 export async function getUserDailyLogs(userId: string, cycleId?: string): Promise<DBDailyLog[]> {
   if (isPrismaAvailable && prisma) {
-    try {
-      if (cycleId) {
-        // Enforce parent cycle ownership before returning logs
-        const parentCycle = await prisma.cycle.findFirst({
-          where: { id: cycleId, userId }
-        });
-        if (!parentCycle) {
-          return [];
-        }
-      }
-
-      const logs = await prisma.dailyLog.findMany({
-        where: {
-          userId,
-          ...(cycleId ? { cycleId } : {})
-        },
-        orderBy: { date: 'asc' }
+    if (cycleId) {
+      // Enforce parent cycle ownership before returning logs
+      const parentCycle = await prisma.cycle.findFirst({
+        where: { id: cycleId, userId }
       });
-      return logs.map((l: any) => ({
-        ...l,
-        revision: l.revision ?? 1,
-        createdAt: l.createdAt instanceof Date ? l.createdAt.toISOString() : l.createdAt,
-        updatedAt: l.updatedAt instanceof Date ? l.updatedAt.toISOString() : l.updatedAt
-      }));
-    } catch (e) {
-      console.warn('[Database] Prisma getUserDailyLogs failed, checking local store:', e);
+      if (!parentCycle) {
+        return [];
+      }
     }
+
+    const logs = await prisma.dailyLog.findMany({
+      where: {
+        userId,
+        ...(cycleId ? { cycleId } : {})
+      },
+      orderBy: { date: 'asc' }
+    });
+    return logs.map((l: any) => ({
+      ...l,
+      revision: l.revision ?? 1,
+      createdAt: l.createdAt instanceof Date ? l.createdAt.toISOString() : l.createdAt,
+      updatedAt: l.updatedAt instanceof Date ? l.updatedAt.toISOString() : l.updatedAt
+    }));
   }
 
   if (cycleId) {
@@ -59,20 +55,16 @@ export async function getUserDailyLogs(userId: string, cycleId?: string): Promis
 
 export async function getDailyLogById(userId: string, logId: string): Promise<DBDailyLog | null> {
   if (isPrismaAvailable && prisma) {
-    try {
-      const log = await prisma.dailyLog.findFirst({
-        where: { id: logId, userId }
-      });
-      if (!log) return null;
-      return {
-        ...log,
-        revision: log.revision ?? 1,
-        createdAt: log.createdAt instanceof Date ? log.createdAt.toISOString() : log.createdAt,
-        updatedAt: log.updatedAt instanceof Date ? log.updatedAt.toISOString() : log.updatedAt
-      };
-    } catch (e) {
-      console.warn('[Database] Prisma getDailyLogById failed, checking local store:', e);
-    }
+    const log = await prisma.dailyLog.findFirst({
+      where: { id: logId, userId }
+    });
+    if (!log) return null;
+    return {
+      ...log,
+      revision: log.revision ?? 1,
+      createdAt: log.createdAt instanceof Date ? log.createdAt.toISOString() : log.createdAt,
+      updatedAt: log.updatedAt instanceof Date ? log.updatedAt.toISOString() : log.updatedAt
+    };
   }
 
   const log = memoryStore.dailyLogs.find(l => l.id === logId && l.userId === userId);
@@ -81,31 +73,24 @@ export async function getDailyLogById(userId: string, logId: string): Promise<DB
 
 export async function getDailyLogByDate(userId: string, date: string): Promise<DBDailyLog | null> {
   if (isPrismaAvailable && prisma) {
-    try {
-      const log = await prisma.dailyLog.findFirst({
-        where: { date, userId }
-      });
-      if (!log) return null;
-      return {
-        ...log,
-        revision: log.revision ?? 1,
-        createdAt: log.createdAt instanceof Date ? log.createdAt.toISOString() : log.createdAt,
-        updatedAt: log.updatedAt instanceof Date ? log.updatedAt.toISOString() : log.updatedAt
-      };
-    } catch (e) {
-      console.warn('[Database] Prisma getDailyLogByDate failed, checking local store:', e);
-    }
+    const log = await prisma.dailyLog.findFirst({
+      where: { date, userId }
+    });
+    if (!log) return null;
+    return {
+      ...log,
+      revision: log.revision ?? 1,
+      createdAt: log.createdAt instanceof Date ? log.createdAt.toISOString() : log.createdAt,
+      updatedAt: log.updatedAt instanceof Date ? log.updatedAt.toISOString() : log.updatedAt
+    };
   }
 
   const log = memoryStore.dailyLogs.find(l => l.date === date && l.userId === userId);
   return log ? { ...log, revision: log.revision ?? 1 } : null;
 }
 
-// Tracks clientOperationId for daily logs: key = `${userId}:${date}` -> clientOperationId
-const logOperationIdMap = new Map<string, string>();
-
 export function clearDailyLogOperationIds() {
-  logOperationIdMap.clear();
+  // logOperationIdMap removed
 }
 
 export async function upsertDailyLog(
@@ -152,8 +137,7 @@ export async function upsertDailyLog(
     });
 
     if (existing) {
-      const opKey = `${userId}:${data.date}`;
-      const lastOpId = logOperationIdMap.get(opKey) || (existing as any).clientOperationId;
+      const lastOpId = (existing as any).lastClientOperationId;
 
       // Idempotent retry: if clientOperationId matches the operation that created or updated this log
       if (data.clientOperationId && lastOpId === data.clientOperationId && (expectedRevision === undefined || expectedRevision === existing.revision)) {
@@ -204,6 +188,7 @@ export async function upsertDailyLog(
           aiFeedback: data.aiFeedback || null,
           notes: data.notes || null,
           revision: { increment: 1 },
+          lastClientOperationId: data.clientOperationId || null,
           updatedAt: new Date()
         }
       });
@@ -218,10 +203,6 @@ export async function upsertDailyLog(
           currentRevision: current ? (current.revision ?? 1) : (existing.revision ?? 1),
           expectedRevision
         });
-      }
-
-      if (data.clientOperationId) {
-        logOperationIdMap.set(opKey, data.clientOperationId);
       }
 
       const updated = await prisma.dailyLog.findFirst({
@@ -254,13 +235,10 @@ export async function upsertDailyLog(
             countermeasure: data.countermeasure || null,
             aiFeedback: data.aiFeedback || null,
             notes: data.notes || null,
+            lastClientOperationId: data.clientOperationId || null,
             revision: 1
           }
         });
-        const opKey = `${userId}:${data.date}`;
-        if (data.clientOperationId) {
-          logOperationIdMap.set(opKey, data.clientOperationId);
-        }
         return {
           ...created,
           revision: created.revision ?? 1,
@@ -274,8 +252,7 @@ export async function upsertDailyLog(
             where: { userId, date: data.date }
           });
           if (raced) {
-            const opKey = `${userId}:${data.date}`;
-            const lastOpId = logOperationIdMap.get(opKey) || (raced as any).clientOperationId;
+            const lastOpId = (raced as any).lastClientOperationId;
             if (data.clientOperationId && lastOpId === data.clientOperationId) {
               return {
                 ...raced,

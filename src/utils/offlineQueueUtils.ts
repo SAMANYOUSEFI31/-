@@ -1587,6 +1587,28 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
   return replayPromise;
 }
 
+export function isValidLogResponse(serverLog: any, targetDate: string): boolean {
+  return !!serverLog &&
+    serverLog.date === targetDate &&
+    typeof serverLog.cycleId === 'string' &&
+    typeof serverLog.revision === 'number' && Number.isInteger(serverLog.revision) && serverLog.revision > 0 &&
+    typeof serverLog.wakeUp === 'boolean' &&
+    typeof serverLog.workout === 'boolean' &&
+    typeof serverLog.study === 'boolean' &&
+    typeof serverLog.journal === 'boolean' &&
+    typeof serverLog.hardTask === 'boolean' &&
+    typeof serverLog.specialMission === 'boolean';
+}
+
+export function isValidCycleResponse(serverCycle: any, targetId: string): boolean {
+  return !!serverCycle &&
+    serverCycle.id === targetId &&
+    typeof serverCycle.revision === 'number' && Number.isInteger(serverCycle.revision) && serverCycle.revision > 0 &&
+    typeof serverCycle.title === 'string' &&
+    typeof serverCycle.startDate === 'string' &&
+    typeof serverCycle.endDate === 'string';
+}
+
 /**
  * Synchronizes server-confirmed entities and deletions from replay directly into
  * the account's local storage partition without exposing unsynced or unconfirmed state.
@@ -1815,7 +1837,7 @@ async function executeReplayLoop(
           // Profile settings (nightOwlCutoffHour, accentTheme) are synced via UPDATE_PROFILE.
           // Safely resolve and remove from queue without calling the server.
           removeReplayedQueueItems(initialOwner, [item.id]);
-          syncedCount++;
+          console.log("REACHED SYNCED COUNT++ FOR", item.id); syncedCount++;
           continue;
         }
         default: {
@@ -1935,23 +1957,31 @@ async function executeReplayLoop(
         } catch {}
 
         if (item.type === 'UPDATE_LOG') {
+          const targetDate = item.payload?.date;
           const serverLog = resJson?.log;
-          if (serverLog) {
-            const logKey = `DAILY_LOG:${serverLog.date || item.payload?.date}`;
-            if (typeof serverLog.revision === 'number' && serverLog.revision > 0) {
-              confirmedRevisions.set(logKey, serverLog.revision);
-            }
-            confirmedEntities.set(logKey, { ...serverLog, isSynced: true });
+          console.log("SERVER LOG:", serverLog, "TARGET DATE:", targetDate, "IS VALID:", isValidLogResponse(serverLog, targetDate)); if (!isValidLogResponse(serverLog, targetDate)) {
+            failedCount++;
+            const nextRetryCount = (item.retryCount || 0) + 1;
+            const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+            recordQueueItemFailure(initialOwner, item.id, 'Invalid success response from server', backoffMs, 'INVALID_SUCCESS_RESPONSE' as any);
+            break; // Stop current replay run
           }
+          const logKey = `DAILY_LOG:${serverLog.date}`;
+          confirmedRevisions.set(logKey, serverLog.revision);
+          confirmedEntities.set(logKey, { ...serverLog, isSynced: true });
         } else if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
+          const targetId = item.payload?.id || item.id;
           const serverCycle = resJson?.cycle;
-          if (serverCycle) {
-            const cycleKey = `CYCLE:${serverCycle.id || item.payload?.id || item.id}`;
-            if (typeof serverCycle.revision === 'number' && serverCycle.revision > 0) {
-              confirmedRevisions.set(cycleKey, serverCycle.revision);
-            }
-            confirmedEntities.set(cycleKey, { ...serverCycle, isSynced: true });
+          if (!isValidCycleResponse(serverCycle, targetId)) {
+            failedCount++;
+            const nextRetryCount = (item.retryCount || 0) + 1;
+            const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+            recordQueueItemFailure(initialOwner, item.id, 'Invalid success response from server', backoffMs, 'INVALID_SUCCESS_RESPONSE' as any);
+            break; // Stop current replay run
           }
+          const cycleKey = `CYCLE:${serverCycle.id}`;
+          confirmedRevisions.set(cycleKey, serverCycle.revision);
+          confirmedEntities.set(cycleKey, { ...serverCycle, isSynced: true });
         } else if (item.type === 'DELETE_CYCLE') {
           const cycleId = typeof item.payload === 'string' ? item.payload : item.payload?.id;
           if (cycleId) {
@@ -1971,7 +2001,7 @@ async function executeReplayLoop(
 
         removeReplayedQueueItems(initialOwner, [item.id]);
         options.onItemSuccess?.(item, serverResult);
-        syncedCount++;
+        console.log("REACHED SYNCED COUNT++ FOR", item.id); syncedCount++;
         continue;
       }
 
