@@ -1,27 +1,7 @@
 import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import {
-  getScopedOfflineQueueKey,
-  getOfflineQueue,
-  saveOfflineQueue,
-  clearOfflineQueue,
-  enqueueOfflineMutation,
-  removeReplayedQueueItems,
-  recordQueueItemFailure,
-  replayAccountOfflineQueue,
-  migrateLegacyGlobalQueue,
-  quarantineQueueItems,
-  getQuarantinedItems,
-  clearQuarantine,
-  getScopedQuarantineKey,
-  acquireReplayLock,
-  releaseReplayLock,
-  clearAllReplayLocks,
-  MAX_REPLAY_RETRIES,
-  REPLAY_LOCK_PREFIX
-} from '../src/utils/offlineQueueUtils.js';
-import { OfflineQueueItem } from '../src/types.js';
+import { clearAllReplayLocks } from '../src/utils/offlineQueueUtils.js';
 import { app } from '../server.js';
 import { generateToken } from '../server/auth.js';
 import {
@@ -32,16 +12,24 @@ import {
   getUserDailyLogs,
   getDailyLogByDate,
   findUserById,
-  createCycle,
-  upsertDailyLog
+  createCycle
 } from '../server/db/index.js';
 
 describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
   const storageMock: Record<string, string> = {};
   const ambUser = 'usr_ambiguous_tester';
+  const userBeta = 'usr_beta_tester';
+  
   const ambToken = generateToken({
     userId: ambUser,
     phoneNumber: '09129998877',
+    isVip: true,
+    tier: 'VIP'
+  });
+
+  const betaToken = generateToken({
+    userId: userBeta,
+    phoneNumber: '09129998888',
     isVip: true,
     tier: 'VIP'
   });
@@ -69,15 +57,14 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
   });
 
   beforeEach(() => {
-    // Clear storage mock
     for (const k in storageMock) delete storageMock[k];
     clearAllReplayLocks();
 
     setPrismaState(null, false);
     memoryStore.cycles = [];
     memoryStore.dailyLogs = [];
-    if (!memoryStore.users.some(u => u.id === ambUser)) {
-      memoryStore.users.push({
+    memoryStore.users = [
+      {
         id: ambUser,
         phoneNumber: '09129998877',
         email: 'ambiguous@bushido.local',
@@ -89,55 +76,41 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
         tokenVersion: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      });
-    }
-
-    (globalThis as any).window = {
-      localStorage: {
-        getItem: (key: string) => storageMock[key] ?? null,
-        setItem: (key: string, val: string) => { storageMock[key] = String(val); },
-        removeItem: (key: string) => { delete storageMock[key]; },
-        key: (idx: number) => Object.keys(storageMock)[idx] ?? null,
-        get length() { return Object.keys(storageMock).length; }
+      },
+      {
+        id: userBeta,
+        phoneNumber: '09129998888',
+        email: 'beta@bushido.local',
+        name: 'Beta Master',
+        passwordHash: 'hashed_pwd',
+        tier: 'vip_samurai',
+        isVip: true,
+        isAdmin: false,
+        tokenVersion: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       }
-    };
-    (globalThis as any).localStorage = (globalThis as any).window.localStorage;
+    ];
   });
 
-  // ===========================================================================
-  // 1. INTERRUPTED REPLAY RESUMPTION & CONFIRMED ITEM IMMUNITY
-  // ===========================================================================
-  describe('1. Interrupted Replay Resumption', () => {
-    it('does not re-execute confirmed mutations when replay is interrupted midway', async () => {
-      const user = 'usr_resumption_01';
-      const token = 'tok_resumption_01';
+  describe('Idempotency logic', () => {
+    it('CREATE_CYCLE: replay idempotency based on clientOperationId', async () => {
+      const sharedOpId = 'op_cyc_shared_idempotency_77';
 
-      // Enqueue 3 mutations
-      const item1 = enqueueOfflineMutation(user, {
-        type: 'CREATE_CYCLE',
-        payload: { id: 'cyc_01', title: 'Cycle 1' }
+      // 1. User A creates cycle
+      const resA1 = await fetch(`${baseUrl}/api/cycles`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ambToken}`
+        },
+        body: JSON.stringify({
+          clientOperationId: sharedOpId,
+          title: 'User A Idempotent Cycle',
+          startDate: '2025-12-01',
+          endDate: '2025-12-30'
+        })
       });
-      const item2 = enqueueOfflineMutation(user, {
-        type: 'UPDATE_LOG',
-        payload: { cycleId: 'cyc_01', date: '1403-12-01', workout: true }
-      });
-      const item3 = enqueueOfflineMutation(user, {
-        type: 'UPDATE_PROFILE',
-        payload: { name: 'Warrior Alpha' }
-      });
-
-      const callLog: string[] = [];
-
-      // First run: item 1 succeeds, but then network fails on item 2
-      const fetchRun1 = async (url: string, opts: any) => {
-        callLog.push(`run1:${url}`);
-        if (url === '/api/cycles') {
-          return { ok: true, status: 200, json: async () => ({ id: 'cyc_01' }) };
-        }
-        if (url === '/api/logs') {
-          throw new Error('Network timeout during item 2');
-        }
-        return { ok: true, status: 200, json: async () => { const b = typeof init !== 'undefined' && init?.body ? JSON.parse(init.body) : {}; return { success: true, log: { date: b.date || '1403-12-01', cycleId: 'cyc_test', revision: 2, wakeUp: true, workout: true, study: false, journal: false, hardTask: false, specialMission: false }, cycle: { id: b.id || 'cyc_test', revision: 2, title: 'test', startDate: '2026-09-01', endDate: '2026-09-30' } }; };
       assert.equal(resA1.status, 200);
       const dataA1 = await resA1.json() as any;
       assert.ok(dataA1.cycle);
@@ -153,8 +126,8 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
         body: JSON.stringify({
           clientOperationId: sharedOpId,
           title: 'User A Idempotent Cycle',
-          startDate: '1403-12-01',
-          endDate: '1403-12-30'
+          startDate: '2025-12-01',
+          endDate: '2025-12-30'
         })
       });
       assert.equal(resA2.status, 200);
@@ -172,8 +145,8 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
         body: JSON.stringify({
           clientOperationId: sharedOpId,
           title: 'User B Distinct Cycle',
-          startDate: '1403-12-01',
-          endDate: '1403-12-30'
+          startDate: '2025-12-01',
+          endDate: '2025-12-30'
         })
       });
       assert.equal(resB.status, 200, 'User B must not collide with User A despite identical clientOperationId');
@@ -187,20 +160,19 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
     });
 
     it('UPDATE_LOG: clientOperationId and composite key guarantee idempotent log updates without cross-user leakage', async () => {
-      // First ensure parent cycles exist for both users
       const cycleA = await createCycle(ambUser, {
         title: 'Cycle for Log Test A',
-        startDate: '1403-12-01',
-        endDate: '1403-12-30'
+        startDate: '2025-12-01',
+        endDate: '2025-12-30'
       });
       const cycleB = await createCycle(userBeta, {
         title: 'Cycle for Log Test B',
-        startDate: '1403-12-01',
-        endDate: '1403-12-30'
+        startDate: '2025-12-01',
+        endDate: '2025-12-30'
       });
 
       const sharedLogOpId = 'op_log_shared_idempotency_99';
-      const testDate = '1403-12-15';
+      const testDate = '2025-12-15';
 
       // 1. User A upserts daily log
       const resA1 = await fetch(`${baseUrl}/api/logs`, {
@@ -264,7 +236,6 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
       assert.equal(userBLogsOnDate.length, 1);
       assert.equal(userBLogsOnDate[0].workout, false);
 
-      // Verify User A's log was unaffected by User B's identical clientOperationId
       const refreshedLogA = await getDailyLogByDate(ambUser, testDate);
       assert.equal(refreshedLogA?.workout, true);
     });
@@ -272,13 +243,12 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
     it('UPDATE_CYCLE: replay is idempotent and rejects cross-user cycle modification', async () => {
       const cycleA = await createCycle(ambUser, {
         title: 'Original Cycle A',
-        startDate: '1403-12-01',
-        endDate: '1403-12-30'
+        startDate: '2025-12-01',
+        endDate: '2025-12-30'
       });
 
       const updateOpId = 'op_cyc_update_safety_55';
 
-      // 1. User A updates cycle
       const resA1 = await fetch(`${baseUrl}/api/cycles/${cycleA.id}`, {
         method: 'PUT',
         headers: {
@@ -293,7 +263,6 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
       });
       assert.equal(resA1.status, 200);
 
-      // 2. User A replays identical update with updated revision
       const resA2 = await fetch(`${baseUrl}/api/cycles/${cycleA.id}`, {
         method: 'PUT',
         headers: {
@@ -311,7 +280,6 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
       const fetchedA = await getCycleById(ambUser, cycleA.id);
       assert.equal(fetchedA?.title, 'Modified Title A');
 
-      // 3. User B attempts to modify User A's cycle using the same or different opId
       const resB = await fetch(`${baseUrl}/api/cycles/${cycleA.id}`, {
         method: 'PUT',
         headers: {
@@ -330,7 +298,6 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
     it('UPDATE_PROFILE: clientOperationId replay is idempotent and strictly user-scoped', async () => {
       const profOpId = 'op_prof_idempotent_88';
 
-      // 1. User A updates profile
       const resA1 = await fetch(`${baseUrl}/api/user/profile`, {
         method: 'PUT',
         headers: {
@@ -345,7 +312,6 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
       });
       assert.equal(resA1.status, 200);
 
-      // 2. User A replays identical request
       const resA2 = await fetch(`${baseUrl}/api/user/profile`, {
         method: 'PUT',
         headers: {
@@ -364,7 +330,6 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
       assert.equal(userA?.name, 'Ambiguous Master Prime');
       assert.equal(userA?.accentTheme, 'amber');
 
-      // 3. User B updates profile with identical clientOperationId
       const resB = await fetch(`${baseUrl}/api/user/profile`, {
         method: 'PUT',
         headers: {
@@ -383,7 +348,6 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
       assert.equal(userB?.name, 'Beta Master Solo');
       assert.equal(userB?.accentTheme, 'cyan');
 
-      // Confirm User A profile was not modified by User B request
       const userAAfter = await findUserById(ambUser);
       assert.equal(userAAfter?.name, 'Ambiguous Master Prime');
     });

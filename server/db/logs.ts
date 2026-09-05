@@ -290,7 +290,7 @@ export async function upsertDailyLog(
   const cleanLogData = {
     cycleId: data.cycleId,
     date: data.date,
-    clientOperationId: data.clientOperationId || null,
+    lastClientOperationId: data.clientOperationId || null,
     wakeUp: Boolean(data.wakeUp),
     workout: Boolean(data.workout),
     study: Boolean(data.study),
@@ -310,7 +310,7 @@ export async function upsertDailyLog(
     const currentRev = existing.revision ?? 1;
 
     // Idempotent retry: if clientOperationId matches existing operation
-    if (data.clientOperationId && existing.clientOperationId === data.clientOperationId && (expectedRevision === undefined || expectedRevision === currentRev)) {
+    if (data.clientOperationId && existing.lastClientOperationId === data.clientOperationId && (expectedRevision === undefined || expectedRevision === currentRev)) {
       return existing;
     }
 
@@ -421,6 +421,18 @@ export async function updateDailyLog(
     });
     if (!existing) return null;
 
+    const clientOperationId = (data as any).clientOperationId || (data as any).lastClientOperationId;
+
+    // Idempotency check
+    if (clientOperationId && existing.lastClientOperationId === clientOperationId) {
+      return {
+        ...existing,
+        revision: existing.revision ?? 1,
+        createdAt: existing.createdAt instanceof Date ? existing.createdAt.toISOString() : existing.createdAt,
+        updatedAt: existing.updatedAt instanceof Date ? existing.updatedAt.toISOString() : existing.updatedAt
+      };
+    }
+
     // If cycleId is being moved/updated, verify that target cycle also belongs to the authenticated user
     if (data.cycleId && data.cycleId !== existing.cycleId) {
       const parentCycle = await prisma.cycle.findFirst({
@@ -432,6 +444,10 @@ export async function updateDailyLog(
         throw err;
       }
       safeData.cycleId = data.cycleId;
+    }
+
+    if (clientOperationId) {
+      safeData.lastClientOperationId = clientOperationId;
     }
 
     const result = await prisma.dailyLog.updateMany({
@@ -475,6 +491,12 @@ export async function updateDailyLog(
   if (existingIdx === -1) return null;
 
   const existing = memoryStore.dailyLogs[existingIdx];
+  const clientOperationId = (data as any).clientOperationId || (data as any).lastClientOperationId;
+
+  // Idempotency check
+  if (clientOperationId && existing.lastClientOperationId === clientOperationId) {
+    return existing;
+  }
 
   // If cycleId is being moved/updated, verify that target cycle also belongs to the authenticated user
   if (data.cycleId && data.cycleId !== existing.cycleId) {
@@ -485,6 +507,10 @@ export async function updateDailyLog(
       throw err;
     }
     safeData.cycleId = data.cycleId;
+  }
+
+  if (clientOperationId) {
+    safeData.lastClientOperationId = clientOperationId;
   }
 
   const currentRev = existing.revision ?? 1;

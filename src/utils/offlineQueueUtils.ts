@@ -1959,11 +1959,11 @@ async function executeReplayLoop(
         if (item.type === 'UPDATE_LOG') {
           const targetDate = item.payload?.date;
           const serverLog = resJson?.log;
-          console.log("SERVER LOG:", serverLog, "TARGET DATE:", targetDate, "IS VALID:", isValidLogResponse(serverLog, targetDate)); if (!isValidLogResponse(serverLog, targetDate)) {
+          if (!isValidLogResponse(serverLog, targetDate)) {
             failedCount++;
             const nextRetryCount = (item.retryCount || 0) + 1;
             const backoffMs = calculateReplayBackoffMs(nextRetryCount);
-            recordQueueItemFailure(initialOwner, item.id, 'Invalid success response from server', backoffMs, 'INVALID_SUCCESS_RESPONSE' as any);
+            recordQueueItemFailure(initialOwner, item.id, 'Invalid success response from server', backoffMs, 'INVALID_SUCCESS_RESPONSE');
             break; // Stop current replay run
           }
           const logKey = `DAILY_LOG:${serverLog.date}`;
@@ -1976,7 +1976,7 @@ async function executeReplayLoop(
             failedCount++;
             const nextRetryCount = (item.retryCount || 0) + 1;
             const backoffMs = calculateReplayBackoffMs(nextRetryCount);
-            recordQueueItemFailure(initialOwner, item.id, 'Invalid success response from server', backoffMs, 'INVALID_SUCCESS_RESPONSE' as any);
+            recordQueueItemFailure(initialOwner, item.id, 'Invalid success response from server', backoffMs, 'INVALID_SUCCESS_RESPONSE');
             break; // Stop current replay run
           }
           const cycleKey = `CYCLE:${serverCycle.id}`;

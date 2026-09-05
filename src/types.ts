@@ -297,7 +297,8 @@ export type ReplayFailureClassification =
   | 'SERVER_RETRYABLE'
   | 'NETWORK_ERROR'
   | 'ENTITY_MISSING'
-  | 'UNKNOWN_MUTATION';
+  | 'UNKNOWN_MUTATION'
+  | 'INVALID_SUCCESS_RESPONSE';
 
 export interface OfflineQueueItem {
   id: string;
