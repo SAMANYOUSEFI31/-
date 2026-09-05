@@ -10,6 +10,7 @@ import {
   normalizeQueueOwner,
   isGuestQueueOwner,
   getScopedOfflineQueueKey,
+  getScopedStorageKey,
   safeGetLocalStorage, 
   safeSetLocalStorage, 
   safeRemoveLocalStorage,
@@ -22,6 +23,7 @@ export {
   normalizeQueueOwner,
   isGuestQueueOwner,
   getScopedOfflineQueueKey,
+  getScopedStorageKey,
   GUEST_QUEUE_OWNER,
   OFFLINE_QUEUE_PREFIX,
   LEGACY_OFFLINE_QUEUE_KEY
@@ -831,13 +833,13 @@ export function toSafeQuarantineAuditItem(item: any): QuarantineAuditItem {
   return {
     id: typeof item?.id === 'string' ? item.id : null,
     ownerId: normalizeQueueOwner(item?.ownerId),
-    type: typeof item?.type === 'string' ? item.type : 'UNKNOWN',
-    timestamp: typeof item?.timestamp === 'number' ? item.timestamp : Date.now(),
+    type: typeof item?.mutationType === 'string' ? item.mutationType : (typeof item?.type === 'string' ? item.type : 'UNKNOWN'),
+    timestamp: typeof item?.detectedTimestamp === 'number' ? item.detectedTimestamp : (typeof item?.timestamp === 'number' ? item.timestamp : Date.now()),
     dedupKey: typeof item?.dedupKey === 'string' ? item.dedupKey : undefined,
     retryCount: typeof item?.retryCount === 'number' ? item.retryCount : 0,
-    lastError: typeof item?.lastError === 'string' ? sanitizeErrorMessage(item.lastError) : undefined,
+    lastError: typeof item?.messageFa === 'string' ? sanitizeConflictMessage(item.messageFa) : (typeof item?.lastError === 'string' ? sanitizeErrorMessage(item.lastError) : undefined),
     classification: typeof item?.classification === 'string' ? item.classification : undefined,
-    hasPayload: item?.payload !== undefined
+    hasPayload: item?.sanitizedMutationIntent !== undefined || item?.clientPayload !== undefined || item?.payload !== undefined
   };
 }
 
@@ -988,66 +990,137 @@ export function clearQuarantine(ownerId?: string | null): void {
   }
 }
 
+export const ALREADY_RECORDED = 'ALREADY_RECORDED' as const;
+
 /**
- * Parses safe conflict metadata from HTTP 409/428 error payloads.
- * Strictly guarantees serverState and sensitive credentials/raw headers are NEVER returned or stored.
+ * Sanitizes and bounds conflict error messages.
+ * Strips emails, phone numbers, tokens, and authorization credentials.
+ */
+export function sanitizeConflictMessage(msg: any): string {
+  if (typeof msg !== 'string' || !msg.trim()) {
+    return 'به دلیل تغییر همزمان داده‌ها در دستگاه دیگر، تغییرات ذخیره نشد.';
+  }
+  let sanitized = msg.trim().slice(0, 256);
+  sanitized = sanitized.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[REDACTED_EMAIL]');
+  sanitized = sanitized.replace(/(\+?\d[\d -]{7,}\d)/g, '[REDACTED_PHONE]');
+  sanitized = sanitized.replace(/(bearer\s+[a-zA-Z0-9._-]+)/gi, '[REDACTED_TOKEN]');
+  sanitized = sanitized.replace(/(token|secret|password|authorization|cookie)=?[^\s&]+/gi, '[REDACTED]');
+  return sanitized;
+}
+
+/**
+ * Builds a deterministic conflict identity for deduplication.
+ */
+export function buildConflictIdentity(
+  ownerId: string | null | undefined,
+  conflict: {
+    operationId?: string;
+    mutationType: string;
+    entityType: string;
+    entityId: string;
+    expectedRevision?: number;
+    currentRevision?: number;
+    conflictType: string;
+  }
+): string {
+  const normOwner = normalizeQueueOwner(ownerId);
+  const opId = conflict.operationId ? conflict.operationId.trim() : '';
+  const expRev = conflict.expectedRevision !== undefined ? String(conflict.expectedRevision) : 'none';
+  const curRev = conflict.currentRevision !== undefined ? String(conflict.currentRevision) : 'none';
+  return `${normOwner}:${opId}:${conflict.mutationType}:${conflict.entityType}:${conflict.entityId}:${expRev}:${curRev}:${conflict.conflictType}`;
+}
+
+/**
+ * Parses safe conflict metadata from HTTP 409/428 error payloads using a closed runtime contract.
+ * - Allowed codes: CONFLICT (409) and PRECONDITION_REQUIRED (428).
+ * - Allowed entity types: CYCLE and DAILY_LOG.
+ * - For direct mutation handlers, entity type and entity ID must come from the trusted
+ *   local call context. Untrusted HTTP responses cannot override them.
+ * - Revisions are accepted only as positive integers.
+ * - Sensitive properties, serverState, raw bodies, and tokens are discarded.
  */
 export function parseSafeConflictDetails(
   status: number,
   responseBody: any,
-  defaultEntityType = 'UNKNOWN',
-  defaultEntityId = 'UNKNOWN'
+  defaultEntityType = 'CYCLE',
+  defaultEntityId = 'unknown'
 ): {
   conflictType: ConflictType;
   statusCode: 409 | 428;
   currentRevision?: number;
   expectedRevision?: number;
-  entityType: string;
+  entityType: 'CYCLE' | 'DAILY_LOG';
   entityId: string;
   messageFa: string;
+  code: 'CONFLICT' | 'PRECONDITION_REQUIRED';
 } {
   const is428 = status === 428;
   const conflictType: ConflictType = is428 ? 'PRECONDITION_REQUIRED' : 'CONCURRENCY_CONFLICT';
   const statusCode: 409 | 428 = is428 ? 428 : 409;
+  const code: 'CONFLICT' | 'PRECONDITION_REQUIRED' = is428 ? 'PRECONDITION_REQUIRED' : 'CONFLICT';
 
-  const currentRevision = typeof responseBody?.currentRevision === 'number' && Number.isInteger(responseBody.currentRevision) && responseBody.currentRevision > 0
-    ? responseBody.currentRevision
-    : undefined;
+  // Allowed entity types for this package: 'CYCLE' | 'DAILY_LOG'
+  // Trusted call context cannot be overridden by untrusted response body!
+  let normalizedEntity: 'CYCLE' | 'DAILY_LOG' = 'CYCLE';
+  const rawDefaultType = String(defaultEntityType || '').toUpperCase().trim();
+  if (rawDefaultType.includes('LOG') || rawDefaultType === 'DAILYLOG') {
+    normalizedEntity = 'DAILY_LOG';
+  } else {
+    normalizedEntity = 'CYCLE';
+  }
 
-  const expectedRevision = typeof responseBody?.expectedRevision === 'number' && Number.isInteger(responseBody.expectedRevision) && responseBody.expectedRevision > 0
-    ? responseBody.expectedRevision
-    : undefined;
+  // Trusted entity ID from local call context: bounded, trimmed
+  let safeEntityId = String(defaultEntityId || 'unknown').trim().slice(0, 128);
+  if (!safeEntityId) {
+    safeEntityId = 'unknown';
+  }
 
-  const entityType = typeof responseBody?.entityType === 'string' && responseBody.entityType.trim()
-    ? responseBody.entityType
-    : defaultEntityType;
+  // Accept currentRevision and expectedRevision only as positive integers
+  let expectedRevision: number | undefined = undefined;
+  let currentRevision: number | undefined = undefined;
 
-  const entityId = typeof responseBody?.entityId === 'string' && responseBody.entityId.trim()
-    ? responseBody.entityId
-    : defaultEntityId;
+  const rawExpRev = responseBody?.expectedRevision;
+  if (typeof rawExpRev === 'number' && Number.isInteger(rawExpRev) && rawExpRev > 0) {
+    expectedRevision = rawExpRev;
+  }
+
+  const rawCurRev = responseBody?.currentRevision;
+  if (typeof rawCurRev === 'number' && Number.isInteger(rawCurRev) && rawCurRev > 0) {
+    currentRevision = rawCurRev;
+  }
 
   const rawMsg = responseBody?.messageFa || (is428
     ? 'عملیات به دلیل عدم ارسال نسخه مورد انتظار (HTTP 428) رد شد.'
     : 'این مورد در دستگاه دیگری تغییر یافته است و دارای تعارض همزمانی است.');
-  const messageFa = sanitizeErrorMessage(rawMsg);
+  const messageFa = sanitizeConflictMessage(rawMsg);
 
   return {
     conflictType,
     statusCode,
     currentRevision,
     expectedRevision,
-    entityType,
-    entityId,
-    messageFa
+    entityType: normalizedEntity,
+    entityId: safeEntityId,
+    messageFa,
+    code
   };
 }
 
 /**
  * Shared, typed, account-scoped conflict recording path extending owner-scoped quarantine.
- * Guarantees:
- * - Privacy invariants: serverState is never persisted, credentials are sanitized, raw response bodies are omitted.
- * - Owner isolation: recorded strictly into the account's partition key.
- * - Deduplication: records are identifiable and compactable.
+ * Directly stores structured conflict metadata:
+ * - record kind ('CLIENT_CONFLICT_RECORD')
+ * - conflict type
+ * - HTTP status code
+ * - verified owner ID
+ * - mutation type
+ * - trusted entity type ('CYCLE' | 'DAILY_LOG')
+ * - trusted entity ID
+ * - expected revision & current revision
+ * - detected timestamp & stable operation ID
+ * - sanitized local mutation intent
+ *
+ * Implements deterministic deduplication: repeated recording returns ALREADY_RECORDED.
  */
 export function recordClientConflict(
   ownerId: string | null | undefined,
@@ -1061,19 +1134,67 @@ export function recordClientConflict(
     currentRevision?: number;
     messageFa?: string;
     clientPayload?: any;
+    sanitizedMutationIntent?: any;
     dedupKey?: string;
     id?: string;
+    operationId?: string;
     timestamp?: number;
+    detectedTimestamp?: number;
   }
-): ClientConflictMetadata {
+): ClientConflictMetadata | typeof ALREADY_RECORDED {
   const normOwner = normalizeQueueOwner(ownerId);
   const is428 = input.statusCode === 428 || input.conflictType === 'PRECONDITION_REQUIRED';
   const conflictType: ConflictType = is428 ? 'PRECONDITION_REQUIRED' : 'CONCURRENCY_CONFLICT';
   const statusCode: 409 | 428 = is428 ? 428 : 409;
   const classification: ReplayFailureClassification = is428 ? 'PRECONDITION_REQUIRED' : 'CONFLICT_DEFERRED';
 
-  let sanitizedPayload = input.clientPayload !== undefined ? sanitizePayloadCredentials(input.clientPayload) : undefined;
-  // Explicit privacy invariant: serverState is never persisted
+  // Allowed entity types for this package: CYCLE | DAILY_LOG
+  const rawEntity = String(input.entityType || '').toUpperCase().trim();
+  const entityType = (rawEntity.includes('LOG') || rawEntity === 'DAILYLOG') ? 'DAILY_LOG' : 'CYCLE';
+  const entityId = String(input.entityId || 'unknown').trim().slice(0, 128) || 'unknown';
+
+  const expectedRevision = typeof input.expectedRevision === 'number' && Number.isInteger(input.expectedRevision) && input.expectedRevision > 0
+    ? input.expectedRevision
+    : undefined;
+
+  const currentRevision = typeof input.currentRevision === 'number' && Number.isInteger(input.currentRevision) && input.currentRevision > 0
+    ? input.currentRevision
+    : undefined;
+
+  const operationId = input.operationId || input.id || undefined;
+
+  // Build deterministic conflict identity
+  const conflictIdentity = buildConflictIdentity(normOwner, {
+    operationId,
+    mutationType: input.mutationType,
+    entityType,
+    entityId,
+    expectedRevision,
+    currentRevision,
+    conflictType
+  });
+
+  // Check for duplicate in existing recorded conflicts
+  const existingConflicts = getClientConflicts(normOwner);
+  const isDuplicate = existingConflicts.some(c => {
+    const existingIdentity = buildConflictIdentity(normOwner, {
+      operationId: c.operationId,
+      mutationType: c.mutationType,
+      entityType: c.entityType,
+      entityId: c.entityId,
+      expectedRevision: c.expectedRevision,
+      currentRevision: c.currentRevision,
+      conflictType: c.conflictType
+    });
+    return existingIdentity === conflictIdentity;
+  });
+
+  if (isDuplicate) {
+    return ALREADY_RECORDED;
+  }
+
+  const rawPayload = input.sanitizedMutationIntent !== undefined ? input.sanitizedMutationIntent : input.clientPayload;
+  let sanitizedPayload = rawPayload !== undefined ? sanitizePayloadCredentials(rawPayload) : undefined;
   if (sanitizedPayload && typeof sanitizedPayload === 'object') {
     if ('serverState' in sanitizedPayload) {
       const copy = { ...sanitizedPayload };
@@ -1082,43 +1203,47 @@ export function recordClientConflict(
     }
   }
 
-  const safeMsg = sanitizeErrorMessage(
+  const safeMsg = sanitizeConflictMessage(
     input.messageFa || (is428
       ? 'عملیات به دلیل عدم ارسال نسخه مورد انتظار (HTTP 428) رد شد.'
       : 'این مورد در دستگاه دیگری تغییر یافته است و دارای تعارض همزمانی است.')
   );
 
+  const detectedTimestamp = typeof input.detectedTimestamp === 'number'
+    ? input.detectedTimestamp
+    : (typeof input.timestamp === 'number' ? input.timestamp : Date.now());
+
   const conflictMetadata: ClientConflictMetadata = {
     id: input.id || `conflict_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+    recordKind: 'CLIENT_CONFLICT_RECORD',
     ownerId: normOwner,
-    entityType: input.entityType,
-    entityId: input.entityId,
+    entityType,
+    entityId,
     mutationType: input.mutationType,
     conflictType,
     statusCode,
-    timestamp: typeof input.timestamp === 'number' ? input.timestamp : Date.now(),
-    ...(typeof input.expectedRevision === 'number' && Number.isInteger(input.expectedRevision) && input.expectedRevision > 0 ? { expectedRevision: input.expectedRevision } : {}),
-    ...(typeof input.currentRevision === 'number' && Number.isInteger(input.currentRevision) && input.currentRevision > 0 ? { currentRevision: input.currentRevision } : {}),
+    timestamp: detectedTimestamp,
+    detectedTimestamp,
+    operationId,
+    expectedRevision,
+    currentRevision,
     messageFa: safeMsg,
     dedupKey: input.dedupKey,
-    clientPayload: sanitizedPayload
+    sanitizedMutationIntent: sanitizedPayload,
+    clientPayload: sanitizedPayload,
+    isLegacyInferred: false,
+    status: 'RECORDED'
   };
 
-  const quarantinedQueueItem: OfflineQueueItem & { currentRevision?: number } = {
-    id: conflictMetadata.id,
-    ownerId: normOwner,
-    type: input.mutationType,
-    payload: sanitizedPayload,
-    timestamp: conflictMetadata.timestamp,
-    expectedRevision: conflictMetadata.expectedRevision,
-    currentRevision: conflictMetadata.currentRevision,
-    lastError: safeMsg,
+  // Structured record stored in owner-scoped quarantine
+  const structuredRecord = {
+    ...conflictMetadata,
     classification,
-    dedupKey: input.dedupKey
+    lastError: safeMsg
   };
 
   quarantineQueueItems(
-    [quarantinedQueueItem],
+    [structuredRecord],
     statusCode === 428
       ? 'HTTP 428 Precondition Required - missing or invalid expectedRevision'
       : 'HTTP 409 Conflict - mutation deferred for manual/reconciliation resolution',
@@ -1130,6 +1255,8 @@ export function recordClientConflict(
 
 /**
  * Returns recorded conflicts for a specific owner partition.
+ * Directly reads structured conflict records without reconstructing entityType or entityId from payload.
+ * Preserves backward compatibility with legacy quarantine records (marked with isLegacyInferred: true).
  */
 export function getClientConflicts(ownerId?: string | null): ClientConflictMetadata[] {
   const normOwner = normalizeQueueOwner(ownerId);
@@ -1139,25 +1266,55 @@ export function getClientConflicts(ownerId?: string | null): ClientConflictMetad
   for (const group of quarantined) {
     if (group && Array.isArray(group.items)) {
       for (const item of group.items) {
-        if (
+        if (item && item.recordKind === 'CLIENT_CONFLICT_RECORD') {
+          // Direct read from trusted stored fields! Never reconstruct from payload!
+          conflicts.push({
+            id: item.id || `conflict_${item.detectedTimestamp || Date.now()}`,
+            recordKind: 'CLIENT_CONFLICT_RECORD',
+            ownerId: normOwner,
+            entityType: item.entityType,
+            entityId: item.entityId,
+            mutationType: item.mutationType,
+            conflictType: item.conflictType,
+            statusCode: item.statusCode,
+            timestamp: typeof item.detectedTimestamp === 'number' ? item.detectedTimestamp : (typeof item.timestamp === 'number' ? item.timestamp : Date.now()),
+            detectedTimestamp: typeof item.detectedTimestamp === 'number' ? item.detectedTimestamp : (typeof item.timestamp === 'number' ? item.timestamp : Date.now()),
+            operationId: item.operationId,
+            expectedRevision: item.expectedRevision,
+            currentRevision: item.currentRevision,
+            messageFa: item.messageFa,
+            dedupKey: item.dedupKey,
+            sanitizedMutationIntent: item.sanitizedMutationIntent ?? item.clientPayload,
+            clientPayload: item.sanitizedMutationIntent ?? item.clientPayload,
+            isLegacyInferred: false,
+            status: 'RECORDED'
+          });
+        } else if (
           item &&
           (item.classification === 'CONFLICT_DEFERRED' || item.classification === 'PRECONDITION_REQUIRED')
         ) {
-          const is428 = item.classification === 'PRECONDITION_REQUIRED';
+          // Legacy quarantine entries compatibility: inferred fields, marked isLegacyInferred: true
+          const is428 = item.classification === 'PRECONDITION_REQUIRED' || item.statusCode === 428;
+          const entityType = item.type === 'UPDATE_LOG' ? 'DAILY_LOG' : (item.type?.includes('CYCLE') ? 'CYCLE' : item.type || 'UNKNOWN');
+          const entityId = item.payload?.id || item.payload?.date || (typeof item.payload === 'string' ? item.payload : 'unknown');
           conflicts.push({
             id: item.id || `conflict_${item.timestamp || Date.now()}`,
             ownerId: normalizeQueueOwner(item.ownerId || group.ownerId),
-            entityType: item.type === 'UPDATE_LOG' ? 'DAILY_LOG' : (item.type.includes('CYCLE') ? 'CYCLE' : item.type),
-            entityId: item.payload?.id || item.payload?.date || (typeof item.payload === 'string' ? item.payload : 'unknown'),
+            entityType,
+            entityId,
             mutationType: item.type,
             conflictType: is428 ? 'PRECONDITION_REQUIRED' : 'CONCURRENCY_CONFLICT',
             statusCode: is428 ? 428 : 409,
             timestamp: typeof item.timestamp === 'number' ? item.timestamp : Date.now(),
+            detectedTimestamp: typeof item.timestamp === 'number' ? item.timestamp : Date.now(),
             expectedRevision: item.expectedRevision,
             currentRevision: item.currentRevision,
             messageFa: item.lastError,
             dedupKey: item.dedupKey,
-            clientPayload: item.payload
+            clientPayload: item.payload,
+            sanitizedMutationIntent: item.payload,
+            isLegacyInferred: true,
+            status: 'RECORDED'
           });
         }
       }
@@ -1169,10 +1326,56 @@ export function getClientConflicts(ownerId?: string | null): ClientConflictMetad
 
 /**
  * Clears recorded conflicts for a specific owner partition.
+ * Selectively removes ONLY structured conflict and precondition records.
+ * Preserves validation quarantine, forbidden, entity-missing, corruption, and legacy ambiguous records.
  */
 export function clearClientConflicts(ownerId?: string | null): void {
-  clearQuarantine(ownerId);
+  const normOwner = normalizeQueueOwner(ownerId);
+  const quarantineKey = getScopedQuarantineKey(normOwner);
+  const raw = safeGetLocalStorage(quarantineKey);
+  if (!raw) return;
+
+  let groups: any[] = [];
+  try {
+    groups = JSON.parse(raw);
+    if (!Array.isArray(groups)) return;
+  } catch {
+    return;
+  }
+
+  const updatedGroups: any[] = [];
+
+  for (const group of groups) {
+    if (!group || !Array.isArray(group.items)) continue;
+
+    // Filter out ONLY structured conflict and precondition records
+    const remainingItems = group.items.filter((item: any) => {
+      const isStructuredConflict = item?.recordKind === 'CLIENT_CONFLICT_RECORD';
+      const isConflictClassification = item?.classification === 'CONFLICT_DEFERRED' || item?.classification === 'PRECONDITION_REQUIRED';
+      const isConflictStatus = item?.statusCode === 409 || item?.statusCode === 428;
+
+      if (isStructuredConflict || isConflictClassification || isConflictStatus) {
+        return false;
+      }
+      return true;
+    });
+
+    if (remainingItems.length > 0) {
+      updatedGroups.push({
+        ...group,
+        items: remainingItems,
+        itemCount: remainingItems.length
+      });
+    }
+  }
+
+  if (updatedGroups.length > 0) {
+    safeSetLocalStorage(quarantineKey, JSON.stringify(updatedGroups));
+  } else {
+    safeRemoveLocalStorage(quarantineKey);
+  }
 }
+
 
 /**
  * Migrates legacy global offline queue ('bushido_offline_queue') into account-scoped queues.
@@ -1384,6 +1587,62 @@ export async function replayAccountOfflineQueue(options: ReplayOptions): Promise
   return replayPromise;
 }
 
+/**
+ * Synchronizes server-confirmed entities and deletions from replay directly into
+ * the account's local storage partition without exposing unsynced or unconfirmed state.
+ */
+export function syncConfirmedEntitiesToLocalStorage(
+  ownerId: string,
+  confirmedEntities: Map<string, any>
+): void {
+  if (!confirmedEntities || confirmedEntities.size === 0) return;
+  const normOwner = normalizeQueueOwner(ownerId);
+  if (!normOwner || normOwner === 'guest') return;
+
+  try {
+    const scopedKey = getScopedStorageKey(normOwner);
+    const raw = safeGetLocalStorage(scopedKey);
+    if (!raw) return;
+
+    const parsed = JSON.parse(raw);
+    let changed = false;
+
+    if (Array.isArray(parsed?.cycles)) {
+      parsed.cycles = parsed.cycles.filter((c: any) => {
+        if (confirmedEntities.has(`CYCLE_DELETED:${c.id}`)) {
+          changed = true;
+          return false;
+        }
+        return true;
+      }).map((c: any) => {
+        const key = `CYCLE:${c.id}`;
+        if (confirmedEntities.has(key)) {
+          changed = true;
+          return { ...c, ...confirmedEntities.get(key), isSynced: true };
+        }
+        return c;
+      });
+    }
+
+    if (Array.isArray(parsed?.logs)) {
+      parsed.logs = parsed.logs.map((l: any) => {
+        const key = `DAILY_LOG:${l.date}`;
+        if (confirmedEntities.has(key)) {
+          changed = true;
+          return { ...l, ...confirmedEntities.get(key), isSynced: true };
+        }
+        return l;
+      });
+    }
+
+    if (changed) {
+      safeSetLocalStorage(scopedKey, JSON.stringify(parsed));
+    }
+  } catch (e) {
+    console.warn('[Offline Queue] Error writing confirmed entities to local storage:', e);
+  }
+}
+
 async function executeReplayLoop(
   options: ReplayOptions, 
   initialOwner: string,
@@ -1414,6 +1673,10 @@ async function executeReplayLoop(
   const initialQueue = getOfflineQueue(initialOwner);
   let syncedCount = 0;
   let failedCount = 0;
+
+  // Track server-confirmed revisions and entity snapshots across chained replay mutations
+  const confirmedRevisions = new Map<string, number>();
+  const confirmedEntities = new Map<string, any>();
 
   for (const queueItem of initialQueue) {
     // 1. Freshness check: Verify that the item has not been removed, compacted, or already synced
@@ -1472,7 +1735,12 @@ async function executeReplayLoop(
         case 'UPDATE_LOG': {
           endpoint = '/api/logs';
           method = 'POST';
-          const expectedRev = item.expectedRevision ?? item.payload?.expectedRevision ?? item.payload?.revision;
+          const logDate = item.payload?.date;
+          const logKey = `DAILY_LOG:${logDate}`;
+          let expectedRev = item.expectedRevision ?? item.payload?.expectedRevision ?? item.payload?.revision;
+          if (confirmedRevisions.has(logKey)) {
+            expectedRev = confirmedRevisions.get(logKey);
+          }
           body = {
             ...item.payload,
             clientOperationId: item.id,
@@ -1490,7 +1758,11 @@ async function executeReplayLoop(
           }
           endpoint = `/api/cycles/${cycleId}`;
           method = 'PUT';
-          const expectedRev = item.expectedRevision ?? item.payload?.expectedRevision ?? item.payload?.revision;
+          const cycleKey = `CYCLE:${cycleId}`;
+          let expectedRev = item.expectedRevision ?? item.payload?.expectedRevision ?? item.payload?.revision;
+          if (confirmedRevisions.has(cycleKey)) {
+            expectedRev = confirmedRevisions.get(cycleKey);
+          }
           body = {
             ...item.payload,
             clientOperationId: item.id,
@@ -1519,7 +1791,11 @@ async function executeReplayLoop(
             failedCount++;
             continue;
           }
-          const expectedRev = item.expectedRevision ?? (typeof item.payload === 'object' ? (item.payload?.expectedRevision ?? item.payload?.revision) : undefined);
+          const cycleKey = `CYCLE:${cycleId}`;
+          let expectedRev = item.expectedRevision ?? (typeof item.payload === 'object' ? (item.payload?.expectedRevision ?? item.payload?.revision) : undefined);
+          if (confirmedRevisions.has(cycleKey)) {
+            expectedRev = confirmedRevisions.get(cycleKey);
+          }
           endpoint = `/api/cycles/${cycleId}${typeof expectedRev === 'number' && Number.isInteger(expectedRev) && expectedRev > 0 ? `?expectedRevision=${expectedRev}` : ''}`;
           method = 'DELETE';
           body = undefined;
@@ -1649,11 +1925,48 @@ async function executeReplayLoop(
           };
         }
 
+        let resJson: any = null;
+        try {
+          if (typeof res?.clone === 'function') {
+            resJson = await res.clone().json();
+          } else if (typeof res?.json === 'function') {
+            resJson = await res.json();
+          }
+        } catch {}
+
+        if (item.type === 'UPDATE_LOG') {
+          const serverLog = resJson?.log;
+          if (serverLog) {
+            const logKey = `DAILY_LOG:${serverLog.date || item.payload?.date}`;
+            if (typeof serverLog.revision === 'number' && serverLog.revision > 0) {
+              confirmedRevisions.set(logKey, serverLog.revision);
+            }
+            confirmedEntities.set(logKey, { ...serverLog, isSynced: true });
+          }
+        } else if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
+          const serverCycle = resJson?.cycle;
+          if (serverCycle) {
+            const cycleKey = `CYCLE:${serverCycle.id || item.payload?.id || item.id}`;
+            if (typeof serverCycle.revision === 'number' && serverCycle.revision > 0) {
+              confirmedRevisions.set(cycleKey, serverCycle.revision);
+            }
+            confirmedEntities.set(cycleKey, { ...serverCycle, isSynced: true });
+          }
+        } else if (item.type === 'DELETE_CYCLE') {
+          const cycleId = typeof item.payload === 'string' ? item.payload : item.payload?.id;
+          if (cycleId) {
+            confirmedEntities.set(`CYCLE_DELETED:${cycleId}`, true);
+          }
+        }
+
+        syncConfirmedEntitiesToLocalStorage(initialOwner, confirmedEntities);
+
         removeReplayedQueueItems(initialOwner, [item.id]);
         options.onItemSuccess?.(item);
         syncedCount++;
         continue;
       }
+
 
       // Branch 2: AUTH_REQUIRED (401) -> Stops replay immediately, preserves unresolved item in queue
       if (classification === 'AUTH_REQUIRED') {
@@ -1716,12 +2029,14 @@ async function executeReplayLoop(
           timestamp: item.timestamp
         });
 
+        const conflictMsg = typeof conflictMeta === 'object' ? conflictMeta.messageFa : parsedConflict.messageFa;
+
         removeReplayedQueueItems(initialOwner, [item.id]);
         failedCount++;
         options.onItemFailure?.({
           ...item,
           classification: 'CONFLICT_DEFERRED',
-          lastError: conflictMeta.messageFa
+          lastError: conflictMsg
         }, new Error('HTTP 409 Conflict'));
         continue;
       }
@@ -1759,12 +2074,14 @@ async function executeReplayLoop(
           timestamp: item.timestamp
         });
 
+        const conflictMsg = typeof conflictMeta === 'object' ? conflictMeta.messageFa : parsedConflict.messageFa;
+
         removeReplayedQueueItems(initialOwner, [item.id]);
         failedCount++;
         options.onItemFailure?.({
           ...item,
           classification: 'PRECONDITION_REQUIRED',
-          lastError: conflictMeta.messageFa
+          lastError: conflictMsg
         }, new Error('HTTP 428 Precondition Required'));
         continue;
       }

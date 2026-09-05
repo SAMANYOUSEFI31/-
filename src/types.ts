@@ -317,6 +317,7 @@ export type ConflictType = 'CONCURRENCY_CONFLICT' | 'PRECONDITION_REQUIRED';
 
 export interface ClientConflictMetadata {
   id: string;
+  recordKind?: 'CLIENT_CONFLICT_RECORD';
   ownerId: string;
   entityType: 'CYCLE' | 'DAILY_LOG' | 'USER_PROFILE' | 'SYSTEM_SETTINGS' | string;
   entityId: string;
@@ -324,10 +325,33 @@ export interface ClientConflictMetadata {
   conflictType: ConflictType;
   statusCode: 409 | 428;
   timestamp: number;
+  detectedTimestamp?: number;
+  operationId?: string;
   expectedRevision?: number;
   currentRevision?: number;
   messageFa?: string;
   dedupKey?: string;
+  sanitizedMutationIntent?: any;
   clientPayload?: any;
+  isLegacyInferred?: boolean;
+  status?: 'RECORDED' | 'ALREADY_RECORDED';
+}
+
+export interface RecordConflictInput {
+  id?: string;
+  operationId?: string;
+  mutationType: OfflineMutationType;
+  entityType: 'CYCLE' | 'DAILY_LOG' | string;
+  entityId: string;
+  conflictType: ConflictType;
+  statusCode: 409 | 428;
+  expectedRevision?: number;
+  currentRevision?: number;
+  messageFa?: string;
+  clientPayload?: any;
+  sanitizedMutationIntent?: any;
+  dedupKey?: string;
+  timestamp?: number;
+  detectedTimestamp?: number;
 }
 

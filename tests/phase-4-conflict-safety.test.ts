@@ -26,8 +26,21 @@ import {
   parseSafeConflictDetails,
   recordClientConflict,
   getClientConflicts,
-  clearClientConflicts
+  clearClientConflicts,
+  ALREADY_RECORDED,
+  buildConflictIdentity,
+  quarantineQueueItems
 } from '../src/utils/offlineQueueUtils.js';
+import {
+  applyOptimisticLogUpdate,
+  rollbackOptimisticLogUpdate,
+  applyOptimisticCycleUpdate,
+  rollbackOptimisticCycleUpdate,
+  rollbackOptimisticCycleDelete,
+  prepareDirectLogPayload,
+  prepareDirectCyclePayload,
+  verifyActiveAccount
+} from '../src/utils/directMutationUtils.js';
 import {
   updateCycleSchema,
   upsertDailyLogSchema,
@@ -875,5 +888,211 @@ test('Phase 4: Multi-device Conflict Safety & Optimistic Concurrency', async (t)
     assert.equal(activeCycle, 'cycle_delete_target', 'Active cycle must be restored');
     assert.equal(recorded.statusCode, 409);
     assert.equal(recorded.currentRevision, 3);
+  });
+
+  await t.test('19. Structured Conflict Storage & Deduplication with ALREADY_RECORDED', async () => {
+    clearQuarantine(userId);
+
+    const input = {
+      mutationType: 'UPDATE_LOG' as const,
+      entityType: 'DAILY_LOG',
+      entityId: '2026-09-05',
+      conflictType: 'CONCURRENCY_CONFLICT' as const,
+      statusCode: 409,
+      expectedRevision: 1,
+      currentRevision: 2,
+      messageFa: 'تعارض همزمانی در ثبت گزارش روزانه',
+      clientPayload: { cycleId: 'cycle_dedup_test', workout: true }
+    };
+
+    // First recording must return structured ClientConflictMetadata
+    const recorded1 = recordClientConflict(userId, input);
+    assert.notEqual(recorded1, ALREADY_RECORDED);
+    assert.equal((recorded1 as any).recordKind, 'CLIENT_CONFLICT_RECORD');
+    assert.equal((recorded1 as any).status, 'RECORDED');
+    assert.equal((recorded1 as any).ownerId, userId);
+    assert.equal((recorded1 as any).expectedRevision, 1);
+    assert.equal((recorded1 as any).currentRevision, 2);
+    assert.equal((recorded1 as any).entityType, 'DAILY_LOG');
+    assert.equal((recorded1 as any).entityId, '2026-09-05');
+
+    // Conflict list must contain exactly 1 entry
+    const list1 = getClientConflicts(userId);
+    assert.equal(list1.length, 1);
+    assert.equal(list1[0].recordKind, 'CLIENT_CONFLICT_RECORD');
+
+    // Repeated recording with identical identity must return ALREADY_RECORDED
+    const recorded2 = recordClientConflict(userId, input);
+    assert.equal(recorded2, ALREADY_RECORDED, 'Subsequent duplicate conflict must return ALREADY_RECORDED');
+
+    // Conflict list must still have exactly 1 entry (no duplicate stored)
+    const list2 = getClientConflicts(userId);
+    assert.equal(list2.length, 1, 'Deduplication must prevent duplicate conflict entries in storage');
+  });
+
+  await t.test('20. Targeted Conflict Clearing Preserves Unrelated Quarantine Records', async () => {
+    clearQuarantine(userId);
+
+    // 1. Manually quarantine a non-conflict record (e.g. malformed syntax / validation failure)
+    quarantineQueueItems(
+      [{ id: 'malformed_payload_item', type: 'CUSTOM_MUTATION', classification: 'VALIDATION_FAILED', lastError: 'Schema validation error' }],
+      'Schema error',
+      userId
+    );
+
+    // 2. Record a structured conflict record
+    recordClientConflict(userId, {
+      mutationType: 'UPDATE_CYCLE',
+      entityType: 'CYCLE',
+      entityId: 'cycle_quarantine_test',
+      conflictType: 'CONCURRENCY_CONFLICT',
+      statusCode: 409,
+      expectedRevision: 2,
+      currentRevision: 4,
+      messageFa: 'تعارض در چرخه'
+    });
+
+    // 3. Confirm both entries are present in raw quarantine
+    const rawBefore = getQuarantinedItems(userId);
+    assert.equal(rawBefore.length, 2, 'Must have 2 quarantine groups before targeted clear');
+
+    // 4. Perform targeted clear
+    clearClientConflicts(userId);
+
+    // 5. Conflicts must be cleared, but validation failure must remain preserved
+    const conflictsAfter = getClientConflicts(userId);
+    assert.equal(conflictsAfter.length, 0, 'Client conflicts must be cleanly cleared');
+
+    const rawAfter = getQuarantinedItems(userId);
+    assert.equal(rawAfter.length, 1, 'Non-conflict quarantine group must remain untouched');
+    assert.equal(rawAfter[0].items[0].id, 'malformed_payload_item');
+    assert.equal(rawAfter[0].items[0].classification, 'VALIDATION_FAILED');
+  });
+
+  await t.test('21. Direct Mutation Helpers: Snapshot Capture, Optimistic isSynced: false, and Truthful Rollback', async () => {
+    // A. Daily Log Direct Mutation Contract
+    const initialLog: any = {
+      date: '2026-09-05',
+      cycleId: 'c1',
+      habits: { wakeUp: true },
+      revision: 2,
+      isSynced: true
+    };
+    const logs = [initialLog];
+
+    const updatedLog: any = {
+      ...initialLog,
+      habits: { wakeUp: true, gym: true }
+    };
+
+    // 1. applyOptimisticLogUpdate
+    const { nextLogs, previousConfirmedSnapshot } = applyOptimisticLogUpdate(logs, updatedLog);
+    assert.equal(nextLogs[0].isSynced, false, 'Optimistic log must be marked unsynced (isSynced: false)');
+    assert.equal(nextLogs[0].habits.gym, true);
+    assert.equal(previousConfirmedSnapshot?.isSynced, true, 'Snapshot must retain confirmed isSynced: true');
+    assert.equal(previousConfirmedSnapshot?.habits.gym, undefined);
+
+    // 2. rollbackOptimisticLogUpdate on HTTP 409
+    const rolledBack = rollbackOptimisticLogUpdate(nextLogs, updatedLog.date, previousConfirmedSnapshot);
+    assert.equal(rolledBack[0].isSynced, true, 'Rolled back log must be restored to confirmed isSynced: true');
+    assert.equal(rolledBack[0].habits.gym, undefined, 'Optimistic changes must be rolled back');
+
+    // 3. rollback when no previous snapshot exists (new log rejected)
+    const newLog: any = { date: '2026-09-06', cycleId: 'c1', habits: { read: true } };
+    const { nextLogs: logsWithNew } = applyOptimisticLogUpdate([], newLog);
+    assert.equal(logsWithNew.length, 1);
+    const rolledBackNew = rollbackOptimisticLogUpdate(logsWithNew, newLog.date, null);
+    assert.equal(rolledBackNew.length, 0, 'Rejected new log without confirmed snapshot must be removed');
+
+    // B. Payload Preparation & Revision Validation
+    const { payload: validPayload, expectedRevision: validRev } = prepareDirectLogPayload(
+      { date: '2026-09-05', cycleId: 'c1', revision: 5 } as any,
+      initialLog,
+      'c1'
+    );
+    assert.equal(validRev, 2, 'expectedRevision must strictly derive from existing confirmed entity');
+    assert.equal(validPayload.expectedRevision, 2);
+
+    const { payload: invalidPayload, expectedRevision: invalidRev } = prepareDirectCyclePayload(
+      { id: 'c_test', title: 'New', revision: -1 } as any,
+      null
+    );
+    assert.equal(invalidRev, undefined, 'Negative or invalid revision must produce undefined expectedRevision');
+    assert.equal(invalidPayload.expectedRevision, undefined);
+  });
+
+  await t.test('22. Replay Chaining: Confirmed Revision Propagation to Chained Mutations', async () => {
+    clearQuarantine(userId);
+    saveOfflineQueue(userId, []);
+
+    // Two mutations for the same cycle in the offline queue with distinct dedupKeys
+    enqueueOfflineMutation(userId, {
+      type: 'UPDATE_CYCLE',
+      payload: { id: 'cycle_chain_1', title: 'عنوان گام اول' },
+      expectedRevision: 1,
+      dedupKey: 'chain_step_1'
+    });
+
+    enqueueOfflineMutation(userId, {
+      type: 'UPDATE_CYCLE',
+      payload: { id: 'cycle_chain_1', title: 'عنوان گام دوم' },
+      expectedRevision: 1, // Initially stale expected revision before chaining
+      dedupKey: 'chain_step_2'
+    });
+
+    const calls: any[] = [];
+    const mockFetch = async (url: any, init: any) => {
+      const body = JSON.parse(init.body);
+      calls.push({ url, body });
+
+      if (calls.length === 1) {
+        // First mutation succeeds, server increments revision to 2
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({
+            ok: true,
+            cycle: { id: 'cycle_chain_1', title: 'عنوان گام اول', revision: 2 }
+          })
+        } as any;
+      } else {
+        // Second mutation in batch must receive chained expectedRevision: 2
+        assert.equal(body.expectedRevision, 2, 'Second mutation in batch must use server-confirmed revision 2 from first mutation');
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({
+            ok: true,
+            cycle: { id: 'cycle_chain_1', title: 'عنوان گام دوم', revision: 3 }
+          })
+        } as any;
+      }
+    };
+
+    const result = await replayAccountOfflineQueue({
+      activeAccountId: userId,
+      authToken: 'test_token',
+      fetchFn: mockFetch
+    });
+
+    assert.equal(result.syncedCount, 2, 'Both mutations in batch should succeed via replay chaining');
+    assert.equal(result.failedCount, 0);
+    assert.equal(calls.length, 2);
+  });
+
+  await t.test('23. Asynchronous Account-Switch Protection on Direct Mutation Callbacks', async () => {
+    // 1. Same active account verification succeeds
+    assert.equal(verifyActiveAccount('user_123', 'user_123'), true);
+
+    // 2. Switched to different user account fails
+    assert.equal(verifyActiveAccount('user_456', 'user_123'), false);
+
+    // 3. Switched to guest/null fails
+    assert.equal(verifyActiveAccount(null, 'user_123'), false);
+    assert.equal(verifyActiveAccount('__guest__', 'user_123'), false);
+
+    // 4. Initial owner was null/guest fails
+    assert.equal(verifyActiveAccount('user_123', null), false);
+    assert.equal(verifyActiveAccount(null, null), false);
   });
 });
