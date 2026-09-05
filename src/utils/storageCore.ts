@@ -20,6 +20,35 @@ export const OFFLINE_QUEUE_PREFIX = 'bushido_offline_queue_';
 export const LEGACY_OFFLINE_QUEUE_KEY = 'bushido_offline_queue';
 
 /**
+ * Safe development environment check compatible with Vite browser runtime
+ * and Node test runners without requiring a global process object.
+ */
+export function isDevelopmentEnvironment(): boolean {
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta && import.meta.env) {
+      if (typeof import.meta.env.DEV === 'boolean') {
+        return import.meta.env.DEV;
+      }
+      if (typeof import.meta.env.MODE === 'string') {
+        return import.meta.env.MODE === 'development';
+      }
+    }
+  } catch {
+    // import.meta access safe guard
+  }
+
+  try {
+    if (typeof process !== 'undefined' && process && process.env) {
+      return process.env.NODE_ENV !== 'production';
+    }
+  } catch {
+    // process access safe guard
+  }
+
+  return false;
+}
+
+/**
  * Normalizes an account identifier to a stable, canonical ownership key.
  * Only stable unique user IDs are accepted (e.g. 'admin-master-001', 'usr_...', UUID).
  * Returns null for anonymous/guest sessions, empty strings, or undefined.

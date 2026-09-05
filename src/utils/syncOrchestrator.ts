@@ -6,6 +6,7 @@ import {
   normalizeQueueOwner,
   isGuestQueueOwner
 } from './offlineQueueUtils';
+import { isDevelopmentEnvironment } from './storageCore';
 
 /**
  * =============================================================================
@@ -99,8 +100,8 @@ interface PendingTrailingState {
  * Internal invariant check helper for development and testing.
  * Logs diagnostics without altering production behavior or throwing in production.
  */
-function assertSyncInvariant(condition: boolean, message: string): void {
-  if (!condition && process.env.NODE_ENV !== 'production') {
+export function assertSyncInvariant(condition: boolean, message: string): void {
+  if (!condition && isDevelopmentEnvironment()) {
     console.warn(`[SyncInvariantViolation] ${message}`);
   }
 }

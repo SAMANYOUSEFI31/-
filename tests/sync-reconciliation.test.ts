@@ -818,6 +818,243 @@ describe('Phase 3C.2: Safe Boot Reconciliation with Pending Offline Mutations', 
         process.env.NODE_ENV = originalEnv;
       }
     });
+
+    it('(t) assertReconciliationInvariant does not require a global process object and executes safely', () => {
+      const originalWarn = console.warn;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+      const originalProcess = (globalThis as any).process;
+
+      try {
+        // Simulate browser environment where global process is completely undefined
+        (globalThis as any).process = undefined;
+
+        assert.doesNotThrow(() => {
+          assertReconciliationInvariant(true, 'Should not throw when true');
+          assertReconciliationInvariant(false, 'Should not throw when false without process');
+        });
+      } finally {
+        (globalThis as any).process = originalProcess;
+        console.warn = originalWarn;
+      }
+    });
+
+    it('(u) non-vacuous pending cycle check validates expected pending cycles exist and retain isSynced: false', () => {
+      const originalWarn = console.warn;
+      const originalEnv = process.env.NODE_ENV;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+
+      try {
+        process.env.NODE_ENV = 'development';
+
+        // Valid pending CREATE_CYCLE creates cycle and asserts isSynced: false without warnings
+        const result = reconcileBootState({
+          authenticatedOwnerId: 'user-alpha',
+          remoteCycles: [],
+          remoteLogs: [],
+          currentLocalState: { cycles: [], logs: [] },
+          pendingQueue: [
+            {
+              id: 'm-create-1',
+              ownerId: 'user-alpha',
+              type: 'CREATE_CYCLE',
+              payload: { id: 'c-new', title: 'New Cycle', status: 'ACTIVE' },
+              timestamp: 1000
+            }
+          ],
+          isDemoConsumed: true
+        });
+
+        assert.equal(result.cycles?.length, 1);
+        assert.equal(result.cycles?.[0]?.id, 'c-new');
+        assert.equal(result.cycles?.[0]?.isSynced, false);
+        const invariantWarnings = warnings.filter(w => w.includes('[ReconciliationInvariantViolation]'));
+        assert.equal(invariantWarnings.length, 0, 'Expected pending cycle was created with isSynced: false and produced 0 warnings');
+      } finally {
+        console.warn = originalWarn;
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
+
+    it('(v) non-vacuous pending log check validates expected pending logs exist and retain isSynced: false', () => {
+      const originalWarn = console.warn;
+      const originalEnv = process.env.NODE_ENV;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+
+      try {
+        process.env.NODE_ENV = 'development';
+
+        const result = reconcileBootState({
+          authenticatedOwnerId: 'user-alpha',
+          remoteCycles: [createSampleCycle({ id: 'c-alpha' })],
+          remoteLogs: [createSampleLog({ date: '1403-01-01', cycleId: 'c-alpha', isSynced: true })],
+          currentLocalState: {
+            cycles: [createSampleCycle({ id: 'c-alpha' })],
+            logs: [createSampleLog({ date: '1403-01-01', cycleId: 'c-alpha', isSynced: true })]
+          },
+          pendingQueue: [
+            {
+              id: 'm-update-log',
+              ownerId: 'user-alpha',
+              type: 'UPDATE_LOG',
+              payload: { date: '1403-01-01', cycleId: 'c-alpha', note: 'Updated note' },
+              timestamp: 1000
+            }
+          ],
+          isDemoConsumed: true
+        });
+
+        assert.equal(result.logs?.length, 1);
+        assert.equal(result.logs?.[0]?.note, 'Updated note');
+        assert.equal(result.logs?.[0]?.isSynced, false);
+        const invariantWarnings = warnings.filter(w => w.includes('[ReconciliationInvariantViolation]'));
+        assert.equal(invariantWarnings.length, 0, 'Expected pending log was overlaid with isSynced: false and produced 0 warnings');
+      } finally {
+        console.warn = originalWarn;
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
+
+    it('(w) same-date logs belonging to different cycles are identified using cycleId-plus-date identity', () => {
+      const originalWarn = console.warn;
+      const originalEnv = process.env.NODE_ENV;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+
+      try {
+        process.env.NODE_ENV = 'development';
+
+        // Two cycles: c1 and c2, both having a log on date '1403-01-01'
+        const c1 = createSampleCycle({ id: 'c1', title: 'Cycle 1' });
+        const c2 = createSampleCycle({ id: 'c2', title: 'Cycle 2' });
+        const logC1 = createSampleLog({ date: '1403-01-01', cycleId: 'c1', note: 'Log Cycle 1', isSynced: true });
+        const logC2 = createSampleLog({ date: '1403-01-01', cycleId: 'c2', note: 'Log Cycle 2', isSynced: true });
+
+        const result = reconcileBootState({
+          authenticatedOwnerId: 'user-alpha',
+          remoteCycles: [c1, c2],
+          remoteLogs: [logC1, logC2],
+          currentLocalState: {
+            cycles: [c1, c2],
+            logs: [logC1, logC2]
+          },
+          pendingQueue: [
+            {
+              id: 'm-log-c2',
+              ownerId: 'user-alpha',
+              type: 'UPDATE_LOG',
+              payload: { date: '1403-01-01', cycleId: 'c2', note: 'Updated Log Cycle 2' },
+              timestamp: 1000
+            }
+          ],
+          isDemoConsumed: true
+        });
+
+        assert.equal(result.logs?.length, 2);
+        const reconciledLogC1 = result.logs?.find(l => l.cycleId === 'c1' && l.date === '1403-01-01');
+        const reconciledLogC2 = result.logs?.find(l => l.cycleId === 'c2' && l.date === '1403-01-01');
+
+        assert.ok(reconciledLogC1);
+        assert.ok(reconciledLogC2);
+
+        // logC1 must remain confirmed (isSynced: true)
+        assert.equal(reconciledLogC1?.note, 'Log Cycle 1');
+        assert.equal(reconciledLogC1?.isSynced, true);
+
+        // logC2 must be updated (isSynced: false)
+        assert.equal(reconciledLogC2?.note, 'Updated Log Cycle 2');
+        assert.equal(reconciledLogC2?.isSynced, false);
+
+        const invariantWarnings = warnings.filter(w => w.includes('[ReconciliationInvariantViolation]'));
+        assert.equal(invariantWarnings.length, 0, 'No invariant warnings emitted for multi-cycle same-date logs');
+      } finally {
+        console.warn = originalWarn;
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
+
+    it('(x) legitimately suppressed mutations (deleted cycles, orphaned logs, malformed mutations) produce zero false warnings', () => {
+      const originalWarn = console.warn;
+      const originalEnv = process.env.NODE_ENV;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+
+      try {
+        process.env.NODE_ENV = 'development';
+
+        const result = reconcileBootState({
+          authenticatedOwnerId: 'user-alpha',
+          remoteCycles: [createSampleCycle({ id: 'c-to-delete' })],
+          remoteLogs: [createSampleLog({ date: '1403-01-01', cycleId: 'c-to-delete' })],
+          currentLocalState: {
+            cycles: [createSampleCycle({ id: 'c-to-delete' })],
+            logs: [createSampleLog({ date: '1403-01-01', cycleId: 'c-to-delete' })]
+          },
+          pendingQueue: [
+            // 1. Pending CREATE followed by DELETE
+            {
+              id: 'm-temp-create',
+              ownerId: 'user-alpha',
+              type: 'CREATE_CYCLE',
+              payload: { id: 'c-temp', title: 'Temporary Cycle', status: 'ACTIVE' },
+              timestamp: 1000
+            },
+            {
+              id: 'm-temp-delete',
+              ownerId: 'user-alpha',
+              type: 'DELETE_CYCLE',
+              payload: 'c-temp',
+              timestamp: 1100
+            },
+            // 2. Delete existing remote cycle
+            {
+              id: 'm-delete-existing',
+              ownerId: 'user-alpha',
+              type: 'DELETE_CYCLE',
+              payload: 'c-to-delete',
+              timestamp: 1200
+            },
+            // 3. Update log for deleted cycle (should be suppressed without warning)
+            {
+              id: 'm-update-deleted-log',
+              ownerId: 'user-alpha',
+              type: 'UPDATE_LOG',
+              payload: { date: '1403-01-01', cycleId: 'c-to-delete', note: 'Orphaned note' },
+              timestamp: 1300
+            },
+            // 4. Update log for non-existent cycle (should be suppressed without warning)
+            {
+              id: 'm-update-nonexistent-log',
+              ownerId: 'user-alpha',
+              type: 'UPDATE_LOG',
+              payload: { date: '1403-01-01', cycleId: 'c-nonexistent', note: 'Unavailable cycle note' },
+              timestamp: 1400
+            },
+            // 5. Malformed mutation item
+            {
+              id: 'm-malformed',
+              ownerId: 'user-alpha',
+              type: 'CREATE_CYCLE',
+              payload: null as any,
+              timestamp: 1500
+            }
+          ],
+          isDemoConsumed: true
+        });
+
+        // Visible cycles should be empty since c-to-delete and c-temp were both deleted
+        assert.equal(result.cycles?.length, 0);
+        assert.equal(result.logs?.length, 0);
+
+        const invariantWarnings = warnings.filter(w => w.includes('[ReconciliationInvariantViolation]'));
+        assert.equal(invariantWarnings.length, 0, 'Legitimately suppressed mutations must produce 0 false warnings');
+      } finally {
+        console.warn = originalWarn;
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
   });
 });
 

@@ -1,6 +1,6 @@
 import { Cycle, DailyLog, UserProfile, OfflineQueueItem } from '../types';
 import { resolveBackendSyncDecision } from './storageUtils';
-import { normalizeQueueOwner, isGuestQueueOwner } from './storageCore';
+import { normalizeQueueOwner, isGuestQueueOwner, isDevelopmentEnvironment } from './storageCore';
 
 export interface ReconcileBootStateInput {
   authenticatedOwnerId?: string | null;
@@ -49,7 +49,7 @@ const IMMUTABLE_PROFILE_FIELDS = new Set([
  * Logs diagnostics without altering production behavior or throwing in production.
  */
 export function assertReconciliationInvariant(condition: boolean, message: string): void {
-  if (!condition && process.env.NODE_ENV !== 'production') {
+  if (!condition && isDevelopmentEnvironment()) {
     console.warn(`[ReconciliationInvariantViolation] ${message}`);
   }
 }
@@ -153,6 +153,11 @@ export function reconcileBootState(input: ReconcileBootStateInput): ReconciledBo
     workingLogs = currentLocalState.logs ? currentLocalState.logs.map(l => ({ ...l })) : [];
   }
 
+  // Track expected pending entities that MUST remain visible with isSynced: false
+  const expectedPendingCycleIds = new Set<string>();
+  const expectedPendingLogs = new Map<string, { date: string; cycleId?: string }>();
+  const deletedCycleIds = new Set<string>();
+
   // 5. Apply pending mutations in strict queue dependency order
   for (const item of validMutations) {
     switch (item.type) {
@@ -176,6 +181,7 @@ export function reconcileBootState(input: ReconcileBootStateInput): ReconciledBo
           } else {
             workingCycles.push(cycleToAdd);
           }
+          expectedPendingCycleIds.add(cyclePayload.id);
         }
         break;
       }
@@ -191,6 +197,7 @@ export function reconcileBootState(input: ReconcileBootStateInput): ReconciledBo
               id: workingCycles[existingIdx].id, // preserve stable ID
               isSynced: false
             };
+            expectedPendingCycleIds.add(cyclePayload.id);
           }
           // If target cycle cannot be found and no matching pending creation, do not invent confirmed cycle
         }
@@ -200,10 +207,20 @@ export function reconcileBootState(input: ReconcileBootStateInput): ReconciledBo
       case 'DELETE_CYCLE': {
         const targetCycleId = typeof item.payload === 'string' ? item.payload : item.payload?.id;
         if (targetCycleId && typeof targetCycleId === 'string') {
+          deletedCycleIds.add(targetCycleId);
+          expectedPendingCycleIds.delete(targetCycleId);
+
           // Remove target cycle from visible reconciled state
           workingCycles = workingCycles.filter(c => c.id !== targetCycleId);
           // Remove or suppress associated logs from visible reconciled state
           workingLogs = workingLogs.filter(l => l.cycleId !== targetCycleId);
+
+          // Remove any expected pending logs belonging to the deleted cycle
+          for (const [key, entry] of Array.from(expectedPendingLogs.entries())) {
+            if (entry.cycleId === targetCycleId) {
+              expectedPendingLogs.delete(key);
+            }
+          }
         }
         break;
       }
@@ -237,6 +254,11 @@ export function reconcileBootState(input: ReconcileBootStateInput): ReconciledBo
           } else {
             workingLogs.push(logToApply);
           }
+
+          const logKey = logPayload.cycleId
+            ? `${logPayload.cycleId}::${logPayload.date}`
+            : `__fallback__::${logPayload.date}`;
+          expectedPendingLogs.set(logKey, { date: logPayload.date, cycleId: logPayload.cycleId });
         }
         break;
       }
@@ -280,16 +302,6 @@ export function reconcileBootState(input: ReconcileBootStateInput): ReconciledBo
   }
 
   // Invariant 4 & 5: Deleted cycle and its logs do not remain visible
-  const deletedCycleIds = new Set<string>();
-  for (const m of validMutations) {
-    if (m.type === 'DELETE_CYCLE') {
-      const targetCycleId = typeof m.payload === 'string' ? m.payload : m.payload?.id;
-      if (targetCycleId && typeof targetCycleId === 'string') {
-        deletedCycleIds.add(targetCycleId);
-      }
-    }
-  }
-
   if (deletedCycleIds.size > 0) {
     if (workingCycles && workingCycles.length > 0) {
       const hasDeletedCycle = workingCycles.some(c => deletedCycleIds.has(c.id));
@@ -302,36 +314,45 @@ export function reconcileBootState(input: ReconcileBootStateInput): ReconciledBo
     }
   }
 
-  // Invariant 6: Pending-created or pending-updated visible entities retain isSynced: false
-  const pendingCycleIds = new Set<string>();
-  const pendingLogDates = new Set<string>();
-  for (const m of validMutations) {
-    if (m.type === 'CREATE_CYCLE' || m.type === 'UPDATE_CYCLE') {
-      const id = m.payload?.id;
-      if (id && typeof id === 'string' && !deletedCycleIds.has(id)) {
-        pendingCycleIds.add(id);
-      }
-    } else if (m.type === 'UPDATE_LOG') {
-      const date = m.payload?.date;
-      const cycleId = m.payload?.cycleId;
-      if (date && typeof date === 'string' && (!cycleId || !deletedCycleIds.has(cycleId))) {
-        pendingLogDates.add(date);
+  // Invariant 6: Expected visible pending cycles must exist exactly once and retain isSynced: false
+  if (workingCycles && expectedPendingCycleIds.size > 0) {
+    for (const expectedCycleId of expectedPendingCycleIds) {
+      const matchingCycles = workingCycles.filter(c => c.id === expectedCycleId);
+      assertReconciliationInvariant(
+        matchingCycles.length === 1,
+        'Expected pending cycle must exist exactly once in reconciled cycles'
+      );
+      if (matchingCycles.length > 0) {
+        assertReconciliationInvariant(
+          matchingCycles[0].isSynced === false,
+          'Expected pending cycle must retain isSynced: false'
+        );
       }
     }
   }
 
-  if (workingCycles && pendingCycleIds.size > 0) {
-    const allPendingCyclesUnsynced = workingCycles
-      .filter(c => pendingCycleIds.has(c.id))
-      .every(c => c.isSynced === false);
-    assertReconciliationInvariant(allPendingCyclesUnsynced, 'Pending visible cycles must retain isSynced: false');
-  }
+  // Invariant 7: Expected visible pending logs must exist and retain isSynced: false
+  if (workingLogs && expectedPendingLogs.size > 0) {
+    for (const targetLog of expectedPendingLogs.values()) {
+      const matchingLog = workingLogs.find(l => {
+        if (targetLog.cycleId && l.cycleId) {
+          return l.cycleId === targetLog.cycleId && l.date === targetLog.date;
+        }
+        return l.date === targetLog.date;
+      });
 
-  if (workingLogs && pendingLogDates.size > 0) {
-    const allPendingLogsUnsynced = workingLogs
-      .filter(l => pendingLogDates.has(l.date))
-      .every(l => l.isSynced === false);
-    assertReconciliationInvariant(allPendingLogsUnsynced, 'Pending visible logs must retain isSynced: false');
+      const exists = Boolean(matchingLog);
+      assertReconciliationInvariant(
+        exists,
+        'Expected pending log must exist in reconciled logs'
+      );
+      if (matchingLog) {
+        assertReconciliationInvariant(
+          matchingLog.isSynced === false,
+          'Expected pending log must retain isSynced: false'
+        );
+      }
+    }
   }
 
   // 7. Resolve active cycle ID

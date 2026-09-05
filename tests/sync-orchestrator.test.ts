@@ -7,7 +7,8 @@ import {
   SyncTrigger,
   SyncRequest,
   SyncRunOutcome,
-  bindBootAuthAndRequestSync
+  bindBootAuthAndRequestSync,
+  assertSyncInvariant
 } from '../src/utils/syncOrchestrator.js';
 import { ReplayOptions, ReplayResult } from '../src/utils/offlineQueueUtils.js';
 import { OfflineQueueItem } from '../src/types.js';
@@ -894,6 +895,58 @@ describe('Phase 3C.1: Single Sync Orchestrator and Trigger Ownership', () => {
       assert.equal(outcome.stoppedDueToAccountChange, true, 'stoppedDueToAccountChange is true');
       assert.equal(itemSuccessInvocations, 0, 'Item-success callback is suppressed');
       assert.equal(resultInvocations, 0, 'Result notification callback is suppressed');
+    });
+  });
+
+  describe('8. Sync Orchestrator Invariant Assertions & Diagnostics', () => {
+    it('(a) assertSyncInvariant does not require global process object and executes safely in browser environment', () => {
+      const originalWarn = console.warn;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+      const originalProcess = (globalThis as any).process;
+
+      try {
+        (globalThis as any).process = undefined;
+
+        assert.doesNotThrow(() => {
+          assertSyncInvariant(true, 'Test no process true');
+          assertSyncInvariant(false, 'Test no process false');
+        });
+      } finally {
+        (globalThis as any).process = originalProcess;
+        console.warn = originalWarn;
+      }
+    });
+
+    it('(b) assertSyncInvariant emits sanitized diagnostic in development and is silenced in production', () => {
+      const originalWarn = console.warn;
+      const originalEnv = process.env.NODE_ENV;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+
+      try {
+        process.env.NODE_ENV = 'development';
+        warnings.length = 0;
+
+        assertSyncInvariant(true, 'Condition satisfied');
+        assert.equal(warnings.length, 0);
+
+        assertSyncInvariant(false, 'Active run ownerId must be a non-guest, non-empty user ID');
+        assert.equal(warnings.length, 1);
+        assert.equal(warnings[0], '[SyncInvariantViolation] Active run ownerId must be a non-guest, non-empty user ID');
+
+        // Check diagnostic contains no sensitive information
+        assert.ok(!warnings[0].includes('token'));
+        assert.ok(!warnings[0].includes('Bearer'));
+
+        process.env.NODE_ENV = 'production';
+        warnings.length = 0;
+        assertSyncInvariant(false, 'Production invariant failure');
+        assert.equal(warnings.length, 0, 'Production must silence warnings');
+      } finally {
+        process.env.NODE_ENV = originalEnv;
+        console.warn = originalWarn;
+      }
     });
   });
 });

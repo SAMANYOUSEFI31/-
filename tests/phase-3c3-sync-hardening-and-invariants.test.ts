@@ -7,9 +7,14 @@ import {
   SyncTrigger,
   SyncRequest,
   SyncRunOutcome,
-  bindBootAuthAndRequestSync
+  bindBootAuthAndRequestSync,
+  assertSyncInvariant
 } from '../src/utils/syncOrchestrator.js';
-import { reconcileBootState, ReconcileBootStateInput } from '../src/utils/syncReconciliation.js';
+import {
+  reconcileBootState,
+  ReconcileBootStateInput,
+  assertReconciliationInvariant
+} from '../src/utils/syncReconciliation.js';
 import { ReplayOptions, ReplayResult } from '../src/utils/offlineQueueUtils.js';
 import { Cycle, DailyLog, UserProfile, OfflineQueueItem } from '../src/types.js';
 
@@ -779,6 +784,100 @@ describe('Phase 3C.3: Sync Hardening, Edge Scenarios & Invariant Validation', ()
         const invariantViolations = warnings.filter(w => w.includes('[ReconciliationInvariantViolation]'));
         assert.equal(invariantViolations.length, 0, 'Reconciliation must satisfy all 6 invariant assertions without warnings');
       } finally {
+        console.warn = originalWarn;
+      }
+    });
+
+    it('Guarantee 3.8: assertSyncInvariant and assertReconciliationInvariant operate safely without global process and enforce sanitized diagnostics', () => {
+      const originalWarn = console.warn;
+      const originalEnv = process.env.NODE_ENV;
+      const originalProcess = (globalThis as any).process;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+
+      try {
+        // 1. Browser-safety: executes without process object
+        (globalThis as any).process = undefined;
+        assert.doesNotThrow(() => {
+          assertSyncInvariant(true, 'Test no process true');
+          assertSyncInvariant(false, 'Test no process false');
+          assertReconciliationInvariant(true, 'Test no process true');
+          assertReconciliationInvariant(false, 'Test no process false');
+        });
+
+        // 2. Dev mode: emits sanitized diagnostic
+        (globalThis as any).process = { env: { NODE_ENV: 'development' } };
+        warnings.length = 0;
+        assertSyncInvariant(false, 'Sync test failure message');
+        assert.equal(warnings.length, 1);
+        assert.equal(warnings[0], '[SyncInvariantViolation] Sync test failure message');
+
+        // 3. Prod mode: silenced completely
+        (globalThis as any).process = { env: { NODE_ENV: 'production' } };
+        warnings.length = 0;
+        assertSyncInvariant(false, 'Production sync error');
+        assertReconciliationInvariant(false, 'Production reconciliation error');
+        assert.equal(warnings.length, 0, 'Production mode must silence all invariant diagnostics');
+      } finally {
+        (globalThis as any).process = originalProcess;
+        process.env.NODE_ENV = originalEnv;
+        console.warn = originalWarn;
+      }
+    });
+
+    it('Guarantee 3.9: Multi-cycle same-date logs and suppressed mutations are accurately verified by non-vacuous assertions', () => {
+      const originalWarn = console.warn;
+      const originalEnv = process.env.NODE_ENV;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+
+      try {
+        process.env.NODE_ENV = 'development';
+
+        // 1. Multi-cycle same-date log identity accuracy
+        const res = reconcileBootState({
+          authenticatedOwnerId: 'usr-123',
+          remoteCycles: [
+            createSampleCycle({ id: 'c-alpha' }),
+            createSampleCycle({ id: 'c-beta' })
+          ],
+          remoteLogs: [
+            createSampleLog({ date: '1403-05-01', cycleId: 'c-alpha', isSynced: true }),
+            createSampleLog({ date: '1403-05-01', cycleId: 'c-beta', isSynced: true })
+          ],
+          currentLocalState: {
+            cycles: [
+              createSampleCycle({ id: 'c-alpha' }),
+              createSampleCycle({ id: 'c-beta' })
+            ],
+            logs: [
+              createSampleLog({ date: '1403-05-01', cycleId: 'c-alpha', isSynced: true }),
+              createSampleLog({ date: '1403-05-01', cycleId: 'c-beta', isSynced: true })
+            ]
+          },
+          pendingQueue: [
+            {
+              id: 'm-beta',
+              ownerId: 'usr-123',
+              type: 'UPDATE_LOG',
+              payload: { date: '1403-05-01', cycleId: 'c-beta', note: 'Beta specific note' },
+              timestamp: 5000
+            }
+          ],
+          isDemoConsumed: true
+        });
+
+        const alphaLog = res.logs?.find(l => l.cycleId === 'c-alpha' && l.date === '1403-05-01');
+        const betaLog = res.logs?.find(l => l.cycleId === 'c-beta' && l.date === '1403-05-01');
+        assert.equal(alphaLog?.isSynced, true);
+        assert.equal(betaLog?.isSynced, false);
+        assert.equal(betaLog?.note, 'Beta specific note');
+
+        // Zero false invariant warnings
+        const invariantWarnings = warnings.filter(w => w.includes('[ReconciliationInvariantViolation]'));
+        assert.equal(invariantWarnings.length, 0);
+      } finally {
+        process.env.NODE_ENV = originalEnv;
         console.warn = originalWarn;
       }
     });
