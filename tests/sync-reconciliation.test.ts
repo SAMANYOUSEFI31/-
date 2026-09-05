@@ -1055,6 +1055,113 @@ describe('Phase 3C.2: Safe Boot Reconciliation with Pending Offline Mutations', 
         process.env.NODE_ENV = originalEnv;
       }
     });
+
+    it('(y) missing expected pending cycle is detected rather than passing through an empty-array every() result', () => {
+      const originalWarn = console.warn;
+      const originalEnv = process.env.NODE_ENV;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+
+      try {
+        process.env.NODE_ENV = 'development';
+
+        // Direct test of non-vacuous assertion logic:
+        const expectedPendingCycleIds = new Set(['c-missing-1']);
+        const emptyWorkingCycles: any[] = [];
+
+        for (const expectedCycleId of expectedPendingCycleIds) {
+          const matchingCycles = emptyWorkingCycles.filter(c => c.id === expectedCycleId);
+          assertReconciliationInvariant(
+            matchingCycles.length === 1,
+            'Expected pending cycle must exist exactly once in reconciled cycles'
+          );
+        }
+
+        assert.equal(warnings.length, 1);
+        assert.equal(
+          warnings[0],
+          '[ReconciliationInvariantViolation] Expected pending cycle must exist exactly once in reconciled cycles'
+        );
+      } finally {
+        console.warn = originalWarn;
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
+
+    it('(z) missing expected pending log is detected by invariant rather than passing vacuously', () => {
+      const originalWarn = console.warn;
+      const originalEnv = process.env.NODE_ENV;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+
+      try {
+        process.env.NODE_ENV = 'development';
+
+        const expectedPendingLogs = new Map([
+          ['c-alpha::1403-01-01', { date: '1403-01-01', cycleId: 'c-alpha' }]
+        ]);
+        const emptyWorkingLogs: any[] = [];
+
+        for (const targetLog of expectedPendingLogs.values()) {
+          const matchingLog = emptyWorkingLogs.find(l => {
+            if (targetLog.cycleId && l.cycleId) {
+              return l.cycleId === targetLog.cycleId && l.date === targetLog.date;
+            }
+            return l.date === targetLog.date;
+          });
+
+          const exists = Boolean(matchingLog);
+          assertReconciliationInvariant(
+            exists,
+            'Expected pending log must exist in reconciled logs'
+          );
+        }
+
+        assert.equal(warnings.length, 1);
+        assert.equal(
+          warnings[0],
+          '[ReconciliationInvariantViolation] Expected pending log must exist in reconciled logs'
+        );
+      } finally {
+        console.warn = originalWarn;
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
+
+    it('(aa) valid standard reconciliation produces zero invariant warnings', () => {
+      const originalWarn = console.warn;
+      const originalEnv = process.env.NODE_ENV;
+      const warnings: string[] = [];
+      console.warn = (msg: string) => { warnings.push(msg); };
+
+      try {
+        process.env.NODE_ENV = 'development';
+
+        const result = reconcileBootState({
+          authenticatedOwnerId: 'user-standard',
+          remoteCycles: [createSampleCycle({ id: 'c-std-1', title: 'Standard Cycle' })],
+          remoteLogs: [createSampleLog({ date: '1403-02-01', cycleId: 'c-std-1', note: 'Standard Note', isSynced: true })],
+          remoteUserProfile: { name: 'Warrior Alpha', theme: 'amber' },
+          currentLocalState: {
+            cycles: [createSampleCycle({ id: 'c-std-1' })],
+            logs: [createSampleLog({ date: '1403-02-01', cycleId: 'c-std-1' })],
+            userProfile: { id: 'user-standard', name: 'Warrior Alpha', isVip: false } as any
+          },
+          pendingQueue: [],
+          isDemoConsumed: true
+        });
+
+        assert.equal(result.cycles?.length, 1);
+        assert.equal(result.logs?.length, 1);
+        assert.equal(result.userProfile?.name, 'Warrior Alpha');
+
+        const invariantWarnings = warnings.filter(w => w.includes('[ReconciliationInvariantViolation]'));
+        assert.equal(invariantWarnings.length, 0, 'Zero invariant warnings emitted for valid standard reconciliation');
+      } finally {
+        console.warn = originalWarn;
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
   });
 });
 
