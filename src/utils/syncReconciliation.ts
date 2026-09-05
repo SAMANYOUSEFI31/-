@@ -45,6 +45,16 @@ const IMMUTABLE_PROFILE_FIELDS = new Set([
 ]);
 
 /**
+ * Internal invariant check helper for development and testing.
+ * Logs diagnostics without altering production behavior or throwing in production.
+ */
+function assertReconciliationInvariant(condition: boolean, message: string): void {
+  if (!condition && process.env.NODE_ENV !== 'production') {
+    console.warn(`[ReconciliationInvariantViolation] ${message}`);
+  }
+}
+
+/**
  * Safe Boot Reconciliation with Pending Offline Mutations (Phase 3C.2).
  *
  * Pure, framework-neutral reconciliation that prevents authenticated boot hydration

@@ -96,6 +96,16 @@ interface PendingTrailingState {
 }
 
 /**
+ * Internal invariant check helper for development and testing.
+ * Logs diagnostics without altering production behavior or throwing in production.
+ */
+function assertSyncInvariant(condition: boolean, message: string): void {
+  if (!condition && process.env.NODE_ENV !== 'production') {
+    console.warn(`[SyncInvariantViolation] ${message}`);
+  }
+}
+
+/**
  * Single client-side Sync Orchestrator for Bushido Discipline OS.
  * Serves as the sole application-level gateway for requesting offline queue replay.
  */
@@ -332,6 +342,19 @@ export class SyncOrchestrator {
     itemSuccessCallbacks: Set<(item: OfflineQueueItem) => void>;
     resultCallbacks: Set<(outcome: SyncRunOutcome) => void>;
   }): Promise<SyncRunOutcome> {
+    assertSyncInvariant(
+      !isGuestQueueOwner(runSpec.ownerId) && runSpec.ownerId.length > 0,
+      'Active run ownerId must be a non-guest, non-empty user ID'
+    );
+    assertSyncInvariant(
+      typeof runSpec.token === 'string' && runSpec.token.length > 0,
+      'Active run token must be a non-empty string'
+    );
+    assertSyncInvariant(
+      runSpec.triggers.size > 0,
+      'Active run triggers set must not be empty'
+    );
+
     const promise = this.executeRun(runSpec).finally(() => {
       this.activeRun = null;
       this.scheduleTrailingRunIfNeeded();
