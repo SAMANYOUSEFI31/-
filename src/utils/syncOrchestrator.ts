@@ -7,10 +7,17 @@ import {
   isGuestQueueOwner
 } from './offlineQueueUtils';
 import { isDevelopmentEnvironment } from './storageCore';
+import {
+  generateDiagnosticRunId,
+  emitSyncDiagnostic,
+  classifySafeError,
+  SyncDiagnosticSink,
+  getSyncDiagnosticSink
+} from './syncDiagnostics';
 
 /**
  * =============================================================================
- * PHASE 3C.1: SINGLE SYNC ORCHESTRATOR AND TRIGGER OWNERSHIP
+ * PHASE 3C.1 & PHASE 4: SINGLE SYNC ORCHESTRATOR AND OBSERVABILITY
  * =============================================================================
  *
  * Closed vocabulary of supported sync trigger sources:
@@ -50,6 +57,7 @@ export interface SyncRunOutcome {
   stoppedDueToLockLoss: boolean;
   status: SyncRunStatus;
   error?: unknown;
+  runId?: string;
 }
 
 export interface SyncRequest {
@@ -62,6 +70,7 @@ export interface SyncRequest {
   isOnlineResolver?: () => boolean;
   onItemSuccess?: (item: OfflineQueueItem) => void;
   onResult?: (outcome: SyncRunOutcome) => void;
+  diagnosticSink?: SyncDiagnosticSink;
 }
 
 export interface SyncOrchestratorConfig {
@@ -70,9 +79,12 @@ export interface SyncOrchestratorConfig {
   isOnlineResolver?: () => boolean;
   defaultItemSuccessCallback?: (item: OfflineQueueItem) => void;
   defaultResultCallback?: (outcome: SyncRunOutcome) => void;
+  diagnosticSink?: SyncDiagnosticSink;
 }
 
 interface ActiveRunState {
+  runId: string;
+  startTime: number;
   ownerId: string;
   token: string;
   force: boolean;
@@ -109,6 +121,7 @@ export function assertSyncInvariant(condition: boolean, message: string): void {
 /**
  * Single client-side Sync Orchestrator for Bushido Discipline OS.
  * Serves as the sole application-level gateway for requesting offline queue replay.
+ * Instrumented with Phase 4 privacy-safe observability and diagnostics.
  */
 export class SyncOrchestrator {
   private config: SyncOrchestratorConfig;
@@ -119,6 +132,10 @@ export class SyncOrchestrator {
     this.config = config || {};
   }
 
+  private getSink(request?: SyncRequest): SyncDiagnosticSink {
+    return request?.diagnosticSink || this.config.diagnosticSink || getSyncDiagnosticSink();
+  }
+
   public isRunActive(): boolean {
     return this.activeRun !== null;
   }
@@ -127,9 +144,10 @@ export class SyncOrchestrator {
     return this.pendingTrailing !== null;
   }
 
-  public getActiveRun(): { ownerId: string; force: boolean; triggers: SyncTrigger[] } | null {
+  public getActiveRun(): { runId: string; ownerId: string; force: boolean; triggers: SyncTrigger[] } | null {
     if (!this.activeRun) return null;
     return {
+      runId: this.activeRun.runId,
       ownerId: this.activeRun.ownerId,
       force: this.activeRun.force,
       triggers: Array.from(this.activeRun.triggers)
@@ -162,6 +180,7 @@ export class SyncOrchestrator {
    * Request synchronization through the single orchestrator gateway.
    */
   public async requestSync(request: SyncRequest): Promise<SyncRunOutcome> {
+    const sink = this.getSink(request);
     const activeResolver =
       request.currentActiveAccountResolver ||
       this.config.currentActiveAccountResolver ||
@@ -182,7 +201,7 @@ export class SyncOrchestrator {
     // 1. Online check
     if (!this.isOnline(request)) {
       const normOwner = rawOwner ? normalizeQueueOwner(rawOwner) : '';
-      return {
+      const outcome: SyncRunOutcome = {
         ownerId: normOwner,
         triggers: [request.trigger],
         syncedCount: 0,
@@ -193,6 +212,18 @@ export class SyncOrchestrator {
         stoppedDueToLockLoss: false,
         status: 'SKIPPED_OFFLINE'
       };
+
+      emitSyncDiagnostic({
+        eventType: 'RUN_SKIPPED',
+        timestamp: Date.now(),
+        trigger: request.trigger,
+        force: isForce,
+        outcomeStatus: 'SKIPPED_OFFLINE',
+        errorCategory: 'OFFLINE',
+        safeReason: 'OFFLINE'
+      }, sink);
+
+      return outcome;
     }
 
     // 2. Identity and token snapshot validation:
@@ -205,7 +236,7 @@ export class SyncOrchestrator {
       rawToken.trim().length === 0
     ) {
       const normOwner = rawOwner ? normalizeQueueOwner(rawOwner) : '';
-      return {
+      const outcome: SyncRunOutcome = {
         ownerId: normOwner,
         triggers: [request.trigger],
         syncedCount: 0,
@@ -216,6 +247,18 @@ export class SyncOrchestrator {
         stoppedDueToLockLoss: false,
         status: 'SKIPPED_GUEST_OR_ANONYMOUS'
       };
+
+      emitSyncDiagnostic({
+        eventType: 'RUN_SKIPPED',
+        timestamp: Date.now(),
+        trigger: request.trigger,
+        force: isForce,
+        outcomeStatus: 'SKIPPED_GUEST_OR_ANONYMOUS',
+        errorCategory: 'AUTH',
+        safeReason: 'GUEST_OR_ANONYMOUS'
+      }, sink);
+
+      return outcome;
     }
 
     const normOwner = normalizeQueueOwner(rawOwner);
@@ -257,6 +300,14 @@ export class SyncOrchestrator {
           deferredResolvers: [resolver]
         };
 
+        emitSyncDiagnostic({
+          eventType: 'RUN_REQUESTED',
+          timestamp: Date.now(),
+          trigger: request.trigger,
+          force: isForce,
+          safeReason: 'PENDING_TRAILING'
+        }, sink);
+
         return promise;
       }
 
@@ -276,6 +327,14 @@ export class SyncOrchestrator {
           this.pendingTrailing.resultCallbacks.add(request.onResult);
         }
 
+        emitSyncDiagnostic({
+          eventType: 'RUN_COALESCED',
+          timestamp: Date.now(),
+          trigger: request.trigger,
+          force: isForce,
+          safeReason: 'COALESCED'
+        }, sink);
+
         return new Promise<SyncRunOutcome>((res) => {
           this.pendingTrailing?.deferredResolvers.push(res);
         });
@@ -294,6 +353,17 @@ export class SyncOrchestrator {
           stoppedDueToLockLoss: false,
           status: 'DISCARDED_STALE'
         };
+
+        emitSyncDiagnostic({
+          eventType: 'RUN_DISCARDED_STALE',
+          timestamp: Date.now(),
+          triggers: Array.from(oldPending.triggers),
+          force: oldPending.force,
+          outcomeStatus: 'DISCARDED_STALE',
+          errorCategory: 'ACCOUNT_CHANGE',
+          safeReason: 'ACCOUNT_CHANGED'
+        }, sink);
+
         for (const res of oldPending.deferredResolvers) {
           res(discardedOutcome);
         }
@@ -316,11 +386,26 @@ export class SyncOrchestrator {
           deferredResolvers: [resolver]
         };
 
+        emitSyncDiagnostic({
+          eventType: 'RUN_REQUESTED',
+          timestamp: Date.now(),
+          trigger: request.trigger,
+          force: isForce,
+          safeReason: 'PENDING_TRAILING'
+        }, sink);
+
         return promise;
       }
     }
 
     // 4. No active run: start immediately
+    emitSyncDiagnostic({
+      eventType: 'RUN_REQUESTED',
+      timestamp: Date.now(),
+      trigger: request.trigger,
+      force: isForce
+    }, sink);
+
     return this.startActiveRun({
       ownerId: normOwner,
       token: rawToken,
@@ -330,19 +415,22 @@ export class SyncOrchestrator {
       replayExecutor,
       itemSuccessCallbacks: itemCbs,
       resultCallbacks: resCbs
-    });
+    }, sink);
   }
 
-  private startActiveRun(runSpec: {
-    ownerId: string;
-    token: string;
-    force: boolean;
-    triggers: Set<SyncTrigger>;
-    currentActiveAccountResolver: () => string | null;
-    replayExecutor: (options: ReplayOptions) => Promise<ReplayResult>;
-    itemSuccessCallbacks: Set<(item: OfflineQueueItem) => void>;
-    resultCallbacks: Set<(outcome: SyncRunOutcome) => void>;
-  }): Promise<SyncRunOutcome> {
+  private startActiveRun(
+    runSpec: {
+      ownerId: string;
+      token: string;
+      force: boolean;
+      triggers: Set<SyncTrigger>;
+      currentActiveAccountResolver: () => string | null;
+      replayExecutor: (options: ReplayOptions) => Promise<ReplayResult>;
+      itemSuccessCallbacks: Set<(item: OfflineQueueItem) => void>;
+      resultCallbacks: Set<(outcome: SyncRunOutcome) => void>;
+    },
+    sink: SyncDiagnosticSink
+  ): Promise<SyncRunOutcome> {
     assertSyncInvariant(
       !isGuestQueueOwner(runSpec.ownerId) && runSpec.ownerId.length > 0,
       'Active run ownerId must be a non-guest, non-empty user ID'
@@ -356,12 +444,25 @@ export class SyncOrchestrator {
       'Active run triggers set must not be empty'
     );
 
-    const promise = this.executeRun(runSpec).finally(() => {
+    const runId = generateDiagnosticRunId();
+    const startTime = Date.now();
+
+    emitSyncDiagnostic({
+      eventType: 'RUN_STARTED',
+      timestamp: startTime,
+      runId,
+      triggers: Array.from(runSpec.triggers),
+      force: runSpec.force
+    }, sink);
+
+    const promise = this.executeRun(runSpec, runId, startTime, sink).finally(() => {
       this.activeRun = null;
       this.scheduleTrailingRunIfNeeded();
     });
 
     this.activeRun = {
+      runId,
+      startTime,
       ownerId: runSpec.ownerId,
       token: runSpec.token,
       force: runSpec.force,
@@ -376,20 +477,25 @@ export class SyncOrchestrator {
     return promise;
   }
 
-  private async executeRun(runSpec: {
-    ownerId: string;
-    token: string;
-    force: boolean;
-    triggers: Set<SyncTrigger>;
-    currentActiveAccountResolver: () => string | null;
-    replayExecutor: (options: ReplayOptions) => Promise<ReplayResult>;
-    itemSuccessCallbacks: Set<(item: OfflineQueueItem) => void>;
-    resultCallbacks: Set<(outcome: SyncRunOutcome) => void>;
-  }): Promise<SyncRunOutcome> {
+  private async executeRun(
+    runSpec: {
+      ownerId: string;
+      token: string;
+      force: boolean;
+      triggers: Set<SyncTrigger>;
+      currentActiveAccountResolver: () => string | null;
+      replayExecutor: (options: ReplayOptions) => Promise<ReplayResult>;
+      itemSuccessCallbacks: Set<(item: OfflineQueueItem) => void>;
+      resultCallbacks: Set<(outcome: SyncRunOutcome) => void>;
+    },
+    runId: string,
+    startTime: number,
+    sink: SyncDiagnosticSink
+  ): Promise<SyncRunOutcome> {
     // Identity revalidation before starting execution
     const currentActiveBefore = normalizeQueueOwner(runSpec.currentActiveAccountResolver());
     if (currentActiveBefore !== runSpec.ownerId || isGuestQueueOwner(currentActiveBefore)) {
-      return {
+      const outcome: SyncRunOutcome = {
         ownerId: runSpec.ownerId,
         triggers: Array.from(runSpec.triggers),
         syncedCount: 0,
@@ -398,8 +504,23 @@ export class SyncOrchestrator {
         stoppedDueToAuth: false,
         stoppedDueToAccountChange: true,
         stoppedDueToLockLoss: false,
-        status: 'DISCARDED_STALE'
+        status: 'DISCARDED_STALE',
+        runId
       };
+
+      emitSyncDiagnostic({
+        eventType: 'RUN_DISCARDED_STALE',
+        timestamp: Date.now(),
+        runId,
+        triggers: Array.from(runSpec.triggers),
+        force: runSpec.force,
+        outcomeStatus: 'DISCARDED_STALE',
+        errorCategory: 'ACCOUNT_CHANGE',
+        safeReason: 'ACCOUNT_CHANGED',
+        durationMs: Date.now() - startTime
+      }, sink);
+
+      return outcome;
     }
 
     // Wrapped item success callback:
@@ -444,8 +565,73 @@ export class SyncOrchestrator {
         stoppedDueToAuth: replayResult.stoppedDueToAuth,
         stoppedDueToAccountChange,
         stoppedDueToLockLoss: Boolean(replayResult.stoppedDueToLockLoss),
-        status: stoppedDueToAccountChange ? 'DISCARDED_STALE' : 'COMPLETED'
+        status: stoppedDueToAccountChange ? 'DISCARDED_STALE' : 'COMPLETED',
+        runId
       };
+
+      const durationMs = Date.now() - startTime;
+
+      // Emit specific diagnostic event matching actual outcome
+      if (outcome.stoppedDueToLockLoss) {
+        emitSyncDiagnostic({
+          eventType: 'LOCK_LOST',
+          timestamp: Date.now(),
+          runId,
+          triggers: Array.from(runSpec.triggers),
+          force: runSpec.force,
+          syncedCount: replayResult.syncedCount,
+          failedCount: replayResult.failedCount,
+          remainingQueueCount: replayResult.remainingQueueCount,
+          outcomeStatus: outcome.status,
+          errorCategory: 'LOCK_LOSS',
+          safeReason: 'LOCK_LOST',
+          durationMs
+        }, sink);
+      } else if (stoppedDueToAccountChange) {
+        emitSyncDiagnostic({
+          eventType: 'RUN_DISCARDED_STALE',
+          timestamp: Date.now(),
+          runId,
+          triggers: Array.from(runSpec.triggers),
+          force: runSpec.force,
+          syncedCount: replayResult.syncedCount,
+          failedCount: replayResult.failedCount,
+          remainingQueueCount: replayResult.remainingQueueCount,
+          outcomeStatus: 'DISCARDED_STALE',
+          errorCategory: 'ACCOUNT_CHANGE',
+          safeReason: 'ACCOUNT_CHANGED',
+          durationMs
+        }, sink);
+      } else if (outcome.stoppedDueToAuth) {
+        emitSyncDiagnostic({
+          eventType: outcome.syncedCount > 0 ? 'RUN_COMPLETED' : 'RUN_FAILED',
+          timestamp: Date.now(),
+          runId,
+          triggers: Array.from(runSpec.triggers),
+          force: runSpec.force,
+          syncedCount: replayResult.syncedCount,
+          failedCount: replayResult.failedCount,
+          remainingQueueCount: replayResult.remainingQueueCount,
+          outcomeStatus: outcome.status,
+          errorCategory: 'AUTH',
+          safeReason: 'AUTH_REQUIRED',
+          durationMs
+        }, sink);
+      } else {
+        emitSyncDiagnostic({
+          eventType: 'RUN_COMPLETED',
+          timestamp: Date.now(),
+          runId,
+          triggers: Array.from(runSpec.triggers),
+          force: runSpec.force,
+          syncedCount: replayResult.syncedCount,
+          failedCount: replayResult.failedCount,
+          remainingQueueCount: replayResult.remainingQueueCount,
+          outcomeStatus: outcome.status,
+          safeReason: 'SUCCESS',
+          durationMs
+        }, sink);
+      }
 
       // Safe result notification:
       // Only invoke when account still matches and run was not invalidated
@@ -466,6 +652,9 @@ export class SyncOrchestrator {
 
       return outcome;
     } catch (error) {
+      const durationMs = Date.now() - startTime;
+      const safeErrorCategory = classifySafeError(error);
+
       const outcome: SyncRunOutcome = {
         ownerId: runSpec.ownerId,
         triggers: Array.from(runSpec.triggers),
@@ -476,8 +665,25 @@ export class SyncOrchestrator {
         stoppedDueToAccountChange: false,
         stoppedDueToLockLoss: false,
         status: 'FAILED',
-        error
+        error,
+        runId
       };
+
+      emitSyncDiagnostic({
+        eventType: 'RUN_FAILED',
+        timestamp: Date.now(),
+        runId,
+        triggers: Array.from(runSpec.triggers),
+        force: runSpec.force,
+        syncedCount: 0,
+        failedCount: 0,
+        remainingQueueCount: 0,
+        outcomeStatus: 'FAILED',
+        errorCategory: safeErrorCategory,
+        safeReason: 'ERROR',
+        durationMs
+      }, sink);
+
       return outcome;
     }
   }
@@ -487,6 +693,7 @@ export class SyncOrchestrator {
       return;
     }
 
+    const sink = this.getSink();
     const pending = this.pendingTrailing;
     this.pendingTrailing = null;
 
@@ -506,6 +713,17 @@ export class SyncOrchestrator {
         stoppedDueToLockLoss: false,
         status: 'DISCARDED_STALE'
       };
+
+      emitSyncDiagnostic({
+        eventType: 'RUN_DISCARDED_STALE',
+        timestamp: Date.now(),
+        triggers: Array.from(pending.triggers),
+        force: pending.force,
+        outcomeStatus: 'DISCARDED_STALE',
+        errorCategory: 'ACCOUNT_CHANGE',
+        safeReason: 'ACCOUNT_CHANGED'
+      }, sink);
+
       for (const res of pending.deferredResolvers) {
         res(discardedOutcome);
       }
@@ -525,6 +743,17 @@ export class SyncOrchestrator {
         stoppedDueToLockLoss: false,
         status: 'DISCARDED_STALE'
       };
+
+      emitSyncDiagnostic({
+        eventType: 'RUN_DISCARDED_STALE',
+        timestamp: Date.now(),
+        triggers: Array.from(pending.triggers),
+        force: pending.force,
+        outcomeStatus: 'DISCARDED_STALE',
+        errorCategory: 'ACCOUNT_CHANGE',
+        safeReason: 'ACCOUNT_CHANGED'
+      }, sink);
+
       for (const res of pending.deferredResolvers) {
         res(discardedOutcome);
       }
@@ -544,13 +773,24 @@ export class SyncOrchestrator {
         stoppedDueToLockLoss: false,
         status: 'SKIPPED_OFFLINE'
       };
+
+      emitSyncDiagnostic({
+        eventType: 'RUN_SKIPPED',
+        timestamp: Date.now(),
+        triggers: Array.from(pending.triggers),
+        force: pending.force,
+        outcomeStatus: 'SKIPPED_OFFLINE',
+        errorCategory: 'OFFLINE',
+        safeReason: 'OFFLINE'
+      }, sink);
+
       for (const res of pending.deferredResolvers) {
         res(offlineOutcome);
       }
       return;
     }
 
-    // 4. Start trailing run and pipe outcome to deferredResolvers
+    // 4. Start trailing run with new runId and pipe outcome to deferredResolvers
     const runPromise = this.startActiveRun({
       ownerId: pending.ownerId,
       token: pending.token,
@@ -560,7 +800,7 @@ export class SyncOrchestrator {
       replayExecutor: pending.replayExecutor,
       itemSuccessCallbacks: pending.itemSuccessCallbacks,
       resultCallbacks: pending.resultCallbacks
-    });
+    }, sink);
 
     runPromise
       .then((outcome) => {
@@ -592,6 +832,7 @@ export class SyncOrchestrator {
    */
   public cancelPendingSync(): void {
     if (this.pendingTrailing) {
+      const sink = this.getSink();
       const pending = this.pendingTrailing;
       this.pendingTrailing = null;
       const outcome: SyncRunOutcome = {
@@ -605,6 +846,16 @@ export class SyncOrchestrator {
         stoppedDueToLockLoss: false,
         status: 'ABORTED'
       };
+
+      emitSyncDiagnostic({
+        eventType: 'RUN_ABORTED',
+        timestamp: Date.now(),
+        triggers: Array.from(pending.triggers),
+        force: pending.force,
+        outcomeStatus: 'ABORTED',
+        safeReason: 'USER_ABORT'
+      }, sink);
+
       for (const res of pending.deferredResolvers) {
         res(outcome);
       }
@@ -664,4 +915,3 @@ export function bindBootAuthAndRequestSync({
   }
   return requestSync('BOOT_AUTH_VERIFIED', verifiedUserId, verifiedToken);
 }
-

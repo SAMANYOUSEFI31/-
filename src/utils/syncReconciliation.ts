@@ -1,6 +1,11 @@
 import { Cycle, DailyLog, UserProfile, OfflineQueueItem } from '../types';
 import { resolveBackendSyncDecision } from './storageUtils';
 import { normalizeQueueOwner, isGuestQueueOwner, isDevelopmentEnvironment } from './storageCore';
+import {
+  emitSyncDiagnostic,
+  SyncDiagnosticSink,
+  getSyncDiagnosticSink
+} from './syncDiagnostics';
 
 export interface ReconcileBootStateInput {
   authenticatedOwnerId?: string | null;
@@ -14,6 +19,7 @@ export interface ReconcileBootStateInput {
   };
   pendingQueue: OfflineQueueItem[];
   isDemoConsumed: boolean;
+  diagnosticSink?: SyncDiagnosticSink;
 }
 
 export interface ReconciledBootState {
@@ -55,10 +61,11 @@ export function assertReconciliationInvariant(condition: boolean, message: strin
 }
 
 /**
- * Safe Boot Reconciliation with Pending Offline Mutations (Phase 3C.2).
+ * Safe Boot Reconciliation with Pending Offline Mutations (Phase 3C.2 & Phase 4).
  *
  * Pure, framework-neutral reconciliation that prevents authenticated boot hydration
  * from overwriting local optimistic state still represented in pending offline queues.
+ * Instrumented with aggregate-only, privacy-safe diagnostics.
  *
  * Invariants:
  * 1. Server Authority Baseline: Remote server snapshot is the baseline for confirmed state.
@@ -68,6 +75,7 @@ export function assertReconciliationInvariant(condition: boolean, message: strin
  * 4. Truthful Sync State: All pending or modified items are marked `isSynced: false`.
  * 5. Privilege Immunity: Pending profile updates cannot elevate isAdmin, isVip, tier, etc.
  * 6. Idempotency: Repeated execution with identical inputs produces identical outputs without side effects.
+ * 7. Privacy: Emits strictly aggregate counts without entity IDs, personal content, or payload details.
  */
 export function reconcileBootState(input: ReconcileBootStateInput): ReconciledBootState {
   const {
@@ -77,8 +85,11 @@ export function reconcileBootState(input: ReconcileBootStateInput): ReconciledBo
     remoteUserProfile,
     currentLocalState,
     pendingQueue,
-    isDemoConsumed
+    isDemoConsumed,
+    diagnosticSink
   } = input;
+
+  const sink = diagnosticSink || getSyncDiagnosticSink();
 
   // 1. Resolve baseline remote sync decision (preserves demo rules)
   const baselineDecision = resolveBackendSyncDecision({
@@ -108,6 +119,17 @@ export function reconcileBootState(input: ReconcileBootStateInput): ReconciledBo
   const isGuest = isGuestQueueOwner(normOwner);
 
   if (!normOwner || isGuest || !Array.isArray(pendingQueue) || pendingQueue.length === 0) {
+    emitSyncDiagnostic({
+      eventType: 'RECONCILIATION_COMPLETED',
+      timestamp: Date.now(),
+      remoteCyclesCount: Array.isArray(remoteCycles) ? remoteCycles.length : 0,
+      remoteLogsCount: Array.isArray(remoteLogs) ? remoteLogs.length : 0,
+      pendingMutationsCount: 0,
+      reconciledCyclesCount: workingCycles ? workingCycles.length : 0,
+      reconciledLogsCount: workingLogs ? workingLogs.length : 0,
+      demoConsumedChanged: shouldMarkDemoConsumed !== isDemoConsumed
+    }, sink);
+
     return {
       cycles: workingCycles,
       logs: workingLogs,
@@ -125,6 +147,17 @@ export function reconcileBootState(input: ReconcileBootStateInput): ReconciledBo
   });
 
   if (validMutations.length === 0) {
+    emitSyncDiagnostic({
+      eventType: 'RECONCILIATION_COMPLETED',
+      timestamp: Date.now(),
+      remoteCyclesCount: Array.isArray(remoteCycles) ? remoteCycles.length : 0,
+      remoteLogsCount: Array.isArray(remoteLogs) ? remoteLogs.length : 0,
+      pendingMutationsCount: 0,
+      reconciledCyclesCount: workingCycles ? workingCycles.length : 0,
+      reconciledLogsCount: workingLogs ? workingLogs.length : 0,
+      demoConsumedChanged: shouldMarkDemoConsumed !== isDemoConsumed
+    }, sink);
+
     return {
       cycles: workingCycles,
       logs: workingLogs,
@@ -364,6 +397,18 @@ export function reconcileBootState(input: ReconcileBootStateInput): ReconciledBo
       resolvedActiveCycleId = workingCycles[0].id;
     }
   }
+
+  // Emit aggregate-only reconciliation completion diagnostic
+  emitSyncDiagnostic({
+    eventType: 'RECONCILIATION_COMPLETED',
+    timestamp: Date.now(),
+    remoteCyclesCount: Array.isArray(remoteCycles) ? remoteCycles.length : 0,
+    remoteLogsCount: Array.isArray(remoteLogs) ? remoteLogs.length : 0,
+    pendingMutationsCount: validMutations.length,
+    reconciledCyclesCount: workingCycles ? workingCycles.length : 0,
+    reconciledLogsCount: workingLogs ? workingLogs.length : 0,
+    demoConsumedChanged: shouldMarkDemoConsumed !== isDemoConsumed
+  }, sink);
 
   return {
     cycles: workingCycles,

@@ -43,6 +43,7 @@ import {
 } from './utils/storageUtils';
 import { getOfflineQueue } from './utils/offlineQueueUtils';
 import { reconcileBootState } from './utils/syncReconciliation';
+import { emitSyncDiagnostic } from './utils/syncDiagnostics';
 import { 
   createSyncOrchestrator, 
   SyncTrigger, 
@@ -394,6 +395,13 @@ export default function App() {
         // Revalidate active identity before committing state (prevent stale boot commitment)
         const currentActiveOwner = normalizeQueueOwner(activeAccountRef.current);
         if (activeUserId && currentActiveOwner !== normalizeQueueOwner(activeUserId)) {
+          emitSyncDiagnostic({
+            eventType: 'RECONCILIATION_DISCARDED_STALE',
+            timestamp: Date.now(),
+            outcomeStatus: 'DISCARDED_STALE',
+            errorCategory: 'ACCOUNT_CHANGE',
+            safeReason: 'ACCOUNT_CHANGED'
+          });
           console.warn(`[SyncReconciliation] Discarding boot hydration for ${activeUserId}; active account changed to ${currentActiveOwner}`);
           return;
         }
