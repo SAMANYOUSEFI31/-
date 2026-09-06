@@ -24,7 +24,8 @@ import {
   parseSafeConflictDetails,
   calculateReplayBackoffMs,
   classifyReplayResponse,
-  shouldQueueOfflineMutation
+  shouldQueueOfflineMutation,
+  quarantineQueueItems
 } from './offlineQueueUtils';
 
 export interface OptimisticUpdateResult<T> {
@@ -378,8 +379,13 @@ export type DirectDailyLogMutationResult =
   | { status: 'ACCOUNT_SWITCHED'; queueItemId: string }
   | { status: 'SUCCESS'; serverLog: any; queueItemId: string; hasNewerIntent: boolean }
   | { status: 'INVALID_SUCCESS_RESPONSE'; queueItemId: string; errorMsg: string }
+  | { status: 'AUTH_REQUIRED'; statusCode: 401; queueItemId: string }
+  | { status: 'FORBIDDEN'; statusCode: 403; queueItemId: string }
+  | { status: 'VALIDATION_ERROR'; statusCode: number; queueItemId: string }
+  | { status: 'ENTITY_MISSING'; statusCode: 404; queueItemId: string }
   | { status: 'CONFLICT'; statusCode: 409 | 428; conflictDetails: any; queueItemId: string }
-  | { status: 'HTTP_ERROR'; statusCode: number; queueItemId: string; classification: string }
+  | { status: 'RATE_LIMITED'; statusCode: 429; queueItemId: string; retryCount: number; nextRetryAt?: number }
+  | { status: 'SERVER_RETRYABLE'; statusCode: number; queueItemId: string; retryCount: number; nextRetryAt?: number }
   | { status: 'NETWORK_ERROR'; error: any; queueItemId: string };
 
 /**
@@ -533,49 +539,131 @@ export async function executeDirectDailyLogMutation(
           errorMsg
         };
       }
-    } else if (res.status === 409 || res.status === 428) {
-      // Concurrency conflict or precondition required: remove failed item from active queue so it doesn't loop
-      removeReplayedQueueItems(ownerId, [queueItem.id]);
-
-      const conflictJson = await res.json().catch(() => null);
-      const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'DAILY_LOG', updatedLog.date);
-      recordClientConflict(ownerId, {
-        mutationType: 'UPDATE_LOG',
-        entityType: parsedConflict.entityType,
-        entityId: parsedConflict.entityId,
-        conflictType: parsedConflict.conflictType,
-        statusCode: parsedConflict.statusCode,
-        expectedRevision: parsedConflict.expectedRevision ?? expectedRevision,
-        currentRevision: parsedConflict.currentRevision,
-        messageFa: parsedConflict.messageFa,
-        clientPayload: logPayload,
-        operationId: queueItem.id
-      });
-
-      return {
-        status: 'CONFLICT',
-        statusCode: res.status as 409 | 428,
-        conflictDetails: parsedConflict,
-        queueItemId: queueItem.id
-      };
     } else {
-      // Server error or rate limit: preserve queue item, record failure with backoff
       markQueueItemInFlight(ownerId, queueItem.id, false);
       const classification = classifyReplayResponse(res.status, 'UPDATE_LOG');
-      const nextRetryCount = (queueItem.retryCount || 0) + 1;
-      const backoffMs = calculateReplayBackoffMs(nextRetryCount);
-      recordQueueItemFailure(
-        ownerId,
-        queueItem.id,
-        `Server returned HTTP ${res.status} (${classification})`,
-        backoffMs,
-        classification
+
+      if (classification === 'AUTH_REQUIRED') {
+        recordQueueItemFailure(ownerId, queueItem.id, 'HTTP 401 Unauthorized', 0, 'AUTH_REQUIRED');
+        return {
+          status: 'AUTH_REQUIRED',
+          statusCode: 401,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'FORBIDDEN') {
+        quarantineQueueItems(
+          [{ ...queueItem, inFlight: false, classification: 'FORBIDDEN' }],
+          'HTTP 403 Forbidden - permission denied',
+          ownerId
+        );
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+        return {
+          status: 'FORBIDDEN',
+          statusCode: 403,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'ENTITY_MISSING') {
+        quarantineQueueItems(
+          [{ ...queueItem, inFlight: false, classification: 'ENTITY_MISSING' }],
+          'HTTP 404 Entity Missing for UPDATE_LOG',
+          ownerId
+        );
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+        return {
+          status: 'ENTITY_MISSING',
+          statusCode: 404,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'VALIDATION_ERROR') {
+        quarantineQueueItems(
+          [{ ...queueItem, inFlight: false, classification: 'VALIDATION_ERROR' }],
+          `HTTP ${res.status} Validation Error`,
+          ownerId
+        );
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+        return {
+          status: 'VALIDATION_ERROR',
+          statusCode: res.status,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'CONFLICT_DEFERRED' || classification === 'PRECONDITION_REQUIRED') {
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+
+        const conflictJson = await res.json().catch(() => null);
+        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'DAILY_LOG', updatedLog.date);
+        recordClientConflict(ownerId, {
+          mutationType: 'UPDATE_LOG',
+          entityType: parsedConflict.entityType,
+          entityId: parsedConflict.entityId,
+          conflictType: parsedConflict.conflictType,
+          statusCode: parsedConflict.statusCode,
+          expectedRevision: parsedConflict.expectedRevision ?? expectedRevision,
+          currentRevision: parsedConflict.currentRevision,
+          messageFa: parsedConflict.messageFa,
+          clientPayload: logPayload,
+          operationId: queueItem.id
+        });
+
+        return {
+          status: 'CONFLICT',
+          statusCode: res.status as 409 | 428,
+          conflictDetails: parsedConflict,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'RATE_LIMITED') {
+        const nextRetryCount = (queueItem.retryCount || 0) + 1;
+        const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+        const nextRetryAt = Date.now() + backoffMs;
+        recordQueueItemFailure(ownerId, queueItem.id, 'HTTP 429 Rate Limited', backoffMs, 'RATE_LIMITED');
+        return {
+          status: 'RATE_LIMITED',
+          statusCode: 429,
+          queueItemId: queueItem.id,
+          retryCount: nextRetryCount,
+          nextRetryAt
+        };
+      }
+
+      if (classification === 'SERVER_RETRYABLE') {
+        const nextRetryCount = (queueItem.retryCount || 0) + 1;
+        const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+        const nextRetryAt = Date.now() + backoffMs;
+        recordQueueItemFailure(
+          ownerId,
+          queueItem.id,
+          `Server returned HTTP ${res.status} (SERVER_RETRYABLE)`,
+          backoffMs,
+          'SERVER_RETRYABLE'
+        );
+        return {
+          status: 'SERVER_RETRYABLE',
+          statusCode: res.status,
+          queueItemId: queueItem.id,
+          retryCount: nextRetryCount,
+          nextRetryAt
+        };
+      }
+
+      quarantineQueueItems(
+        [{ ...queueItem, inFlight: false, classification: 'VALIDATION_ERROR' }],
+        `Server returned unhandled HTTP ${res.status}`,
+        ownerId
       );
+      removeReplayedQueueItems(ownerId, [queueItem.id]);
       return {
-        status: 'HTTP_ERROR',
+        status: 'VALIDATION_ERROR',
         statusCode: res.status,
-        queueItemId: queueItem.id,
-        classification
+        queueItemId: queueItem.id
       };
     }
   } catch (err: any) {

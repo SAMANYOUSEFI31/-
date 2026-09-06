@@ -9,7 +9,9 @@ import {
   saveOfflineQueue,
   enqueueOfflineMutation,
   clearOfflineQueue,
-  markQueueItemInFlight
+  markQueueItemInFlight,
+  clearAllReplayLocks,
+  resetRuntimeInFlightState
 } from '../src/utils/offlineQueueUtils.js';
 import { getClientConflicts, clearClientConflicts } from '../src/utils/offlineQueueUtils.js';
 import { DailyLog } from '../src/types.js';
@@ -17,6 +19,9 @@ import { DailyLog } from '../src/types.js';
 test('Phase 6.1A DailyLog Write-Ahead Durability & Lifecycle Contracts', async (t) => {
   const userId = 'user_phase6_1a_durability';
   const storageMock: Record<string, string> = {};
+
+  const origWindow = (globalThis as any).window;
+  const origLocalStorage = (globalThis as any).localStorage;
 
   t.beforeEach(() => {
     for (const k in storageMock) delete storageMock[k];
@@ -42,6 +47,27 @@ test('Phase 6.1A DailyLog Write-Ahead Durability & Lifecycle Contracts', async (
 
     clearOfflineQueue(userId);
     clearClientConflicts(userId);
+    clearAllReplayLocks();
+    resetRuntimeInFlightState();
+  });
+
+  t.afterEach(() => {
+    try {
+      Object.defineProperty(globalThis.navigator, 'onLine', {
+        value: true,
+        configurable: true,
+        writable: true
+      });
+    } catch {}
+    clearOfflineQueue(userId);
+    clearClientConflicts(userId);
+    clearAllReplayLocks();
+    resetRuntimeInFlightState();
+  });
+
+  t.after(() => {
+    (globalThis as any).window = origWindow;
+    (globalThis as any).localStorage = origLocalStorage;
   });
 
   const baseLog: DailyLog = {

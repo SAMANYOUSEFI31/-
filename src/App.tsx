@@ -560,8 +560,25 @@ export default function App() {
       return;
     }
 
-    if (result.status === 'HTTP_ERROR' || result.status === 'NETWORK_ERROR') {
-      console.warn('[DailyLog Mutation] Preserved in durable write-ahead queue:', result);
+    if (result.status === 'FORBIDDEN' || result.status === 'VALIDATION_ERROR' || result.status === 'ENTITY_MISSING') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        return {
+          ...prev,
+          logs: rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot)
+        };
+      });
+      console.warn('[DailyLog Mutation] Non-retryable error, quarantined and rolled back:', result);
+      return;
+    }
+
+    if (result.status === 'AUTH_REQUIRED') {
+      console.warn('[DailyLog Mutation] Auth required, mutation preserved in queue for re-auth:', result);
+      return;
+    }
+
+    if (result.status === 'RATE_LIMITED' || result.status === 'SERVER_RETRYABLE' || result.status === 'NETWORK_ERROR') {
+      console.warn('[DailyLog Mutation] Preserved in durable write-ahead queue for retry:', result);
       return;
     }
   }, [authToken, activeCycleId, systemState.logs, systemState.userProfile?.id, showAppToast, requestSync]);

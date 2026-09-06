@@ -168,6 +168,28 @@ export function calculateReplayBackoffMs(retryCount: number): number {
 // In-flight replay promise tracker per account to prevent intra-tab concurrent replays
 const inFlightReplayPromises = new Map<string, Promise<ReplayResult>>();
 
+// Runtime-only in-flight operations registry per account/item to prevent stale persisted inFlight across crash/restart
+const runtimeInFlightOperations = new Set<string>();
+
+function getInFlightKey(ownerId: string, itemId: string): string {
+  return `${normalizeQueueOwner(ownerId)}:${itemId}`;
+}
+
+/**
+ * Resets the runtime-only inFlight registry (used during test teardown or boundary simulation).
+ */
+export function resetRuntimeInFlightState(): void {
+  runtimeInFlightOperations.clear();
+}
+
+/**
+ * Checks whether a specific queue item is currently marked in-flight in this runtime.
+ */
+export function isQueueItemInFlight(ownerId: string | null | undefined, itemId: string): boolean {
+  const normOwner = normalizeQueueOwner(ownerId);
+  return runtimeInFlightOperations.has(getInFlightKey(normOwner, itemId));
+}
+
 export interface ReplayTimingDependencies {
   now?: () => number;
   setInterval?: (callback: () => void, intervalMs: number) => any;
@@ -357,6 +379,7 @@ export function releaseReplayLock(owner: string, lockId?: string): boolean {
  */
 export function clearAllReplayLocks(): void {
   inFlightReplayPromises.clear();
+  runtimeInFlightOperations.clear();
   try {
     if (typeof localStorage !== 'undefined') {
       const keysToRemove: string[] = [];
@@ -483,6 +506,7 @@ export function getOfflineQueue(ownerId?: string | null): OfflineQueueItem[] {
 
     const validItems: OfflineQueueItem[] = [];
     const mismatchedItems: OfflineQueueItem[] = [];
+    let hadStaleInFlight = false;
 
     for (const item of parsed) {
       if (
@@ -494,10 +518,15 @@ export function getOfflineQueue(ownerId?: string | null): OfflineQueueItem[] {
       ) {
         const itemOwner = normalizeQueueOwner(item.ownerId);
         if (itemOwner === expectedOwner) {
+          const isCurrentlyInFlight = runtimeInFlightOperations.has(getInFlightKey(expectedOwner, item.id));
+          if (item.inFlight && !isCurrentlyInFlight) {
+            hadStaleInFlight = true;
+          }
           validItems.push({
             ...item,
             ownerId: expectedOwner,
-            timestamp: typeof item.timestamp === 'number' ? item.timestamp : Date.now()
+            timestamp: typeof item.timestamp === 'number' ? item.timestamp : Date.now(),
+            inFlight: isCurrentlyInFlight
           });
         } else {
           mismatchedItems.push(item);
@@ -508,6 +537,8 @@ export function getOfflineQueue(ownerId?: string | null): OfflineQueueItem[] {
     // Quarantine any embedded owner mismatches found inside this scoped key and clean partition
     if (mismatchedItems.length > 0) {
       quarantineQueueItems(mismatchedItems, `Embedded owner mismatch in ${key} (expected ${expectedOwner})`);
+      saveOfflineQueue(expectedOwner, validItems);
+    } else if (hadStaleInFlight) {
       saveOfflineQueue(expectedOwner, validItems);
     }
 
@@ -532,7 +563,10 @@ export function saveOfflineQueue(ownerId: string | null | undefined, queue: Offl
       typeof item.id === 'string' &&
       normalizeQueueOwner(item.ownerId) === normOwner
     );
-  });
+  }).map(item => ({
+    ...item,
+    inFlight: false
+  }));
 
   if (cleanItems.length === 0) {
     safeRemoveLocalStorage(key);
@@ -739,6 +773,9 @@ export function removeReplayedQueueItems(
   const currentQueue = getOfflineQueue(normOwner);
   const idSet = new Set(itemIds);
   const remainingQueue = currentQueue.filter(item => !idSet.has(item.id));
+  for (const id of itemIds) {
+    runtimeInFlightOperations.delete(getInFlightKey(normOwner, id));
+  }
   saveOfflineQueue(normOwner, remainingQueue);
 }
 
@@ -766,6 +803,7 @@ export function recordQueueItemFailure(
   classification?: ReplayFailureClassification
 ): void {
   const normOwner = normalizeQueueOwner(ownerId);
+  runtimeInFlightOperations.delete(getInFlightKey(normOwner, itemId));
   const currentQueue = getOfflineQueue(normOwner);
   const idx = currentQueue.findIndex(item => item.id === itemId);
   if (idx >= 0) {
@@ -794,23 +832,42 @@ export function markQueueItemInFlight(
 ): void {
   const normOwner = normalizeQueueOwner(ownerId);
   if (!normOwner) return;
-  const currentQueue = getOfflineQueue(normOwner);
-  const idx = currentQueue.findIndex(item => item.id === itemId);
-  if (idx >= 0) {
-    currentQueue[idx] = {
-      ...currentQueue[idx],
-      inFlight
-    };
-    saveOfflineQueue(normOwner, currentQueue);
+  const key = getInFlightKey(normOwner, itemId);
+  if (inFlight) {
+    runtimeInFlightOperations.add(key);
+  } else {
+    runtimeInFlightOperations.delete(key);
   }
 }
 
 /**
- * Clears only a specific owner's offline queue partition.
+ * Clears only a specific owner's offline queue partition and active in-flight tracking.
  */
 export function clearOfflineQueue(ownerId?: string | null): void {
-  const key = getScopedOfflineQueueKey(ownerId);
+  const normOwner = normalizeQueueOwner(ownerId);
+  const key = getScopedOfflineQueueKey(normOwner);
   safeRemoveLocalStorage(key);
+  for (const flightKey of runtimeInFlightOperations) {
+    if (flightKey.startsWith(`${normOwner}:`)) {
+      runtimeInFlightOperations.delete(flightKey);
+    }
+  }
+}
+
+/**
+ * Normalizes any stale in-flight items for an owner to inFlight: false,
+ * preserving original identity, payload, revision, and retry metadata.
+ */
+export function recoverStaleInFlightQueueItems(ownerId?: string | null): OfflineQueueItem[] {
+  const normOwner = normalizeQueueOwner(ownerId);
+  for (const flightKey of runtimeInFlightOperations) {
+    if (flightKey.startsWith(`${normOwner}:`)) {
+      runtimeInFlightOperations.delete(flightKey);
+    }
+  }
+  const queue = getOfflineQueue(normOwner);
+  saveOfflineQueue(normOwner, queue);
+  return queue;
 }
 
 const SENSITIVE_KEYS = new Set([
