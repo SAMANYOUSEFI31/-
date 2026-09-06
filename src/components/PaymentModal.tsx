@@ -77,10 +77,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     setPaymentError('');
     try {
       const token = localStorage.getItem('bushido_auth_token');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      if (!token) {
+        setPaymentError('برای ارتقا به VIP، ابتدا باید وارد حساب کاربری خود شوید.');
+        setIsLoading(false);
+        return;
       }
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
 
       const res = await fetch('/api/payment/request', {
         method: 'POST',
@@ -104,7 +109,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         setGeneratedCaptcha(newCap);
         setCaptchaInput(newCap);
       } else {
-        setPaymentError('خطا در اتصال به درگاه پرداخت.');
+        setPaymentError(data.messageFa || data.message || 'خطا در اتصال به درگاه پرداخت.');
       }
     } catch (err) {
       console.error('Payment request error:', err);
@@ -138,10 +143,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
     try {
       const token = localStorage.getItem('bushido_auth_token');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      if (!token) {
+        setPaymentError('نشست کاربری نامعتبر است. لطفاً ابتدا وارد شوید.');
+        setIsLoading(false);
+        return;
       }
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
 
       const res = await fetch('/api/payment/verify', {
         method: 'POST',
@@ -153,23 +163,24 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       });
       const data = await res.json();
 
-      if (data.status === 100) {
+      if (data.status === 100 || data.status === 101) {
+        const serverUser = data.user;
+        const serverSub = data.subscription;
         const now = new Date();
-        const expDate = new Date();
-        expDate.setDate(expDate.getDate() + (selectedPlan.durationMonths * 30));
 
+        // Server-authoritative state reconciliation (Phase 5A Work Package 6)
         const updated: UserProfile = {
           ...userProfile,
-          tier: 'vip_samurai',
+          tier: serverUser?.tier || data.tier || 'vip_samurai',
           isVip: true,
-          vipSince: now.toISOString(),
-          vipExpiresAt: expDate.toISOString(),
-          paymentRefId: data.refId,
+          vipSince: serverUser?.vipSince || userProfile.vipSince || now.toISOString(),
+          vipExpiresAt: serverUser?.vipExpiresAt || serverSub?.expiresAt || userProfile.vipExpiresAt || new Date(Date.now() + (selectedPlan.durationMonths * 30 * 86400000)).toISOString(),
+          paymentRefId: data.refId || serverUser?.paymentRefId || serverSub?.refId,
           activeCycleLimit: 99
         };
 
         setReceiptData({
-          refId: data.refId,
+          refId: data.refId || serverSub?.refId || 'REF-CONFIRMED',
           date: new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short' }).format(now)
         });
 
@@ -178,7 +189,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         soundFX.playMastery();
         haptics.masterySuccess();
       } else {
-        setPaymentError(data.message || 'پرداخت از طرف بانک تایید نشد.');
+        setPaymentError(data.messageFa || data.message || 'پرداخت از طرف بانک تایید نشد.');
         haptics.warningAlert();
       }
     } catch (err) {

@@ -377,7 +377,12 @@ describe('Payment & Subscription Verification Idempotency Suite (Phase 2A.1 Unit
       assert.equal(user90.tier, 'vip_samurai');
       assert.equal(user90.vipExpiresAt, completed90.expiresAt);
 
-      // 2. Test Annual fulfillment
+      // 2. Test Annual fulfillment (reset user to non-VIP state to test standalone fulfillment)
+      const u = memoryStore.users.find(u => u.id === testUserId);
+      if (u) {
+        u.vipExpiresAt = null;
+        u.isVip = false;
+      }
       const nowBeforeAnnual = Date.now();
       await createSubscriptionRecord({
         userId: testUserId,

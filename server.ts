@@ -41,6 +41,7 @@ import {
   isValidPlanId,
   getAllPlans
 } from './server/db/index.js';
+import { getPaymentAdapter } from './server/payment/index.js';
 import {
   generateToken,
   verifyToken,
@@ -1212,10 +1213,10 @@ app.get(['/api/plans', '/api/payment/plans'], (req, res) => {
   });
 });
 
-app.post('/api/payment/request', optionalAuthMiddleware, validateBody(paymentRequestSchema), async (req: AuthenticatedRequest, res, next) => {
+app.post('/api/payment/request', authMiddleware, validateBody(paymentRequestSchema), async (req: AuthenticatedRequest, res, next) => {
   try {
     const { planId, amount, description } = req.body;
-    const userId = req.user?.userId || 'guest-warrior-1';
+    const userId = req.user!.userId;
 
     // 1. Authoritative Plan Validation: Server is the sole authority for plan details and pricing
     const plan = getPlanById(planId);
@@ -1237,42 +1238,47 @@ app.post('/api/payment/request', optionalAuthMiddleware, validateBody(paymentReq
     const trustedAmount = plan.priceToman;
     const trustedDescription = description || `ارتقا به ${plan.title}`;
     
-    const merchantId = process.env.ZARINPAL_MERCHANT_ID?.trim();
-    const isLiveZarinpal = merchantId && merchantId.length >= 30;
-
-    if (!isLiveZarinpal && !isMockPaymentEnabled()) {
+    // 3. Provider-Neutral Gateway Resolution (Phase 5A Core)
+    const adapter = getPaymentAdapter();
+    if (!adapter) {
       return res.status(503).json({
         code: 'PAYMENT_UNAVAILABLE',
         messageFa: 'درگاه پرداخت در حال حاضر در دسترس نیست.'
       });
     }
 
-    const authority = 'A' + Date.now().toString() + Math.floor(Math.random() * 1000).toString().padStart(4, '0');
+    const requestResult = await adapter.requestPayment({
+      userId,
+      planId: plan.id,
+      amount: trustedAmount,
+      description: trustedDescription
+    });
 
     await createSubscriptionRecord({
       userId,
       planId: plan.id,
       amount: trustedAmount,
-      authority,
+      authority: requestResult.authority,
       description: trustedDescription
     });
 
     res.json({
       status: 100,
-      authority,
-      paymentUrl: `/mock-gateway?authority=${authority}&amount=${trustedAmount}`,
+      authority: requestResult.authority,
+      paymentUrl: requestResult.paymentUrl,
       amount: trustedAmount,
       planId: plan.id,
-      mode: isLiveZarinpal ? 'zarinpal-live' : 'zarinpal-mock-simulator',
+      mode: requestResult.mode,
     });
   } catch (error) {
     next(error);
   }
 });
 
-app.post('/api/payment/verify', optionalAuthMiddleware, validateBody(paymentVerifySchema), async (req: AuthenticatedRequest, res, next) => {
+app.post('/api/payment/verify', authMiddleware, validateBody(paymentVerifySchema), async (req: AuthenticatedRequest, res, next) => {
   try {
     const { authority } = req.body;
+    const userId = req.user!.userId;
 
     const existingSub = await findSubscriptionByAuthority(authority);
 
@@ -1283,20 +1289,22 @@ app.post('/api/payment/verify', optionalAuthMiddleware, validateBody(paymentVeri
       });
     }
 
-    // Ownership boundary enforcement: If authenticated, user can only verify their own subscription
-    if (req.user?.userId && existingSub.userId && existingSub.userId !== req.user.userId && !req.user.isAdmin) {
+    // Ownership boundary enforcement: User can only verify their own subscription
+    if (existingSub.userId !== userId) {
       return res.status(403).json({
         code: 'FORBIDDEN',
         messageFa: 'شما دسترسی به تایید یا مشاهده تراکنش کاربر دیگری را ندارید.'
       });
     }
     
-    // Idempotency check: Don't process twice
+    // Idempotency check: SUCCESS is terminal; return confirmed result without re-processing
     if (existingSub.status === 'SUCCESS') {
       return res.json({
         status: 101,
         refId: existingSub.refId,
         cardPan: existingSub.cardPan,
+        authority: existingSub.authority,
+        amount: existingSub.amount,
         messageFa: 'این تراکنش قبلاً با موفقیت ثبت و تایید شده است.',
         tier: 'vip_samurai',
         subscription: existingSub
@@ -1312,55 +1320,50 @@ app.post('/api/payment/verify', optionalAuthMiddleware, validateBody(paymentVeri
       });
     }
 
-    const merchantId = process.env.ZARINPAL_MERCHANT_ID?.trim();
-    const isLiveZarinpal = merchantId && merchantId.length >= 30;
-
-    if (!isLiveZarinpal && !isMockPaymentEnabled()) {
+    // 4. Provider-Neutral Gateway Resolution (Phase 5A Core)
+    const adapter = getPaymentAdapter();
+    if (!adapter) {
       return res.status(503).json({
         code: 'PAYMENT_UNAVAILABLE',
-        messageFa: 'امکان تایید تراکنش شبیه‌سازی‌شده در این محیط وجود ندارد.'
+        messageFa: 'امکان تایید تراکنش در این محیط وجود ندارد.'
       });
     }
 
-    let refId = 'REF-' + Math.floor(10000000 + Math.random() * 90000000);
-    let cardPan = '6037-99**-****-' + Math.floor(1000 + Math.random() * 9000);
+    const verifyResult = await adapter.verifyPayment({
+      authority,
+      expectedAmount: existingSub.amount
+    });
 
-    if (isLiveZarinpal) {
-      // Use the persisted server-owned amount for live verification
-      const zRes = await fetch('https://api.zarinpal.com/pg/v4/payment/verify.json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merchant_id: merchantId, authority, amount: existingSub.amount })
+    if (!verifyResult.success || verifyResult.status === 'FAILED') {
+      await markSubscriptionFailed(authority, verifyResult.errorMessageFa || 'تراکنش توسط درگاه تایید نشد.');
+      return res.status(400).json({
+        code: 'PAYMENT_FAILED',
+        messageFa: verifyResult.errorMessageFa || 'تراکنش توسط درگاه تایید نشد.'
       });
-      const zData = await zRes.json();
-
-      if (zData.data && (zData.data.code === 100 || zData.data.code === 101)) {
-        refId = zData.data.ref_id.toString();
-        cardPan = zData.data.card_pan || cardPan;
-      } else {
-        await markSubscriptionFailed(authority, 'تراکنش توسط درگاه زرین‌پال تایید نشد.');
-        return res.status(400).json({
-          code: 'PAYMENT_FAILED',
-          messageFa: 'تراکنش توسط درگاه زرین‌پال تایید نشد.',
-          details: zData.errors
-        });
-      }
     }
 
-    const sub = await completeSubscription(authority, refId, cardPan);
-    if (!sub) {
+    // 5. Atomic Completion & Entitlement Activation
+    const completed = await completeSubscription(
+      authority,
+      verifyResult.refId || 'REF-' + Date.now(),
+      verifyResult.cardPan || '6037-99**-****-1234',
+      { expectedUserId: userId }
+    );
+
+    if (!completed) {
       return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'رکورد تراکنش یافت نشد.' });
     }
 
     res.json({
       status: 100,
-      refId,
-      cardPan,
-      authority,
-      amount: existingSub.amount,
+      refId: completed.refId,
+      cardPan: completed.cardPan,
+      authority: completed.authority,
+      amount: completed.amount,
       messageFa: 'تراکنش با موفقیت تایید شد و حساب شما ارتقا یافت.',
-      tier: 'vip_samurai',
-      subscription: sub
+      tier: completed.user?.tier || 'vip_samurai',
+      subscription: completed,
+      user: completed.user
     });
   } catch (error) {
     next(error);
