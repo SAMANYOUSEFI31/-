@@ -16,6 +16,7 @@ import {
   isValidCycleResponse,
   enqueueOfflineMutation,
   enqueueDurableDailyLogWriteAhead,
+  enqueueDurableCycleWriteAhead,
   getOfflineQueue,
   saveOfflineQueue,
   removeReplayedQueueItems,
@@ -247,11 +248,35 @@ export function prepareDirectLogPayload(
 }
 
 /**
+ * Prepares direct CREATE_CYCLE payload without expectedRevision.
+ */
+export function prepareDirectCreateCyclePayload(
+  newCycle: Cycle,
+  clientOperationId?: string
+): {
+  payload: Record<string, any>;
+  isValid: boolean;
+} {
+  const isValid = Boolean(newCycle && newCycle.id && newCycle.title && newCycle.startDate && newCycle.endDate);
+  const payload: Record<string, any> = {
+    ...newCycle,
+    ...(clientOperationId ? { clientOperationId } : {})
+  };
+  delete payload.expectedRevision;
+  delete payload.revision;
+  return {
+    payload,
+    isValid
+  };
+}
+
+/**
  * Prepares direct Cycle update payload with explicit expectedRevision.
  */
 export function prepareDirectCyclePayload(
   updatedCycle: Cycle,
-  existingCycle: Cycle | null | undefined
+  existingCycle: Cycle | null | undefined,
+  clientOperationId?: string
 ): {
   payload: Record<string, any>;
   expectedRevision?: number;
@@ -262,7 +287,7 @@ export function prepareDirectCyclePayload(
 
   if (!isValidRev) {
     return {
-      payload: { ...updatedCycle },
+      payload: { ...updatedCycle, ...(clientOperationId ? { clientOperationId } : {}) },
       isValid: false
     };
   }
@@ -270,9 +295,53 @@ export function prepareDirectCyclePayload(
   return {
     payload: {
       ...updatedCycle,
-      expectedRevision: rev
+      expectedRevision: rev,
+      ...(clientOperationId ? { clientOperationId } : {})
     },
     expectedRevision: rev,
+    isValid: true
+  };
+}
+
+/**
+ * Prepares direct DELETE_CYCLE payload with explicit expectedRevision if existing cycle provided.
+ */
+export function prepareDirectDeleteCyclePayload(
+  cycleId: string,
+  existingCycle?: Cycle | null,
+  clientOperationId?: string
+): {
+  payload: Record<string, any>;
+  expectedRevision?: number;
+  isValid: boolean;
+} {
+  if (!cycleId) {
+    return {
+      payload: { id: cycleId },
+      isValid: false
+    };
+  }
+
+  const rev = existingCycle?.revision;
+  const hasRev = rev !== undefined && rev !== null;
+  const isValidRev = typeof rev === 'number' && Number.isInteger(rev) && rev > 0;
+
+  if (hasRev && !isValidRev) {
+    return {
+      payload: { id: cycleId, ...(clientOperationId ? { clientOperationId } : {}) },
+      isValid: false
+    };
+  }
+
+  const payload: Record<string, any> = {
+    id: cycleId,
+    ...(isValidRev ? { expectedRevision: rev } : {}),
+    ...(clientOperationId ? { clientOperationId } : {})
+  };
+
+  return {
+    payload,
+    expectedRevision: isValidRev ? rev : undefined,
     isValid: true
   };
 }
@@ -699,4 +768,865 @@ export async function executeDirectDailyLogMutation(
     };
   }
 }
+
+export interface ExecuteDirectCreateCycleMutationParams {
+  newCycle: Cycle;
+  ownerId: string | null | undefined;
+  authToken: string | null | undefined;
+  fetchFn?: typeof fetch;
+  activeAccountRef?: { current: string | null };
+}
+
+export interface ExecuteDirectUpdateCycleMutationParams {
+  updatedCycle: Cycle;
+  existingCycle: Cycle | null | undefined;
+  ownerId: string | null | undefined;
+  authToken: string | null | undefined;
+  fetchFn?: typeof fetch;
+  activeAccountRef?: { current: string | null };
+}
+
+export interface ExecuteDirectDeleteCycleMutationParams {
+  cycleId: string;
+  existingCycle?: Cycle | null | undefined;
+  ownerId: string | null | undefined;
+  authToken: string | null | undefined;
+  fetchFn?: typeof fetch;
+  activeAccountRef?: { current: string | null };
+}
+
+export type DirectCycleMutationResult =
+  | { status: 'IGNORED_NO_AUTH_NO_QUEUE' }
+  | { status: 'INVALID_PRECONDITION'; messageFa: string; clientPayload: any }
+  | { status: 'QUEUED_OFFLINE'; queueItem: OfflineQueueItem }
+  | { status: 'ACCOUNT_SWITCHED'; queueItemId: string }
+  | { status: 'SUCCESS'; serverCycle?: any; cycleId?: string; queueItemId: string; hasNewerIntent?: boolean; is404Deleted?: boolean }
+  | { status: 'INVALID_SUCCESS_RESPONSE'; queueItemId: string; errorMsg: string }
+  | { status: 'AUTH_REQUIRED'; statusCode: 401; queueItemId: string }
+  | { status: 'FORBIDDEN'; statusCode: 403; queueItemId: string }
+  | { status: 'VALIDATION_ERROR'; statusCode: number; queueItemId: string }
+  | { status: 'ENTITY_MISSING'; statusCode: 404; queueItemId: string }
+  | { status: 'CONFLICT'; statusCode: 409 | 428; conflictDetails: any; queueItemId: string }
+  | { status: 'RATE_LIMITED'; statusCode: 429; queueItemId: string; retryCount: number; nextRetryAt?: number }
+  | { status: 'SERVER_RETRYABLE'; statusCode: number; queueItemId: string; retryCount: number; nextRetryAt?: number }
+  | { status: 'NETWORK_ERROR'; error: any; queueItemId: string }
+  | { status: 'STORAGE_WRITE_FAILED'; reason: string; errorMsg: string; messageFa: string; queueItemId?: string };
+
+/**
+ * Phase 6.1B: Durable CREATE_CYCLE Write-Ahead Mutation Executor
+ */
+export async function executeDirectCreateCycleMutation(
+  params: ExecuteDirectCreateCycleMutationParams
+): Promise<DirectCycleMutationResult> {
+  const { newCycle, authToken, fetchFn, activeAccountRef } = params;
+  const ownerId = normalizeQueueOwner(params.ownerId);
+
+  const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+  if (!guard.canSendToServer && !guard.shouldQueue) {
+    return { status: 'IGNORED_NO_AUTH_NO_QUEUE' };
+  }
+
+  const { payload: cyclePayload, isValid } = prepareDirectCreateCyclePayload(newCycle);
+  if (!isValid) {
+    return {
+      status: 'INVALID_PRECONDITION',
+      messageFa: 'اطلاعات چرخه جدید نامعتبر است.',
+      clientPayload: cyclePayload
+    };
+  }
+
+  // 1. Durable Write-Ahead Enqueue with Authoritative Storage Read-back Verification
+  const durableResult = enqueueDurableCycleWriteAhead(ownerId, {
+    type: 'CREATE_CYCLE',
+    payload: cyclePayload
+  });
+
+  if (durableResult.success === false) {
+    return {
+      status: 'STORAGE_WRITE_FAILED',
+      reason: durableResult.reason,
+      errorMsg: durableResult.errorMsg,
+      messageFa: 'خطا در ذخیره‌سازی محلی. تغییرات در صف آفلاین ثبت نشد و به سرور ارسال نمی‌شود.',
+      queueItemId: durableResult.candidateItem?.id
+    };
+  }
+
+  const queueItem = durableResult.queueItem;
+
+  // 2. Offline Guard: stop here if offline, item is already durable in the queue
+  if (guard.shouldQueue) {
+    return { status: 'QUEUED_OFFLINE', queueItem };
+  }
+
+  // 3. Mark the queue item in-flight during direct online execution
+  markQueueItemInFlight(ownerId, queueItem.id, true);
+
+  // 4. Construct request with stable clientOperationId matching queueItem.id
+  const requestBody = {
+    ...cyclePayload,
+    id: cyclePayload.id || queueItem.id,
+    clientOperationId: queueItem.id
+  };
+
+  const activeFetch = fetchFn || (typeof fetch !== 'undefined' ? fetch : undefined);
+  if (!activeFetch) {
+    markQueueItemInFlight(ownerId, queueItem.id, false);
+    return { status: 'QUEUED_OFFLINE', queueItem };
+  }
+
+  try {
+    const res = await activeFetch('/api/cycles', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    // Post-fetch Account Switch Verification
+    if (activeAccountRef && !verifyActiveAccount(activeAccountRef.current, ownerId)) {
+      markQueueItemInFlight(ownerId, queueItem.id, false);
+      return { status: 'ACCOUNT_SWITCHED', queueItemId: queueItem.id };
+    }
+
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      const serverCycle = data?.cycle;
+
+      if (isValidCycleResponse(serverCycle, newCycle.id)) {
+        // Check if a newer local edit was enqueued while this request was in flight
+        const currentQueue = getOfflineQueue(ownerId);
+        const hasNewerIntent = currentQueue.some(
+          item => item.type === 'UPDATE_CYCLE' && (item.payload?.id === newCycle.id) && item.id !== queueItem.id
+        );
+
+        if (hasNewerIntent) {
+          const updatedQueue = currentQueue.map(item => {
+            if (item.type === 'UPDATE_CYCLE' && item.payload?.id === newCycle.id && item.id !== queueItem.id) {
+              return {
+                ...item,
+                expectedRevision: serverCycle.revision,
+                payload: {
+                  ...item.payload,
+                  expectedRevision: serverCycle.revision
+                }
+              };
+            }
+            return item;
+          });
+          saveOfflineQueue(ownerId, updatedQueue);
+        }
+
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+
+        return {
+          status: 'SUCCESS',
+          serverCycle,
+          cycleId: newCycle.id,
+          queueItemId: queueItem.id,
+          hasNewerIntent
+        };
+      } else {
+        markQueueItemInFlight(ownerId, queueItem.id, false);
+        const nextRetryCount = (queueItem.retryCount || 0) + 1;
+        const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+        const errorMsg = 'Malformed or mismatched success response from server';
+        recordQueueItemFailure(
+          ownerId,
+          queueItem.id,
+          errorMsg,
+          backoffMs,
+          'INVALID_SUCCESS_RESPONSE'
+        );
+        return {
+          status: 'INVALID_SUCCESS_RESPONSE',
+          queueItemId: queueItem.id,
+          errorMsg
+        };
+      }
+    } else {
+      markQueueItemInFlight(ownerId, queueItem.id, false);
+      const classification = classifyReplayResponse(res.status, 'CREATE_CYCLE');
+
+      if (classification === 'AUTH_REQUIRED') {
+        recordQueueItemFailure(ownerId, queueItem.id, 'HTTP 401 Unauthorized', 0, 'AUTH_REQUIRED');
+        return {
+          status: 'AUTH_REQUIRED',
+          statusCode: 401,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'FORBIDDEN') {
+        quarantineQueueItems(
+          [{ ...queueItem, inFlight: false, classification: 'FORBIDDEN' }],
+          'HTTP 403 Forbidden - permission denied',
+          ownerId
+        );
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+        return {
+          status: 'FORBIDDEN',
+          statusCode: 403,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'VALIDATION_ERROR') {
+        quarantineQueueItems(
+          [{ ...queueItem, inFlight: false, classification: 'VALIDATION_ERROR' }],
+          `HTTP ${res.status} Validation Error`,
+          ownerId
+        );
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+        return {
+          status: 'VALIDATION_ERROR',
+          statusCode: res.status,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'CONFLICT_DEFERRED' || classification === 'PRECONDITION_REQUIRED') {
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+
+        const conflictJson = await res.json().catch(() => null);
+        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'CYCLE', newCycle.id);
+        recordClientConflict(ownerId, {
+          mutationType: 'CREATE_CYCLE',
+          entityType: parsedConflict.entityType,
+          entityId: parsedConflict.entityId,
+          conflictType: parsedConflict.conflictType,
+          statusCode: parsedConflict.statusCode,
+          expectedRevision: parsedConflict.expectedRevision,
+          currentRevision: parsedConflict.currentRevision,
+          messageFa: parsedConflict.messageFa,
+          clientPayload: cyclePayload,
+          operationId: queueItem.id
+        });
+
+        return {
+          status: 'CONFLICT',
+          statusCode: res.status as 409 | 428,
+          conflictDetails: parsedConflict,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'RATE_LIMITED') {
+        const nextRetryCount = (queueItem.retryCount || 0) + 1;
+        const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+        const nextRetryAt = Date.now() + backoffMs;
+        recordQueueItemFailure(ownerId, queueItem.id, 'HTTP 429 Rate Limited', backoffMs, 'RATE_LIMITED');
+        return {
+          status: 'RATE_LIMITED',
+          statusCode: 429,
+          queueItemId: queueItem.id,
+          retryCount: nextRetryCount,
+          nextRetryAt
+        };
+      }
+
+      if (classification === 'SERVER_RETRYABLE') {
+        const nextRetryCount = (queueItem.retryCount || 0) + 1;
+        const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+        const nextRetryAt = Date.now() + backoffMs;
+        recordQueueItemFailure(
+          ownerId,
+          queueItem.id,
+          `Server returned HTTP ${res.status} (SERVER_RETRYABLE)`,
+          backoffMs,
+          'SERVER_RETRYABLE'
+        );
+        return {
+          status: 'SERVER_RETRYABLE',
+          statusCode: res.status,
+          queueItemId: queueItem.id,
+          retryCount: nextRetryCount,
+          nextRetryAt
+        };
+      }
+
+      quarantineQueueItems(
+        [{ ...queueItem, inFlight: false, classification: 'VALIDATION_ERROR' }],
+        `Server returned unhandled HTTP ${res.status}`,
+        ownerId
+      );
+      removeReplayedQueueItems(ownerId, [queueItem.id]);
+      return {
+        status: 'VALIDATION_ERROR',
+        statusCode: res.status,
+        queueItemId: queueItem.id
+      };
+    }
+  } catch (err: any) {
+    markQueueItemInFlight(ownerId, queueItem.id, false);
+    const nextRetryCount = (queueItem.retryCount || 0) + 1;
+    const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+    recordQueueItemFailure(
+      ownerId,
+      queueItem.id,
+      err?.message || 'Network request failed',
+      backoffMs,
+      'NETWORK_ERROR'
+    );
+    return {
+      status: 'NETWORK_ERROR',
+      error: err,
+      queueItemId: queueItem.id
+    };
+  }
+}
+
+/**
+ * Phase 6.1B: Durable UPDATE_CYCLE Write-Ahead Mutation Executor
+ */
+export async function executeDirectUpdateCycleMutation(
+  params: ExecuteDirectUpdateCycleMutationParams
+): Promise<DirectCycleMutationResult> {
+  const { updatedCycle, existingCycle, authToken, fetchFn, activeAccountRef } = params;
+  const ownerId = normalizeQueueOwner(params.ownerId);
+
+  const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+  if (!guard.canSendToServer && !guard.shouldQueue) {
+    return { status: 'IGNORED_NO_AUTH_NO_QUEUE' };
+  }
+
+  const { payload: cyclePayload, expectedRevision, isValid } = prepareDirectCyclePayload(
+    updatedCycle,
+    existingCycle
+  );
+
+  if (existingCycle && !isValid) {
+    recordClientConflict(ownerId, {
+      mutationType: 'UPDATE_CYCLE',
+      entityType: 'CYCLE',
+      entityId: updatedCycle.id,
+      conflictType: 'PRECONDITION_REQUIRED',
+      statusCode: 428,
+      expectedRevision: undefined,
+      currentRevision: undefined,
+      messageFa: 'نسخه تأیید شده این چرخه در حافظه محلی معتبر نیست. در حال همگام‌سازی مجدد با سرور...',
+      clientPayload: cyclePayload
+    });
+    return {
+      status: 'INVALID_PRECONDITION',
+      messageFa: 'نسخه تأیید شده این چرخه در حافظه محلی معتبر نیست. در حال همگام‌سازی مجدد با سرور...',
+      clientPayload: cyclePayload
+    };
+  }
+
+  // 1. Durable Write-Ahead Enqueue
+  const durableResult = enqueueDurableCycleWriteAhead(ownerId, {
+    type: 'UPDATE_CYCLE',
+    payload: cyclePayload,
+    expectedRevision
+  });
+
+  if (durableResult.success === false) {
+    return {
+      status: 'STORAGE_WRITE_FAILED',
+      reason: durableResult.reason,
+      errorMsg: durableResult.errorMsg,
+      messageFa: 'خطا در ذخیره‌سازی محلی. تغییرات در صف آفلاین ثبت نشد و به سرور ارسال نمی‌شود.',
+      queueItemId: durableResult.candidateItem?.id
+    };
+  }
+
+  const queueItem = durableResult.queueItem;
+
+  // 2. Offline Guard
+  if (guard.shouldQueue) {
+    return { status: 'QUEUED_OFFLINE', queueItem };
+  }
+
+  // 3. Mark in-flight
+  markQueueItemInFlight(ownerId, queueItem.id, true);
+
+  // 4. Request body with stable clientOperationId matching queueItem.id
+  const requestBody = {
+    ...cyclePayload,
+    clientOperationId: queueItem.id,
+    ...(typeof expectedRevision === 'number' && Number.isInteger(expectedRevision) && expectedRevision > 0
+      ? { expectedRevision }
+      : {})
+  };
+
+  const activeFetch = fetchFn || (typeof fetch !== 'undefined' ? fetch : undefined);
+  if (!activeFetch) {
+    markQueueItemInFlight(ownerId, queueItem.id, false);
+    return { status: 'QUEUED_OFFLINE', queueItem };
+  }
+
+  try {
+    const res = await activeFetch(`/api/cycles/${updatedCycle.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    // Post-fetch Account Switch Verification
+    if (activeAccountRef && !verifyActiveAccount(activeAccountRef.current, ownerId)) {
+      markQueueItemInFlight(ownerId, queueItem.id, false);
+      return { status: 'ACCOUNT_SWITCHED', queueItemId: queueItem.id };
+    }
+
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      const serverCycle = data?.cycle;
+
+      if (isValidCycleResponse(serverCycle, updatedCycle.id)) {
+        const currentQueue = getOfflineQueue(ownerId);
+        const hasNewerIntent = currentQueue.some(
+          item => item.type === 'UPDATE_CYCLE' && (item.payload?.id === updatedCycle.id) && item.id !== queueItem.id
+        );
+
+        if (hasNewerIntent) {
+          const updatedQueue = currentQueue.map(item => {
+            if (item.type === 'UPDATE_CYCLE' && item.payload?.id === updatedCycle.id && item.id !== queueItem.id) {
+              return {
+                ...item,
+                expectedRevision: serverCycle.revision,
+                payload: {
+                  ...item.payload,
+                  expectedRevision: serverCycle.revision
+                }
+              };
+            }
+            return item;
+          });
+          saveOfflineQueue(ownerId, updatedQueue);
+        }
+
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+
+        return {
+          status: 'SUCCESS',
+          serverCycle,
+          cycleId: updatedCycle.id,
+          queueItemId: queueItem.id,
+          hasNewerIntent
+        };
+      } else {
+        markQueueItemInFlight(ownerId, queueItem.id, false);
+        const nextRetryCount = (queueItem.retryCount || 0) + 1;
+        const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+        const errorMsg = 'Malformed or mismatched success response from server';
+        recordQueueItemFailure(
+          ownerId,
+          queueItem.id,
+          errorMsg,
+          backoffMs,
+          'INVALID_SUCCESS_RESPONSE'
+        );
+        return {
+          status: 'INVALID_SUCCESS_RESPONSE',
+          queueItemId: queueItem.id,
+          errorMsg
+        };
+      }
+    } else {
+      markQueueItemInFlight(ownerId, queueItem.id, false);
+      const classification = classifyReplayResponse(res.status, 'UPDATE_CYCLE');
+
+      if (classification === 'AUTH_REQUIRED') {
+        recordQueueItemFailure(ownerId, queueItem.id, 'HTTP 401 Unauthorized', 0, 'AUTH_REQUIRED');
+        return {
+          status: 'AUTH_REQUIRED',
+          statusCode: 401,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'FORBIDDEN') {
+        quarantineQueueItems(
+          [{ ...queueItem, inFlight: false, classification: 'FORBIDDEN' }],
+          'HTTP 403 Forbidden - permission denied',
+          ownerId
+        );
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+        return {
+          status: 'FORBIDDEN',
+          statusCode: 403,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'ENTITY_MISSING') {
+        quarantineQueueItems(
+          [{ ...queueItem, inFlight: false, classification: 'ENTITY_MISSING' }],
+          'HTTP 404 Entity Missing for UPDATE_CYCLE',
+          ownerId
+        );
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+        return {
+          status: 'ENTITY_MISSING',
+          statusCode: 404,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'VALIDATION_ERROR') {
+        quarantineQueueItems(
+          [{ ...queueItem, inFlight: false, classification: 'VALIDATION_ERROR' }],
+          `HTTP ${res.status} Validation Error`,
+          ownerId
+        );
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+        return {
+          status: 'VALIDATION_ERROR',
+          statusCode: res.status,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'CONFLICT_DEFERRED' || classification === 'PRECONDITION_REQUIRED') {
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+
+        const conflictJson = await res.json().catch(() => null);
+        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'CYCLE', updatedCycle.id);
+        recordClientConflict(ownerId, {
+          mutationType: 'UPDATE_CYCLE',
+          entityType: parsedConflict.entityType,
+          entityId: parsedConflict.entityId,
+          conflictType: parsedConflict.conflictType,
+          statusCode: parsedConflict.statusCode,
+          expectedRevision: parsedConflict.expectedRevision ?? expectedRevision,
+          currentRevision: parsedConflict.currentRevision,
+          messageFa: parsedConflict.messageFa,
+          clientPayload: cyclePayload,
+          operationId: queueItem.id
+        });
+
+        return {
+          status: 'CONFLICT',
+          statusCode: res.status as 409 | 428,
+          conflictDetails: parsedConflict,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'RATE_LIMITED') {
+        const nextRetryCount = (queueItem.retryCount || 0) + 1;
+        const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+        const nextRetryAt = Date.now() + backoffMs;
+        recordQueueItemFailure(ownerId, queueItem.id, 'HTTP 429 Rate Limited', backoffMs, 'RATE_LIMITED');
+        return {
+          status: 'RATE_LIMITED',
+          statusCode: 429,
+          queueItemId: queueItem.id,
+          retryCount: nextRetryCount,
+          nextRetryAt
+        };
+      }
+
+      if (classification === 'SERVER_RETRYABLE') {
+        const nextRetryCount = (queueItem.retryCount || 0) + 1;
+        const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+        const nextRetryAt = Date.now() + backoffMs;
+        recordQueueItemFailure(
+          ownerId,
+          queueItem.id,
+          `Server returned HTTP ${res.status} (SERVER_RETRYABLE)`,
+          backoffMs,
+          'SERVER_RETRYABLE'
+        );
+        return {
+          status: 'SERVER_RETRYABLE',
+          statusCode: res.status,
+          queueItemId: queueItem.id,
+          retryCount: nextRetryCount,
+          nextRetryAt
+        };
+      }
+
+      quarantineQueueItems(
+        [{ ...queueItem, inFlight: false, classification: 'VALIDATION_ERROR' }],
+        `Server returned unhandled HTTP ${res.status}`,
+        ownerId
+      );
+      removeReplayedQueueItems(ownerId, [queueItem.id]);
+      return {
+        status: 'VALIDATION_ERROR',
+        statusCode: res.status,
+        queueItemId: queueItem.id
+      };
+    }
+  } catch (err: any) {
+    markQueueItemInFlight(ownerId, queueItem.id, false);
+    const nextRetryCount = (queueItem.retryCount || 0) + 1;
+    const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+    recordQueueItemFailure(
+      ownerId,
+      queueItem.id,
+      err?.message || 'Network request failed',
+      backoffMs,
+      'NETWORK_ERROR'
+    );
+    return {
+      status: 'NETWORK_ERROR',
+      error: err,
+      queueItemId: queueItem.id
+    };
+  }
+}
+
+/**
+ * Phase 6.1B: Durable DELETE_CYCLE Write-Ahead Mutation Executor
+ */
+export async function executeDirectDeleteCycleMutation(
+  params: ExecuteDirectDeleteCycleMutationParams
+): Promise<DirectCycleMutationResult> {
+  const { cycleId, existingCycle, authToken, fetchFn, activeAccountRef } = params;
+  const ownerId = normalizeQueueOwner(params.ownerId);
+
+  const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+  if (!guard.canSendToServer && !guard.shouldQueue) {
+    return { status: 'IGNORED_NO_AUTH_NO_QUEUE' };
+  }
+
+  const { payload: deletePayload, expectedRevision, isValid } = prepareDirectDeleteCyclePayload(
+    cycleId,
+    existingCycle
+  );
+
+  if (existingCycle && !isValid) {
+    recordClientConflict(ownerId, {
+      mutationType: 'DELETE_CYCLE',
+      entityType: 'CYCLE',
+      entityId: cycleId,
+      conflictType: 'PRECONDITION_REQUIRED',
+      statusCode: 428,
+      expectedRevision: undefined,
+      currentRevision: undefined,
+      messageFa: 'نسخه تأیید شده این چرخه برای حذف معتبر نیست. در حال همگام‌سازی مجدد با سرور...',
+      clientPayload: deletePayload
+    });
+    return {
+      status: 'INVALID_PRECONDITION',
+      messageFa: 'نسخه تأیید شده این چرخه برای حذف معتبر نیست. در حال همگام‌سازی مجدد با سرور...',
+      clientPayload: deletePayload
+    };
+  }
+
+  // 1. Durable Write-Ahead Enqueue
+  const durableResult = enqueueDurableCycleWriteAhead(ownerId, {
+    type: 'DELETE_CYCLE',
+    payload: deletePayload,
+    expectedRevision
+  });
+
+  if (durableResult.success === false) {
+    return {
+      status: 'STORAGE_WRITE_FAILED',
+      reason: durableResult.reason,
+      errorMsg: durableResult.errorMsg,
+      messageFa: 'خطا در ذخیره‌سازی محلی. تغییرات در صف آفلاین ثبت نشد و به سرور ارسال نمی‌شود.',
+      queueItemId: durableResult.candidateItem?.id
+    };
+  }
+
+  const queueItem = durableResult.queueItem;
+
+  // 2. Offline Guard
+  if (guard.shouldQueue) {
+    return { status: 'QUEUED_OFFLINE', queueItem };
+  }
+
+  // If the cycle was only created offline and deleted offline, queue was pruned and no network call is needed
+  const currentQueue = getOfflineQueue(ownerId);
+  const isPrunedOffline = !currentQueue.some(item => item.id === queueItem.id);
+  if (isPrunedOffline) {
+    return {
+      status: 'SUCCESS',
+      cycleId,
+      queueItemId: queueItem.id
+    };
+  }
+
+  // 3. Mark in-flight
+  markQueueItemInFlight(ownerId, queueItem.id, true);
+
+  const activeFetch = fetchFn || (typeof fetch !== 'undefined' ? fetch : undefined);
+  if (!activeFetch) {
+    markQueueItemInFlight(ownerId, queueItem.id, false);
+    return { status: 'QUEUED_OFFLINE', queueItem };
+  }
+
+  try {
+    const url = `/api/cycles/${cycleId}${expectedRevision ? `?expectedRevision=${expectedRevision}` : ''}`;
+    const res = await activeFetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+
+    // Post-fetch Account Switch Verification
+    if (activeAccountRef && !verifyActiveAccount(activeAccountRef.current, ownerId)) {
+      markQueueItemInFlight(ownerId, queueItem.id, false);
+      return { status: 'ACCOUNT_SWITCHED', queueItemId: queueItem.id };
+    }
+
+    // Treat 2xx and 404 (already deleted / not found on server) as SUCCESS
+    if (res.ok || res.status === 404) {
+      removeReplayedQueueItems(ownerId, [queueItem.id]);
+      return {
+        status: 'SUCCESS',
+        cycleId,
+        is404Deleted: res.status === 404,
+        queueItemId: queueItem.id
+      };
+    } else {
+      markQueueItemInFlight(ownerId, queueItem.id, false);
+      const classification = classifyReplayResponse(res.status, 'DELETE_CYCLE');
+
+      if (classification === 'AUTH_REQUIRED') {
+        recordQueueItemFailure(ownerId, queueItem.id, 'HTTP 401 Unauthorized', 0, 'AUTH_REQUIRED');
+        return {
+          status: 'AUTH_REQUIRED',
+          statusCode: 401,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'FORBIDDEN') {
+        quarantineQueueItems(
+          [{ ...queueItem, inFlight: false, classification: 'FORBIDDEN' }],
+          'HTTP 403 Forbidden - permission denied',
+          ownerId
+        );
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+        return {
+          status: 'FORBIDDEN',
+          statusCode: 403,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'VALIDATION_ERROR') {
+        quarantineQueueItems(
+          [{ ...queueItem, inFlight: false, classification: 'VALIDATION_ERROR' }],
+          `HTTP ${res.status} Validation Error`,
+          ownerId
+        );
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+        return {
+          status: 'VALIDATION_ERROR',
+          statusCode: res.status,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'CONFLICT_DEFERRED' || classification === 'PRECONDITION_REQUIRED') {
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+
+        const conflictJson = await res.json().catch(() => null);
+        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'CYCLE', cycleId);
+        recordClientConflict(ownerId, {
+          mutationType: 'DELETE_CYCLE',
+          entityType: parsedConflict.entityType,
+          entityId: parsedConflict.entityId,
+          conflictType: parsedConflict.conflictType,
+          statusCode: parsedConflict.statusCode,
+          expectedRevision: parsedConflict.expectedRevision ?? expectedRevision,
+          currentRevision: parsedConflict.currentRevision,
+          messageFa: parsedConflict.messageFa,
+          clientPayload: deletePayload,
+          operationId: queueItem.id
+        });
+
+        return {
+          status: 'CONFLICT',
+          statusCode: res.status as 409 | 428,
+          conflictDetails: parsedConflict,
+          queueItemId: queueItem.id
+        };
+      }
+
+      if (classification === 'RATE_LIMITED') {
+        const nextRetryCount = (queueItem.retryCount || 0) + 1;
+        const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+        const nextRetryAt = Date.now() + backoffMs;
+        recordQueueItemFailure(ownerId, queueItem.id, 'HTTP 429 Rate Limited', backoffMs, 'RATE_LIMITED');
+        return {
+          status: 'RATE_LIMITED',
+          statusCode: 429,
+          queueItemId: queueItem.id,
+          retryCount: nextRetryCount,
+          nextRetryAt
+        };
+      }
+
+      if (classification === 'SERVER_RETRYABLE') {
+        const nextRetryCount = (queueItem.retryCount || 0) + 1;
+        const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+        const nextRetryAt = Date.now() + backoffMs;
+        recordQueueItemFailure(
+          ownerId,
+          queueItem.id,
+          `Server returned HTTP ${res.status} (SERVER_RETRYABLE)`,
+          backoffMs,
+          'SERVER_RETRYABLE'
+        );
+        return {
+          status: 'SERVER_RETRYABLE',
+          statusCode: res.status,
+          queueItemId: queueItem.id,
+          retryCount: nextRetryCount,
+          nextRetryAt
+        };
+      }
+
+      quarantineQueueItems(
+        [{ ...queueItem, inFlight: false, classification: 'VALIDATION_ERROR' }],
+        `Server returned unhandled HTTP ${res.status}`,
+        ownerId
+      );
+      removeReplayedQueueItems(ownerId, [queueItem.id]);
+      return {
+        status: 'VALIDATION_ERROR',
+        statusCode: res.status,
+        queueItemId: queueItem.id
+      };
+    }
+  } catch (err: any) {
+    markQueueItemInFlight(ownerId, queueItem.id, false);
+    const nextRetryCount = (queueItem.retryCount || 0) + 1;
+    const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+    recordQueueItemFailure(
+      ownerId,
+      queueItem.id,
+      err?.message || 'Network request failed',
+      backoffMs,
+      'NETWORK_ERROR'
+    );
+    return {
+      status: 'NETWORK_ERROR',
+      error: err,
+      queueItemId: queueItem.id
+    };
+  }
+}
+
+export type ExecuteDirectCycleMutationParams =
+  | ({ type: 'CREATE_CYCLE' } & ExecuteDirectCreateCycleMutationParams)
+  | ({ type: 'UPDATE_CYCLE' } & ExecuteDirectUpdateCycleMutationParams)
+  | ({ type: 'DELETE_CYCLE' } & ExecuteDirectDeleteCycleMutationParams);
+
+export async function executeDirectCycleMutation(
+  params: ExecuteDirectCycleMutationParams
+): Promise<DirectCycleMutationResult> {
+  if (params.type === 'CREATE_CYCLE') {
+    return executeDirectCreateCycleMutation(params);
+  } else if (params.type === 'UPDATE_CYCLE') {
+    return executeDirectUpdateCycleMutation(params);
+  } else if (params.type === 'DELETE_CYCLE') {
+    return executeDirectDeleteCycleMutation(params);
+  }
+  return { status: 'IGNORED_NO_AUTH_NO_QUEUE' };
+}
+
 

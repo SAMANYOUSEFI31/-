@@ -52,7 +52,10 @@ import {
   prepareDirectCyclePayload,
   verifyActiveAccount,
   applyReplayItemToActiveState,
-  executeDirectDailyLogMutation
+  executeDirectDailyLogMutation,
+  executeDirectCreateCycleMutation,
+  executeDirectUpdateCycleMutation,
+  executeDirectDeleteCycleMutation
 } from './utils/directMutationUtils';
 import { reconcileBootState } from './utils/syncReconciliation';
 import { emitSyncDiagnostic } from './utils/syncDiagnostics';
@@ -607,17 +610,20 @@ export default function App() {
 
     const ownerId = systemState.userProfile?.id;
     const initialOwner = ownerId;
-    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
-    if (!guard.canSendToServer && !guard.shouldQueue) {
+
+    const result = await executeDirectUpdateCycleMutation({
+      updatedCycle,
+      existingCycle,
+      ownerId,
+      authToken,
+      activeAccountRef
+    });
+
+    if (result.status === 'IGNORED_NO_AUTH_NO_QUEUE') {
       return;
     }
 
-    const { payload: cyclePayload, expectedRevision, isValid } = prepareDirectCyclePayload(
-      updatedCycle,
-      existingCycle
-    );
-
-    if (existingCycle && !isValid) {
+    if (result.status === 'STORAGE_WRITE_FAILED') {
       setSystemState(prev => {
         if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
         return {
@@ -625,88 +631,86 @@ export default function App() {
           cycles: rollbackOptimisticCycleUpdate(prev.cycles, updatedCycle.id, previousConfirmedSnapshot)
         };
       });
+      showAppToast(result.messageFa, 'error');
+      return;
+    }
 
-      recordClientConflict(ownerId, {
-        mutationType: 'UPDATE_CYCLE',
-        entityType: 'CYCLE',
-        entityId: updatedCycle.id,
-        conflictType: 'PRECONDITION_REQUIRED',
-        statusCode: 428,
-        expectedRevision: undefined,
-        currentRevision: undefined,
-        messageFa: 'نسخه تأیید شده این چرخه در حافظه محلی معتبر نیست. در حال همگام‌سازی مجدد با سرور...',
-        clientPayload: cyclePayload
+    if (result.status === 'INVALID_PRECONDITION') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        return {
+          ...prev,
+          cycles: rollbackOptimisticCycleUpdate(prev.cycles, updatedCycle.id, previousConfirmedSnapshot)
+        };
       });
-
       showAppToast('نسخه معتبر چرخه یافت نشد. همگام‌سازی مجدد با سرور انجام می‌شود.', 'warning');
       requestSync('MANUAL_FORCE', ownerId, authToken, true);
       return;
     }
 
-    if (guard.shouldQueue) {
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: cyclePayload, expectedRevision });
+    if (result.status === 'QUEUED_OFFLINE') {
       return;
     }
 
-    try {
-      const res = await fetch(`/api/cycles/${updatedCycle.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify(cyclePayload)
-      });
+    if (result.status === 'ACCOUNT_SWITCHED') {
+      return;
+    }
 
-      // Post-fetch Account Switch Verification before applying result
-      if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) {
-        return;
-      }
-
-      if (res.ok) {
-        const data = await res.json().catch(() => null);
-        const serverCycle = data?.cycle;
-        if (serverCycle) {
-          setSystemState(prev => {
-            if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-            return {
-              ...prev,
-              cycles: prev.cycles.map(c => c.id === serverCycle.id ? { ...serverCycle, isSynced: true } : c)
-            };
-          });
+    if (result.status === 'SUCCESS') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        if (result.hasNewerIntent) {
+          return prev;
         }
-      } else if (res.status === 409 || res.status === 428) {
-        const conflictJson = await res.json().catch(() => null);
-        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'CYCLE', updatedCycle.id);
-        recordClientConflict(ownerId, {
-          mutationType: 'UPDATE_CYCLE',
-          entityType: parsedConflict.entityType,
-          entityId: parsedConflict.entityId,
-          conflictType: parsedConflict.conflictType,
-          statusCode: parsedConflict.statusCode,
-          expectedRevision: parsedConflict.expectedRevision ?? expectedRevision,
-          currentRevision: parsedConflict.currentRevision,
-          messageFa: parsedConflict.messageFa,
-          clientPayload: cyclePayload
-        });
-
-        // Confirmed-state rollback on 409/428:
-        setSystemState(prev => {
-          if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-          return {
-            ...prev,
-            cycles: rollbackOptimisticCycleUpdate(prev.cycles, updatedCycle.id, previousConfirmedSnapshot)
-          };
-        });
-
-        showAppToast(parsedConflict.messageFa, 'warning');
-        requestSync('NETWORK_ONLINE', ownerId, authToken, true);
-      } else {
-        enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: cyclePayload, expectedRevision });
+        return {
+          ...prev,
+          cycles: prev.cycles.map(c => c.id === updatedCycle.id ? { ...c, ...result.serverCycle, isSynced: true } : c)
+        };
+      });
+      if (result.hasNewerIntent) {
+        requestSync('NETWORK_ONLINE', ownerId, authToken);
       }
-    } catch (e) {
-      console.warn('Failed to sync cycle update to server:', e);
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_CYCLE', payload: cyclePayload, expectedRevision });
+      return;
+    }
+
+    if (result.status === 'CONFLICT') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        return {
+          ...prev,
+          cycles: rollbackOptimisticCycleUpdate(prev.cycles, updatedCycle.id, previousConfirmedSnapshot)
+        };
+      });
+      showAppToast(result.conflictDetails.messageFa, 'warning');
+      requestSync('NETWORK_ONLINE', ownerId, authToken, true);
+      return;
+    }
+
+    if (result.status === 'INVALID_SUCCESS_RESPONSE') {
+      console.warn('[Cycle Mutation] Invalid success response, state remains unconfirmed:', result.errorMsg);
+      return;
+    }
+
+    if (result.status === 'FORBIDDEN' || result.status === 'VALIDATION_ERROR' || result.status === 'ENTITY_MISSING') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        return {
+          ...prev,
+          cycles: rollbackOptimisticCycleUpdate(prev.cycles, updatedCycle.id, previousConfirmedSnapshot)
+        };
+      });
+      console.warn('[Cycle Mutation] Non-retryable error, quarantined and rolled back:', result);
+      return;
+    }
+
+    if (result.status === 'AUTH_REQUIRED') {
+      console.warn('[Cycle Mutation] Auth required, mutation preserved in queue for re-auth:', result);
+      return;
+    }
+
+    if (result.status === 'RATE_LIMITED' || result.status === 'SERVER_RETRYABLE' || result.status === 'NETWORK_ERROR') {
+      console.warn('[Cycle Mutation] Preserved in durable write-ahead queue for retry:', result);
+      return;
     }
   }, [authToken, systemState.cycles, systemState.userProfile?.id, showAppToast, requestSync]);
 
@@ -716,34 +720,11 @@ export default function App() {
     safeSetLocalStorage(scopedDemoKey, 'true');
 
     const targetCycle = systemState.cycles.find(c => c.id === cycleId) || null;
-    const isExistingCycle = Boolean(targetCycle);
-    const expectedRevision = (typeof targetCycle?.revision === 'number' && Number.isInteger(targetCycle.revision) && targetCycle.revision > 0)
-      ? targetCycle.revision
-      : undefined;
+    const targetLogs = systemState.logs.filter(l => l.cycleId === cycleId);
+    const previousActiveCycleId = activeCycleId;
 
     const ownerId = systemState.userProfile?.id;
     const initialOwner = ownerId;
-
-    if (isExistingCycle && expectedRevision === undefined) {
-      recordClientConflict(ownerId, {
-        mutationType: 'DELETE_CYCLE',
-        entityType: 'CYCLE',
-        entityId: cycleId,
-        conflictType: 'PRECONDITION_REQUIRED',
-        statusCode: 428,
-        expectedRevision: undefined,
-        currentRevision: undefined,
-        messageFa: 'نسخه تأیید شده این چرخه برای حذف معتبر نیست. در حال همگام‌سازی مجدد با سرور...',
-        clientPayload: { id: cycleId }
-      });
-
-      showAppToast('نسخه معتبر چرخه برای حذف یافت نشد. همگام‌سازی مجدد با سرور انجام می‌شود.', 'warning');
-      requestSync('MANUAL_FORCE', ownerId, authToken, true);
-      return;
-    }
-
-    const targetLogs = systemState.logs.filter(l => l.cycleId === cycleId);
-    const previousActiveCycleId = activeCycleId;
 
     // 1. Calculate remaining cycles first
     const remainingCycles = systemState.cycles.filter(c => c.id !== cycleId);
@@ -757,7 +738,6 @@ export default function App() {
         logs: []
       }));
       setActiveCycleId('');
-      showAppToast('چرخه با موفقیت حذف شد. می‌توانید چرخه جدیدی تعریف کنید.', 'info');
     } else {
       setSystemState(prev => ({
         ...prev,
@@ -768,82 +748,138 @@ export default function App() {
         setActiveCycleId(remainingCycles[0].id);
         setSelectedDate(remainingCycles[0].startDate);
       }
-      showAppToast('چرخه مورد نظر با موفقیت حذف شد.', 'success');
     }
 
-    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
-    if (!guard.canSendToServer && !guard.shouldQueue) {
+    const result = await executeDirectDeleteCycleMutation({
+      cycleId,
+      existingCycle: targetCycle,
+      ownerId,
+      authToken,
+      activeAccountRef
+    });
+
+    if (result.status === 'IGNORED_NO_AUTH_NO_QUEUE') {
+      // Unauthenticated / guest state: show success toast directly
+      showAppToast(remainingCycles.length === 0 ? 'چرخه با موفقیت حذف شد. می‌توانید چرخه جدیدی تعریف کنید.' : 'چرخه مورد نظر با موفقیت حذف شد.', 'success');
       return;
     }
 
-    const deletePayload = { id: cycleId, revision: expectedRevision };
-
-    if (guard.shouldQueue) {
-      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: deletePayload, expectedRevision });
-      return;
-    }
-
-    try {
-      const url = `/api/cycles/${cycleId}${expectedRevision ? `?expectedRevision=${expectedRevision}` : ''}`;
-      const res = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
+    if (result.status === 'STORAGE_WRITE_FAILED') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        const { nextCycles, nextLogs } = rollbackOptimisticCycleDelete(
+          prev.cycles,
+          prev.logs,
+          cycleId,
+          targetCycle,
+          targetLogs
+        );
+        return {
+          ...prev,
+          cycles: nextCycles,
+          logs: nextLogs
+        };
       });
-
-      // Post-fetch Account Switch Verification before applying result
-      if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) {
-        return;
+      if (previousActiveCycleId === cycleId) {
+        setActiveCycleId(cycleId);
       }
+      showAppToast(result.messageFa, 'error');
+      return;
+    }
 
-      if (res.ok || res.status === 404) {
-        // Successful deletion or already deleted on server
-      } else if (res.status === 409 || res.status === 428) {
-        // Concurrency conflict / precondition failure:
-        // Cycle still exists on server. Recover optimistic deletion in local UI state.
-        const conflictJson = await res.json().catch(() => null);
-        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'CYCLE', cycleId);
-        recordClientConflict(ownerId, {
-          mutationType: 'DELETE_CYCLE',
-          entityType: parsedConflict.entityType,
-          entityId: parsedConflict.entityId,
-          conflictType: parsedConflict.conflictType,
-          statusCode: parsedConflict.statusCode,
-          expectedRevision: parsedConflict.expectedRevision ?? expectedRevision,
-          currentRevision: parsedConflict.currentRevision,
-          messageFa: parsedConflict.messageFa,
-          clientPayload: deletePayload
-        });
-
-        // Rollback optimistic deletion: restore cycle and logs using rollbackOptimisticCycleDelete
-        setSystemState(prev => {
-          if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-          const { nextCycles, nextLogs } = rollbackOptimisticCycleDelete(
-            prev.cycles,
-            prev.logs,
-            cycleId,
-            targetCycle,
-            targetLogs
-          );
-          return {
-            ...prev,
-            cycles: nextCycles,
-            logs: nextLogs
-          };
-        });
-        if (previousActiveCycleId === cycleId) {
-          setActiveCycleId(cycleId);
-        }
-
-        showAppToast(parsedConflict.messageFa || 'حذف چرخه به دلیل تغییر در دستگاه دیگر رد شد. داده‌های چرخه بازگردانی شدند.', 'error');
-        requestSync('NETWORK_ONLINE', ownerId, authToken, true);
-      } else {
-        enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: deletePayload, expectedRevision });
+    if (result.status === 'INVALID_PRECONDITION') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        const { nextCycles, nextLogs } = rollbackOptimisticCycleDelete(
+          prev.cycles,
+          prev.logs,
+          cycleId,
+          targetCycle,
+          targetLogs
+        );
+        return {
+          ...prev,
+          cycles: nextCycles,
+          logs: nextLogs
+        };
+      });
+      if (previousActiveCycleId === cycleId) {
+        setActiveCycleId(cycleId);
       }
-    } catch (e) {
-      console.warn('Failed to sync cycle deletion to server:', e);
-      enqueueOfflineMutation(ownerId, { type: 'DELETE_CYCLE', payload: deletePayload, expectedRevision });
+      showAppToast('نسخه معتبر چرخه برای حذف یافت نشد. همگام‌سازی مجدد با سرور انجام می‌شود.', 'warning');
+      requestSync('MANUAL_FORCE', ownerId, authToken, true);
+      return;
+    }
+
+    if (result.status === 'QUEUED_OFFLINE') {
+      showAppToast('حذف چرخه در صف آفلاین ذخیره شد و پس از اتصال به سرور اعمال خواهد شد.', 'info');
+      return;
+    }
+
+    if (result.status === 'ACCOUNT_SWITCHED') {
+      return;
+    }
+
+    if (result.status === 'SUCCESS') {
+      showAppToast(remainingCycles.length === 0 ? 'چرخه با موفقیت حذف شد. می‌توانید چرخه جدیدی تعریف کنید.' : 'چرخه مورد نظر با موفقیت حذف شد.', 'success');
+      return;
+    }
+
+    if (result.status === 'CONFLICT') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        const { nextCycles, nextLogs } = rollbackOptimisticCycleDelete(
+          prev.cycles,
+          prev.logs,
+          cycleId,
+          targetCycle,
+          targetLogs
+        );
+        return {
+          ...prev,
+          cycles: nextCycles,
+          logs: nextLogs
+        };
+      });
+      if (previousActiveCycleId === cycleId) {
+        setActiveCycleId(cycleId);
+      }
+      showAppToast(result.conflictDetails.messageFa || 'حذف چرخه به دلیل تغییر در دستگاه دیگر رد شد. داده‌های چرخه بازگردانی شدند.', 'error');
+      requestSync('NETWORK_ONLINE', ownerId, authToken, true);
+      return;
+    }
+
+    if (result.status === 'FORBIDDEN' || result.status === 'VALIDATION_ERROR' || result.status === 'ENTITY_MISSING') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        const { nextCycles, nextLogs } = rollbackOptimisticCycleDelete(
+          prev.cycles,
+          prev.logs,
+          cycleId,
+          targetCycle,
+          targetLogs
+        );
+        return {
+          ...prev,
+          cycles: nextCycles,
+          logs: nextLogs
+        };
+      });
+      if (previousActiveCycleId === cycleId) {
+        setActiveCycleId(cycleId);
+      }
+      console.warn('[Delete Cycle Mutation] Non-retryable error, quarantined and rolled back:', result);
+      return;
+    }
+
+    if (result.status === 'AUTH_REQUIRED') {
+      console.warn('[Delete Cycle Mutation] Auth required, mutation preserved in queue for re-auth:', result);
+      return;
+    }
+
+    if (result.status === 'RATE_LIMITED' || result.status === 'SERVER_RETRYABLE' || result.status === 'NETWORK_ERROR') {
+      showAppToast('درخواست حذف چرخه ذخیره شد و پس از رفع اختلال شبکه به سرور ارسال می‌شود.', 'info');
+      return;
     }
   }, [authToken, activeCycleId, systemState.cycles, systemState.logs, systemState.userProfile?.id, showAppToast, requestSync]);
 
@@ -949,48 +985,110 @@ export default function App() {
 
     const ownerId = systemState.userProfile?.id;
     const initialOwner = ownerId;
-    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
-    if (!guard.canSendToServer && !guard.shouldQueue) {
+
+    const result = await executeDirectCreateCycleMutation({
+      newCycle,
+      ownerId,
+      authToken,
+      activeAccountRef
+    });
+
+    if (result.status === 'IGNORED_NO_AUTH_NO_QUEUE') {
+      showAppToast('چرخه جدید با موفقیت ایجاد شد.', 'success');
       return;
     }
 
-    if (guard.shouldQueue) {
-      enqueueOfflineMutation(ownerId, { type: 'CREATE_CYCLE', payload: newCycle });
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/cycles', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify(newCycle)
+    if (result.status === 'STORAGE_WRITE_FAILED') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        return {
+          ...prev,
+          cycles: prev.cycles.filter(c => c.id !== newCycle.id)
+        };
       });
-      if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) {
-        return;
-      }
-      if (res.ok) {
-        const data = await res.json().catch(() => null);
-        const serverCycle = data?.cycle;
-        if (serverCycle) {
-          setSystemState(prev => {
-            if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-            return {
-              ...prev,
-              cycles: prev.cycles.map(c => c.id === newCycle.id ? { ...c, ...serverCycle, isSynced: true } : c)
-            };
-          });
-        }
-      } else {
-        enqueueOfflineMutation(ownerId, { type: 'CREATE_CYCLE', payload: newCycle });
-      }
-    } catch (e) {
-      console.warn('Failed to save cycle to server:', e);
-      enqueueOfflineMutation(ownerId, { type: 'CREATE_CYCLE', payload: newCycle });
+      showAppToast(result.messageFa, 'error');
+      return;
     }
-  }, [authToken, cycleMetrics?.pureStreak, systemState.userProfile?.id]);
+
+    if (result.status === 'INVALID_PRECONDITION') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        return {
+          ...prev,
+          cycles: prev.cycles.filter(c => c.id !== newCycle.id)
+        };
+      });
+      showAppToast(result.messageFa, 'warning');
+      return;
+    }
+
+    if (result.status === 'QUEUED_OFFLINE') {
+      showAppToast('چرخه جدید در صف آفلاین ذخیره شد و پس از اتصال به سرور همگام می‌شود.', 'info');
+      return;
+    }
+
+    if (result.status === 'ACCOUNT_SWITCHED') {
+      return;
+    }
+
+    if (result.status === 'SUCCESS') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        if (result.hasNewerIntent) {
+          return prev;
+        }
+        return {
+          ...prev,
+          cycles: prev.cycles.map(c => c.id === newCycle.id ? { ...c, ...result.serverCycle, isSynced: true } : c)
+        };
+      });
+      showAppToast('چرخه جدید با موفقیت ایجاد شد.', 'success');
+      if (result.hasNewerIntent) {
+        requestSync('NETWORK_ONLINE', ownerId, authToken);
+      }
+      return;
+    }
+
+    if (result.status === 'CONFLICT') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        return {
+          ...prev,
+          cycles: prev.cycles.filter(c => c.id !== newCycle.id)
+        };
+      });
+      showAppToast(result.conflictDetails.messageFa, 'warning');
+      requestSync('NETWORK_ONLINE', ownerId, authToken, true);
+      return;
+    }
+
+    if (result.status === 'INVALID_SUCCESS_RESPONSE') {
+      console.warn('[Create Cycle Mutation] Invalid success response, state remains unconfirmed:', result.errorMsg);
+      return;
+    }
+
+    if (result.status === 'FORBIDDEN' || result.status === 'VALIDATION_ERROR' || result.status === 'ENTITY_MISSING') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        return {
+          ...prev,
+          cycles: prev.cycles.filter(c => c.id !== newCycle.id)
+        };
+      });
+      console.warn('[Create Cycle Mutation] Non-retryable error, quarantined and rolled back:', result);
+      return;
+    }
+
+    if (result.status === 'AUTH_REQUIRED') {
+      console.warn('[Create Cycle Mutation] Auth required, mutation preserved in queue for re-auth:', result);
+      return;
+    }
+
+    if (result.status === 'RATE_LIMITED' || result.status === 'SERVER_RETRYABLE' || result.status === 'NETWORK_ERROR') {
+      showAppToast('چرخه ایجاد شد و پس از رفع اختلال ارتباط با سرور، همگام‌سازی تکمیل می‌شود.', 'info');
+      return;
+    }
+  }, [authToken, cycleMetrics?.pureStreak, systemState.userProfile?.id, showAppToast, requestSync]);
 
   const handleUpdateSettings = useCallback(async (updatedSettings: SystemSettings) => {
     setSystemState(prev => ({

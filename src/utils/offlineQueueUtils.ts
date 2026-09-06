@@ -594,7 +594,7 @@ export function enqueueOfflineMutation(
 
   const newItemId = `queue_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   let initialPayload = mutation.payload;
-  if (mutation.type === 'UPDATE_LOG' && initialPayload && typeof initialPayload === 'object') {
+  if ((mutation.type === 'UPDATE_LOG' || mutation.type === 'CREATE_CYCLE' || mutation.type === 'UPDATE_CYCLE') && initialPayload && typeof initialPayload === 'object') {
     initialPayload = {
       ...initialPayload,
       clientOperationId: initialPayload.clientOperationId || newItemId
@@ -878,8 +878,8 @@ export function verifyDurableQueueItemPersistence(
       };
     }
 
-    // 6. Verify payload represents intended DailyLog operation
-    if (!found.payload || typeof found.payload !== 'object') {
+    // 6. Verify payload represents intended operation
+    if (!found.payload || (typeof found.payload !== 'object' && typeof found.payload !== 'string')) {
       return {
         success: false,
         reason: 'PAYLOAD_MISMATCH',
@@ -887,22 +887,42 @@ export function verifyDurableQueueItemPersistence(
       };
     }
 
-    const expectedDate = expectedMutation.payload?.date;
-    if (expectedDate && found.payload.date !== expectedDate) {
-      return {
-        success: false,
-        reason: 'PAYLOAD_MISMATCH',
-        errorMsg: `Payload date mismatch: expected ${expectedDate}, found ${found.payload.date}`
-      };
-    }
+    if (expectedMutation.type === 'UPDATE_LOG') {
+      const expectedDate = expectedMutation.payload?.date;
+      if (expectedDate && found.payload.date !== expectedDate) {
+        return {
+          success: false,
+          reason: 'PAYLOAD_MISMATCH',
+          errorMsg: `Payload date mismatch: expected ${expectedDate}, found ${found.payload.date}`
+        };
+      }
 
-    const expectedCycleId = expectedMutation.payload?.cycleId;
-    if (expectedCycleId && found.payload.cycleId !== expectedCycleId) {
-      return {
-        success: false,
-        reason: 'PAYLOAD_MISMATCH',
-        errorMsg: `Payload cycleId mismatch: expected ${expectedCycleId}, found ${found.payload.cycleId}`
-      };
+      const expectedCycleId = expectedMutation.payload?.cycleId;
+      if (expectedCycleId && found.payload.cycleId !== expectedCycleId) {
+        return {
+          success: false,
+          reason: 'PAYLOAD_MISMATCH',
+          errorMsg: `Payload cycleId mismatch: expected ${expectedCycleId}, found ${found.payload.cycleId}`
+        };
+      }
+    } else if (
+      expectedMutation.type === 'CREATE_CYCLE' ||
+      expectedMutation.type === 'UPDATE_CYCLE' ||
+      expectedMutation.type === 'DELETE_CYCLE'
+    ) {
+      const expectedCycleId = typeof expectedMutation.payload === 'string'
+        ? expectedMutation.payload
+        : expectedMutation.payload?.id;
+      const foundCycleId = typeof found.payload === 'string'
+        ? found.payload
+        : found.payload?.id;
+      if (expectedCycleId && foundCycleId !== expectedCycleId) {
+        return {
+          success: false,
+          reason: 'PAYLOAD_MISMATCH',
+          errorMsg: `Payload cycleId mismatch: expected ${expectedCycleId}, found ${foundCycleId}`
+        };
+      }
     }
 
     return {
@@ -974,6 +994,83 @@ export function enqueueDurableDailyLogWriteAhead(
       success: false,
       reason: 'STORAGE_EXCEPTION',
       errorMsg: err?.message || 'Storage exception during write-ahead enqueue'
+    };
+  }
+}
+
+/**
+ * Durably enqueues a Cycle mutation (CREATE_CYCLE, UPDATE_CYCLE, DELETE_CYCLE) to the owner-scoped offline queue
+ * and verifies that it was written to storage and matches all identity and payload contracts.
+ */
+export function enqueueDurableCycleWriteAhead(
+  ownerId: string | null | undefined,
+  mutation: EnqueueMutationInput
+): DurableEnqueueResult {
+  try {
+    const normOwner = normalizeQueueOwner(ownerId);
+    if (mutation.type !== 'CREATE_CYCLE' && mutation.type !== 'UPDATE_CYCLE' && mutation.type !== 'DELETE_CYCLE') {
+      return {
+        success: false,
+        reason: 'MUTATION_TYPE_MISMATCH',
+        errorMsg: 'Expected Cycle mutation type (CREATE_CYCLE, UPDATE_CYCLE, or DELETE_CYCLE) for write-ahead durability'
+      };
+    }
+
+    const candidateItem = enqueueOfflineMutation(normOwner, mutation);
+    if (!candidateItem || !candidateItem.id) {
+      return {
+        success: false,
+        reason: 'STORAGE_WRITE_FAILED',
+        errorMsg: 'Failed to create queue item candidate'
+      };
+    }
+
+    if (candidateItem.persisted === false) {
+      return {
+        success: false,
+        reason: 'STORAGE_WRITE_FAILED',
+        errorMsg: 'Storage write failed during enqueue',
+        candidateItem
+      };
+    }
+
+    // Special Case: Rule 3 (CREATE followed by DELETE before sync)
+    // If an offline-created cycle was deleted offline, the queue was pruned and the item is not meant to be in storage
+    if (mutation.type === 'DELETE_CYCLE') {
+      const targetCycleId = typeof mutation.payload === 'string' ? mutation.payload : mutation.payload?.id;
+      const currentQueue = getOfflineQueue(normOwner);
+      const isPruned = !currentQueue.some(item => 
+        (item.type === 'CREATE_CYCLE' || item.type === 'DELETE_CYCLE' || item.type === 'UPDATE_CYCLE') &&
+        (item.payload?.id === targetCycleId || item.payload === targetCycleId)
+      );
+      if (isPruned) {
+        return {
+          success: true,
+          queueItem: candidateItem
+        };
+      }
+    }
+
+    // Authoritative read-back verification
+    const verified = verifyDurableQueueItemPersistence(normOwner, candidateItem.id, mutation);
+    if (verified.success === false) {
+      return {
+        success: false,
+        reason: verified.reason,
+        errorMsg: verified.errorMsg,
+        candidateItem
+      };
+    }
+
+    return {
+      success: true,
+      queueItem: verified.queueItem
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      reason: 'STORAGE_EXCEPTION',
+      errorMsg: err?.message || 'Storage exception during cycle write-ahead enqueue'
     };
   }
 }
