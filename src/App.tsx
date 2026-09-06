@@ -51,7 +51,8 @@ import {
   prepareDirectLogPayload,
   prepareDirectCyclePayload,
   verifyActiveAccount,
-  applyReplayItemToActiveState
+  applyReplayItemToActiveState,
+  executeDirectDailyLogMutation
 } from './utils/directMutationUtils';
 import { reconcileBootState } from './utils/syncReconciliation';
 import { emitSyncDiagnostic } from './utils/syncDiagnostics';
@@ -493,22 +494,23 @@ export default function App() {
       logs: applyOptimisticLogUpdate(prev.logs, updatedLog).nextLogs
     }));
 
-    // 2. Authoritative ownership & auth guard
     const ownerId = systemState.userProfile?.id;
     const initialOwner = ownerId;
-    const guard = shouldQueueOfflineMutation({ ownerId, authToken });
-    if (!guard.canSendToServer && !guard.shouldQueue) {
-      // Guest or tokenless: strictly local client partition. Never queued for server replay.
+
+    const result = await executeDirectDailyLogMutation({
+      updatedLog,
+      existingLog,
+      ownerId,
+      authToken,
+      activeCycleId,
+      activeAccountRef
+    });
+
+    if (result.status === 'IGNORED_NO_AUTH_NO_QUEUE' || result.status === 'QUEUED_OFFLINE' || result.status === 'ACCOUNT_SWITCHED') {
       return;
     }
 
-    const { payload: logPayload, expectedRevision, isExisting, isValid } = prepareDirectLogPayload(
-      updatedLog,
-      existingLog,
-      activeCycleId
-    );
-
-    if (isExisting && !isValid) {
+    if (result.status === 'INVALID_PRECONDITION') {
       setSystemState(prev => {
         if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
         return {
@@ -516,86 +518,51 @@ export default function App() {
           logs: rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot)
         };
       });
-
-      recordClientConflict(ownerId, {
-        mutationType: 'UPDATE_LOG',
-        entityType: 'DAILY_LOG',
-        entityId: updatedLog.date,
-        conflictType: 'PRECONDITION_REQUIRED',
-        statusCode: 428,
-        expectedRevision: undefined,
-        currentRevision: undefined,
-        messageFa: 'نسخه تأیید شده این گزارش در حافظه محلی معتبر نیست. در حال همگام‌سازی مجدد با سرور...',
-        clientPayload: logPayload
-      });
-
-      showAppToast('نسخه معتبر گزارش یافت نشد. همگام‌سازی مجدد با سرور انجام می‌شود.', 'warning');
+      showAppToast(result.messageFa, 'warning');
       requestSync('MANUAL_FORCE', ownerId, authToken, true);
       return;
     }
 
-    if (guard.shouldQueue) {
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload, expectedRevision });
+    if (result.status === 'SUCCESS') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        if (result.hasNewerIntent) {
+          // A newer local edit is still pending in the queue, keep optimistic state
+          return prev;
+        }
+        return {
+          ...prev,
+          logs: prev.logs.map(l => l.date === updatedLog.date ? { ...l, ...result.serverLog, isSynced: true } : l)
+        };
+      });
+      if (result.hasNewerIntent) {
+        // Trigger sync to dispatch the newer pending mutation
+        requestSync('NETWORK_ONLINE', ownerId, authToken);
+      }
       return;
     }
 
-    try {
-      const res = await fetch('/api/logs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify(logPayload)
+    if (result.status === 'CONFLICT') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        return {
+          ...prev,
+          logs: rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot)
+        };
       });
+      showAppToast(result.conflictDetails.messageFa, 'warning');
+      requestSync('NETWORK_ONLINE', ownerId, authToken, true);
+      return;
+    }
 
-      // Post-fetch Account Switch Verification before applying result
-      if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) {
-        return;
-      }
+    if (result.status === 'INVALID_SUCCESS_RESPONSE') {
+      console.warn('[DailyLog Mutation] Invalid success response, state remains unconfirmed:', result.errorMsg);
+      return;
+    }
 
-      if (res.ok) {
-        const data = await res.json().catch(() => null);
-        const serverLog = data?.log;
-        setSystemState(prev => {
-          if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-          return {
-            ...prev,
-            logs: prev.logs.map(l => l.date === updatedLog.date ? { ...(serverLog || l), isSynced: true } : l)
-          };
-        });
-      } else if (res.status === 409 || res.status === 428) {
-        const conflictJson = await res.json().catch(() => null);
-        const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'DAILY_LOG', updatedLog.date);
-        recordClientConflict(ownerId, {
-          mutationType: 'UPDATE_LOG',
-          entityType: parsedConflict.entityType,
-          entityId: parsedConflict.entityId,
-          conflictType: parsedConflict.conflictType,
-          statusCode: parsedConflict.statusCode,
-          expectedRevision: parsedConflict.expectedRevision ?? expectedRevision,
-          currentRevision: parsedConflict.currentRevision,
-          messageFa: parsedConflict.messageFa,
-          clientPayload: logPayload
-        });
-
-        // Confirmed-state rollback on 409/428:
-        setSystemState(prev => {
-          if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-          return {
-            ...prev,
-            logs: rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot)
-          };
-        });
-
-        showAppToast(parsedConflict.messageFa, 'warning');
-        requestSync('NETWORK_ONLINE', ownerId, authToken, true);
-      } else {
-        enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload, expectedRevision });
-      }
-    } catch (e) {
-      console.warn('Failed to sync log to server backend (added to offline queue):', e);
-      enqueueOfflineMutation(ownerId, { type: 'UPDATE_LOG', payload: logPayload, expectedRevision });
+    if (result.status === 'HTTP_ERROR' || result.status === 'NETWORK_ERROR') {
+      console.warn('[DailyLog Mutation] Preserved in durable write-ahead queue:', result);
+      return;
     }
   }, [authToken, activeCycleId, systemState.logs, systemState.userProfile?.id, showAppToast, requestSync]);
 

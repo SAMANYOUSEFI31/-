@@ -9,8 +9,23 @@
  * 5. Asynchronous post-fetch account switch protection
  */
 
-import { Cycle, DailyLog } from '../types';
-import { normalizeQueueOwner, isValidLogResponse, isValidCycleResponse } from './offlineQueueUtils';
+import { Cycle, DailyLog, OfflineQueueItem } from '../types';
+import { 
+  normalizeQueueOwner, 
+  isValidLogResponse, 
+  isValidCycleResponse,
+  enqueueOfflineMutation,
+  getOfflineQueue,
+  saveOfflineQueue,
+  removeReplayedQueueItems,
+  recordQueueItemFailure,
+  markQueueItemInFlight,
+  recordClientConflict,
+  parseSafeConflictDetails,
+  calculateReplayBackoffMs,
+  classifyReplayResponse,
+  shouldQueueOfflineMutation
+} from './offlineQueueUtils';
 
 export interface OptimisticUpdateResult<T> {
   nextState: T[];
@@ -181,7 +196,8 @@ export function prepareExistingEntityRevision(
 export function prepareDirectLogPayload(
   updatedLog: DailyLog,
   existingLog: DailyLog | null | undefined,
-  activeCycleId?: string
+  activeCycleId?: string,
+  clientOperationId?: string
 ): {
   payload: Record<string, any>;
   expectedRevision?: number;
@@ -195,7 +211,8 @@ export function prepareDirectLogPayload(
     // True first create: do not send expectedRevision
     const payload: Record<string, any> = {
       ...updatedLog,
-      cycleId
+      cycleId,
+      ...(clientOperationId ? { clientOperationId } : {})
     };
     delete payload.expectedRevision;
     return { payload, isExisting: false, isValid: true };
@@ -206,7 +223,7 @@ export function prepareDirectLogPayload(
 
   if (!isValidRev) {
     return {
-      payload: { ...updatedLog, cycleId },
+      payload: { ...updatedLog, cycleId, ...(clientOperationId ? { clientOperationId } : {}) },
       isExisting: true,
       isValid: false
     };
@@ -215,7 +232,8 @@ export function prepareDirectLogPayload(
   const payload: Record<string, any> = {
     ...updatedLog,
     cycleId,
-    expectedRevision: rev
+    expectedRevision: rev,
+    ...(clientOperationId ? { clientOperationId } : {})
   };
 
   return {
@@ -341,5 +359,242 @@ export function applyReplayItemToActiveState(
   }
 
   return currentState;
+}
+
+export interface ExecuteDirectDailyLogMutationParams {
+  updatedLog: DailyLog;
+  existingLog: DailyLog | null | undefined;
+  ownerId: string | null | undefined;
+  authToken: string | null | undefined;
+  activeCycleId?: string;
+  fetchFn?: typeof fetch;
+  activeAccountRef?: { current: string | null };
+}
+
+export type DirectDailyLogMutationResult =
+  | { status: 'IGNORED_NO_AUTH_NO_QUEUE' }
+  | { status: 'INVALID_PRECONDITION'; messageFa: string; clientPayload: any }
+  | { status: 'QUEUED_OFFLINE'; queueItem: OfflineQueueItem }
+  | { status: 'ACCOUNT_SWITCHED'; queueItemId: string }
+  | { status: 'SUCCESS'; serverLog: any; queueItemId: string; hasNewerIntent: boolean }
+  | { status: 'INVALID_SUCCESS_RESPONSE'; queueItemId: string; errorMsg: string }
+  | { status: 'CONFLICT'; statusCode: 409 | 428; conflictDetails: any; queueItemId: string }
+  | { status: 'HTTP_ERROR'; statusCode: number; queueItemId: string; classification: string }
+  | { status: 'NETWORK_ERROR'; error: any; queueItemId: string };
+
+/**
+ * Phase 6.1A: Durable DailyLog Write-Ahead Mutation Executor
+ *
+ * Enforces the Write-Ahead Durability contract:
+ * 1. Validates preconditions and expectedRevision.
+ * 2. Durably persists the mutation to the owner's Offline Queue BEFORE any network attempt.
+ * 3. Shares identical operation identity (queueItem.id / clientOperationId) between direct execution and replay.
+ * 4. Marks the queue item in-flight during dispatch to protect it from compaction/overwrites.
+ * 5. On verified 2xx response (checked with isValidLogResponse), removes ONLY the exact confirmed queue item.
+ * 6. On conflict (409/428), removes the rejected queue item to avoid replay loops and records safe conflict metadata.
+ * 7. On network error or retryable server error (5xx/429), leaves the item safely in the queue with exponential backoff.
+ */
+export async function executeDirectDailyLogMutation(
+  params: ExecuteDirectDailyLogMutationParams
+): Promise<DirectDailyLogMutationResult> {
+  const { updatedLog, existingLog, activeCycleId, authToken, fetchFn, activeAccountRef } = params;
+  const ownerId = normalizeQueueOwner(params.ownerId);
+
+  const guard = shouldQueueOfflineMutation({ ownerId, authToken });
+  if (!guard.canSendToServer && !guard.shouldQueue) {
+    return { status: 'IGNORED_NO_AUTH_NO_QUEUE' };
+  }
+
+  const { payload: logPayload, expectedRevision, isExisting, isValid } = prepareDirectLogPayload(
+    updatedLog,
+    existingLog,
+    activeCycleId
+  );
+
+  if (isExisting && !isValid) {
+    recordClientConflict(ownerId, {
+      mutationType: 'UPDATE_LOG',
+      entityType: 'DAILY_LOG',
+      entityId: updatedLog.date,
+      conflictType: 'PRECONDITION_REQUIRED',
+      statusCode: 428,
+      expectedRevision: undefined,
+      currentRevision: undefined,
+      messageFa: 'نسخه تأیید شده این گزارش در حافظه محلی معتبر نیست. در حال همگام‌سازی مجدد با سرور...',
+      clientPayload: logPayload
+    });
+    return {
+      status: 'INVALID_PRECONDITION',
+      messageFa: 'نسخه تأیید شده این گزارش در حافظه محلی معتبر نیست. در حال همگام‌سازی مجدد با سرور...',
+      clientPayload: logPayload
+    };
+  }
+
+  // 1. Durable Write-Ahead Enqueue BEFORE any network attempt
+  const queueItem = enqueueOfflineMutation(ownerId, {
+    type: 'UPDATE_LOG',
+    payload: logPayload,
+    expectedRevision
+  });
+
+  // 2. Offline Guard: stop here if offline, item is already durable in the queue
+  if (guard.shouldQueue) {
+    return { status: 'QUEUED_OFFLINE', queueItem };
+  }
+
+  // 3. Mark the queue item in-flight during direct online execution
+  markQueueItemInFlight(ownerId, queueItem.id, true);
+
+  // 4. Construct request with stable clientOperationId matching queueItem.id
+  const requestBody = {
+    ...logPayload,
+    clientOperationId: queueItem.id,
+    ...(typeof expectedRevision === 'number' && Number.isInteger(expectedRevision) && expectedRevision > 0
+      ? { expectedRevision }
+      : {})
+  };
+
+  const activeFetch = fetchFn || (typeof fetch !== 'undefined' ? fetch : undefined);
+  if (!activeFetch) {
+    markQueueItemInFlight(ownerId, queueItem.id, false);
+    return { status: 'QUEUED_OFFLINE', queueItem };
+  }
+
+  try {
+    const res = await activeFetch('/api/logs', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    // Post-fetch Account Switch Verification
+    if (activeAccountRef && !verifyActiveAccount(activeAccountRef.current, ownerId)) {
+      markQueueItemInFlight(ownerId, queueItem.id, false);
+      return { status: 'ACCOUNT_SWITCHED', queueItemId: queueItem.id };
+    }
+
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      const serverLog = data?.log;
+
+      if (isValidLogResponse(serverLog, updatedLog.date)) {
+        // Check if a newer local edit was enqueued while this request was in flight
+        const currentQueue = getOfflineQueue(ownerId);
+        const hasNewerIntent = currentQueue.some(
+          item => item.type === 'UPDATE_LOG' && item.dedupKey === queueItem.dedupKey && item.id !== queueItem.id
+        );
+
+        if (hasNewerIntent) {
+          // Update newer queue item's expectedRevision to serverLog.revision
+          const updatedQueue = currentQueue.map(item => {
+            if (item.type === 'UPDATE_LOG' && item.dedupKey === queueItem.dedupKey && item.id !== queueItem.id) {
+              return {
+                ...item,
+                expectedRevision: serverLog.revision,
+                payload: {
+                  ...item.payload,
+                  expectedRevision: serverLog.revision
+                }
+              };
+            }
+            return item;
+          });
+          saveOfflineQueue(ownerId, updatedQueue);
+        }
+
+        // Exact confirmed operation identity removal: remove ONLY queueItem.id
+        removeReplayedQueueItems(ownerId, [queueItem.id]);
+
+        return {
+          status: 'SUCCESS',
+          serverLog,
+          queueItemId: queueItem.id,
+          hasNewerIntent
+        };
+      } else {
+        // Malformed or mismatched success response: do NOT mark synced, do NOT remove from queue
+        markQueueItemInFlight(ownerId, queueItem.id, false);
+        const nextRetryCount = (queueItem.retryCount || 0) + 1;
+        const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+        const errorMsg = 'Malformed or mismatched success response from server';
+        recordQueueItemFailure(
+          ownerId,
+          queueItem.id,
+          errorMsg,
+          backoffMs,
+          'INVALID_SUCCESS_RESPONSE'
+        );
+        return {
+          status: 'INVALID_SUCCESS_RESPONSE',
+          queueItemId: queueItem.id,
+          errorMsg
+        };
+      }
+    } else if (res.status === 409 || res.status === 428) {
+      // Concurrency conflict or precondition required: remove failed item from active queue so it doesn't loop
+      removeReplayedQueueItems(ownerId, [queueItem.id]);
+
+      const conflictJson = await res.json().catch(() => null);
+      const parsedConflict = parseSafeConflictDetails(res.status, conflictJson, 'DAILY_LOG', updatedLog.date);
+      recordClientConflict(ownerId, {
+        mutationType: 'UPDATE_LOG',
+        entityType: parsedConflict.entityType,
+        entityId: parsedConflict.entityId,
+        conflictType: parsedConflict.conflictType,
+        statusCode: parsedConflict.statusCode,
+        expectedRevision: parsedConflict.expectedRevision ?? expectedRevision,
+        currentRevision: parsedConflict.currentRevision,
+        messageFa: parsedConflict.messageFa,
+        clientPayload: logPayload,
+        operationId: queueItem.id
+      });
+
+      return {
+        status: 'CONFLICT',
+        statusCode: res.status as 409 | 428,
+        conflictDetails: parsedConflict,
+        queueItemId: queueItem.id
+      };
+    } else {
+      // Server error or rate limit: preserve queue item, record failure with backoff
+      markQueueItemInFlight(ownerId, queueItem.id, false);
+      const classification = classifyReplayResponse(res.status, 'UPDATE_LOG');
+      const nextRetryCount = (queueItem.retryCount || 0) + 1;
+      const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+      recordQueueItemFailure(
+        ownerId,
+        queueItem.id,
+        `Server returned HTTP ${res.status} (${classification})`,
+        backoffMs,
+        classification
+      );
+      return {
+        status: 'HTTP_ERROR',
+        statusCode: res.status,
+        queueItemId: queueItem.id,
+        classification
+      };
+    }
+  } catch (err: any) {
+    // Network interruption or timeout: preserve queue item, do NOT enqueue a duplicate
+    markQueueItemInFlight(ownerId, queueItem.id, false);
+    const nextRetryCount = (queueItem.retryCount || 0) + 1;
+    const backoffMs = calculateReplayBackoffMs(nextRetryCount);
+    recordQueueItemFailure(
+      ownerId,
+      queueItem.id,
+      err?.message || 'Network request failed',
+      backoffMs,
+      'NETWORK_ERROR'
+    );
+    return {
+      status: 'NETWORK_ERROR',
+      error: err,
+      queueItemId: queueItem.id
+    };
+  }
 }
 

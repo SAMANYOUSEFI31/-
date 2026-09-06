@@ -16,7 +16,8 @@ import {
   safeRemoveLocalStorage,
   GUEST_QUEUE_OWNER,
   OFFLINE_QUEUE_PREFIX,
-  LEGACY_OFFLINE_QUEUE_KEY
+  LEGACY_OFFLINE_QUEUE_KEY,
+  shouldQueueOfflineMutation
 } from './storageCore';
 
 export {
@@ -26,7 +27,8 @@ export {
   getScopedStorageKey,
   GUEST_QUEUE_OWNER,
   OFFLINE_QUEUE_PREFIX,
-  LEGACY_OFFLINE_QUEUE_KEY
+  LEGACY_OFFLINE_QUEUE_KEY,
+  shouldQueueOfflineMutation
 };
 
 /**
@@ -551,31 +553,51 @@ export function enqueueOfflineMutation(
   const dedupKey = buildDedupKey(normOwner, mutation);
   const expectedRev = mutation.expectedRevision ?? (typeof mutation.payload === 'object' ? (mutation.payload?.expectedRevision ?? mutation.payload?.revision) : undefined);
 
+  const newItemId = `queue_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  let initialPayload = mutation.payload;
+  if (mutation.type === 'UPDATE_LOG' && initialPayload && typeof initialPayload === 'object') {
+    initialPayload = {
+      ...initialPayload,
+      clientOperationId: initialPayload.clientOperationId || newItemId
+    };
+  }
+
   const newItem: OfflineQueueItem = {
-    id: `queue_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+    id: newItemId,
     ownerId: normOwner,
     type: mutation.type,
-    payload: mutation.payload,
+    payload: initialPayload,
     timestamp: Date.now(),
     retryCount: 0,
     dedupKey,
+    inFlight: false,
     ...(typeof expectedRev === 'number' && Number.isInteger(expectedRev) && expectedRev > 0 ? { expectedRevision: expectedRev } : {})
   };
 
   // Compaction & Dependency Ordering Rules:
 
-  // Rule 1: UPDATE_LOG compaction (keep latest log payload for same cycle/date)
+  // Rule 1: UPDATE_LOG compaction (keep latest log payload for same cycle/date, but NEVER overwrite in-flight requests)
   if (mutation.type === 'UPDATE_LOG') {
-    const existingIdx = currentQueue.findIndex(
-      item => item.type === 'UPDATE_LOG' && item.dedupKey === dedupKey
-    );
+    // Find the latest non-in-flight queue item for this dedupKey
+    let existingIdx = -1;
+    for (let i = currentQueue.length - 1; i >= 0; i--) {
+      if (currentQueue[i].type === 'UPDATE_LOG' && currentQueue[i].dedupKey === dedupKey && !currentQueue[i].inFlight) {
+        existingIdx = i;
+        break;
+      }
+    }
     if (existingIdx >= 0) {
-      const mergedRev = expectedRev ?? currentQueue[existingIdx].expectedRevision;
+      const existingItem = currentQueue[existingIdx];
+      const mergedRev = expectedRev ?? existingItem.expectedRevision;
       const updatedItem: OfflineQueueItem = {
-        ...currentQueue[existingIdx],
-        payload: mutation.payload,
+        ...existingItem,
+        payload: {
+          ...mutation.payload,
+          clientOperationId: existingItem.id
+        },
         timestamp: Date.now(),
         retryCount: 0,
+        inFlight: false,
         ...(typeof mergedRev === 'number' && Number.isInteger(mergedRev) && mergedRev > 0 ? { expectedRevision: mergedRev } : {})
       };
       currentQueue[existingIdx] = updatedItem;
@@ -753,7 +775,31 @@ export function recordQueueItemFailure(
       retryCount: nextRetryCount,
       lastError: sanitizeErrorMessage(errorMsg),
       classification: classification || currentQueue[idx].classification,
-      nextRetryAt: backoffMs > 0 ? Date.now() + backoffMs : undefined
+      nextRetryAt: backoffMs > 0 ? Date.now() + backoffMs : undefined,
+      inFlight: false
+    };
+    saveOfflineQueue(normOwner, currentQueue);
+  }
+}
+
+/**
+ * Sets or clears the in-flight status of a queue item.
+ * While an item is in-flight, new mutations for the same dedupKey will not overwrite its payload
+ * or change its stable clientOperationId.
+ */
+export function markQueueItemInFlight(
+  ownerId: string | null | undefined,
+  itemId: string,
+  inFlight: boolean
+): void {
+  const normOwner = normalizeQueueOwner(ownerId);
+  if (!normOwner) return;
+  const currentQueue = getOfflineQueue(normOwner);
+  const idx = currentQueue.findIndex(item => item.id === itemId);
+  if (idx >= 0) {
+    currentQueue[idx] = {
+      ...currentQueue[idx],
+      inFlight
     };
     saveOfflineQueue(normOwner, currentQueue);
   }
