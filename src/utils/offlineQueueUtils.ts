@@ -620,7 +620,13 @@ export function enqueueOfflineMutation(
     // Find the latest non-in-flight queue item for this dedupKey
     let existingIdx = -1;
     for (let i = currentQueue.length - 1; i >= 0; i--) {
-      if (currentQueue[i].type === 'UPDATE_LOG' && currentQueue[i].dedupKey === dedupKey && !currentQueue[i].inFlight) {
+      const item = currentQueue[i];
+      if (
+        item.type === 'UPDATE_LOG' &&
+        item.dedupKey === dedupKey &&
+        !isQueueItemInFlight(normOwner, item.id) &&
+        !item.inFlight
+      ) {
         existingIdx = i;
         break;
       }
@@ -645,15 +651,22 @@ export function enqueueOfflineMutation(
     }
   }
 
-  // Rule 1b: CREATE_CYCLE compaction (prevent duplicate CREATE_CYCLE items for same cycle)
+  // Rule 1b: CREATE_CYCLE compaction (prevent duplicate CREATE_CYCLE items for same cycle, protect in-flight requests)
   if (mutation.type === 'CREATE_CYCLE') {
     const cycleId = mutation.payload?.id;
-    const existingIdx = currentQueue.findIndex(
-      item => item.type === 'CREATE_CYCLE' && (
-        item.dedupKey === dedupKey ||
-        (cycleId && item.payload?.id === cycleId)
-      )
-    );
+    let existingIdx = -1;
+    for (let i = currentQueue.length - 1; i >= 0; i--) {
+      const item = currentQueue[i];
+      if (
+        item.type === 'CREATE_CYCLE' &&
+        (item.dedupKey === dedupKey || (cycleId && item.payload?.id === cycleId)) &&
+        !isQueueItemInFlight(normOwner, item.id) &&
+        !item.inFlight
+      ) {
+        existingIdx = i;
+        break;
+      }
+    }
     if (existingIdx >= 0) {
       const updatedItem: OfflineQueueItem = {
         ...currentQueue[existingIdx],
@@ -662,7 +675,8 @@ export function enqueueOfflineMutation(
           ...mutation.payload
         },
         timestamp: Date.now(),
-        retryCount: 0
+        retryCount: 0,
+        inFlight: false
       };
       currentQueue[existingIdx] = updatedItem;
       const persisted = saveOfflineQueue(normOwner, currentQueue);
@@ -670,18 +684,33 @@ export function enqueueOfflineMutation(
     }
   }
 
-  // Rule 2: UPDATE_CYCLE (preserve dependency ordering after CREATE_CYCLE, compact repeated updates)
+  // Rule 2: UPDATE_CYCLE (preserve dependency ordering after CREATE_CYCLE, compact repeated updates, protect in-flight requests)
   if (mutation.type === 'UPDATE_CYCLE') {
-    const existingUpdateIdx = currentQueue.findIndex(
-      item => item.type === 'UPDATE_CYCLE' && item.dedupKey === dedupKey
-    );
+    let existingUpdateIdx = -1;
+    for (let i = currentQueue.length - 1; i >= 0; i--) {
+      const item = currentQueue[i];
+      if (
+        item.type === 'UPDATE_CYCLE' &&
+        item.dedupKey === dedupKey &&
+        !isQueueItemInFlight(normOwner, item.id) &&
+        !item.inFlight
+      ) {
+        existingUpdateIdx = i;
+        break;
+      }
+    }
     if (existingUpdateIdx >= 0) {
-      const mergedRev = expectedRev ?? currentQueue[existingUpdateIdx].expectedRevision;
+      const existingItem = currentQueue[existingUpdateIdx];
+      const mergedRev = expectedRev ?? existingItem.expectedRevision;
       const updatedItem: OfflineQueueItem = {
-        ...currentQueue[existingUpdateIdx],
-        payload: mutation.payload,
+        ...existingItem,
+        payload: {
+          ...mutation.payload,
+          clientOperationId: existingItem.id
+        },
         timestamp: Date.now(),
         retryCount: 0,
+        inFlight: false,
         ...(typeof mergedRev === 'number' && Number.isInteger(mergedRev) && mergedRev > 0 ? { expectedRevision: mergedRev } : {})
       };
       currentQueue[existingUpdateIdx] = updatedItem;
@@ -706,15 +735,17 @@ export function enqueueOfflineMutation(
     }
   }
 
-  // Rule 3: CREATE_CYCLE followed by DELETE_CYCLE before sync
+  // Rule 3: CREATE_CYCLE followed by DELETE_CYCLE before sync (in-flight aware)
   if (mutation.type === 'DELETE_CYCLE') {
     const targetCycleId = typeof mutation.payload === 'string' ? mutation.payload : mutation.payload?.id;
-    const pendingCreateIdx = currentQueue.findIndex(
+    const pendingCreate = currentQueue.find(
       item => item.type === 'CREATE_CYCLE' && item.payload?.id === targetCycleId
     );
 
-    if (pendingCreateIdx >= 0) {
-      // The cycle was created offline and deleted offline before ever reaching the server.
+    const isCreateInFlight = pendingCreate ? (isQueueItemInFlight(normOwner, pendingCreate.id) || pendingCreate.inFlight) : false;
+
+    if (pendingCreate && !isCreateInFlight) {
+      // The cycle was created offline and deleted offline before ever reaching the server (NOT in-flight).
       // Prune the pending CREATE_CYCLE and any pending UPDATE_CYCLE or UPDATE_LOG for this cycle.
       const prunedQueue = currentQueue.filter(item => {
         if (item.type === 'CREATE_CYCLE' && item.payload?.id === targetCycleId) return false;
@@ -726,9 +757,12 @@ export function enqueueOfflineMutation(
       return { ...newItem, persisted };
     }
 
-    // If deleting a cycle that may exist on server:
-    // Prune any pending offline updates for this cycle, then enqueue DELETE_CYCLE
+    // If CREATE_CYCLE is in flight OR if deleting a cycle that may exist on server:
+    // Prune any pending non-in-flight offline updates/logs for this cycle, then enqueue DELETE_CYCLE
     const filteredQueue = currentQueue.filter(item => {
+      const isItemInFlight = isQueueItemInFlight(normOwner, item.id) || item.inFlight;
+      if (isItemInFlight) return true; // Never prune in-flight items!
+
       if (item.type === 'UPDATE_CYCLE' && item.payload?.id === targetCycleId) return false;
       if (item.type === 'UPDATE_LOG' && item.payload?.cycleId === targetCycleId) return false;
       if (item.type === 'DELETE_CYCLE' && (

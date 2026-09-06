@@ -22,6 +22,7 @@ import {
   removeReplayedQueueItems,
   recordQueueItemFailure,
   markQueueItemInFlight,
+  isQueueItemInFlight,
   recordClientConflict,
   parseSafeConflictDetails,
   calculateReplayBackoffMs,
@@ -526,8 +527,16 @@ export async function executeDirectDailyLogMutation(
 
   const queueItem = durableResult.queueItem;
 
-  // 2. Offline Guard: stop here if offline, item is already durable in the queue
-  if (guard.shouldQueue) {
+  // 2. Offline Guard or In-Flight Concurrency Guard
+  const currentQueue = getOfflineQueue(ownerId);
+  const isEarlierMutationInFlight = currentQueue.some(
+    item => item.type === 'UPDATE_LOG' &&
+      item.dedupKey === queueItem.dedupKey &&
+      item.id !== queueItem.id &&
+      (isQueueItemInFlight(ownerId, item.id) || item.inFlight)
+  );
+
+  if (guard.shouldQueue || isEarlierMutationInFlight) {
     return { status: 'QUEUED_OFFLINE', queueItem };
   }
 
@@ -898,19 +907,27 @@ export async function executeDirectCreateCycleMutation(
         // Check if a newer local edit was enqueued while this request was in flight
         const currentQueue = getOfflineQueue(ownerId);
         const hasNewerIntent = currentQueue.some(
-          item => item.type === 'UPDATE_CYCLE' && (item.payload?.id === newCycle.id) && item.id !== queueItem.id
+          item => (item.type === 'UPDATE_CYCLE' || item.type === 'DELETE_CYCLE') &&
+            ((typeof item.payload === 'object' && item.payload?.id === newCycle.id) || item.payload === newCycle.id) &&
+            item.id !== queueItem.id
         );
 
         if (hasNewerIntent) {
           const updatedQueue = currentQueue.map(item => {
-            if (item.type === 'UPDATE_CYCLE' && item.payload?.id === newCycle.id && item.id !== queueItem.id) {
+            if (
+              (item.type === 'UPDATE_CYCLE' || item.type === 'DELETE_CYCLE') &&
+              ((typeof item.payload === 'object' && item.payload?.id === newCycle.id) || item.payload === newCycle.id) &&
+              item.id !== queueItem.id
+            ) {
               return {
                 ...item,
                 expectedRevision: serverCycle.revision,
-                payload: {
-                  ...item.payload,
-                  expectedRevision: serverCycle.revision
-                }
+                payload: typeof item.payload === 'object' && item.payload !== null
+                  ? {
+                      ...item.payload,
+                      expectedRevision: serverCycle.revision
+                    }
+                  : item.payload
               };
             }
             return item;
@@ -1134,8 +1151,16 @@ export async function executeDirectUpdateCycleMutation(
 
   const queueItem = durableResult.queueItem;
 
-  // 2. Offline Guard
-  if (guard.shouldQueue) {
+  // 2. Offline Guard or In-Flight Concurrency Guard
+  const currentQueue = getOfflineQueue(ownerId);
+  const isEarlierMutationInFlight = currentQueue.some(
+    item => (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') &&
+      item.payload?.id === updatedCycle.id &&
+      item.id !== queueItem.id &&
+      (isQueueItemInFlight(ownerId, item.id) || item.inFlight)
+  );
+
+  if (guard.shouldQueue || isEarlierMutationInFlight) {
     return { status: 'QUEUED_OFFLINE', queueItem };
   }
 
@@ -1180,19 +1205,27 @@ export async function executeDirectUpdateCycleMutation(
       if (isValidCycleResponse(serverCycle, updatedCycle.id)) {
         const currentQueue = getOfflineQueue(ownerId);
         const hasNewerIntent = currentQueue.some(
-          item => item.type === 'UPDATE_CYCLE' && (item.payload?.id === updatedCycle.id) && item.id !== queueItem.id
+          item => (item.type === 'UPDATE_CYCLE' || item.type === 'DELETE_CYCLE') &&
+            ((typeof item.payload === 'object' && item.payload?.id === updatedCycle.id) || item.payload === updatedCycle.id) &&
+            item.id !== queueItem.id
         );
 
         if (hasNewerIntent) {
           const updatedQueue = currentQueue.map(item => {
-            if (item.type === 'UPDATE_CYCLE' && item.payload?.id === updatedCycle.id && item.id !== queueItem.id) {
+            if (
+              (item.type === 'UPDATE_CYCLE' || item.type === 'DELETE_CYCLE') &&
+              ((typeof item.payload === 'object' && item.payload?.id === updatedCycle.id) || item.payload === updatedCycle.id) &&
+              item.id !== queueItem.id
+            ) {
               return {
                 ...item,
                 expectedRevision: serverCycle.revision,
-                payload: {
-                  ...item.payload,
-                  expectedRevision: serverCycle.revision
-                }
+                payload: typeof item.payload === 'object' && item.payload !== null
+                  ? {
+                      ...item.payload,
+                      expectedRevision: serverCycle.revision
+                    }
+                  : item.payload
               };
             }
             return item;
@@ -1430,11 +1463,6 @@ export async function executeDirectDeleteCycleMutation(
 
   const queueItem = durableResult.queueItem;
 
-  // 2. Offline Guard
-  if (guard.shouldQueue) {
-    return { status: 'QUEUED_OFFLINE', queueItem };
-  }
-
   // If the cycle was only created offline and deleted offline, queue was pruned and no network call is needed
   const currentQueue = getOfflineQueue(ownerId);
   const isPrunedOffline = !currentQueue.some(item => item.id === queueItem.id);
@@ -1444,6 +1472,21 @@ export async function executeDirectDeleteCycleMutation(
       cycleId,
       queueItemId: queueItem.id
     };
+  }
+
+  // 2. Offline Guard
+  if (guard.shouldQueue) {
+    return { status: 'QUEUED_OFFLINE', queueItem };
+  }
+
+  // If a CREATE_CYCLE for this cycle is currently in-flight, the DELETE_CYCLE must wait in the queue for the Create outcome
+  const isCreateInFlight = currentQueue.some(
+    item => item.type === 'CREATE_CYCLE' &&
+      item.payload?.id === cycleId &&
+      (isQueueItemInFlight(ownerId, item.id) || item.inFlight)
+  );
+  if (isCreateInFlight) {
+    return { status: 'QUEUED_OFFLINE', queueItem };
   }
 
   // 3. Mark in-flight
