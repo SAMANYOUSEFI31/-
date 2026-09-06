@@ -1359,41 +1359,58 @@ app.post('/api/payment/verify', authMiddleware, validateBody(paymentVerifySchema
       });
     }
 
-    if (!verifyResult.success || verifyResult.status === 'FAILED') {
+    if (!verifyResult || !verifyResult.success || verifyResult.status === 'FAILED') {
       const isRetryable = Boolean(
-        verifyResult.retryable ||
-        verifyResult.failureClassification === 'RETRYABLE_ERROR' ||
-        verifyResult.failureClassification === 'AMBIGUOUS_RESULT'
+        verifyResult?.retryable ||
+        verifyResult?.failureClassification === 'RETRYABLE_ERROR' ||
+        verifyResult?.failureClassification === 'AMBIGUOUS_RESULT'
       );
       const isDefinitive = !isRetryable && (
-        verifyResult.failureClassification === 'DEFINITIVE_REJECTION' ||
-        verifyResult.retryable === false
+        verifyResult?.failureClassification === 'DEFINITIVE_REJECTION' ||
+        verifyResult?.retryable === false
       );
 
       if (isDefinitive) {
         // Only a definitive normalized non-retryable rejection may call markSubscriptionFailed
-        await markSubscriptionFailed(authority, verifyResult.errorMessageFa || 'تراکنش توسط درگاه تایید نشد.');
+        await markSubscriptionFailed(authority, verifyResult?.errorMessageFa || 'تراکنش توسط درگاه تایید نشد.');
         return res.status(400).json({
-          code: verifyResult.errorCode || 'PAYMENT_FAILED',
-          messageFa: verifyResult.errorMessageFa || 'تراکنش توسط درگاه تایید نشد.',
+          code: verifyResult?.errorCode || 'PAYMENT_FAILED',
+          messageFa: verifyResult?.errorMessageFa || 'تراکنش توسط درگاه تایید نشد.',
           retryable: false
         });
       } else {
         // Retryable timeout, transport failure, temporary unavailability, or ambiguous result:
         // Subscription MUST REMAIN PENDING! Do NOT mark failed. Do NOT activate VIP.
         return res.status(503).json({
-          code: verifyResult.errorCode || 'PAYMENT_TEMPORARY_ERROR',
-          messageFa: verifyResult.errorMessageFa || 'پاسخ قطعی از درگاه دریافت نشد. وضعیت تراکنش در انتظار تایید باقی ماند.',
+          code: verifyResult?.errorCode || 'PAYMENT_TEMPORARY_ERROR',
+          messageFa: verifyResult?.errorMessageFa || 'پاسخ قطعی از درگاه دریافت نشد. وضعیت تراکنش در انتظار تایید باقی ماند.',
           retryable: true
         });
       }
     }
 
+    // Provider claimed success (verifyResult.success === true && verifyResult.status === 'SUCCESS')
+    // Validate Provider-confirmed refId evidence (Task 1)
+    const confirmedRefId = typeof verifyResult.refId === 'string' ? verifyResult.refId.trim() : '';
+    if (!confirmedRefId) {
+      return res.status(503).json({
+        code: 'INVALID_PROVIDER_SUCCESS_RESPONSE',
+        messageFa: 'پاسخ تایید درگاه فاقد شناسه پیگیری معتبر است. وضعیت تراکنش در انتظار بررسی باقی ماند.',
+        retryable: true,
+        failureClassification: 'AMBIGUOUS_RESULT'
+      });
+    }
+
+    // cardPan may be absent if provider does not supply it; do not invent fake cardPan
+    const confirmedCardPan = typeof verifyResult.cardPan === 'string' && verifyResult.cardPan.trim()
+      ? verifyResult.cardPan.trim()
+      : null;
+
     // 5. Atomic Completion & Entitlement Activation
     const completed = await completeSubscription(
       authority,
-      verifyResult.refId || 'REF-' + Date.now(),
-      verifyResult.cardPan || '6037-99**-****-1234',
+      confirmedRefId,
+      confirmedCardPan,
       { expectedUserId: userId }
     );
 

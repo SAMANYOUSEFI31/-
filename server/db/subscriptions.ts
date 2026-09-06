@@ -121,7 +121,7 @@ export async function createSubscriptionRecord(data: {
 export async function completeSubscription(
   authority: string,
   refId: string,
-  cardPan: string,
+  cardPan?: string | null,
   options?: { expectedUserId?: string }
 ): Promise<(DBSubscription & { user?: DBUser }) | null> {
   if (isPrismaAvailable && prisma) {
@@ -163,7 +163,7 @@ export async function completeSubscription(
         data: {
           status: 'SUCCESS',
           refId,
-          cardPan,
+          cardPan: cardPan ?? null,
           updatedAt: new Date()
         }
       });
@@ -267,7 +267,7 @@ export async function completeSubscription(
       ...existing,
       status: 'SUCCESS',
       refId,
-      cardPan,
+      cardPan: cardPan ?? null,
       expiresAt: calculatedExpiresAt,
       updatedAt: nowStr
     };

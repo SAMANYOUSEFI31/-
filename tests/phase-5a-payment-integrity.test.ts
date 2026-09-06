@@ -1724,7 +1724,8 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
 
       // Non-definitive generic thrown error returns sanitized response and leaves sub PENDING
       const data = await res.json();
-      assert.ok(res.status === 400 || res.status === 503);
+      assert.equal(res.status, 503);
+      assert.equal(data.retryable, true);
 
       const sub = await findSubscriptionByAuthority(authority);
       assert.equal(sub?.status, 'PENDING');
@@ -2029,6 +2030,455 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       assert.equal(content.includes('expMonth'), false);
       assert.equal(content.includes('expYear'), false);
       assert.equal(content.includes('رمز اینترنتی'), false);
+    });
+  });
+
+  describe('Corrective Pass Suite E: Provider Evidence Validation & Fabricated Identifier Removal', () => {
+    afterEach(() => {
+      setPaymentAdapterOverride(null);
+    });
+
+    it('E01. Successful result without refId returns HTTP 503 and leaves Subscription PENDING', async () => {
+      const authority = 'AUTH_CP_E01_NO_REFID';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockNoRefAdapter: any = {
+        name: 'MockNoRefAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({
+          success: true,
+          status: 'SUCCESS'
+          // refId is deliberately absent/undefined
+        }),
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(mockNoRefAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 503);
+      const data = await res.json();
+      assert.equal(data.code, 'INVALID_PROVIDER_SUCCESS_RESPONSE');
+      assert.equal(data.retryable, true);
+      assert.equal(data.failureClassification, 'AMBIGUOUS_RESULT');
+
+      const sub = await findSubscriptionByAuthority(authority);
+      assert.equal(sub?.status, 'PENDING');
+      assert.equal(sub?.refId, null);
+
+      const user = await findUserById(userAId);
+      assert.equal(user?.isVip, false);
+      assert.equal(user?.vipSince, null);
+      assert.equal(user?.vipExpiresAt, null);
+      assert.equal(user?.paymentRefId, null);
+    });
+
+    it('E02. Empty or whitespace-only refId fails closed and preserves PENDING', async () => {
+      // Part 1: Empty string refId
+      const authorityEmpty = 'AUTH_CP_E02_EMPTY';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority: authorityEmpty
+      });
+
+      const mockEmptyRefAdapter: any = {
+        name: 'MockEmptyRefAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({
+          success: true,
+          status: 'SUCCESS',
+          refId: ''
+        }),
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(mockEmptyRefAdapter);
+
+      const resEmpty = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority: authorityEmpty })
+      });
+
+      assert.equal(resEmpty.status, 503);
+      const dataEmpty = await resEmpty.json();
+      assert.equal(dataEmpty.code, 'INVALID_PROVIDER_SUCCESS_RESPONSE');
+      assert.equal(dataEmpty.retryable, true);
+
+      const subEmpty = await findSubscriptionByAuthority(authorityEmpty);
+      assert.equal(subEmpty?.status, 'PENDING');
+
+      // Part 2: Whitespace-only string refId
+      const authorityWhitespace = 'AUTH_CP_E02_WHITESPACE';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority: authorityWhitespace
+      });
+
+      const mockWhitespaceRefAdapter: any = {
+        name: 'MockWhitespaceRefAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({
+          success: true,
+          status: 'SUCCESS',
+          refId: '     '
+        }),
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(mockWhitespaceRefAdapter);
+
+      const resWhitespace = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority: authorityWhitespace })
+      });
+
+      assert.equal(resWhitespace.status, 503);
+      const dataWhitespace = await resWhitespace.json();
+      assert.equal(dataWhitespace.code, 'INVALID_PROVIDER_SUCCESS_RESPONSE');
+      assert.equal(dataWhitespace.retryable, true);
+
+      const subWhitespace = await findSubscriptionByAuthority(authorityWhitespace);
+      assert.equal(subWhitespace?.status, 'PENDING');
+
+      const user = await findUserById(userAId);
+      assert.equal(user?.isVip, false);
+      assert.equal(user?.paymentRefId, null);
+    });
+
+    it('E03. Successful result without cardPan completes without fabricating card PAN', async () => {
+      const authority = 'AUTH_CP_E03_NO_PAN';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockNoPanAdapter: any = {
+        name: 'MockNoPanAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({
+          success: true,
+          status: 'SUCCESS',
+          refId: 'CONFIRMED-TX-998811'
+          // cardPan is deliberately absent
+        }),
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(mockNoPanAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.status, 100);
+      assert.equal(data.refId, 'CONFIRMED-TX-998811');
+      assert.ok(data.cardPan === null || data.cardPan === undefined);
+      assert.notEqual(data.cardPan, '6037-99**-****-1234');
+
+      const sub = await findSubscriptionByAuthority(authority);
+      assert.equal(sub?.status, 'SUCCESS');
+      assert.equal(sub?.refId, 'CONFIRMED-TX-998811');
+      assert.equal(sub?.cardPan, null);
+
+      const user = await findUserById(userAId);
+      assert.equal(user?.isVip, true);
+      assert.equal(user?.paymentRefId, 'CONFIRMED-TX-998811');
+    });
+
+    it('E04. Exact Provider refId preservation on Subscription and User', async () => {
+      const authority = 'AUTH_CP_E04_EXACT_REF';
+      const exactRefId = 'EXACT-PROV-REF-TOKEN-987654321';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockExactAdapter: any = {
+        name: 'MockExactAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({
+          success: true,
+          status: 'SUCCESS',
+          refId: exactRefId,
+          cardPan: '5022-29**-****-9900'
+        }),
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(mockExactAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.refId, exactRefId);
+
+      const sub = await findSubscriptionByAuthority(authority);
+      assert.equal(sub?.refId, exactRefId);
+
+      const user = await findUserById(userAId);
+      assert.equal(user?.paymentRefId, exactRefId);
+    });
+
+    it('E05. Malformed success response with diagnostic data is sanitized', async () => {
+      const authority = 'AUTH_CP_E05_SANITIZE';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockDiagnosticAdapter: any = {
+        name: 'MockDiagnosticAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({
+          success: true,
+          status: 'SUCCESS',
+          refId: '',
+          rawUpstreamSecret: 'SECRET_API_DIAGNOSTIC_PAYLOAD',
+          internalServerIp: '10.198.54.12'
+        } as any),
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(mockDiagnosticAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 503);
+      const text = await res.text();
+      assert.equal(text.includes('SECRET_API_DIAGNOSTIC_PAYLOAD'), false);
+      assert.equal(text.includes('10.198.54.12'), false);
+    });
+  });
+
+  describe('Corrective Pass Suite F: Unknown Thrown Exception & Safe Ambiguous Classification', () => {
+    afterEach(() => {
+      setPaymentAdapterOverride(null);
+    });
+
+    it('F01. Unknown verify exception defaults to AMBIGUOUS_RESULT, HTTP 503, and preserves PENDING', async () => {
+      const authority = 'AUTH_CP_F01_UNKNOWN_VERIFY';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockCrashAdapter: any = {
+        name: 'MockCrashAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => {
+          throw new Error('Unrecognized vendor crash payload in line 42 parser');
+        },
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(mockCrashAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 503);
+      const data = await res.json();
+      assert.equal(data.retryable, true);
+      assert.equal(data.code, 'PAYMENT_UNRESOLVED');
+
+      const rawText = JSON.stringify(data);
+      assert.equal(rawText.includes('Unrecognized vendor crash'), false);
+      assert.equal(rawText.includes('line 42 parser'), false);
+      assert.equal(rawText.includes('stack'), false);
+
+      const sub = await findSubscriptionByAuthority(authority);
+      assert.equal(sub?.status, 'PENDING');
+
+      // User must remain untouched
+      const user = await findUserById(userAId);
+      assert.equal(user?.isVip, false);
+      assert.equal(user?.vipSince, null);
+      assert.equal(user?.vipExpiresAt, null);
+      assert.equal(user?.paymentRefId, null);
+    });
+
+    it('F02. Unknown request exception returns sanitized HTTP 503 and creates no Subscription record', async () => {
+      const countBefore = (await getUserSubscriptions(userAId)).length;
+
+      const mockRequestFailAdapter: any = {
+        name: 'MockRequestFailAdapter',
+        mode: 'test',
+        requestPayment: async () => {
+          throw new Error('Unrecognized upstream vendor response payload structure');
+        },
+        buildRedirectUrl: () => '',
+        verifyPayment: async () => ({} as any),
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(mockRequestFailAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ planId: 'samurai_90days' })
+      });
+
+      assert.equal(res.status, 503);
+      const data = await res.json();
+      assert.equal(data.retryable, true);
+      assert.equal(data.code, 'PAYMENT_UNRESOLVED');
+
+      const text = JSON.stringify(data);
+      assert.equal(text.includes('Unrecognized upstream vendor'), false);
+
+      const countAfter = (await getUserSubscriptions(userAId)).length;
+      assert.equal(countAfter, countBefore);
+    });
+
+    it('F03. Explicit structured definitive rejection marks Subscription FAILED', async () => {
+      const authority = 'AUTH_CP_F03_DEFINITIVE_REJECT';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockDefinitiveAdapter: any = {
+        name: 'MockDefinitiveAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({
+          success: false,
+          status: 'FAILED',
+          failureClassification: 'DEFINITIVE_REJECTION',
+          retryable: false,
+          errorCode: 'INSUFFICIENT_FUNDS',
+          errorMessageFa: 'موجودی حساب کافی نیست.'
+        }),
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(mockDefinitiveAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 400);
+      const data = await res.json();
+      assert.equal(data.retryable, false);
+      assert.equal(data.code, 'INSUFFICIENT_FUNDS');
+
+      const sub = await findSubscriptionByAuthority(authority);
+      assert.equal(sub?.status, 'FAILED');
+
+      const user = await findUserById(userAId);
+      assert.equal(user?.isVip, false);
+    });
+
+    it('F04. Network timeout regression remains retryable HTTP 503 and Subscription PENDING', async () => {
+      const authority = 'AUTH_CP_F04_TIMEOUT';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockTimeoutAdapter: any = {
+        name: 'MockTimeoutAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => {
+          throw new Error('ETIMEDOUT: Connection to payment gateway timed out');
+        },
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(mockTimeoutAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 503);
+      const data = await res.json();
+      assert.equal(data.retryable, true);
+      assert.equal(data.code, 'PAYMENT_TEMPORARY_ERROR');
+
+      const sub = await findSubscriptionByAuthority(authority);
+      assert.equal(sub?.status, 'PENDING');
+
+      const user = await findUserById(userAId);
+      assert.equal(user?.isVip, false);
     });
   });
 });

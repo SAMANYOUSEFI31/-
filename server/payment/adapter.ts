@@ -62,7 +62,7 @@ export class ProviderNeutralSimulatorAdapter implements PaymentGatewayAdapter {
         code: String(err.code || 'PAYMENT_FAILED'),
         messageFa: String(err.messageFa || 'خطا در ارتباط با درگاه پرداخت.'),
         retryable,
-        failureClassification: err.failureClassification || (retryable ? 'RETRYABLE_ERROR' : 'DEFINITIVE_REJECTION')
+        failureClassification: err.failureClassification || (retryable ? 'RETRYABLE_ERROR' : 'AMBIGUOUS_RESULT')
       };
     }
     const rawMsg = error instanceof Error ? error.message : String(error);
@@ -76,10 +76,10 @@ export class ProviderNeutralSimulatorAdapter implements PaymentGatewayAdapter {
       };
     }
     return {
-      code: 'PAYMENT_FAILED',
-      messageFa: 'پرداخت توسط درگاه تایید نشد.',
-      retryable: false,
-      failureClassification: 'DEFINITIVE_REJECTION'
+      code: 'PAYMENT_UNRESOLVED',
+      messageFa: 'پاسخ قطعی از درگاه دریافت نشد. وضعیت تراکنش در انتظار بررسی باقی ماند.',
+      retryable: true,
+      failureClassification: 'AMBIGUOUS_RESULT'
     };
   }
 }

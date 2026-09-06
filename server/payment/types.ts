@@ -30,16 +30,31 @@ export interface PaymentVerifyParams {
   expectedAmount: number;
 }
 
-export interface PaymentVerificationResult {
-  success: boolean;
-  status: 'SUCCESS' | 'FAILED';
-  refId?: string;
-  cardPan?: string;
+export interface SuccessfulPaymentVerificationResult {
+  success: true;
+  status: 'SUCCESS';
+  refId: string;
+  cardPan?: string | null;
+  errorCode?: never;
+  errorMessageFa?: string;
+  retryable?: false;
+  failureClassification?: never;
+}
+
+export interface FailedPaymentVerificationResult {
+  success: false;
+  status: 'FAILED';
+  refId?: never;
+  cardPan?: never;
   errorCode?: string;
   errorMessageFa?: string;
-  retryable?: boolean;
-  failureClassification?: PaymentFailureClassification;
+  retryable: boolean;
+  failureClassification: PaymentFailureClassification;
 }
+
+export type PaymentVerificationResult =
+  | SuccessfulPaymentVerificationResult
+  | FailedPaymentVerificationResult;
 
 export interface NormalizedPaymentError {
   code: string;
