@@ -92,8 +92,20 @@ export function validateAuthoritativePaymentResponse(
     };
   }
 
-  // 6. user.vipSince: taken directly from serverUser, or current user profile
-  const validatedVipSince = serverUser.vipSince || currentUserProfile.vipSince || new Date().toISOString();
+  // 6. user.vipSince must be a non-empty string and parse as a valid date
+  if (
+    !serverUser.vipSince ||
+    typeof serverUser.vipSince !== 'string' ||
+    serverUser.vipSince.trim() === '' ||
+    isNaN(Date.parse(serverUser.vipSince))
+  ) {
+    return {
+      valid: false,
+      errorCode: 'INVALID_VIP_SINCE',
+      errorMessageFa: 'تاریخ شروع اشتراک توسط سرور ارسال نشده یا نامعتبر است.'
+    };
+  }
+  const validatedVipSince = serverUser.vipSince;
 
   // 7. user.vipExpiresAt must be a valid future date string
   if (
@@ -186,7 +198,7 @@ export function validateAuthoritativePaymentResponse(
     phoneNumber: typeof serverUser.phoneNumber === 'string' ? serverUser.phoneNumber : currentUserProfile.phoneNumber,
     isVip: true,
     tier: serverUser.tier as UserSubscriptionTier,
-    vipSince: serverUser.vipSince,
+    vipSince: validatedVipSince,
     vipExpiresAt: serverUser.vipExpiresAt,
     paymentRefId: serverUser.paymentRefId,
     // Active cycle limit is preserved from authoritative server or existing profile, NEVER 99
@@ -198,7 +210,7 @@ export function validateAuthoritativePaymentResponse(
   const receipt: AuthoritativePaymentReceipt = {
     refId: confirmedRefId,
     cardPan: serverSub.cardPan || data.cardPan || undefined,
-    date: new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(serverUser.vipSince)),
+    date: new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(validatedVipSince)),
     amount
   };
 

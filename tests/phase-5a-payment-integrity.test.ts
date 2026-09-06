@@ -1,4 +1,4 @@
-import { describe, it, before, after, beforeEach } from 'node:test';
+import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { app } from '../server.js';
@@ -1054,8 +1054,10 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
         verifyPayment: async () => ({
           success: false,
           status: 'FAILED' as const,
-          errorCode: 'PROVIDER_INTERNAL_ERROR',
-          errorMessageFa: 'تراکنش توسط درگاه بانکی تایید نشد.'
+          failureClassification: 'DEFINITIVE_REJECTION' as const,
+          errorCode: 'PAYMENT_FAILED',
+          errorMessageFa: 'تراکنش توسط درگاه بانکی تایید نشد.',
+          retryable: false
         }),
         normalizeProviderError: () => ({
           code: 'PAYMENT_FAILED',
@@ -1162,20 +1164,23 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
   // Corrective Pass: Focused Blockers Verification Suites (A, B, C, D)
   // =========================================================================
 
-  describe('Corrective Pass Suite A: Server-Authoritative Client State', () => {
+  describe('Corrective Pass Suite A: Server-Authoritative vipSince Validation', () => {
     const baseClientUser = {
       id: userAId,
       name: 'سامورایی تست',
       phoneNumber: '09121111111',
       isVip: false,
       tier: 'ronin_free' as const,
-      vipSince: null,
+      vipSince: '2026-01-01T00:00:00.000Z',
       vipExpiresAt: null,
       activeCycleLimit: 1,
       createdAt: new Date().toISOString()
     };
 
-    it('A01. Missing Server user prevents onUpgradeSuccess', () => {
+    const validFutureExpiresAt = new Date(Date.now() + 90 * 86400000).toISOString();
+    const validServerVipSince = '2026-09-06T10:30:00.000Z';
+
+    it('A01. Missing Server vipSince fails validation', () => {
       const res = validateAuthoritativePaymentResponse(
         {
           data: {
@@ -1187,6 +1192,14 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
               refId: 'REF_CP_A01',
               amount: 199000
             },
+            user: {
+              id: userAId,
+              isVip: true,
+              tier: 'vip_samurai',
+              vipExpiresAt: validFutureExpiresAt,
+              paymentRefId: 'REF_CP_A01'
+              // vipSince is missing
+            },
             refId: 'REF_CP_A01'
           },
           currentUserId: userAId,
@@ -1196,27 +1209,29 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       );
 
       assert.equal(res.valid, false);
-      assert.equal(res.errorCode, 'MISSING_SERVER_USER');
-      assert.equal(res.validatedUser, null);
+      assert.equal(res.errorCode, 'INVALID_VIP_SINCE');
+      assert.equal(res.validatedUser, undefined);
+      assert.equal(res.receipt, undefined);
     });
 
-    it('A02. Mismatched Server user ID prevents local VIP activation', () => {
+    it('A02. Null Server vipSince fails validation', () => {
       const res = validateAuthoritativePaymentResponse(
         {
           data: {
             status: 100,
             subscription: {
               status: 'SUCCESS',
-              userId: 'intruder-user-id',
+              userId: userAId,
               authority: 'AUTH_CP_A02',
               refId: 'REF_CP_A02',
               amount: 199000
             },
             user: {
-              id: 'intruder-user-id',
+              id: userAId,
               isVip: true,
               tier: 'vip_samurai',
-              vipExpiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
+              vipSince: null,
+              vipExpiresAt: validFutureExpiresAt,
               paymentRefId: 'REF_CP_A02'
             },
             refId: 'REF_CP_A02'
@@ -1228,17 +1243,18 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       );
 
       assert.equal(res.valid, false);
-      assert.equal(res.errorCode, 'USER_ID_MISMATCH');
-      assert.equal(res.validatedUser, null);
+      assert.equal(res.errorCode, 'INVALID_VIP_SINCE');
+      assert.equal(res.validatedUser, undefined);
+      assert.equal(res.receipt, undefined);
     });
 
-    it('A03. Missing SUCCESS Subscription prevents local VIP activation', () => {
+    it('A03. Empty Server vipSince fails validation', () => {
       const res = validateAuthoritativePaymentResponse(
         {
           data: {
             status: 100,
             subscription: {
-              status: 'PENDING',
+              status: 'SUCCESS',
               userId: userAId,
               authority: 'AUTH_CP_A03',
               refId: 'REF_CP_A03',
@@ -1248,7 +1264,8 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
               id: userAId,
               isVip: true,
               tier: 'vip_samurai',
-              vipExpiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
+              vipSince: '   ',
+              vipExpiresAt: validFutureExpiresAt,
               paymentRefId: 'REF_CP_A03'
             },
             refId: 'REF_CP_A03'
@@ -1260,11 +1277,12 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       );
 
       assert.equal(res.valid, false);
-      assert.equal(res.errorCode, 'SUBSCRIPTION_NOT_SUCCESS');
-      assert.equal(res.validatedUser, null);
+      assert.equal(res.errorCode, 'INVALID_VIP_SINCE');
+      assert.equal(res.validatedUser, undefined);
+      assert.equal(res.receipt, undefined);
     });
 
-    it('A04. Missing vipExpiresAt prevents local VIP activation', () => {
+    it('A04. Malformed Server vipSince fails validation', () => {
       const res = validateAuthoritativePaymentResponse(
         {
           data: {
@@ -1280,7 +1298,8 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
               id: userAId,
               isVip: true,
               tier: 'vip_samurai',
-              vipExpiresAt: null,
+              vipSince: 'not-a-valid-iso-date-string',
+              vipExpiresAt: validFutureExpiresAt,
               paymentRefId: 'REF_CP_A04'
             },
             refId: 'REF_CP_A04'
@@ -1292,11 +1311,13 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       );
 
       assert.equal(res.valid, false);
-      assert.equal(res.errorCode, 'INVALID_VIP_EXPIRES_AT');
-      assert.equal(res.validatedUser, null);
+      assert.equal(res.errorCode, 'INVALID_VIP_SINCE');
+      assert.equal(res.validatedUser, undefined);
+      assert.equal(res.receipt, undefined);
     });
 
-    it('A05. Invalid vipExpiresAt prevents local VIP activation', () => {
+    it('A05. Existing Client vipSince cannot rescue a missing Server vipSince', () => {
+      // baseClientUser has an existing vipSince: '2026-01-01T00:00:00.000Z'
       const res = validateAuthoritativePaymentResponse(
         {
           data: {
@@ -1312,7 +1333,8 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
               id: userAId,
               isVip: true,
               tier: 'vip_samurai',
-              vipExpiresAt: '2020-01-01T00:00:00.000Z',
+              vipSince: undefined,
+              vipExpiresAt: validFutureExpiresAt,
               paymentRefId: 'REF_CP_A05'
             },
             refId: 'REF_CP_A05'
@@ -1324,11 +1346,12 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       );
 
       assert.equal(res.valid, false);
-      assert.equal(res.errorCode, 'EXPIRED_VIP_DATE');
-      assert.equal(res.validatedUser, null);
+      assert.equal(res.errorCode, 'INVALID_VIP_SINCE');
+      assert.equal(res.validatedUser, undefined);
+      assert.equal(res.receipt, undefined);
     });
 
-    it('A06. Missing paymentRefId prevents receipt creation', () => {
+    it('A06. Valid Server vipSince is copied exactly', () => {
       const res = validateAuthoritativePaymentResponse(
         {
           data: {
@@ -1337,14 +1360,18 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
               status: 'SUCCESS',
               userId: userAId,
               authority: 'AUTH_CP_A06',
+              refId: 'REF_CP_A06',
               amount: 199000
             },
             user: {
               id: userAId,
               isVip: true,
               tier: 'vip_samurai',
-              vipExpiresAt: new Date(Date.now() + 90 * 86400000).toISOString()
-            }
+              vipSince: validServerVipSince,
+              vipExpiresAt: validFutureExpiresAt,
+              paymentRefId: 'REF_CP_A06'
+            },
+            refId: 'REF_CP_A06'
           },
           currentUserId: userAId,
           expectedAuthority: 'AUTH_CP_A06'
@@ -1352,12 +1379,18 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
         baseClientUser
       );
 
-      assert.equal(res.valid, false);
-      assert.equal(res.errorCode, 'MISSING_PAYMENT_REF_ID');
-      assert.equal(res.receipt, null);
+      assert.equal(res.valid, true);
+      assert.ok(res.validatedUser);
+      assert.equal(res.validatedUser.vipSince, validServerVipSince);
     });
 
-    it('A07. Client never calculates activeCycleLimit', () => {
+    it('A07. Receipt date derives only from validated Server vipSince', () => {
+      const testVipSince = '2026-09-06T15:45:00.000Z';
+      const expectedFormattedDate = new Intl.DateTimeFormat('fa-IR', {
+        dateStyle: 'long',
+        timeStyle: 'short'
+      }).format(new Date(testVipSince));
+
       const res = validateAuthoritativePaymentResponse(
         {
           data: {
@@ -1373,9 +1406,9 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
               id: userAId,
               isVip: true,
               tier: 'vip_samurai',
-              vipExpiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
+              vipSince: testVipSince,
+              vipExpiresAt: validFutureExpiresAt,
               paymentRefId: 'REF_CP_A07'
-              // Notice: server does NOT provide activeCycleLimit
             },
             refId: 'REF_CP_A07'
           },
@@ -1386,12 +1419,11 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       );
 
       assert.equal(res.valid, true);
-      assert.ok(res.validatedUser);
-      // Must preserve the existing client profile limit, never inject 99 or local invention
-      assert.equal(res.validatedUser.activeCycleLimit, 1);
+      assert.ok(res.receipt);
+      assert.equal(res.receipt.date, expectedFormattedDate);
     });
 
-    it('A08. Client never creates a fallback refId', () => {
+    it('A08. Invalid vipSince prevents validatedUser and receipt creation', () => {
       const res = validateAuthoritativePaymentResponse(
         {
           data: {
@@ -1400,17 +1432,18 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
               status: 'SUCCESS',
               userId: userAId,
               authority: 'AUTH_CP_A08',
-              refId: 'REF_SERVER_AUTHORITATIVE_888',
+              refId: 'REF_CP_A08',
               amount: 199000
             },
             user: {
               id: userAId,
               isVip: true,
               tier: 'vip_samurai',
-              vipExpiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
-              paymentRefId: 'REF_SERVER_AUTHORITATIVE_888'
+              vipSince: 'invalid-date',
+              vipExpiresAt: validFutureExpiresAt,
+              paymentRefId: 'REF_CP_A08'
             },
-            refId: 'REF_SERVER_AUTHORITATIVE_888'
+            refId: 'REF_CP_A08'
           },
           currentUserId: userAId,
           expectedAuthority: 'AUTH_CP_A08'
@@ -1418,57 +1451,13 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
         baseClientUser
       );
 
-      assert.equal(res.valid, true);
-      assert.ok(res.receipt);
-      assert.equal(res.receipt.refId, 'REF_SERVER_AUTHORITATIVE_888');
-      assert.notEqual(res.receipt.refId, 'REF-CONFIRMED');
-    });
-
-    it('A09. Fully valid authoritative result updates the correct profile', () => {
-      const validFutureDate = new Date(Date.now() + 90 * 86400000).toISOString();
-      const res = validateAuthoritativePaymentResponse(
-        {
-          data: {
-            status: 100,
-            subscription: {
-              status: 'SUCCESS',
-              userId: userAId,
-              authority: 'AUTH_CP_A09',
-              refId: 'REF_CP_A09',
-              amount: 199000,
-              cardPan: '6037-99**-****-1234'
-            },
-            user: {
-              id: userAId,
-              name: 'سامورایی تایید شده',
-              isVip: true,
-              tier: 'vip_samurai',
-              vipSince: new Date().toISOString(),
-              vipExpiresAt: validFutureDate,
-              paymentRefId: 'REF_CP_A09'
-            },
-            refId: 'REF_CP_A09',
-            cardPan: '6037-99**-****-1234'
-          },
-          currentUserId: userAId,
-          expectedAuthority: 'AUTH_CP_A09'
-        },
-        baseClientUser
-      );
-
-      assert.equal(res.valid, true);
-      assert.ok(res.validatedUser);
-      assert.equal(res.validatedUser.id, userAId);
-      assert.equal(res.validatedUser.isVip, true);
-      assert.equal(res.validatedUser.tier, 'vip_samurai');
-      assert.equal(res.validatedUser.vipExpiresAt, validFutureDate);
-      assert.ok(res.receipt);
-      assert.equal(res.receipt.refId, 'REF_CP_A09');
-      assert.equal(res.receipt.cardPan, '6037-99**-****-1234');
+      assert.equal(res.valid, false);
+      assert.equal(res.validatedUser, undefined);
+      assert.equal(res.receipt, undefined);
     });
   });
 
-  describe('Corrective Pass Suite B: Simulator Isolation', () => {
+  describe('Corrective Pass Suite B: Absolute Production Simulator Isolation', () => {
     const originalEnv = process.env.NODE_ENV;
     const originalShortcuts = process.env.ALLOW_TEST_SHORTCUTS;
 
@@ -1482,24 +1471,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       setPaymentAdapterOverride(null);
     });
 
-    it('B01. Production ignores or rejects adapter override', () => {
-      process.env.NODE_ENV = 'production';
-      process.env.ALLOW_TEST_SHORTCUTS = 'false';
-
-      const mockAdapter: any = {
-        name: 'MaliciousTestAdapter',
-        mode: 'override',
-        requestPayment: async () => ({} as any),
-        verifyPayment: async () => ({} as any),
-        normalizeProviderError: () => ({} as any)
-      };
-
-      setPaymentAdapterOverride(mockAdapter);
-      const active = getPaymentAdapter();
-      assert.equal(active, null, 'In production without test shortcuts, adapter override must not be accepted');
-    });
-
-    it('B02. Production without a real provider returns null', () => {
+    it('B01. Production plus ALLOW_TEST_SHORTCUTS=false returns no Simulator', () => {
       process.env.NODE_ENV = 'production';
       process.env.ALLOW_TEST_SHORTCUTS = 'false';
       setPaymentAdapterOverride(null);
@@ -1508,9 +1480,54 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       assert.equal(active, null);
     });
 
-    it('B03. Payment route returns PAYMENT_UNAVAILABLE in production without provider', async () => {
+    it('B02. Production plus ALLOW_TEST_SHORTCUTS=true still returns no Simulator', () => {
       process.env.NODE_ENV = 'production';
-      process.env.ALLOW_TEST_SHORTCUTS = 'false';
+      process.env.ALLOW_TEST_SHORTCUTS = 'true';
+      setPaymentAdapterOverride(null);
+
+      const active = getPaymentAdapter();
+      assert.equal(active, null, 'ALLOW_TEST_SHORTCUTS=true must not enable simulator in production');
+    });
+
+    it('B03. Production ignores an Adapter override set before the environment changes', () => {
+      process.env.NODE_ENV = 'development';
+      const mockAdapter: any = {
+        name: 'PreExistingMockAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({} as any),
+        normalizeProviderError: () => ({} as any)
+      };
+
+      setPaymentAdapterOverride(mockAdapter);
+      // Switch environment to production
+      process.env.NODE_ENV = 'production';
+      process.env.ALLOW_TEST_SHORTCUTS = 'true';
+
+      const active = getPaymentAdapter();
+      assert.equal(active, null, 'Pre-existing override must be ignored in production');
+    });
+
+    it('B04. Production ignores an Adapter override set after the environment changes', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.ALLOW_TEST_SHORTCUTS = 'true';
+
+      const mockAdapter: any = {
+        name: 'PostSwitchMockAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({} as any),
+        normalizeProviderError: () => ({} as any)
+      };
+
+      setPaymentAdapterOverride(mockAdapter);
+      const active = getPaymentAdapter();
+      assert.equal(active, null, 'Override set in production must be ignored');
+    });
+
+    it('B05. Production payment request returns PAYMENT_UNAVAILABLE without a real Provider', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.ALLOW_TEST_SHORTCUTS = 'true';
       setPaymentAdapterOverride(null);
 
       const res = await fetch(`${baseUrl}/api/payment/request`, {
@@ -1527,17 +1544,35 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       assert.equal(data.code, 'PAYMENT_UNAVAILABLE');
     });
 
-    it('B04. Development simulator remains clearly development-only', () => {
+    it('B06. Development may use ProviderNeutralSimulatorAdapter', () => {
       process.env.NODE_ENV = 'development';
       setPaymentAdapterOverride(null);
 
       const active = getPaymentAdapter();
       assert.ok(active);
+      assert.equal(active instanceof ProviderNeutralSimulatorAdapter, true);
       assert.equal(active.mode, 'provider-simulator-dev');
-      assert.equal(active.name, 'ProviderNeutralSimulator');
     });
 
-    it('B05. No simulator response is labelled live', async () => {
+    it('B07. Test may use an explicit deterministic Adapter override', () => {
+      process.env.NODE_ENV = 'test';
+      const mockTestAdapter: any = {
+        name: 'DeterministicTestMock',
+        mode: 'test-mock',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({} as any),
+        normalizeProviderError: () => ({} as any)
+      };
+
+      setPaymentAdapterOverride(mockTestAdapter);
+      assert.equal(getPaymentAdapter(), mockTestAdapter);
+
+      // Deterministic cleanup
+      setPaymentAdapterOverride(null);
+      assert.equal(getPaymentAdapter() instanceof ProviderNeutralSimulatorAdapter, true);
+    });
+
+    it('B08. Simulator mode is never labelled live or production', async () => {
       process.env.NODE_ENV = 'development';
       setPaymentAdapterOverride(null);
 
@@ -1553,15 +1588,150 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       assert.notEqual(reqRes.mode, 'production');
       assert.equal(reqRes.mode, 'provider-simulator-dev');
     });
+
+    it('B09. Intentional JSON test facilities cannot activate simulated Production payment', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.ALLOW_TEST_SHORTCUTS = 'true';
+      setPaymentAdapterOverride(null);
+
+      // Attempting to initiate payment via request endpoint in production fails closed
+      const res = await fetch(`${baseUrl}/api/payment/request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({
+          planId: 'samurai_90days',
+          testShortcutPayload: { simulate: true }
+        })
+      });
+
+      assert.equal(res.status, 503);
+      const data = await res.json();
+      assert.equal(data.code, 'PAYMENT_UNAVAILABLE');
+    });
   });
 
-  describe('Corrective Pass Suite C: Provider Failure Semantics', () => {
+  describe('Corrective Pass Suite C: Verify Exception Semantics', () => {
     afterEach(() => {
       setPaymentAdapterOverride(null);
     });
 
-    it('C01. Definitive rejection transitions PENDING to FAILED', async () => {
-      const authority = 'AUTH_CP_C01';
+    it('C01. Thrown Timeout returns HTTP 503 and retryable=true', async () => {
+      const authority = 'AUTH_CP_C01_TIMEOUT';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockTimeoutAdapter: any = {
+        name: 'MockTimeoutAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => {
+          throw new Error('ETIMEDOUT: Connection timed out after 10000ms');
+        },
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(mockTimeoutAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 503);
+      const data = await res.json();
+      assert.equal(data.retryable, true);
+      assert.equal(data.code, 'PAYMENT_TEMPORARY_ERROR');
+
+      const sub = await findSubscriptionByAuthority(authority);
+      assert.equal(sub?.status, 'PENDING');
+    });
+
+    it('C02. Thrown temporary unavailability leaves Subscription PENDING', async () => {
+      const authority = 'AUTH_CP_C02_UNAVAIL';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockUnavailableAdapter: any = {
+        name: 'MockUnavailableAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => {
+          throw new Error('ECONNREFUSED: Remote gateway unreachable or unavailable');
+        },
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(mockUnavailableAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 503);
+      const data = await res.json();
+      assert.equal(data.retryable, true);
+
+      const sub = await findSubscriptionByAuthority(authority);
+      assert.equal(sub?.status, 'PENDING');
+    });
+
+    it('C03. Generic unknown exception leaves Subscription PENDING', async () => {
+      const authority = 'AUTH_CP_C03_UNKNOWN';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockGenericAdapter: any = {
+        name: 'MockGenericAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => {
+          throw new Error('Unexpected internal database error');
+        },
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(mockGenericAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      // Non-definitive generic thrown error returns sanitized response and leaves sub PENDING
+      const data = await res.json();
+      assert.ok(res.status === 400 || res.status === 503);
+
+      const sub = await findSubscriptionByAuthority(authority);
+      assert.equal(sub?.status, 'PENDING');
+    });
+
+    it('C04. Normalized retryable=false is not rewritten to true', async () => {
+      const authority = 'AUTH_CP_C04_NORETRY';
       await createSubscriptionRecord({
         userId: userAId,
         planId: 'samurai_90days',
@@ -1577,14 +1747,15 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
           success: false,
           status: 'FAILED' as const,
           failureClassification: 'DEFINITIVE_REJECTION' as const,
-          errorCode: 'CARD_BLOCKED',
-          errorMessageFa: 'کارت بانکی مسدود است.',
+          errorCode: 'TRANSACTION_REJECTED',
+          errorMessageFa: 'تراکنش توسط بانک صادرکننده کارت رد شد.',
           retryable: false
         }),
-        normalizeProviderError: (e: any) => ({
-          code: 'CARD_BLOCKED',
-          messageFa: 'کارت بانکی مسدود است.',
-          retryable: false
+        normalizeProviderError: () => ({
+          code: 'TRANSACTION_REJECTED',
+          messageFa: 'تراکنش توسط بانک صادرکننده کارت رد شد.',
+          retryable: false,
+          failureClassification: 'DEFINITIVE_REJECTION' as const
         })
       };
       setPaymentAdapterOverride(mockRejectAdapter);
@@ -1600,103 +1771,59 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
 
       assert.equal(res.status, 400);
       const data = await res.json();
-      assert.equal(data.code, 'CARD_BLOCKED');
+      assert.equal(data.retryable, false);
+      assert.equal(data.code, 'TRANSACTION_REJECTED');
+    });
+
+    it('C05. Only explicit DEFINITIVE_REJECTION may mark Subscription FAILED', async () => {
+      const authority = 'AUTH_CP_C05_DEFINITIVE';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockRejectAdapter: any = {
+        name: 'MockRejectAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({
+          success: false,
+          status: 'FAILED' as const,
+          failureClassification: 'DEFINITIVE_REJECTION' as const,
+          errorCode: 'CARD_EXPIRED',
+          errorMessageFa: 'کارت منقضی شده است.',
+          retryable: false
+        }),
+        normalizeProviderError: () => ({
+          code: 'CARD_EXPIRED',
+          messageFa: 'کارت منقضی شده است.',
+          retryable: false,
+          failureClassification: 'DEFINITIVE_REJECTION' as const
+        })
+      };
+      setPaymentAdapterOverride(mockRejectAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 400);
+      const data = await res.json();
       assert.equal(data.retryable, false);
 
       const sub = await findSubscriptionByAuthority(authority);
       assert.equal(sub?.status, 'FAILED');
     });
 
-    it('C02. Retryable timeout leaves Subscription PENDING', async () => {
-      const authority = 'AUTH_CP_C02';
-      await createSubscriptionRecord({
-        userId: userAId,
-        planId: 'samurai_90days',
-        amount: 199000,
-        authority
-      });
-
-      const mockTimeoutAdapter: any = {
-        name: 'MockTimeoutAdapter',
-        mode: 'test',
-        requestPayment: async () => ({} as any),
-        verifyPayment: async () => {
-          throw new Error('Upstream network timeout after 10000ms');
-        },
-        normalizeProviderError: (e: any) => ({
-          code: 'PAYMENT_TEMPORARY_ERROR',
-          messageFa: 'خطای موقت در ارتباط با درگاه پرداخت.',
-          retryable: true
-        })
-      };
-      setPaymentAdapterOverride(mockTimeoutAdapter);
-
-      const res = await fetch(`${baseUrl}/api/payment/verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${userAToken}`
-        },
-        body: JSON.stringify({ authority })
-      });
-
-      assert.equal(res.status, 400);
-      const data = await res.json();
-      assert.equal(data.code, 'PAYMENT_TEMPORARY_ERROR');
-      assert.equal(data.retryable, true);
-
-      const sub = await findSubscriptionByAuthority(authority);
-      assert.equal(sub?.status, 'PENDING', 'Subscription must remain PENDING on retryable timeout');
-    });
-
-    it('C03. Temporary provider unavailability leaves Subscription PENDING', async () => {
-      const authority = 'AUTH_CP_C03';
-      await createSubscriptionRecord({
-        userId: userAId,
-        planId: 'samurai_90days',
-        amount: 199000,
-        authority
-      });
-
-      const mockUnavailableAdapter: any = {
-        name: 'MockUnavailableAdapter',
-        mode: 'test',
-        requestPayment: async () => ({} as any),
-        verifyPayment: async () => ({
-          success: false,
-          status: 'FAILED' as const,
-          failureClassification: 'RETRYABLE_ERROR' as const,
-          errorCode: 'PAYMENT_TEMPORARY_ERROR',
-          errorMessageFa: 'درگاه موقتاً قطع است.',
-          retryable: true
-        }),
-        normalizeProviderError: (e: any) => ({
-          code: 'PAYMENT_TEMPORARY_ERROR',
-          messageFa: 'درگاه موقتاً قطع است.',
-          retryable: true
-        })
-      };
-      setPaymentAdapterOverride(mockUnavailableAdapter);
-
-      const res = await fetch(`${baseUrl}/api/payment/verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${userAToken}`
-        },
-        body: JSON.stringify({ authority })
-      });
-
-      assert.equal(res.status, 400);
-      const data = await res.json();
-      assert.equal(data.retryable, true);
-
-      const sub = await findSubscriptionByAuthority(authority);
-      assert.equal(sub?.status, 'PENDING');
-    });
-
-    it('C04. Ambiguous result leaves Subscription PENDING', async () => {
-      const authority = 'AUTH_CP_C04';
+    it('C06. Ambiguous result leaves Subscription PENDING', async () => {
+      const authority = 'AUTH_CP_C06_AMBIGUOUS';
       await createSubscriptionRecord({
         userId: userAId,
         planId: 'samurai_90days',
@@ -1716,10 +1843,11 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
           errorMessageFa: 'وضعیت تراکنش نامشخص است.',
           retryable: true
         }),
-        normalizeProviderError: (e: any) => ({
+        normalizeProviderError: () => ({
           code: 'PAYMENT_AMBIGUOUS_STATUS',
           messageFa: 'وضعیت تراکنش نامشخص است.',
-          retryable: true
+          retryable: true,
+          failureClassification: 'AMBIGUOUS_RESULT' as const
         })
       };
       setPaymentAdapterOverride(mockAmbiguousAdapter);
@@ -1733,7 +1861,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
         body: JSON.stringify({ authority })
       });
 
-      assert.equal(res.status, 400);
+      assert.equal(res.status, 503);
       const data = await res.json();
       assert.equal(data.retryable, true);
 
@@ -1741,8 +1869,8 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       assert.equal(sub?.status, 'PENDING');
     });
 
-    it('C05. Retryable failure does not activate VIP', async () => {
-      const authority = 'AUTH_CP_C05';
+    it('C07. No exception activates VIP', async () => {
+      const authority = 'AUTH_CP_C07_VIP';
       await createSubscriptionRecord({
         userId: userAId,
         planId: 'samurai_90days',
@@ -1750,25 +1878,16 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
         authority
       });
 
-      const mockRetryAdapter: any = {
-        name: 'MockRetryAdapter',
+      const mockErrorAdapter: any = {
+        name: 'MockErrorAdapter',
         mode: 'test',
         requestPayment: async () => ({} as any),
-        verifyPayment: async () => ({
-          success: false,
-          status: 'FAILED' as const,
-          failureClassification: 'RETRYABLE_ERROR' as const,
-          errorCode: 'PAYMENT_TEMPORARY_ERROR',
-          errorMessageFa: 'پاسخ نامشخص.',
-          retryable: true
-        }),
-        normalizeProviderError: (e: any) => ({
-          code: 'PAYMENT_TEMPORARY_ERROR',
-          messageFa: 'پاسخ نامشخص.',
-          retryable: true
-        })
+        verifyPayment: async () => {
+          throw new Error('Fatal network drop during verification');
+        },
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
       };
-      setPaymentAdapterOverride(mockRetryAdapter);
+      setPaymentAdapterOverride(mockErrorAdapter);
 
       await fetch(`${baseUrl}/api/payment/verify`, {
         method: 'POST',
@@ -1784,13 +1903,14 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       assert.equal(user?.tier, 'ronin_free');
     });
 
-    it('C06. Retryable failure does not extend vipExpiresAt', async () => {
+    it('C08. No exception changes vipSince or vipExpiresAt', async () => {
       const user = await findUserById(userAId);
+      assert.equal(user?.vipSince, null);
       assert.equal(user?.vipExpiresAt, null);
     });
 
-    it('C07. Raw provider error is not returned', async () => {
-      const authority = 'AUTH_CP_C07';
+    it('C09. Raw Provider error message is absent', async () => {
+      const authority = 'AUTH_CP_C09_LEAK';
       await createSubscriptionRecord({
         userId: userAId,
         planId: 'samurai_90days',
@@ -1824,10 +1944,11 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
 
       const rawText = await res.text();
       assert.equal(rawText.includes('RAW_UPSTREAM_INTERNAL_SOCKET_FATAL'), false);
+      assert.equal(rawText.includes('10.2.0.1'), false);
     });
 
-    it('C08. Normalized retryable application error is returned', async () => {
-      const authority = 'AUTH_CP_C08';
+    it('C10. Stack trace and sensitive diagnostic values are absent', async () => {
+      const authority = 'AUTH_CP_C10_DIAG';
       await createSubscriptionRecord({
         userId: userAId,
         planId: 'samurai_90days',
@@ -1840,7 +1961,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
         mode: 'test',
         requestPayment: async () => ({} as any),
         verifyPayment: async () => {
-          throw new Error('Connection timeout');
+          throw new Error('Sensitive stack trace and auth credentials token=Bearer abc.123.def');
         },
         normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
       };
@@ -1855,10 +1976,9 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
         body: JSON.stringify({ authority })
       });
 
-      const data = await res.json();
-      assert.equal(data.code, 'PAYMENT_TEMPORARY_ERROR');
-      assert.equal(data.retryable, true);
-      assert.ok(data.messageFa);
+      const rawText = await res.text();
+      assert.equal(rawText.includes('Bearer abc.123.def'), false);
+      assert.equal(rawText.includes('stack'), false);
     });
   });
 

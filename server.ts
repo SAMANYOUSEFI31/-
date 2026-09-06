@@ -1349,12 +1349,13 @@ app.post('/api/payment/verify', authMiddleware, validateBody(paymentVerifySchema
       });
     } catch (error) {
       const normalized = adapter.normalizeProviderError(error);
-      // Network timeout / transport drop during verify:
+      // Thrown exception (timeout, transport drop, generic error) during verify:
       // Subscription MUST REMAIN PENDING! Do NOT mark failed. Do NOT activate VIP.
-      return res.status(400).json({
+      const statusCode = normalized.retryable ? 503 : 400;
+      return res.status(statusCode).json({
         code: normalized.code,
         messageFa: normalized.messageFa,
-        retryable: true
+        retryable: normalized.retryable
       });
     }
 
@@ -1380,7 +1381,7 @@ app.post('/api/payment/verify', authMiddleware, validateBody(paymentVerifySchema
       } else {
         // Retryable timeout, transport failure, temporary unavailability, or ambiguous result:
         // Subscription MUST REMAIN PENDING! Do NOT mark failed. Do NOT activate VIP.
-        return res.status(400).json({
+        return res.status(503).json({
           code: verifyResult.errorCode || 'PAYMENT_TEMPORARY_ERROR',
           messageFa: verifyResult.errorMessageFa || 'پاسخ قطعی از درگاه دریافت نشد. وضعیت تراکنش در انتظار تایید باقی ماند.',
           retryable: true

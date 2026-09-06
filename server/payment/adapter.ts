@@ -57,10 +57,12 @@ export class ProviderNeutralSimulatorAdapter implements PaymentGatewayAdapter {
   normalizeProviderError(error: unknown): NormalizedPaymentError {
     if (error && typeof error === 'object' && 'code' in error && 'messageFa' in error) {
       const err = error as any;
+      const retryable = Boolean(err.retryable);
       return {
         code: String(err.code || 'PAYMENT_FAILED'),
         messageFa: String(err.messageFa || 'خطا در ارتباط با درگاه پرداخت.'),
-        retryable: Boolean(err.retryable)
+        retryable,
+        failureClassification: err.failureClassification || (retryable ? 'RETRYABLE_ERROR' : 'DEFINITIVE_REJECTION')
       };
     }
     const rawMsg = error instanceof Error ? error.message : String(error);
@@ -69,13 +71,15 @@ export class ProviderNeutralSimulatorAdapter implements PaymentGatewayAdapter {
       return {
         code: 'PAYMENT_TEMPORARY_ERROR',
         messageFa: 'خطای موقت در ارتباط با درگاه پرداخت. لطفاً پس از چند لحظه دوباره تلاش کنید.',
-        retryable: true
+        retryable: true,
+        failureClassification: 'RETRYABLE_ERROR'
       };
     }
     return {
       code: 'PAYMENT_FAILED',
       messageFa: 'پرداخت توسط درگاه تایید نشد.',
-      retryable: false
+      retryable: false,
+      failureClassification: 'DEFINITIVE_REJECTION'
     };
   }
 }
@@ -83,12 +87,13 @@ export class ProviderNeutralSimulatorAdapter implements PaymentGatewayAdapter {
 let activeAdapterOverride: PaymentGatewayAdapter | null = null;
 
 /**
- * Set an explicit payment gateway adapter (restricted strictly to testing environments).
- * In production without explicitly allowed test shortcuts, overrides are ignored/rejected.
+ * Set an explicit payment gateway adapter (restricted strictly to non-production testing environments).
+ * In production, setting an adapter override is rejected/ignored regardless of ALLOW_TEST_SHORTCUTS.
+ * Clearing the override (passing null) is always permitted for test cleanup.
  */
 export function setPaymentAdapterOverride(adapter: PaymentGatewayAdapter | null): void {
-  if (adapter !== null && isProduction() && !allowTestShortcuts()) {
-    // Fail closed: Never allow simulator/mock override in production
+  if (adapter !== null && isProduction()) {
+    // Fail closed: Never allow simulator/mock override in production regardless of shortcuts
     return;
   }
   activeAdapterOverride = adapter;
@@ -96,12 +101,13 @@ export function setPaymentAdapterOverride(adapter: PaymentGatewayAdapter | null)
 
 /**
  * Resolves the active payment gateway adapter based on environment.
- * In production without test shortcuts, a simulator or test override must never be returned,
+ * In production, a simulator or test override must NEVER be returned,
  * and production without a configured real provider must return null.
+ * ALLOW_TEST_SHORTCUTS=true must NEVER enable simulated payment in production.
  */
 export function getPaymentAdapter(): PaymentGatewayAdapter | null {
-  // Production isolation: fail closed if in production without test shortcuts
-  if (isProduction() && !allowTestShortcuts()) {
+  // Absolute production isolation: fail closed in production without a configured real provider
+  if (isProduction()) {
     return null;
   }
 

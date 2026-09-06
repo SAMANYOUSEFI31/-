@@ -45,6 +45,7 @@ export interface NormalizedPaymentError {
   code: string;
   messageFa: string;
   retryable: boolean;
+  failureClassification?: PaymentFailureClassification;
 }
 
 export interface PaymentGatewayAdapter {
