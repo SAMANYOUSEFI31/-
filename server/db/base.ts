@@ -86,7 +86,7 @@ export interface DBDailyLog {
   userId: string;
   cycleId: string;
   date: string;
-  clientOperationId?: string | null;
+  lastClientOperationId?: string | null;
   wakeUp: boolean;
   workout: boolean;
   study: boolean;

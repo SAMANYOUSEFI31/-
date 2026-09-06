@@ -1,7 +1,14 @@
-import { describe, it, before, after, beforeEach } from 'node:test';
+import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { clearAllReplayLocks } from '../src/utils/offlineQueueUtils.js';
+import {
+  clearAllReplayLocks,
+  enqueueOfflineMutation,
+  replayAccountOfflineQueue,
+  getOfflineQueue,
+  saveOfflineQueue,
+  getQuarantinedItems
+} from '../src/utils/offlineQueueUtils.js';
 import { app } from '../server.js';
 import { generateToken } from '../server/auth.js';
 import {
@@ -17,6 +24,15 @@ import {
 
 describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
   const storageMock: Record<string, string> = {};
+  const mockLocalStorage = {
+    getItem: (key: string) => storageMock[key] ?? null,
+    setItem: (key: string, val: string) => { storageMock[key] = String(val); },
+    removeItem: (key: string) => { delete storageMock[key]; },
+    clear: () => { for (const k in storageMock) delete storageMock[k]; },
+    get length() { return Object.keys(storageMock).length; },
+    key: (i: number) => Object.keys(storageMock)[i] ?? null
+  };
+
   const ambUser = 'usr_ambiguous_tester';
   const userBeta = 'usr_beta_tester';
   
@@ -36,8 +52,12 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
 
   let server: http.Server;
   let baseUrl = '';
+  const originalFetch = globalThis.fetch;
 
   before(async () => {
+    (globalThis as any).localStorage = mockLocalStorage;
+    (globalThis as any).window = { localStorage: mockLocalStorage };
+
     server = http.createServer(app);
     await new Promise<void>((resolve) => {
       server.listen(0, '127.0.0.1', () => {
@@ -49,6 +69,7 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
   });
 
   after(async () => {
+    globalThis.fetch = originalFetch;
     if (server) {
       (server as any).closeAllConnections?.();
       server.unref?.();
@@ -82,7 +103,7 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
         phoneNumber: '09129998888',
         email: 'beta@bushido.local',
         name: 'Beta Master',
-        passwordHash: 'hashed_pwd',
+        passwordHash: 'hashed_pwd_beta',
         tier: 'vip_samurai',
         isVip: true,
         isAdmin: false,
@@ -91,6 +112,15 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
         updatedAt: new Date().toISOString()
       }
     ];
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    setPrismaState(null, false);
+    clearAllReplayLocks();
+    for (const k in storageMock) delete storageMock[k];
+    memoryStore.cycles = [];
+    memoryStore.dailyLogs = [];
   });
 
   describe('Idempotency logic', () => {
@@ -350,6 +380,221 @@ describe('Phase 3B.2: Replay Idempotency & Retry Safety Suite', () => {
 
       const userAAfter = await findUserById(ambUser);
       assert.equal(userAAfter?.name, 'Ambiguous Master Prime');
+    });
+  });
+
+  describe('Replay contracts & resilient queue execution', () => {
+    it('interrupted replay resumption: incomplete queue resumes from next item in subsequent replay run', async () => {
+      const cycle = await createCycle(ambUser, { title: 'Resume Cycle', startDate: '2026-09-01', endDate: '2026-09-30' });
+      const item1 = enqueueOfflineMutation(ambUser, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: cycle.id, date: '2026-09-01', workout: true, revision: 1 }
+      });
+      const item2 = enqueueOfflineMutation(ambUser, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: cycle.id, date: '2026-09-02', workout: true, revision: 1 }
+      });
+
+      assert.equal(getOfflineQueue(ambUser).length, 2);
+
+      let fetchCallCount = 0;
+      globalThis.fetch = async (url: any, opts: any) => {
+        fetchCallCount++;
+        if (fetchCallCount === 1) {
+          return new Response(JSON.stringify({
+            success: true,
+            log: {
+              id: 'log-resume-1',
+              date: '2026-09-01',
+              cycleId: cycle.id,
+              revision: 2,
+              wakeUp: false,
+              workout: true,
+              study: false,
+              journal: false,
+              hardTask: false,
+              specialMission: false
+            }
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        } else {
+          throw new Error('Connection reset by peer during replay');
+        }
+      };
+
+      const run1 = await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        force: true
+      });
+
+      assert.equal(run1.syncedCount, 1);
+      assert.equal(run1.failedCount, 1);
+      const remainingAfterRun1 = getOfflineQueue(ambUser);
+      assert.equal(remainingAfterRun1.length, 1);
+      assert.equal(remainingAfterRun1[0].id, item2.id, 'Item 2 remains in queue after interrupted run');
+
+      // Second replay run: network recovered, resumes cleanly for Item 2
+      globalThis.fetch = async () => {
+        return new Response(JSON.stringify({
+          success: true,
+          log: {
+            id: 'log-resume-2',
+            date: '2026-09-02',
+            cycleId: cycle.id,
+            revision: 2,
+            wakeUp: false,
+            workout: true,
+            study: false,
+            journal: false,
+            hardTask: false,
+            specialMission: false
+          }
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      };
+
+      const run2 = await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        force: true
+      });
+
+      assert.equal(run2.syncedCount, 1);
+      assert.equal(run2.failedCount, 0);
+      assert.equal(getOfflineQueue(ambUser).length, 0, 'Queue is completely drained after successful resumption');
+    });
+
+    it('confirmed-item immunity: confirmed items are immune to replay distortion and not reverted', async () => {
+      const cycle = await createCycle(ambUser, { title: 'Immunity Cycle', startDate: '2026-09-01', endDate: '2026-09-30' });
+      // Enqueue two operations for the same date: item 1 at revision 2, item 2 with stale revision 1
+      enqueueOfflineMutation(ambUser, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: cycle.id, date: '2026-09-03', workout: true, revision: 2 }
+      });
+
+      let requestedRevisions: number[] = [];
+      globalThis.fetch = async (url: any, opts: any) => {
+        const body = JSON.parse(opts.body);
+        requestedRevisions.push(body.expectedRevision);
+        return new Response(JSON.stringify({
+          success: true,
+          log: {
+            id: 'log-imm-1',
+            date: '2026-09-03',
+            cycleId: cycle.id,
+            revision: 3,
+            wakeUp: false,
+            workout: true,
+            study: false,
+            journal: false,
+            hardTask: false,
+            specialMission: false
+          }
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      };
+
+      const result = await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        force: true
+      });
+
+      assert.equal(result.syncedCount, 1);
+      assert.equal(requestedRevisions.length, 1);
+      assert.equal(requestedRevisions[0], 2);
+      assert.equal(getOfflineQueue(ambUser).length, 0);
+    });
+
+    it('queue removal only after validated success: queue item is retained if request fails or response is not validated', async () => {
+      const cycle = await createCycle(ambUser, { title: 'Retention Cycle', startDate: '2026-09-01', endDate: '2026-09-30' });
+      const item = enqueueOfflineMutation(ambUser, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: cycle.id, date: '2026-09-04', workout: true, revision: 1 }
+      });
+
+      globalThis.fetch = async () => {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Internal server failure'
+        }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      };
+
+      const result = await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        force: true
+      });
+
+      assert.equal(result.syncedCount, 0);
+      assert.equal(result.failedCount, 1);
+      const queue = getOfflineQueue(ambUser);
+      assert.equal(queue.length, 1, 'Queue item must not be removed on server 500');
+      assert.equal(queue[0].id, item.id);
+    });
+
+    it('retryable failure queue preservation: 500 error preserves queue item with updated retryCount and backoff', async () => {
+      const cycle = await createCycle(ambUser, { title: 'Retryable Cycle', startDate: '2026-09-01', endDate: '2026-09-30' });
+      const item = enqueueOfflineMutation(ambUser, {
+        type: 'UPDATE_LOG',
+        payload: { cycleId: cycle.id, date: '2026-09-05', workout: true, revision: 1 }
+      });
+
+      globalThis.fetch = async () => {
+        return new Response(JSON.stringify({ error: 'Gateway timeout' }), {
+          status: 504,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      };
+
+      await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        force: true
+      });
+
+      const queue = getOfflineQueue(ambUser);
+      assert.equal(queue.length, 1);
+      assert.equal(queue[0].retryCount, 1, 'retryCount incremented');
+      assert.equal(queue[0].classification, 'SERVER_RETRYABLE');
+      assert.ok(queue[0].nextRetryAt && queue[0].nextRetryAt > Date.now(), 'Bounded backoff timestamp set');
+    });
+
+    it('unknown mutation safety: unknown mutation type is quarantined with UNKNOWN_MUTATION and removed from active queue', async () => {
+      const unknownItem = {
+        id: 'queue_unknown_test_99',
+        ownerId: ambUser,
+        type: 'UNRECOGNIZED_CUSTOM_TYPE' as any,
+        payload: { data: 'test' },
+        timestamp: Date.now(),
+        retryCount: 0
+      };
+      saveOfflineQueue(ambUser, [unknownItem]);
+
+      let errorReported: any = null;
+      let networkCalled = false;
+      globalThis.fetch = async () => {
+        networkCalled = true;
+        return new Response('{}', { status: 200 });
+      };
+
+      const result = await replayAccountOfflineQueue({
+        activeAccountId: ambUser,
+        authToken: ambToken,
+        force: true,
+        onItemFailure: (item, err) => {
+          errorReported = err;
+        }
+      });
+
+      assert.equal(networkCalled, false, 'No network call should be made for unknown mutation');
+      assert.equal(result.syncedCount, 0);
+      assert.equal(result.failedCount, 1);
+      assert.equal(getOfflineQueue(ambUser).length, 0, 'Unknown mutation must be removed from active queue');
+
+      const quarantined = getQuarantinedItems(ambUser);
+      assert.equal(quarantined.length, 1, 'Item is safely preserved in quarantine');
+      assert.equal(quarantined[0].items[0].id, unknownItem.id);
+      assert.equal(quarantined[0].items[0].classification, 'UNKNOWN_MUTATION');
+      assert.ok(errorReported?.message?.includes('Unknown mutation type'));
     });
   });
 });

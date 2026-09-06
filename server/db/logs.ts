@@ -140,7 +140,7 @@ export async function upsertDailyLog(
       const lastOpId = (existing as any).lastClientOperationId;
 
       // Idempotent retry: if clientOperationId matches the operation that created or updated this log
-      if (data.clientOperationId && lastOpId === data.clientOperationId && (expectedRevision === undefined || expectedRevision === existing.revision || expectedRevision === (existing.revision ?? 1) - 1)) {
+      if (data.clientOperationId && lastOpId === data.clientOperationId) {
         return {
           ...existing,
           revision: existing.revision ?? 1,
@@ -310,7 +310,7 @@ export async function upsertDailyLog(
     const currentRev = existing.revision ?? 1;
 
     // Idempotent retry: if clientOperationId matches existing operation
-    if (data.clientOperationId && existing.lastClientOperationId === data.clientOperationId && (expectedRevision === undefined || expectedRevision === currentRev || expectedRevision === currentRev - 1)) {
+    if (data.clientOperationId && existing.lastClientOperationId === data.clientOperationId) {
       return existing;
     }
 
@@ -358,7 +358,7 @@ export async function upsertDailyLog(
     const targetId = data.id || `log-${userId}-${data.date}`;
     const idCollided = memoryStore.dailyLogs.find(l => l.id === targetId || (l.userId === userId && l.date === data.date));
     if (idCollided) {
-      if (data.clientOperationId && idCollided.clientOperationId === data.clientOperationId) {
+      if (data.clientOperationId && idCollided.lastClientOperationId === data.clientOperationId) {
         return idCollided;
       }
       throw new ConcurrencyConflictError({

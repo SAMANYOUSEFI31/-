@@ -1837,7 +1837,7 @@ async function executeReplayLoop(
           // Profile settings (nightOwlCutoffHour, accentTheme) are synced via UPDATE_PROFILE.
           // Safely resolve and remove from queue without calling the server.
           removeReplayedQueueItems(initialOwner, [item.id]);
-          console.log("REACHED SYNCED COUNT++ FOR", item.id); syncedCount++;
+          syncedCount++;
           continue;
         }
         default: {
@@ -2001,7 +2001,7 @@ async function executeReplayLoop(
 
         removeReplayedQueueItems(initialOwner, [item.id]);
         options.onItemSuccess?.(item, serverResult);
-        console.log("REACHED SYNCED COUNT++ FOR", item.id); syncedCount++;
+        syncedCount++;
         continue;
       }
 
