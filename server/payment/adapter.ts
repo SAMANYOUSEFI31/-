@@ -18,7 +18,7 @@ import {
   PaymentVerificationResult,
   NormalizedPaymentError
 } from './types.js';
-import { isProduction, allowTestShortcuts } from '../security.js';
+import { isProduction } from '../security.js';
 
 export class ProviderNeutralSimulatorAdapter implements PaymentGatewayAdapter {
   public readonly name = 'Provider Neutral Dev Simulator';

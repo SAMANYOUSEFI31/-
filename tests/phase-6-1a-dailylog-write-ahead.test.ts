@@ -1,15 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  executeDirectDailyLogMutation,
-  prepareDirectLogPayload
+  executeDirectDailyLogMutation
 } from '../src/utils/directMutationUtils.js';
 import {
   getOfflineQueue,
-  saveOfflineQueue,
   enqueueOfflineMutation,
   clearOfflineQueue,
-  markQueueItemInFlight,
   clearAllReplayLocks,
   resetRuntimeInFlightState
 } from '../src/utils/offlineQueueUtils.js';

@@ -9,6 +9,7 @@ import {
   clearOfflineQueue,
   clearAllReplayLocks,
   resetRuntimeInFlightState,
+  isQueueItemInFlight,
   replayAccountOfflineQueue,
   getQuarantinedItems,
   clearQuarantine,
@@ -288,6 +289,54 @@ test('Phase 6.1A Corrective Pass: Stale inFlight Recovery and Direct HTTP Classi
     const quarantined = getQuarantinedItems(userId);
     assert.equal(quarantined.length, 1);
     assert.equal(quarantined[0].items[0].id, result.queueItemId);
+  });
+
+  await suite.test('HTTP 422 unprocessable entity quarantines item as VALIDATION_ERROR and removes from active queue', async () => {
+    const mockFetch = (async () => ({
+      ok: false,
+      status: 422,
+      json: async () => ({ error: 'Unprocessable entity: semantic validation failed' })
+    })) as any;
+
+    const result = await executeDirectDailyLogMutation({
+      updatedLog: baseLog,
+      existingLog: baseLog,
+      ownerId: userId,
+      authToken: 'token_valid_corrective',
+      activeCycleId: 'cycle_test_61a',
+      fetchFn: mockFetch
+    });
+
+    // 1. Result status and status code
+    assert.equal(result.status, 'VALIDATION_ERROR');
+    assert.equal(result.statusCode, 422);
+
+    // 2. Exact mutation item is removed from active queue
+    const activeQueue = getOfflineQueue(userId);
+    assert.equal(activeQueue.length, 0);
+    assert.equal(activeQueue.some(item => item.id === result.queueItemId), false);
+
+    // 3. Present in correct owner-scoped quarantine
+    const quarantined = getQuarantinedItems(userId);
+    assert.equal(quarantined.length, 1);
+    assert.equal(quarantined[0].items.length, 1);
+    const quarantinedItem = quarantined[0].items[0];
+    assert.equal(quarantinedItem.id, result.queueItemId);
+
+    // 4. Quarantine classification is VALIDATION_ERROR
+    assert.equal(quarantinedItem.classification, 'VALIDATION_ERROR');
+
+    // 5. inFlight is no longer active in storage or runtime registry
+    assert.equal(quarantinedItem.inFlight, false);
+    assert.equal(isQueueItemInFlight(userId, result.queueItemId), false);
+
+    // 6. Item is not retained for automatic retry and no retry backoff is scheduled
+    assert.equal(quarantinedItem.nextRetryAt, undefined);
+    assert.equal(activeQueue.length, 0);
+
+    // 7. No duplicate quarantine or active queue item created
+    assert.equal(quarantined.length, 1);
+    assert.equal(quarantined[0].items.length, 1);
   });
 
   await suite.test('HTTP 401 unauthorized preserves mutation in active queue with zero backoff for re-auth', async () => {
