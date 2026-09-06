@@ -5,6 +5,11 @@
 
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
 
+export type PaymentFailureClassification =
+  | 'DEFINITIVE_REJECTION'
+  | 'RETRYABLE_ERROR'
+  | 'AMBIGUOUS_RESULT';
+
 export interface PaymentRequestParams {
   userId: string;
   planId: string;
@@ -32,6 +37,8 @@ export interface PaymentVerificationResult {
   cardPan?: string;
   errorCode?: string;
   errorMessageFa?: string;
+  retryable?: boolean;
+  failureClassification?: PaymentFailureClassification;
 }
 
 export interface NormalizedPaymentError {

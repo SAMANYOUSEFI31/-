@@ -26,6 +26,7 @@ import {
   setPaymentAdapterOverride,
   ProviderNeutralSimulatorAdapter
 } from '../server/payment/adapter.js';
+import { validateAuthoritativePaymentResponse } from '../src/utils/paymentValidation.js';
 
 describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', () => {
   let server: http.Server;
@@ -571,7 +572,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
   // Group D: Atomic Completion
   // =========================================================================
   describe('Group D: Atomic completion', () => {
-    it('D01. Subscription completion and VIP activation succeed together in Prisma', async () => {
+    it('D01. Adapter-level: Subscription completion and VIP activation succeed together in Prisma transaction mock', async () => {
       let subUpdated = false;
       let userUpdated = false;
 
@@ -641,7 +642,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       assert.equal(userUpdated, true);
     });
 
-    it('D02. If user activation fails in Prisma, Subscription does not remain SUCCESS', async () => {
+    it('D02. Adapter-level: If user activation fails in Prisma mock, transaction rejects and rolls back', async () => {
       const mockPrisma = {
         $transaction: async (fn: any) => {
           const tx = {
@@ -679,7 +680,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       );
     });
 
-    it('D03. If Subscription completion fails in Prisma, user does not become VIP', async () => {
+    it('D03. Adapter-level: If Subscription completion fails in Prisma mock, user does not become VIP', async () => {
       const mockPrisma = {
         $transaction: async (fn: any) => {
           const tx = {
@@ -750,7 +751,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
   // Group E: Concurrent Verify and Idempotency
   // =========================================================================
   describe('Group E: Concurrent verify and idempotency', () => {
-    it('E01. Two concurrent verify calls result in exactly one VIP activation', async () => {
+    it('E01. Adapter-level: Concurrent completion calls result in idempotent VIP state', async () => {
       await createSubscriptionRecord({
         userId: userAId,
         planId: 'samurai_90days',
@@ -835,7 +836,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
       assert.equal(second?.cardPan, 'ORIGINAL_CARD_VAL');
     });
 
-    it('E06. Concurrent verify under local fallback mode remains safe', async () => {
+    it('E06. Adapter-level: Concurrent completion under local fallback mode remains safe', async () => {
       await createSubscriptionRecord({
         userId: userAId,
         planId: 'samurai_annual',
@@ -1154,6 +1155,760 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
           delete process.env.JWT_SECRET;
         }
       }
+    });
+  });
+
+  // =========================================================================
+  // Corrective Pass: Focused Blockers Verification Suites (A, B, C, D)
+  // =========================================================================
+
+  describe('Corrective Pass Suite A: Server-Authoritative Client State', () => {
+    const baseClientUser = {
+      id: userAId,
+      name: 'سامورایی تست',
+      phoneNumber: '09121111111',
+      isVip: false,
+      tier: 'ronin_free' as const,
+      vipSince: null,
+      vipExpiresAt: null,
+      activeCycleLimit: 1,
+      createdAt: new Date().toISOString()
+    };
+
+    it('A01. Missing Server user prevents onUpgradeSuccess', () => {
+      const res = validateAuthoritativePaymentResponse(
+        {
+          data: {
+            status: 100,
+            subscription: {
+              status: 'SUCCESS',
+              userId: userAId,
+              authority: 'AUTH_CP_A01',
+              refId: 'REF_CP_A01',
+              amount: 199000
+            },
+            refId: 'REF_CP_A01'
+          },
+          currentUserId: userAId,
+          expectedAuthority: 'AUTH_CP_A01'
+        },
+        baseClientUser
+      );
+
+      assert.equal(res.valid, false);
+      assert.equal(res.errorCode, 'MISSING_SERVER_USER');
+      assert.equal(res.validatedUser, null);
+    });
+
+    it('A02. Mismatched Server user ID prevents local VIP activation', () => {
+      const res = validateAuthoritativePaymentResponse(
+        {
+          data: {
+            status: 100,
+            subscription: {
+              status: 'SUCCESS',
+              userId: 'intruder-user-id',
+              authority: 'AUTH_CP_A02',
+              refId: 'REF_CP_A02',
+              amount: 199000
+            },
+            user: {
+              id: 'intruder-user-id',
+              isVip: true,
+              tier: 'vip_samurai',
+              vipExpiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
+              paymentRefId: 'REF_CP_A02'
+            },
+            refId: 'REF_CP_A02'
+          },
+          currentUserId: userAId,
+          expectedAuthority: 'AUTH_CP_A02'
+        },
+        baseClientUser
+      );
+
+      assert.equal(res.valid, false);
+      assert.equal(res.errorCode, 'USER_ID_MISMATCH');
+      assert.equal(res.validatedUser, null);
+    });
+
+    it('A03. Missing SUCCESS Subscription prevents local VIP activation', () => {
+      const res = validateAuthoritativePaymentResponse(
+        {
+          data: {
+            status: 100,
+            subscription: {
+              status: 'PENDING',
+              userId: userAId,
+              authority: 'AUTH_CP_A03',
+              refId: 'REF_CP_A03',
+              amount: 199000
+            },
+            user: {
+              id: userAId,
+              isVip: true,
+              tier: 'vip_samurai',
+              vipExpiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
+              paymentRefId: 'REF_CP_A03'
+            },
+            refId: 'REF_CP_A03'
+          },
+          currentUserId: userAId,
+          expectedAuthority: 'AUTH_CP_A03'
+        },
+        baseClientUser
+      );
+
+      assert.equal(res.valid, false);
+      assert.equal(res.errorCode, 'SUBSCRIPTION_NOT_SUCCESS');
+      assert.equal(res.validatedUser, null);
+    });
+
+    it('A04. Missing vipExpiresAt prevents local VIP activation', () => {
+      const res = validateAuthoritativePaymentResponse(
+        {
+          data: {
+            status: 100,
+            subscription: {
+              status: 'SUCCESS',
+              userId: userAId,
+              authority: 'AUTH_CP_A04',
+              refId: 'REF_CP_A04',
+              amount: 199000
+            },
+            user: {
+              id: userAId,
+              isVip: true,
+              tier: 'vip_samurai',
+              vipExpiresAt: null,
+              paymentRefId: 'REF_CP_A04'
+            },
+            refId: 'REF_CP_A04'
+          },
+          currentUserId: userAId,
+          expectedAuthority: 'AUTH_CP_A04'
+        },
+        baseClientUser
+      );
+
+      assert.equal(res.valid, false);
+      assert.equal(res.errorCode, 'INVALID_VIP_EXPIRES_AT');
+      assert.equal(res.validatedUser, null);
+    });
+
+    it('A05. Invalid vipExpiresAt prevents local VIP activation', () => {
+      const res = validateAuthoritativePaymentResponse(
+        {
+          data: {
+            status: 100,
+            subscription: {
+              status: 'SUCCESS',
+              userId: userAId,
+              authority: 'AUTH_CP_A05',
+              refId: 'REF_CP_A05',
+              amount: 199000
+            },
+            user: {
+              id: userAId,
+              isVip: true,
+              tier: 'vip_samurai',
+              vipExpiresAt: '2020-01-01T00:00:00.000Z',
+              paymentRefId: 'REF_CP_A05'
+            },
+            refId: 'REF_CP_A05'
+          },
+          currentUserId: userAId,
+          expectedAuthority: 'AUTH_CP_A05'
+        },
+        baseClientUser
+      );
+
+      assert.equal(res.valid, false);
+      assert.equal(res.errorCode, 'EXPIRED_VIP_DATE');
+      assert.equal(res.validatedUser, null);
+    });
+
+    it('A06. Missing paymentRefId prevents receipt creation', () => {
+      const res = validateAuthoritativePaymentResponse(
+        {
+          data: {
+            status: 100,
+            subscription: {
+              status: 'SUCCESS',
+              userId: userAId,
+              authority: 'AUTH_CP_A06',
+              amount: 199000
+            },
+            user: {
+              id: userAId,
+              isVip: true,
+              tier: 'vip_samurai',
+              vipExpiresAt: new Date(Date.now() + 90 * 86400000).toISOString()
+            }
+          },
+          currentUserId: userAId,
+          expectedAuthority: 'AUTH_CP_A06'
+        },
+        baseClientUser
+      );
+
+      assert.equal(res.valid, false);
+      assert.equal(res.errorCode, 'MISSING_PAYMENT_REF_ID');
+      assert.equal(res.receipt, null);
+    });
+
+    it('A07. Client never calculates activeCycleLimit', () => {
+      const res = validateAuthoritativePaymentResponse(
+        {
+          data: {
+            status: 100,
+            subscription: {
+              status: 'SUCCESS',
+              userId: userAId,
+              authority: 'AUTH_CP_A07',
+              refId: 'REF_CP_A07',
+              amount: 199000
+            },
+            user: {
+              id: userAId,
+              isVip: true,
+              tier: 'vip_samurai',
+              vipExpiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
+              paymentRefId: 'REF_CP_A07'
+              // Notice: server does NOT provide activeCycleLimit
+            },
+            refId: 'REF_CP_A07'
+          },
+          currentUserId: userAId,
+          expectedAuthority: 'AUTH_CP_A07'
+        },
+        baseClientUser
+      );
+
+      assert.equal(res.valid, true);
+      assert.ok(res.validatedUser);
+      // Must preserve the existing client profile limit, never inject 99 or local invention
+      assert.equal(res.validatedUser.activeCycleLimit, 1);
+    });
+
+    it('A08. Client never creates a fallback refId', () => {
+      const res = validateAuthoritativePaymentResponse(
+        {
+          data: {
+            status: 100,
+            subscription: {
+              status: 'SUCCESS',
+              userId: userAId,
+              authority: 'AUTH_CP_A08',
+              refId: 'REF_SERVER_AUTHORITATIVE_888',
+              amount: 199000
+            },
+            user: {
+              id: userAId,
+              isVip: true,
+              tier: 'vip_samurai',
+              vipExpiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
+              paymentRefId: 'REF_SERVER_AUTHORITATIVE_888'
+            },
+            refId: 'REF_SERVER_AUTHORITATIVE_888'
+          },
+          currentUserId: userAId,
+          expectedAuthority: 'AUTH_CP_A08'
+        },
+        baseClientUser
+      );
+
+      assert.equal(res.valid, true);
+      assert.ok(res.receipt);
+      assert.equal(res.receipt.refId, 'REF_SERVER_AUTHORITATIVE_888');
+      assert.notEqual(res.receipt.refId, 'REF-CONFIRMED');
+    });
+
+    it('A09. Fully valid authoritative result updates the correct profile', () => {
+      const validFutureDate = new Date(Date.now() + 90 * 86400000).toISOString();
+      const res = validateAuthoritativePaymentResponse(
+        {
+          data: {
+            status: 100,
+            subscription: {
+              status: 'SUCCESS',
+              userId: userAId,
+              authority: 'AUTH_CP_A09',
+              refId: 'REF_CP_A09',
+              amount: 199000,
+              cardPan: '6037-99**-****-1234'
+            },
+            user: {
+              id: userAId,
+              name: 'سامورایی تایید شده',
+              isVip: true,
+              tier: 'vip_samurai',
+              vipSince: new Date().toISOString(),
+              vipExpiresAt: validFutureDate,
+              paymentRefId: 'REF_CP_A09'
+            },
+            refId: 'REF_CP_A09',
+            cardPan: '6037-99**-****-1234'
+          },
+          currentUserId: userAId,
+          expectedAuthority: 'AUTH_CP_A09'
+        },
+        baseClientUser
+      );
+
+      assert.equal(res.valid, true);
+      assert.ok(res.validatedUser);
+      assert.equal(res.validatedUser.id, userAId);
+      assert.equal(res.validatedUser.isVip, true);
+      assert.equal(res.validatedUser.tier, 'vip_samurai');
+      assert.equal(res.validatedUser.vipExpiresAt, validFutureDate);
+      assert.ok(res.receipt);
+      assert.equal(res.receipt.refId, 'REF_CP_A09');
+      assert.equal(res.receipt.cardPan, '6037-99**-****-1234');
+    });
+  });
+
+  describe('Corrective Pass Suite B: Simulator Isolation', () => {
+    const originalEnv = process.env.NODE_ENV;
+    const originalShortcuts = process.env.ALLOW_TEST_SHORTCUTS;
+
+    afterEach(() => {
+      process.env.NODE_ENV = originalEnv;
+      if (originalShortcuts !== undefined) {
+        process.env.ALLOW_TEST_SHORTCUTS = originalShortcuts;
+      } else {
+        delete process.env.ALLOW_TEST_SHORTCUTS;
+      }
+      setPaymentAdapterOverride(null);
+    });
+
+    it('B01. Production ignores or rejects adapter override', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.ALLOW_TEST_SHORTCUTS = 'false';
+
+      const mockAdapter: any = {
+        name: 'MaliciousTestAdapter',
+        mode: 'override',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({} as any),
+        normalizeProviderError: () => ({} as any)
+      };
+
+      setPaymentAdapterOverride(mockAdapter);
+      const active = getPaymentAdapter();
+      assert.equal(active, null, 'In production without test shortcuts, adapter override must not be accepted');
+    });
+
+    it('B02. Production without a real provider returns null', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.ALLOW_TEST_SHORTCUTS = 'false';
+      setPaymentAdapterOverride(null);
+
+      const active = getPaymentAdapter();
+      assert.equal(active, null);
+    });
+
+    it('B03. Payment route returns PAYMENT_UNAVAILABLE in production without provider', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.ALLOW_TEST_SHORTCUTS = 'false';
+      setPaymentAdapterOverride(null);
+
+      const res = await fetch(`${baseUrl}/api/payment/request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ planId: 'samurai_90days' })
+      });
+
+      assert.equal(res.status, 503);
+      const data = await res.json();
+      assert.equal(data.code, 'PAYMENT_UNAVAILABLE');
+    });
+
+    it('B04. Development simulator remains clearly development-only', () => {
+      process.env.NODE_ENV = 'development';
+      setPaymentAdapterOverride(null);
+
+      const active = getPaymentAdapter();
+      assert.ok(active);
+      assert.equal(active.mode, 'provider-simulator-dev');
+      assert.equal(active.name, 'ProviderNeutralSimulator');
+    });
+
+    it('B05. No simulator response is labelled live', async () => {
+      process.env.NODE_ENV = 'development';
+      setPaymentAdapterOverride(null);
+
+      const active = getPaymentAdapter();
+      assert.ok(active);
+      const reqRes = await active.requestPayment({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000
+      });
+
+      assert.notEqual(reqRes.mode, 'live');
+      assert.notEqual(reqRes.mode, 'production');
+      assert.equal(reqRes.mode, 'provider-simulator-dev');
+    });
+  });
+
+  describe('Corrective Pass Suite C: Provider Failure Semantics', () => {
+    afterEach(() => {
+      setPaymentAdapterOverride(null);
+    });
+
+    it('C01. Definitive rejection transitions PENDING to FAILED', async () => {
+      const authority = 'AUTH_CP_C01';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockRejectAdapter: any = {
+        name: 'MockRejectAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({
+          success: false,
+          status: 'FAILED' as const,
+          failureClassification: 'DEFINITIVE_REJECTION' as const,
+          errorCode: 'CARD_BLOCKED',
+          errorMessageFa: 'کارت بانکی مسدود است.',
+          retryable: false
+        }),
+        normalizeProviderError: (e: any) => ({
+          code: 'CARD_BLOCKED',
+          messageFa: 'کارت بانکی مسدود است.',
+          retryable: false
+        })
+      };
+      setPaymentAdapterOverride(mockRejectAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 400);
+      const data = await res.json();
+      assert.equal(data.code, 'CARD_BLOCKED');
+      assert.equal(data.retryable, false);
+
+      const sub = await findSubscriptionByAuthority(authority);
+      assert.equal(sub?.status, 'FAILED');
+    });
+
+    it('C02. Retryable timeout leaves Subscription PENDING', async () => {
+      const authority = 'AUTH_CP_C02';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockTimeoutAdapter: any = {
+        name: 'MockTimeoutAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => {
+          throw new Error('Upstream network timeout after 10000ms');
+        },
+        normalizeProviderError: (e: any) => ({
+          code: 'PAYMENT_TEMPORARY_ERROR',
+          messageFa: 'خطای موقت در ارتباط با درگاه پرداخت.',
+          retryable: true
+        })
+      };
+      setPaymentAdapterOverride(mockTimeoutAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 400);
+      const data = await res.json();
+      assert.equal(data.code, 'PAYMENT_TEMPORARY_ERROR');
+      assert.equal(data.retryable, true);
+
+      const sub = await findSubscriptionByAuthority(authority);
+      assert.equal(sub?.status, 'PENDING', 'Subscription must remain PENDING on retryable timeout');
+    });
+
+    it('C03. Temporary provider unavailability leaves Subscription PENDING', async () => {
+      const authority = 'AUTH_CP_C03';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockUnavailableAdapter: any = {
+        name: 'MockUnavailableAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({
+          success: false,
+          status: 'FAILED' as const,
+          failureClassification: 'RETRYABLE_ERROR' as const,
+          errorCode: 'PAYMENT_TEMPORARY_ERROR',
+          errorMessageFa: 'درگاه موقتاً قطع است.',
+          retryable: true
+        }),
+        normalizeProviderError: (e: any) => ({
+          code: 'PAYMENT_TEMPORARY_ERROR',
+          messageFa: 'درگاه موقتاً قطع است.',
+          retryable: true
+        })
+      };
+      setPaymentAdapterOverride(mockUnavailableAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 400);
+      const data = await res.json();
+      assert.equal(data.retryable, true);
+
+      const sub = await findSubscriptionByAuthority(authority);
+      assert.equal(sub?.status, 'PENDING');
+    });
+
+    it('C04. Ambiguous result leaves Subscription PENDING', async () => {
+      const authority = 'AUTH_CP_C04';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockAmbiguousAdapter: any = {
+        name: 'MockAmbiguousAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({
+          success: false,
+          status: 'FAILED' as const,
+          failureClassification: 'AMBIGUOUS_RESULT' as const,
+          errorCode: 'PAYMENT_AMBIGUOUS_STATUS',
+          errorMessageFa: 'وضعیت تراکنش نامشخص است.',
+          retryable: true
+        }),
+        normalizeProviderError: (e: any) => ({
+          code: 'PAYMENT_AMBIGUOUS_STATUS',
+          messageFa: 'وضعیت تراکنش نامشخص است.',
+          retryable: true
+        })
+      };
+      setPaymentAdapterOverride(mockAmbiguousAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      assert.equal(res.status, 400);
+      const data = await res.json();
+      assert.equal(data.retryable, true);
+
+      const sub = await findSubscriptionByAuthority(authority);
+      assert.equal(sub?.status, 'PENDING');
+    });
+
+    it('C05. Retryable failure does not activate VIP', async () => {
+      const authority = 'AUTH_CP_C05';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const mockRetryAdapter: any = {
+        name: 'MockRetryAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => ({
+          success: false,
+          status: 'FAILED' as const,
+          failureClassification: 'RETRYABLE_ERROR' as const,
+          errorCode: 'PAYMENT_TEMPORARY_ERROR',
+          errorMessageFa: 'پاسخ نامشخص.',
+          retryable: true
+        }),
+        normalizeProviderError: (e: any) => ({
+          code: 'PAYMENT_TEMPORARY_ERROR',
+          messageFa: 'پاسخ نامشخص.',
+          retryable: true
+        })
+      };
+      setPaymentAdapterOverride(mockRetryAdapter);
+
+      await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      const user = await findUserById(userAId);
+      assert.equal(user?.isVip, false);
+      assert.equal(user?.tier, 'ronin_free');
+    });
+
+    it('C06. Retryable failure does not extend vipExpiresAt', async () => {
+      const user = await findUserById(userAId);
+      assert.equal(user?.vipExpiresAt, null);
+    });
+
+    it('C07. Raw provider error is not returned', async () => {
+      const authority = 'AUTH_CP_C07';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const rawLeakAdapter: any = {
+        name: 'RawLeakAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => {
+          throw new Error('RAW_UPSTREAM_INTERNAL_SOCKET_FATAL_ERROR_AT_REMOTE_IP_10.2.0.1');
+        },
+        normalizeProviderError: () => ({
+          code: 'PAYMENT_TEMPORARY_ERROR',
+          messageFa: 'خطای موقت در ارتباط با درگاه پرداخت. لطفاً پس از چند لحظه دوباره تلاش کنید.',
+          retryable: true
+        })
+      };
+      setPaymentAdapterOverride(rawLeakAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      const rawText = await res.text();
+      assert.equal(rawText.includes('RAW_UPSTREAM_INTERNAL_SOCKET_FATAL'), false);
+    });
+
+    it('C08. Normalized retryable application error is returned', async () => {
+      const authority = 'AUTH_CP_C08';
+      await createSubscriptionRecord({
+        userId: userAId,
+        planId: 'samurai_90days',
+        amount: 199000,
+        authority
+      });
+
+      const rawLeakAdapter: any = {
+        name: 'RawLeakAdapter',
+        mode: 'test',
+        requestPayment: async () => ({} as any),
+        verifyPayment: async () => {
+          throw new Error('Connection timeout');
+        },
+        normalizeProviderError: (e: any) => new ProviderNeutralSimulatorAdapter().normalizeProviderError(e)
+      };
+      setPaymentAdapterOverride(rawLeakAdapter);
+
+      const res = await fetch(`${baseUrl}/api/payment/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userAToken}`
+        },
+        body: JSON.stringify({ authority })
+      });
+
+      const data = await res.json();
+      assert.equal(data.code, 'PAYMENT_TEMPORARY_ERROR');
+      assert.equal(data.retryable, true);
+      assert.ok(data.messageFa);
+    });
+  });
+
+  describe('Corrective Pass Suite D: Fake Gateway Removal', () => {
+    it('D01. Production UI does not collect card number', async () => {
+      const fs = await import('node:fs/promises');
+      const content = await fs.readFile('./src/components/PaymentModal.tsx', 'utf-8');
+      
+      assert.equal(content.includes('شماره کارت ۱۶ رقمی'), false);
+      assert.equal(content.includes('cardNumber'), false);
+      assert.equal(content.includes('formatCardNumber'), false);
+    });
+
+    it('D02. Production UI does not collect CVV2', async () => {
+      const fs = await import('node:fs/promises');
+      const content = await fs.readFile('./src/components/PaymentModal.tsx', 'utf-8');
+
+      assert.equal(content.includes('cvv2'), false);
+      assert.equal(content.includes('CVV2'), false);
+    });
+
+    it('D03. Production UI does not collect banking OTP', async () => {
+      const fs = await import('node:fs/promises');
+      const content = await fs.readFile('./src/components/PaymentModal.tsx', 'utf-8');
+
+      assert.equal(content.includes('دریافت رمز پویا'), false);
+      assert.equal(content.includes('otpCode'), false);
+      assert.equal(content.includes('otpSent'), false);
+    });
+
+    it('D04. UI does not claim a specific Provider before selection', async () => {
+      const fs = await import('node:fs/promises');
+      const content = await fs.readFile('./src/components/PaymentModal.tsx', 'utf-8');
+
+      assert.equal(content.includes('زرین‌پال'), false);
+      assert.equal(content.includes('شاپرک'), false);
+      assert.equal(content.includes('ZarinPal'), false);
+    });
+
+    it('D05. Development simulation uses no realistic banking credentials', async () => {
+      const fs = await import('node:fs/promises');
+      const content = await fs.readFile('./src/components/PaymentModal.tsx', 'utf-8');
+
+      // The simulator only displays metadata (package title, amount, authority) and a single confirm button
+      assert.ok(content.includes('شبیه‌ساز پرداخت (محیط توسعه)'));
+      assert.ok(content.includes('تایید پرداخت شبیه‌سازی‌شده'));
+      assert.ok(content.includes('DEV ONLY'));
+      assert.equal(content.includes('expMonth'), false);
+      assert.equal(content.includes('expYear'), false);
+      assert.equal(content.includes('رمز اینترنتی'), false);
     });
   });
 });

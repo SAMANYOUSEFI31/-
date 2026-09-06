@@ -1,27 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { UserProfile, SubscriptionPlan } from '../types';
 import { PLANS } from '../config/plans';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
+import {
+  validateAuthoritativePaymentResponse,
+  AuthoritativePaymentReceipt
+} from '../utils/paymentValidation';
 import { 
-  ShieldCheck, 
   Crown, 
-  Sparkles, 
   Check, 
   Lock, 
   CreditCard, 
-  ArrowRight, 
-  Clock, 
   CheckCircle2, 
   AlertCircle, 
   X, 
   Loader2, 
-  FileBadge, 
-  Flame, 
-  HelpCircle,
-  QrCode
+  FlaskConical,
+  RotateCcw
 } from 'lucide-react';
 
 interface PaymentModalProps {
@@ -40,35 +38,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   useBodyScrollLock(isOpen);
 
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>(PLANS[0]);
-  const [step, setStep] = useState<'plans' | 'gateway' | 'success'>('plans');
+  const [step, setStep] = useState<'plans' | 'simulator' | 'success'>('plans');
   const [isLoading, setIsLoading] = useState(false);
   const [authority, setAuthority] = useState<string>('');
-  
-  // Gateway Form Simulation State
-  const [cardNumber, setCardNumber] = useState('6037 9974 8123 4512');
-  const [cvv2, setCvv2] = useState('834');
-  const [expMonth, setExpMonth] = useState('08');
-  const [expYear, setExpYear] = useState('06');
-  const [otpCode, setOtpCode] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpTimer, setOtpTimer] = useState(120);
-  const [captchaInput, setCaptchaInput] = useState('8492');
-  const [generatedCaptcha, setGeneratedCaptcha] = useState('8492');
   const [paymentError, setPaymentError] = useState('');
-  const [receiptData, setReceiptData] = useState<{ refId: string; date: string } | null>(null);
-
-  // OTP Countdown timer
-  useEffect(() => {
-    let interval: any = null;
-    if (otpSent && otpTimer > 0) {
-      interval = setInterval(() => {
-        setOtpTimer(prev => prev - 1);
-      }, 1000);
-    } else if (otpTimer === 0) {
-      setOtpSent(false);
-    }
-    return () => clearInterval(interval);
-  }, [otpSent, otpTimer]);
+  const [receiptData, setReceiptData] = useState<AuthoritativePaymentReceipt | null>(null);
 
   if (!isOpen) return null;
 
@@ -97,44 +71,43 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           userEmail: userProfile.email
         })
       });
+
       const data = await res.json();
+
+      if (res.status === 503 || data.code === 'PAYMENT_UNAVAILABLE') {
+        setPaymentError(data.messageFa || 'درگاه پرداخت در حال حاضر در دسترس نیست.');
+        return;
+      }
+
       if (data.status === 100 && data.authority) {
         setAuthority(data.authority);
-        setStep('gateway');
-        setOtpCode('');
-        setOtpSent(false);
-        setOtpTimer(120);
-        // Refresh mock captcha
-        const newCap = Math.floor(1000 + Math.random() * 9000).toString();
-        setGeneratedCaptcha(newCap);
-        setCaptchaInput(newCap);
+
+        // If external gateway URL is provided (future live provider), redirect to provider
+        if (data.paymentUrl && /^https?:\/\//i.test(data.paymentUrl)) {
+          window.location.href = data.paymentUrl;
+          return;
+        }
+
+        // Isolated development simulator
+        if (data.mode === 'provider-simulator-dev') {
+          setStep('simulator');
+        } else {
+          setPaymentError('درگاه پرداخت پیکربندی نشده است.');
+        }
       } else {
-        setPaymentError(data.messageFa || data.message || 'خطا در اتصال به درگاه پرداخت.');
+        setPaymentError(data.messageFa || data.message || 'خطا در برقراری ارتباط با درگاه پرداخت.');
       }
     } catch (err) {
       console.error('Payment request error:', err);
-      setPaymentError('عدم دسترسی به سرور پرداخت.');
+      setPaymentError('عدم دسترسی به سرور پرداخت. لطفاً اتصال اینترنت خود را بررسی فرمایید.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSendOtp = () => {
-    setOtpSent(true);
-    setOtpTimer(120);
-    const mockOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setOtpCode(mockOtp);
-    soundFX.playCheck();
-  };
-
-  const handleVerifyPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otpCode) {
-      setPaymentError('لطفاً رمز دوم یکبارمصرف (پویا) را وارد نمایید.');
-      return;
-    }
-    if (captchaInput !== generatedCaptcha) {
-      setPaymentError('کد امنیتی تصویر صحیح نیست.');
+  const handleVerifyPayment = async () => {
+    if (!authority) {
+      setPaymentError('شناسه پرداخت یافت نشد.');
       return;
     }
 
@@ -144,7 +117,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     try {
       const token = localStorage.getItem('bushido_auth_token');
       if (!token) {
-        setPaymentError('نشست کاربری نامعتبر است. لطفاً ابتدا وارد شوید.');
+        setPaymentError('نشست کاربری نامعتبر است. لطفاً مجدداً وارد شوید.');
         setIsLoading(false);
         return;
       }
@@ -157,44 +130,36 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         method: 'POST',
         headers,
         body: JSON.stringify({
-          authority: authority || 'MOCK-AUTH-1234',
-          amount: selectedPlan.priceToman
+          authority
         })
       });
       const data = await res.json();
 
-      if (data.status === 100 || data.status === 101) {
-        const serverUser = data.user;
-        const serverSub = data.subscription;
-        const now = new Date();
+      // Strict server-authoritative validation (Phase 5A WP1)
+      const validation = validateAuthoritativePaymentResponse(
+        {
+          data,
+          currentUserId: userProfile.id,
+          expectedAuthority: authority
+        },
+        userProfile
+      );
 
-        // Server-authoritative state reconciliation (Phase 5A Work Package 6)
-        const updated: UserProfile = {
-          ...userProfile,
-          tier: serverUser?.tier || data.tier || 'vip_samurai',
-          isVip: true,
-          vipSince: serverUser?.vipSince || userProfile.vipSince || now.toISOString(),
-          vipExpiresAt: serverUser?.vipExpiresAt || serverSub?.expiresAt || userProfile.vipExpiresAt || new Date(Date.now() + (selectedPlan.durationMonths * 30 * 86400000)).toISOString(),
-          paymentRefId: data.refId || serverUser?.paymentRefId || serverSub?.refId,
-          activeCycleLimit: 99
-        };
-
-        setReceiptData({
-          refId: data.refId || serverSub?.refId || 'REF-CONFIRMED',
-          date: new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short' }).format(now)
-        });
-
-        setStep('success');
-        onUpgradeSuccess(updated);
-        soundFX.playMastery();
-        haptics.masterySuccess();
-      } else {
-        setPaymentError(data.messageFa || data.message || 'پرداخت از طرف بانک تایید نشد.');
+      if (!validation.valid || !validation.validatedUser || !validation.receipt) {
+        setPaymentError(validation.errorMessageFa || 'پاسخ تایید تراکنش نامعتبر است.');
         haptics.warningAlert();
+        return;
       }
+
+      // Validated strictly against server authoritative response
+      setReceiptData(validation.receipt);
+      setStep('success');
+      onUpgradeSuccess(validation.validatedUser);
+      soundFX.playMastery();
+      haptics.masterySuccess();
     } catch (err) {
       console.error('Verify error:', err);
-      setPaymentError('خطا در تایید تراکنش.');
+      setPaymentError('خطا در ارتباط با سرور تایید پرداخت. لطفاً دوباره تلاش فرمایید.');
       haptics.warningAlert();
     } finally {
       setIsLoading(false);
@@ -301,10 +266,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-3 sm:p-4 flex items-center justify-between text-xs text-zinc-400">
                 <div className="flex items-center gap-2">
                   <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span className="text-[11px] sm:text-xs">اتصال امن به درگاه پرداخت شاپرک</span>
+                  <span className="text-[11px] sm:text-xs">پرداخت امن از طریق درگاه رسمی بانکی</span>
                 </div>
-                <span className="text-[10px] sm:text-[11px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded shrink-0">
-                  شبیه‌ساز پرداخت
+                <span className="text-[10px] sm:text-[11px] text-zinc-500 shrink-0">
+                  تضمین اصالت دیوان
                 </span>
               </div>
 
@@ -348,206 +313,105 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           </div>
         )}
 
-        {/* STEP 2: REALISTIC MOCK IRANIAN PAYMENT GATEWAY (ZARINPAL / SHAPARAK) */}
-        {step === 'gateway' && (
-          <div className="bg-[#f8fafc] text-zinc-900 flex flex-col flex-1 overflow-hidden min-h-0">
-            {/* Gateway Navbar */}
-            <div className="bg-[#1e293b] text-white px-4 sm:px-6 py-3 flex items-center justify-between border-b border-zinc-700 shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-amber-400 rounded-lg flex items-center justify-center text-zinc-900 font-bold text-xs">
-                  ZP
+        {/* STEP 2: ISOLATED DEV SIMULATOR (Clearly labelled, zero realistic banking inputs) */}
+        {step === 'simulator' && (
+          <div className="flex flex-col flex-1 overflow-hidden min-h-0">
+            {/* Simulator Header */}
+            <div className="p-4 sm:p-5 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+                  <FlaskConical className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold">درگاه پرداخت الکترونیک زرین‌پال</div>
-                  <div className="text-[9px] text-zinc-400 font-mono">Zarinpal Secure Payment Gateway</div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 sm:gap-3 text-xs">
-                <div className="flex items-center gap-1 text-emerald-400 font-mono text-[10px] sm:text-xs">
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>SSL 256-bit</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setStep('plans')}
-                  className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition cursor-pointer touch-manipulation"
-                  title="بازگشت به پلن‌ها"
-                  aria-label="بازگشت به پلن‌ها"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Merchant Info Bar */}
-            <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-6 py-2 flex items-center justify-between text-xs text-amber-900 shrink-0">
-              <div>
-                <span className="font-semibold">پذیرنده: </span>
-                <span>سامانه دیسیپلین بوشیدو</span>
-              </div>
-              <div>
-                <span className="font-semibold">مبلغ: </span>
-                <span className="font-bold font-mono text-emerald-700 text-sm">{selectedPlan.formattedPrice} تومان</span>
-              </div>
-            </div>
-
-            {/* Gateway Form */}
-            <form onSubmit={handleVerifyPayment} className="p-4 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto flex-1 min-h-0">
-              {/* Card Number */}
-              <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1">
-                  شماره کارت ۱۶ رقمی:
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={cardNumber}
-                    onChange={e => setCardNumber(e.target.value)}
-                    dir="ltr"
-                    className="w-full min-h-[44px] bg-white border border-zinc-300 rounded-xl px-3.5 py-2.5 text-sm font-mono text-zinc-800 tracking-wider text-center focus:outline-none focus:border-amber-500 shadow-xs"
-                    required
-                  />
-                  <CreditCard className="w-4 h-4 text-zinc-400 absolute left-3 top-3.5" />
-                </div>
-              </div>
-
-              {/* CVV2 & Expiry */}
-              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">
-                    کد شناسایی (CVV2):
-                  </label>
-                  <input
-                    type="text"
-                    value={cvv2}
-                    onChange={e => setCvv2(e.target.value)}
-                    maxLength={4}
-                    dir="ltr"
-                    className="w-full min-h-[44px] bg-white border border-zinc-300 rounded-xl px-3 py-2.5 text-sm font-mono text-center focus:outline-none focus:border-amber-500 shadow-xs"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">
-                    تاریخ انقضا (ماه / سال):
-                  </label>
-                  <div className="flex items-center gap-1.5" dir="ltr">
-                    <input
-                      type="text"
-                      value={expMonth}
-                      onChange={e => setExpMonth(e.target.value)}
-                      maxLength={2}
-                      placeholder="ماه"
-                      className="w-1/2 min-h-[44px] bg-white border border-zinc-300 rounded-xl px-2 py-2.5 text-sm font-mono text-center focus:outline-none focus:border-amber-500 shadow-xs"
-                      required
-                    />
-                    <span className="text-zinc-400 font-bold">/</span>
-                    <input
-                      type="text"
-                      value={expYear}
-                      onChange={e => setExpYear(e.target.value)}
-                      maxLength={2}
-                      placeholder="سال"
-                      className="w-1/2 min-h-[44px] bg-white border border-zinc-300 rounded-xl px-2 py-2.5 text-sm font-mono text-center focus:outline-none focus:border-amber-500 shadow-xs"
-                      required
-                    />
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm sm:text-base font-bold text-zinc-100">
+                      شبیه‌ساز پرداخت (محیط توسعه)
+                    </h3>
+                    <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">
+                      DEV ONLY
+                    </span>
                   </div>
-                </div>
-              </div>
-
-              {/* Dynamic OTP */}
-              <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1">
-                  رمز دوم پویا (OTP):
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={otpCode}
-                    onChange={e => setOtpCode(e.target.value)}
-                    placeholder="کد پیامک‌شده"
-                    dir="ltr"
-                    className="flex-1 min-h-[44px] bg-white border border-zinc-300 rounded-xl px-3 py-2 text-sm font-mono text-center focus:outline-none focus:border-amber-500 shadow-xs"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSendOtp}
-                    disabled={otpSent}
-                    className="min-h-[44px] bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-300 text-white disabled:text-zinc-500 text-xs font-bold px-3 sm:px-4 py-2 rounded-xl transition shrink-0 cursor-pointer active:scale-[0.98] whitespace-nowrap inline-flex items-center justify-center"
-                  >
-                    {otpSent ? `ارسال مجدد (${otpTimer})` : 'دریافت رمز پویا'}
-                  </button>
-                </div>
-                {otpSent && (
-                  <p className="text-[11px] text-emerald-600 mt-1 font-mono">
-                    ✓ رمز پویای آزمایشی برای شما وارد شد ({otpCode}).
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                    تست فنی تایید تراکنش و صدور اشتراک، بدون ورود داده‌های حساس بانکی
                   </p>
-                )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStep('plans')}
+                className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition cursor-pointer"
+                aria-label="بازگشت به پلن‌ها"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Simulator Content */}
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1 min-h-0">
+              <div className="bg-[#121215] border border-zinc-800 rounded-2xl p-4 sm:p-5 space-y-3">
+                <div className="flex items-center justify-between text-xs border-b border-zinc-800/80 pb-2.5">
+                  <span className="text-zinc-400">بسته انتخابی:</span>
+                  <span className="font-bold text-zinc-200">{selectedPlan.title}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs border-b border-zinc-800/80 pb-2.5">
+                  <span className="text-zinc-400">مبلغ قابل تایید:</span>
+                  <span className="font-bold font-mono text-emerald-400 text-sm">{selectedPlan.formattedPrice} تومان</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-zinc-400">شناسه تراکنش دیوان:</span>
+                  <span className="font-mono text-amber-400 text-[11px] break-all">{authority}</span>
+                </div>
               </div>
 
-              {/* Captcha */}
-              <div className="flex items-center gap-3 pt-1">
-                <div className="flex-1">
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">کد امنیتی:</label>
-                  <input
-                    type="text"
-                    value={captchaInput}
-                    onChange={e => setCaptchaInput(e.target.value)}
-                    dir="ltr"
-                    className="w-full min-h-[44px] bg-white border border-zinc-300 rounded-xl px-3 py-2 text-sm font-mono text-center focus:outline-none focus:border-amber-500"
-                    required
-                  />
-                </div>
-                <div className="w-24 min-h-[44px] h-11 bg-zinc-200 border border-zinc-300 rounded-xl flex items-center justify-center font-mono font-bold text-base text-zinc-700 tracking-widest select-none mt-5">
-                  {generatedCaptcha}
-                </div>
+              <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 text-xs text-zinc-400 leading-relaxed">
+                <p>
+                  این شبیه‌ساز تنها در محیط توسعه فعال است و هیچ‌گونه شماره کارت، رمز دوم یا کد اعتبارسنجی بانکی دریافت نمی‌کند. برای تکمیل چرخه و ارسال درخواست تایید به سرور، دکمه زیر را کلیک نمایید.
+                </p>
               </div>
 
               {paymentError && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 text-xs text-red-700 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <div className="bg-red-950/60 border border-red-500/40 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
                   <span>{paymentError}</span>
                 </div>
               )}
 
-              {/* Gateway Actions */}
-              <div className="pt-3 border-t border-zinc-200 flex items-center justify-between gap-3">
+              {/* Actions */}
+              <div className="flex items-center justify-between gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setStep('plans')}
-                  className="min-h-[44px] bg-zinc-200 hover:bg-zinc-300 text-zinc-700 font-bold text-xs px-4 sm:px-5 py-2.5 rounded-xl transition cursor-pointer active:scale-[0.98] whitespace-nowrap inline-flex items-center justify-center"
+                  className="px-4 py-2.5 min-h-[44px] rounded-xl text-zinc-400 hover:text-white text-xs font-semibold cursor-pointer"
                 >
                   انصراف و بازگشت
                 </button>
 
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleVerifyPayment}
                   disabled={isLoading}
-                  className="min-h-[44px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm px-5 sm:px-7 py-2.5 rounded-xl flex items-center justify-center gap-2 transition shadow-md shadow-emerald-600/30 cursor-pointer active:scale-[0.98] whitespace-nowrap"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm px-6 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-950 transition cursor-pointer active:scale-[0.98]"
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                      <span>در حال پردازش...</span>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      در حال تایید با سرور...
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      <span>تایید و پرداخت ({selectedPlan.formattedPrice} تومان)</span>
+                      <CheckCircle2 className="w-4 h-4" />
+                      تایید پرداخت شبیه‌سازی‌شده
                     </>
                   )}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         )}
 
         {/* STEP 3: PAYMENT SUCCESS RECEIPT */}
         {step === 'success' && receiptData && (
-          <div className="p-6 sm:p-8 text-center space-y-5 sm:space-y-6 animate-in zoom-in-95 duration-200 overflow-y-auto flex-1">
+          <div className="p-6 sm:p-8 text-center space-y-5 sm:space-y-6 overflow-y-auto flex-1">
             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto shadow-xl shadow-emerald-950">
               <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
             </div>
@@ -578,6 +442,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <span className="text-zinc-400">مبلغ پرداخت شده:</span>
                 <span className="text-emerald-400 font-bold">{selectedPlan.formattedPrice} تومان</span>
               </div>
+              {receiptData.cardPan && (
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                  <span className="text-zinc-400">شماره کارت:</span>
+                  <span>{receiptData.cardPan}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-zinc-400">زمان ثبت:</span>
                 <span>{receiptData.date}</span>

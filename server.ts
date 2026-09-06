@@ -1247,12 +1247,22 @@ app.post('/api/payment/request', authMiddleware, validateBody(paymentRequestSche
       });
     }
 
-    const requestResult = await adapter.requestPayment({
-      userId,
-      planId: plan.id,
-      amount: trustedAmount,
-      description: trustedDescription
-    });
+    let requestResult;
+    try {
+      requestResult = await adapter.requestPayment({
+        userId,
+        planId: plan.id,
+        amount: trustedAmount,
+        description: trustedDescription
+      });
+    } catch (error) {
+      const normalized = adapter.normalizeProviderError(error);
+      return res.status(normalized.retryable ? 503 : 400).json({
+        code: normalized.code,
+        messageFa: normalized.messageFa,
+        retryable: normalized.retryable
+      });
+    }
 
     await createSubscriptionRecord({
       userId,
@@ -1299,6 +1309,7 @@ app.post('/api/payment/verify', authMiddleware, validateBody(paymentVerifySchema
     
     // Idempotency check: SUCCESS is terminal; return confirmed result without re-processing
     if (existingSub.status === 'SUCCESS') {
+      const user = await findUserById(userId);
       return res.json({
         status: 101,
         refId: existingSub.refId,
@@ -1306,8 +1317,9 @@ app.post('/api/payment/verify', authMiddleware, validateBody(paymentVerifySchema
         authority: existingSub.authority,
         amount: existingSub.amount,
         messageFa: 'این تراکنش قبلاً با موفقیت ثبت و تایید شده است.',
-        tier: 'vip_samurai',
-        subscription: existingSub
+        tier: user?.tier || 'vip_samurai',
+        subscription: existingSub,
+        user: user || undefined
       });
     }
 
@@ -1329,17 +1341,51 @@ app.post('/api/payment/verify', authMiddleware, validateBody(paymentVerifySchema
       });
     }
 
-    const verifyResult = await adapter.verifyPayment({
-      authority,
-      expectedAmount: existingSub.amount
-    });
+    let verifyResult;
+    try {
+      verifyResult = await adapter.verifyPayment({
+        authority,
+        expectedAmount: existingSub.amount
+      });
+    } catch (error) {
+      const normalized = adapter.normalizeProviderError(error);
+      // Network timeout / transport drop during verify:
+      // Subscription MUST REMAIN PENDING! Do NOT mark failed. Do NOT activate VIP.
+      return res.status(400).json({
+        code: normalized.code,
+        messageFa: normalized.messageFa,
+        retryable: true
+      });
+    }
 
     if (!verifyResult.success || verifyResult.status === 'FAILED') {
-      await markSubscriptionFailed(authority, verifyResult.errorMessageFa || 'تراکنش توسط درگاه تایید نشد.');
-      return res.status(400).json({
-        code: 'PAYMENT_FAILED',
-        messageFa: verifyResult.errorMessageFa || 'تراکنش توسط درگاه تایید نشد.'
-      });
+      const isRetryable = Boolean(
+        verifyResult.retryable ||
+        verifyResult.failureClassification === 'RETRYABLE_ERROR' ||
+        verifyResult.failureClassification === 'AMBIGUOUS_RESULT'
+      );
+      const isDefinitive = !isRetryable && (
+        verifyResult.failureClassification === 'DEFINITIVE_REJECTION' ||
+        verifyResult.retryable === false
+      );
+
+      if (isDefinitive) {
+        // Only a definitive normalized non-retryable rejection may call markSubscriptionFailed
+        await markSubscriptionFailed(authority, verifyResult.errorMessageFa || 'تراکنش توسط درگاه تایید نشد.');
+        return res.status(400).json({
+          code: verifyResult.errorCode || 'PAYMENT_FAILED',
+          messageFa: verifyResult.errorMessageFa || 'تراکنش توسط درگاه تایید نشد.',
+          retryable: false
+        });
+      } else {
+        // Retryable timeout, transport failure, temporary unavailability, or ambiguous result:
+        // Subscription MUST REMAIN PENDING! Do NOT mark failed. Do NOT activate VIP.
+        return res.status(400).json({
+          code: verifyResult.errorCode || 'PAYMENT_TEMPORARY_ERROR',
+          messageFa: verifyResult.errorMessageFa || 'پاسخ قطعی از درگاه دریافت نشد. وضعیت تراکنش در انتظار تایید باقی ماند.',
+          retryable: true
+        });
+      }
     }
 
     // 5. Atomic Completion & Entitlement Activation

@@ -63,6 +63,15 @@ export class ProviderNeutralSimulatorAdapter implements PaymentGatewayAdapter {
         retryable: Boolean(err.retryable)
       };
     }
+    const rawMsg = error instanceof Error ? error.message : String(error);
+    const isNetworkOrTimeout = /timeout|econnrefused|econnreset|etimedout|socket|network|unreachable|unavailable|temporary/i.test(rawMsg);
+    if (isNetworkOrTimeout) {
+      return {
+        code: 'PAYMENT_TEMPORARY_ERROR',
+        messageFa: 'خطای موقت در ارتباط با درگاه پرداخت. لطفاً پس از چند لحظه دوباره تلاش کنید.',
+        retryable: true
+      };
+    }
     return {
       code: 'PAYMENT_FAILED',
       messageFa: 'پرداخت توسط درگاه تایید نشد.',
@@ -74,27 +83,32 @@ export class ProviderNeutralSimulatorAdapter implements PaymentGatewayAdapter {
 let activeAdapterOverride: PaymentGatewayAdapter | null = null;
 
 /**
- * Set an explicit payment gateway adapter (useful for automated testing)
+ * Set an explicit payment gateway adapter (restricted strictly to testing environments).
+ * In production without explicitly allowed test shortcuts, overrides are ignored/rejected.
  */
 export function setPaymentAdapterOverride(adapter: PaymentGatewayAdapter | null): void {
+  if (adapter !== null && isProduction() && !allowTestShortcuts()) {
+    // Fail closed: Never allow simulator/mock override in production
+    return;
+  }
   activeAdapterOverride = adapter;
 }
 
 /**
  * Resolves the active payment gateway adapter based on environment.
- * In production without test shortcuts, returns null (or fails closed)
- * until a production provider is officially integrated and configured.
+ * In production without test shortcuts, a simulator or test override must never be returned,
+ * and production without a configured real provider must return null.
  */
 export function getPaymentAdapter(): PaymentGatewayAdapter | null {
-  if (activeAdapterOverride) {
-    return activeAdapterOverride;
-  }
-
-  // In production without test shortcuts, no mock payment is allowed
+  // Production isolation: fail closed if in production without test shortcuts
   if (isProduction() && !allowTestShortcuts()) {
     return null;
   }
 
-  // Development / test simulator
+  if (activeAdapterOverride) {
+    return activeAdapterOverride;
+  }
+
+  // Development / test simulator (never returned in production)
   return new ProviderNeutralSimulatorAdapter();
 }
