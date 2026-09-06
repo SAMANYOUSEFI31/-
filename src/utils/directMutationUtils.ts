@@ -15,6 +15,7 @@ import {
   isValidLogResponse, 
   isValidCycleResponse,
   enqueueOfflineMutation,
+  enqueueDurableDailyLogWriteAhead,
   getOfflineQueue,
   saveOfflineQueue,
   removeReplayedQueueItems,
@@ -386,14 +387,15 @@ export type DirectDailyLogMutationResult =
   | { status: 'CONFLICT'; statusCode: 409 | 428; conflictDetails: any; queueItemId: string }
   | { status: 'RATE_LIMITED'; statusCode: 429; queueItemId: string; retryCount: number; nextRetryAt?: number }
   | { status: 'SERVER_RETRYABLE'; statusCode: number; queueItemId: string; retryCount: number; nextRetryAt?: number }
-  | { status: 'NETWORK_ERROR'; error: any; queueItemId: string };
+  | { status: 'NETWORK_ERROR'; error: any; queueItemId: string }
+  | { status: 'STORAGE_WRITE_FAILED'; reason: string; errorMsg: string; messageFa: string; queueItemId?: string };
 
 /**
  * Phase 6.1A: Durable DailyLog Write-Ahead Mutation Executor
  *
  * Enforces the Write-Ahead Durability contract:
  * 1. Validates preconditions and expectedRevision.
- * 2. Durably persists the mutation to the owner's Offline Queue BEFORE any network attempt.
+ * 2. Durably persists and verifies the mutation in the owner's Offline Queue BEFORE any network attempt.
  * 3. Shares identical operation identity (queueItem.id / clientOperationId) between direct execution and replay.
  * 4. Marks the queue item in-flight during dispatch to protect it from compaction/overwrites.
  * 5. On verified 2xx response (checked with isValidLogResponse), removes ONLY the exact confirmed queue item.
@@ -436,12 +438,24 @@ export async function executeDirectDailyLogMutation(
     };
   }
 
-  // 1. Durable Write-Ahead Enqueue BEFORE any network attempt
-  const queueItem = enqueueOfflineMutation(ownerId, {
+  // 1. Durable Write-Ahead Enqueue with Authoritative Storage Read-back Verification
+  const durableResult = enqueueDurableDailyLogWriteAhead(ownerId, {
     type: 'UPDATE_LOG',
     payload: logPayload,
     expectedRevision
   });
+
+  if (durableResult.success === false) {
+    return {
+      status: 'STORAGE_WRITE_FAILED',
+      reason: durableResult.reason,
+      errorMsg: durableResult.errorMsg,
+      messageFa: 'خطا در ذخیره‌سازی محلی. تغییرات در صف آفلاین ثبت نشد و به سرور ارسال نمی‌شود.',
+      queueItemId: durableResult.candidateItem?.id
+    };
+  }
+
+  const queueItem = durableResult.queueItem;
 
   // 2. Offline Guard: stop here if offline, item is already durable in the queue
   if (guard.shouldQueue) {

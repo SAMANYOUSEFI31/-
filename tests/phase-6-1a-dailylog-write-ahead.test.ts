@@ -6,6 +6,8 @@ import {
 import {
   getOfflineQueue,
   enqueueOfflineMutation,
+  enqueueDurableDailyLogWriteAhead,
+  verifyDurableQueueItemPersistence,
   clearOfflineQueue,
   clearAllReplayLocks,
   resetRuntimeInFlightState
@@ -364,5 +366,312 @@ test('Phase 6.1A DailyLog Write-Ahead Durability & Lifecycle Contracts', async (
     const queue = getOfflineQueue(userId);
     assert.equal(queue.length, 1);
     assert.equal(queue[0].type, 'UPDATE_LOG');
+  });
+
+  // =========================================================================
+  // CONTRACT 8: Storage Failure 1 - localStorage.setItem Throws
+  // =========================================================================
+  await t.test('localStorage.setItem throws during Write-Ahead persistence', async () => {
+    let fetchCalled = false;
+    const mockFetch = (async () => {
+      fetchCalled = true;
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    const origSetItem = (globalThis as any).window.localStorage.setItem;
+    (globalThis as any).window.localStorage.setItem = () => {
+      throw new Error('QuotaExceededError: DOM Exception 22');
+    };
+
+    try {
+      const result = await executeDirectDailyLogMutation({
+        updatedLog: baseLog,
+        existingLog: baseLog,
+        ownerId: userId,
+        authToken: 'test_token_valid',
+        activeCycleId: 'cycle_test_61a',
+        fetchFn: mockFetch
+      });
+
+      assert.equal(result.status, 'STORAGE_WRITE_FAILED');
+      if (result.status === 'STORAGE_WRITE_FAILED') {
+        assert.equal(result.reason, 'STORAGE_WRITE_FAILED');
+        assert.ok(result.messageFa);
+        assert.ok(!result.messageFa.includes('QuotaExceededError'), 'Must not leak raw exception to user-facing message');
+        assert.ok(!result.messageFa.includes('test_token_valid'), 'Must not leak token');
+      }
+      assert.equal(fetchCalled, false, 'Fetch MUST NOT be called when storage persistence throws');
+      assert.equal(getOfflineQueue(userId).length, 0, 'No item should be reported queued');
+      assert.equal(getClientConflicts(userId).length, 0, 'No conflict should be generated');
+    } finally {
+      (globalThis as any).window.localStorage.setItem = origSetItem;
+    }
+  });
+
+  // =========================================================================
+  // CONTRACT 9: Storage Failure 2 - localStorage.setItem Silently Fails (Readback Null)
+  // =========================================================================
+  await t.test('localStorage.setItem silently fails or read-back returns null', async () => {
+    let fetchCalled = false;
+    const mockFetch = (async () => {
+      fetchCalled = true;
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    const origSetItem = (globalThis as any).window.localStorage.setItem;
+    // Silent failure: setItem is a no-op, nothing is persisted to storageMock
+    (globalThis as any).window.localStorage.setItem = () => {};
+
+    try {
+      const result = await executeDirectDailyLogMutation({
+        updatedLog: baseLog,
+        existingLog: baseLog,
+        ownerId: userId,
+        authToken: 'test_token_valid',
+        activeCycleId: 'cycle_test_61a',
+        fetchFn: mockFetch
+      });
+
+      assert.equal(result.status, 'STORAGE_WRITE_FAILED');
+      if (result.status === 'STORAGE_WRITE_FAILED') {
+        assert.ok(
+          result.reason === 'STORAGE_READBACK_NULL' || result.reason === 'STORAGE_WRITE_FAILED',
+          `Expected STORAGE_READBACK_NULL or STORAGE_WRITE_FAILED, got ${result.reason}`
+        );
+      }
+      assert.equal(fetchCalled, false, 'Fetch MUST NOT be called when read-back returns null');
+      assert.equal(getClientConflicts(userId).length, 0);
+    } finally {
+      (globalThis as any).window.localStorage.setItem = origSetItem;
+    }
+  });
+
+  // =========================================================================
+  // CONTRACT 10: Storage Failure 3 - Read-back Returns Queue Without Expected Operation ID
+  // =========================================================================
+  await t.test('read-back returns a Queue without the expected operation ID', async () => {
+    let fetchCalled = false;
+    const mockFetch = (async () => {
+      fetchCalled = true;
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    const origSetItem = (globalThis as any).window.localStorage.setItem;
+    // Corrupt write: write an item with an arbitrary mismatched ID
+    (globalThis as any).window.localStorage.setItem = (key: string) => {
+      storageMock[key] = JSON.stringify([
+        {
+          id: 'unrelated_stale_operation_999',
+          ownerId: userId,
+          type: 'UPDATE_LOG',
+          payload: { date: baseLog.date }
+        }
+      ]);
+    };
+
+    try {
+      const result = await executeDirectDailyLogMutation({
+        updatedLog: baseLog,
+        existingLog: baseLog,
+        ownerId: userId,
+        authToken: 'test_token_valid',
+        activeCycleId: 'cycle_test_61a',
+        fetchFn: mockFetch
+      });
+
+      assert.equal(result.status, 'STORAGE_WRITE_FAILED');
+      if (result.status === 'STORAGE_WRITE_FAILED') {
+        assert.equal(result.reason, 'ITEM_NOT_FOUND_IN_STORAGE');
+      }
+      assert.equal(fetchCalled, false, 'Fetch MUST NOT be called when operation ID is missing');
+      assert.equal(getClientConflicts(userId).length, 0);
+    } finally {
+      (globalThis as any).window.localStorage.setItem = origSetItem;
+    }
+  });
+
+  // =========================================================================
+  // CONTRACT 11: Storage Failure 4 - Read-back Item Has Mismatched Owner
+  // =========================================================================
+  await t.test('read-back item has a mismatched owner', async () => {
+    let fetchCalled = false;
+    const mockFetch = (async () => {
+      fetchCalled = true;
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    const origSetItem = (globalThis as any).window.localStorage.setItem;
+    // Mutate ownerId to another owner
+    (globalThis as any).window.localStorage.setItem = (key: string, val: string) => {
+      try {
+        const parsed = JSON.parse(val);
+        const poisoned = parsed.map((item: any) => ({ ...item, ownerId: 'user_rogue_intruder' }));
+        storageMock[key] = JSON.stringify(poisoned);
+      } catch {
+        storageMock[key] = val;
+      }
+    };
+
+    try {
+      const result = await executeDirectDailyLogMutation({
+        updatedLog: baseLog,
+        existingLog: baseLog,
+        ownerId: userId,
+        authToken: 'test_token_valid',
+        activeCycleId: 'cycle_test_61a',
+        fetchFn: mockFetch
+      });
+
+      assert.equal(result.status, 'STORAGE_WRITE_FAILED');
+      if (result.status === 'STORAGE_WRITE_FAILED') {
+        assert.equal(result.reason, 'OWNER_MISMATCH');
+      }
+      assert.equal(fetchCalled, false, 'Fetch MUST NOT be called when owner mismatches');
+      assert.equal(getClientConflicts(userId).length, 0);
+    } finally {
+      (globalThis as any).window.localStorage.setItem = origSetItem;
+    }
+  });
+
+  // =========================================================================
+  // CONTRACT 12: Storage Failure 5 - Read-back Item Has Mismatched Mutation Type
+  // =========================================================================
+  await t.test('read-back item has a mismatched mutation type', async () => {
+    let fetchCalled = false;
+    const mockFetch = (async () => {
+      fetchCalled = true;
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    const origSetItem = (globalThis as any).window.localStorage.setItem;
+    // Mutate type to UPDATE_CYCLE instead of UPDATE_LOG
+    (globalThis as any).window.localStorage.setItem = (key: string, val: string) => {
+      try {
+        const parsed = JSON.parse(val);
+        const poisoned = parsed.map((item: any) => ({ ...item, type: 'UPDATE_CYCLE' }));
+        storageMock[key] = JSON.stringify(poisoned);
+      } catch {
+        storageMock[key] = val;
+      }
+    };
+
+    try {
+      const result = await executeDirectDailyLogMutation({
+        updatedLog: baseLog,
+        existingLog: baseLog,
+        ownerId: userId,
+        authToken: 'test_token_valid',
+        activeCycleId: 'cycle_test_61a',
+        fetchFn: mockFetch
+      });
+
+      assert.equal(result.status, 'STORAGE_WRITE_FAILED');
+      if (result.status === 'STORAGE_WRITE_FAILED') {
+        assert.equal(result.reason, 'MUTATION_TYPE_MISMATCH');
+      }
+      assert.equal(fetchCalled, false, 'Fetch MUST NOT be called when mutation type mismatches');
+      assert.equal(getClientConflicts(userId).length, 0);
+    } finally {
+      (globalThis as any).window.localStorage.setItem = origSetItem;
+    }
+  });
+
+  // =========================================================================
+  // CONTRACT 13: Storage Failure Behavior Guarantees (Zero Fetch, No Conflict, Multi-Owner Isolation)
+  // =========================================================================
+  await t.test('Storage failure causes zero fetch calls, does not claim queued, and preserves other owner queues', async () => {
+    const otherUser = 'user_other_account_protected';
+    // Pre-populate other user's queue
+    enqueueOfflineMutation(otherUser, {
+      type: 'UPDATE_LOG',
+      payload: { date: '1403-12-20', wakeUp: true }
+    });
+    assert.equal(getOfflineQueue(otherUser).length, 1, 'Other user queue must exist initially');
+
+    let fetchCalls = 0;
+    const mockFetch = (async () => {
+      fetchCalls++;
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    // Simulate storage failure for userId
+    const origSetItem = (globalThis as any).window.localStorage.setItem;
+    (globalThis as any).window.localStorage.setItem = () => {
+      throw new Error('Storage write failed');
+    };
+
+    try {
+      const result = await executeDirectDailyLogMutation({
+        updatedLog: baseLog,
+        existingLog: baseLog,
+        ownerId: userId,
+        authToken: 'test_token_valid',
+        activeCycleId: 'cycle_test_61a',
+        fetchFn: mockFetch
+      });
+
+      // 6. Storage failure causes zero fetch calls
+      assert.equal(fetchCalls, 0, 'Must have exactly zero fetch calls on storage failure');
+
+      // 7. Storage failure returns explicit typed failure result
+      assert.equal(result.status, 'STORAGE_WRITE_FAILED');
+
+      // 8. Storage failure does not claim mutation is queued
+      assert.notEqual(result.status, 'QUEUED_OFFLINE');
+
+      // 9. Storage failure does not create a conflict
+      assert.equal(getClientConflicts(userId).length, 0, 'No conflict record should be recorded');
+
+      // 10. Storage failure does not remove or modify another owner queue
+      const otherQueue = getOfflineQueue(otherUser);
+      assert.equal(otherQueue.length, 1, 'Other owner queue MUST remain intact');
+      assert.equal(otherQueue[0].payload.date, '1403-12-20');
+    } finally {
+      (globalThis as any).window.localStorage.setItem = origSetItem;
+      clearOfflineQueue(otherUser);
+    }
+  });
+
+  // =========================================================================
+  // CONTRACT 14: Successful Persistence Dispatches Exactly Once With Verified Queue Item ID
+  // =========================================================================
+  await t.test('successful persistence dispatches exactly one request with verified queue item ID', async () => {
+    let fetchCalls = 0;
+    let capturedBody: any = null;
+
+    const mockFetch = (async (url: string, init: any) => {
+      fetchCalls++;
+      capturedBody = JSON.parse(init.body);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          log: {
+            ...baseLog,
+            revision: 2,
+            isSynced: true
+          }
+        })
+      };
+    }) as any;
+
+    const result = await executeDirectDailyLogMutation({
+      updatedLog: baseLog,
+      existingLog: baseLog,
+      ownerId: userId,
+      authToken: 'test_token_valid',
+      activeCycleId: 'cycle_test_61a',
+      fetchFn: mockFetch
+    });
+
+    // 11. Successful persistence dispatches exactly one request
+    assert.equal(fetchCalls, 1, 'Successful persistence must dispatch exactly one network request');
+    assert.equal(result.status, 'SUCCESS');
+
+    if (result.status === 'SUCCESS') {
+      // 12. Successful dispatch uses verified Queue Item ID as clientOperationId
+      assert.ok(result.queueItemId, 'Result must contain queueItemId');
+      assert.equal(capturedBody.clientOperationId, result.queueItemId);
+    }
   });
 });

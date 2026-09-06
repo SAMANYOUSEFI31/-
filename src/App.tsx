@@ -510,6 +510,18 @@ export default function App() {
       return;
     }
 
+    if (result.status === 'STORAGE_WRITE_FAILED') {
+      setSystemState(prev => {
+        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+        return {
+          ...prev,
+          logs: rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot)
+        };
+      });
+      showAppToast(result.messageFa || 'خطا در ذخیره‌سازی محلی. تغییرات اعمال نشد.', 'warning');
+      return;
+    }
+
     if (result.status === 'INVALID_PRECONDITION') {
       setSystemState(prev => {
         if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;

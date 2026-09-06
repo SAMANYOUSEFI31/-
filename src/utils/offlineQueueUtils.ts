@@ -552,7 +552,7 @@ export function getOfflineQueue(ownerId?: string | null): OfflineQueueItem[] {
 /**
  * Persists an account-scoped offline queue to storage.
  */
-export function saveOfflineQueue(ownerId: string | null | undefined, queue: OfflineQueueItem[]): void {
+export function saveOfflineQueue(ownerId: string | null | undefined, queue: OfflineQueueItem[]): boolean {
   const normOwner = normalizeQueueOwner(ownerId);
   const key = getScopedOfflineQueueKey(normOwner);
 
@@ -569,9 +569,14 @@ export function saveOfflineQueue(ownerId: string | null | undefined, queue: Offl
   }));
 
   if (cleanItems.length === 0) {
-    safeRemoveLocalStorage(key);
+    return safeRemoveLocalStorage(key);
   } else {
-    safeSetLocalStorage(key, JSON.stringify(cleanItems));
+    try {
+      const serialized = JSON.stringify(cleanItems);
+      return safeSetLocalStorage(key, serialized);
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -635,8 +640,8 @@ export function enqueueOfflineMutation(
         ...(typeof mergedRev === 'number' && Number.isInteger(mergedRev) && mergedRev > 0 ? { expectedRevision: mergedRev } : {})
       };
       currentQueue[existingIdx] = updatedItem;
-      saveOfflineQueue(normOwner, currentQueue);
-      return updatedItem;
+      const persisted = saveOfflineQueue(normOwner, currentQueue);
+      return { ...updatedItem, persisted };
     }
   }
 
@@ -660,8 +665,8 @@ export function enqueueOfflineMutation(
         retryCount: 0
       };
       currentQueue[existingIdx] = updatedItem;
-      saveOfflineQueue(normOwner, currentQueue);
-      return updatedItem;
+      const persisted = saveOfflineQueue(normOwner, currentQueue);
+      return { ...updatedItem, persisted };
     }
   }
 
@@ -680,8 +685,8 @@ export function enqueueOfflineMutation(
         ...(typeof mergedRev === 'number' && Number.isInteger(mergedRev) && mergedRev > 0 ? { expectedRevision: mergedRev } : {})
       };
       currentQueue[existingUpdateIdx] = updatedItem;
-      saveOfflineQueue(normOwner, currentQueue);
-      return updatedItem;
+      const persisted = saveOfflineQueue(normOwner, currentQueue);
+      return { ...updatedItem, persisted };
     }
   }
 
@@ -717,8 +722,8 @@ export function enqueueOfflineMutation(
         if (item.type === 'UPDATE_LOG' && item.payload?.cycleId === targetCycleId) return false;
         return true;
       });
-      saveOfflineQueue(normOwner, prunedQueue);
-      return newItem;
+      const persisted = saveOfflineQueue(normOwner, prunedQueue);
+      return { ...newItem, persisted };
     }
 
     // If deleting a cycle that may exist on server:
@@ -733,8 +738,8 @@ export function enqueueOfflineMutation(
       return true;
     });
     filteredQueue.push(newItem);
-    saveOfflineQueue(normOwner, filteredQueue);
-    return newItem;
+    const persisted = saveOfflineQueue(normOwner, filteredQueue);
+    return { ...newItem, persisted };
   }
 
   // Rule 4: UPDATE_PROFILE / UPDATE_SETTINGS compaction
@@ -750,15 +755,227 @@ export function enqueueOfflineMutation(
         retryCount: 0
       };
       currentQueue[existingIdx] = updatedItem;
-      saveOfflineQueue(normOwner, currentQueue);
-      return updatedItem;
+      const persisted = saveOfflineQueue(normOwner, currentQueue);
+      return { ...updatedItem, persisted };
     }
   }
 
   // Default: Append new item
   currentQueue.push(newItem);
-  saveOfflineQueue(normOwner, currentQueue);
-  return newItem;
+  const persisted = saveOfflineQueue(normOwner, currentQueue);
+  return { ...newItem, persisted };
+}
+
+export type DurableFailureReason =
+  | 'STORAGE_WRITE_FAILED'
+  | 'STORAGE_READBACK_NULL'
+  | 'STORAGE_READBACK_CORRUPT'
+  | 'ITEM_NOT_FOUND_IN_STORAGE'
+  | 'OWNER_MISMATCH'
+  | 'OPERATION_ID_MISMATCH'
+  | 'MUTATION_TYPE_MISMATCH'
+  | 'PAYLOAD_MISMATCH'
+  | 'STORAGE_EXCEPTION';
+
+export interface DurablePersistenceSuccess {
+  success: true;
+  queueItem: OfflineQueueItem;
+}
+
+export interface DurablePersistenceFailure {
+  success: false;
+  reason: DurableFailureReason;
+  errorMsg: string;
+  candidateItem?: OfflineQueueItem;
+}
+
+export type DurableEnqueueResult = DurablePersistenceSuccess | DurablePersistenceFailure;
+
+/**
+ * Authoritatively verifies that a specific queue item was durably persisted
+ * to the owner-scoped storage and matches all identity and payload contracts.
+ */
+export function verifyDurableQueueItemPersistence(
+  ownerId: string | null | undefined,
+  expectedItemId: string,
+  expectedMutation: EnqueueMutationInput
+): DurableEnqueueResult {
+  try {
+    const normOwner = normalizeQueueOwner(ownerId);
+    const key = getScopedOfflineQueueKey(normOwner);
+
+    // 1. Authoritative read-back from storage
+    const raw = safeGetLocalStorage(key);
+    if (raw === null || raw === undefined) {
+      return {
+        success: false,
+        reason: 'STORAGE_READBACK_NULL',
+        errorMsg: 'Storage read-back returned null or empty'
+      };
+    }
+
+    let parsed: any[];
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return {
+        success: false,
+        reason: 'STORAGE_READBACK_CORRUPT',
+        errorMsg: 'Failed to parse storage JSON'
+      };
+    }
+
+    if (!Array.isArray(parsed)) {
+      return {
+        success: false,
+        reason: 'STORAGE_READBACK_CORRUPT',
+        errorMsg: 'Parsed storage data is not an array'
+      };
+    }
+
+    // 2. Locate exact queue item by expectedItemId
+    const found = parsed.find((item: any) => item && item.id === expectedItemId);
+    if (!found) {
+      return {
+        success: false,
+        reason: 'ITEM_NOT_FOUND_IN_STORAGE',
+        errorMsg: `Queue item ${expectedItemId} not found in storage read-back`
+      };
+    }
+
+    // 3. Verify owner
+    const readOwner = normalizeQueueOwner(found.ownerId);
+    if (readOwner !== normOwner || found.ownerId !== normOwner) {
+      return {
+        success: false,
+        reason: 'OWNER_MISMATCH',
+        errorMsg: `Owner mismatch in read-back item: expected ${normOwner}, found ${found.ownerId}`
+      };
+    }
+
+    // 4. Verify exact operation ID
+    if (found.id !== expectedItemId) {
+      return {
+        success: false,
+        reason: 'OPERATION_ID_MISMATCH',
+        errorMsg: `Item ID mismatch: expected ${expectedItemId}, found ${found.id}`
+      };
+    }
+    if (found.payload?.clientOperationId && found.payload.clientOperationId !== expectedItemId) {
+      return {
+        success: false,
+        reason: 'OPERATION_ID_MISMATCH',
+        errorMsg: `clientOperationId mismatch: expected ${expectedItemId}, found ${found.payload.clientOperationId}`
+      };
+    }
+
+    // 5. Verify mutation type
+    if (found.type !== expectedMutation.type) {
+      return {
+        success: false,
+        reason: 'MUTATION_TYPE_MISMATCH',
+        errorMsg: `Mutation type mismatch: expected ${expectedMutation.type}, found ${found.type}`
+      };
+    }
+
+    // 6. Verify payload represents intended DailyLog operation
+    if (!found.payload || typeof found.payload !== 'object') {
+      return {
+        success: false,
+        reason: 'PAYLOAD_MISMATCH',
+        errorMsg: 'Read-back payload is missing or invalid'
+      };
+    }
+
+    const expectedDate = expectedMutation.payload?.date;
+    if (expectedDate && found.payload.date !== expectedDate) {
+      return {
+        success: false,
+        reason: 'PAYLOAD_MISMATCH',
+        errorMsg: `Payload date mismatch: expected ${expectedDate}, found ${found.payload.date}`
+      };
+    }
+
+    const expectedCycleId = expectedMutation.payload?.cycleId;
+    if (expectedCycleId && found.payload.cycleId !== expectedCycleId) {
+      return {
+        success: false,
+        reason: 'PAYLOAD_MISMATCH',
+        errorMsg: `Payload cycleId mismatch: expected ${expectedCycleId}, found ${found.payload.cycleId}`
+      };
+    }
+
+    return {
+      success: true,
+      queueItem: found as OfflineQueueItem
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      reason: 'STORAGE_EXCEPTION',
+      errorMsg: 'Exception encountered during storage read-back verification'
+    };
+  }
+}
+
+/**
+ * Durably enqueues a DailyLog mutation to the owner-scoped offline queue
+ * and verifies that it was written to storage and matches all identity and payload contracts.
+ */
+export function enqueueDurableDailyLogWriteAhead(
+  ownerId: string | null | undefined,
+  mutation: EnqueueMutationInput
+): DurableEnqueueResult {
+  try {
+    const normOwner = normalizeQueueOwner(ownerId);
+    if (mutation.type !== 'UPDATE_LOG') {
+      return {
+        success: false,
+        reason: 'MUTATION_TYPE_MISMATCH',
+        errorMsg: 'Expected UPDATE_LOG mutation type for DailyLog write-ahead durability'
+      };
+    }
+
+    const candidateItem = enqueueOfflineMutation(normOwner, mutation);
+    if (!candidateItem || !candidateItem.id) {
+      return {
+        success: false,
+        reason: 'STORAGE_WRITE_FAILED',
+        errorMsg: 'Failed to create queue item candidate'
+      };
+    }
+
+    if (candidateItem.persisted === false) {
+      return {
+        success: false,
+        reason: 'STORAGE_WRITE_FAILED',
+        errorMsg: 'Storage write failed during enqueue',
+        candidateItem
+      };
+    }
+
+    // Authoritative read-back verification
+    const verified = verifyDurableQueueItemPersistence(normOwner, candidateItem.id, mutation);
+    if (verified.success === false) {
+      return {
+        success: false,
+        reason: verified.reason,
+        errorMsg: verified.errorMsg,
+        candidateItem
+      };
+    }
+
+    return {
+      success: true,
+      queueItem: verified.queueItem
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      reason: 'STORAGE_EXCEPTION',
+      errorMsg: err?.message || 'Storage exception during write-ahead enqueue'
+    };
+  }
 }
 
 /**

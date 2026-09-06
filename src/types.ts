@@ -313,6 +313,7 @@ export interface OfflineQueueItem {
   classification?: ReplayFailureClassification;
   dedupKey?: string;
   inFlight?: boolean;
+  persisted?: boolean;
 }
 
 export type ConflictType = 'CONCURRENCY_CONFLICT' | 'PRECONDITION_REQUIRED';

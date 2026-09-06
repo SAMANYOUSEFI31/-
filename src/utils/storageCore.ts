@@ -175,6 +175,7 @@ export function shouldQueueOfflineMutation(
  */
 export function safeGetLocalStorage(key: string): string | null {
   try {
+    if (!key || typeof key !== 'string') return null;
     if (typeof window === 'undefined' || !window.localStorage) return null;
     return window.localStorage.getItem(key);
   } catch (e) {
@@ -188,6 +189,7 @@ export function safeGetLocalStorage(key: string): string | null {
  */
 export function safeSetLocalStorage(key: string, value: string): boolean {
   try {
+    if (!key || typeof key !== 'string') return false;
     if (typeof window === 'undefined' || !window.localStorage) return false;
     window.localStorage.setItem(key, value);
     return true;
@@ -202,6 +204,7 @@ export function safeSetLocalStorage(key: string, value: string): boolean {
  */
 export function safeRemoveLocalStorage(key: string): boolean {
   try {
+    if (!key || typeof key !== 'string') return false;
     if (typeof window === 'undefined' || !window.localStorage) return false;
     window.localStorage.removeItem(key);
     return true;
