@@ -5,12 +5,12 @@ import { formatPersianDate, getLogicalTodayDate } from '../utils/dateUtils';
 import { toPersianDigits } from '../utils/numberUtils';
 import { soundFX } from '../utils/audioEffects';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
+import { buildExportPayload } from '../utils/storageUtils';
 import { 
   Database, 
   Search, 
   Filter, 
   Download, 
-  Upload, 
   RotateCcw, 
   Check, 
   X, 
@@ -41,7 +41,6 @@ interface DatabaseViewProps {
   onSelectDate: (date: string) => void;
   onOpenAutopsy: (log: DailyLog) => void;
   onResetData: () => void;
-  onImportData: (dataStr: string) => void;
   onCreateNewCycle: (title: string, startDate: string, targetTheme: string) => void;
 }
 
@@ -57,7 +56,6 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
   onSelectDate,
   onOpenAutopsy,
   onResetData,
-  onImportData,
   onCreateNewCycle
 }) => {
   const logicalToday = getLogicalTodayDate();
@@ -86,13 +84,12 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const handleExportJSON = () => {
-    const data = {
+    const data = buildExportPayload({
       cycles,
       logs,
       settings,
-      userProfile,
-      exportedAt: new Date().toISOString()
-    };
+      userProfile
+    });
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -100,19 +97,6 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
     a.download = `bushido-discipline-backup-${logicalToday}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = evt => {
-      const content = evt.target?.result as string;
-      if (content) {
-        onImportData(content);
-      }
-    };
-    reader.readAsText(file);
   };
 
   const handleCreateCycleSubmit = (e: React.FormEvent) => {
@@ -168,12 +152,6 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
               <Download className="w-3.5 h-3.5" />
               خروجی JSON
             </button>
-
-            <label className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer border border-zinc-700">
-              <Upload className="w-3.5 h-3.5" />
-              بازیابی فایل
-              <input type="file" accept=".json" onChange={handleFileImport} className="hidden" />
-            </label>
 
             <button
               onClick={onResetData}

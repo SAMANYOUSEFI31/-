@@ -14,7 +14,6 @@ import {
   clearUserLocalState,
   transitionAccountState,
   resetAccountState,
-  importAccountState,
   STORAGE_PREFIX,
   DEMO_CONSUMED_PREFIX,
   LEGACY_STORAGE_KEY,
@@ -477,76 +476,13 @@ describe('Phase 3A: Client Local Ownership & Partition Isolation Contract', () =
       assert.equal(storageMock[LEGACY_DEMO_CONSUMED_KEY], undefined);
       assert.equal(storageMock[LEGACY_STORAGE_KEY], undefined);
     });
-
-    it('Scenario 8: import while authenticated via importAccountState scopes data to active user', () => {
-      const backupJson = JSON.stringify({
-        cycles: [{ id: 'imported-cycle-1', title: 'چرخه وارداتی', startDate: '2026-09-01', endDate: '2026-11-29', targetTheme: 'amber', isArchived: false, reportRead: false, inheritedStreak: 15 }],
-        logs: [{ id: 'imported-log-1', cycleId: 'imported-cycle-1', date: '2026-09-01', wakeUp: true, workout: true, study: true, journal: true, hardTask: true, specialMission: false }],
-        settings: { id: 's', platformName: 'OS', centralEngineName: 'E', allTimeMaxStreak: 15, allTimeMaxScore: 15, allTimeMaxStandardDays: 1, nightOwlCutoffHour: 4 },
-        userProfile: { id: 'some-old-id', name: 'نام قبلی', email: '', phoneNumber: '', tier: 'free', isVip: false, isAdmin: false, activeCycleLimit: 1 }
-      });
-
-      const importRes = importAccountState(backupJson, 'user-target-auth');
-
-      assert.equal(importRes.success, true);
-      assert.ok(importRes.state);
-      assert.equal(importRes.state.userProfile.id, 'user-target-auth');
-      assert.equal(importRes.state.cycles[0].id, 'imported-cycle-1');
-      assert.equal(storageMock[getScopedDemoConsumedKey('user-target-auth')], 'true');
-
-      // Verify stored state in target partition
-      const stored = loadStoredSystemState('user-target-auth');
-      assert.equal(stored.userProfile.id, 'user-target-auth');
-      assert.equal(stored.cycles[0].id, 'imported-cycle-1');
-      assert.equal(stored.logs[0].id, 'imported-log-1');
-
-      // Old ID was neutralized: no partition was created for 'some-old-id'
-      assert.equal(storageMock[getScopedStorageKey('some-old-id')], undefined);
-    });
-
-    it('Scenario 9: import as guest via importAccountState scopes data to guest profile', () => {
-      const backupJson = JSON.stringify({
-        cycles: [{ id: 'guest-imported-cycle', title: 'چرخه مهمان وارداتی', startDate: '2026-09-01', endDate: '2026-11-29', targetTheme: 'amber', isArchived: false, reportRead: false, inheritedStreak: 4 }],
-        logs: [],
-        settings: { id: 's', platformName: 'OS', centralEngineName: 'E', allTimeMaxStreak: 4, allTimeMaxScore: 4, allTimeMaxStandardDays: 0, nightOwlCutoffHour: 4 },
-        userProfile: { id: 'random-user-id', name: 'کاربر ناشناس', email: '', phoneNumber: '', tier: 'free', isVip: false, isAdmin: false, activeCycleLimit: 1 }
-      });
-
-      const importRes = importAccountState(backupJson, null);
-
-      assert.equal(importRes.success, true);
-      assert.ok(importRes.state);
-      assert.equal(importRes.state.userProfile.id, GUEST_USER_PROFILE.id);
-      assert.equal(storageMock[getScopedDemoConsumedKey(null)], 'true');
-
-      const loadedGuest = loadStoredSystemState(null);
-      assert.equal(loadedGuest.cycles[0].id, 'guest-imported-cycle');
-      assert.equal(loadedGuest.userProfile.id, GUEST_USER_PROFILE.id);
-    });
-
-    it('Scenario 10: mismatched imported userProfile.id is neutralized to active account', () => {
-      const maliciousBackupJson = JSON.stringify({
-        cycles: [{ id: 'c-injected', title: 'چرخه تزریق شده', startDate: '2026-09-01', endDate: '2026-11-29', targetTheme: 'amber', isArchived: false, reportRead: false, inheritedStreak: 99 }],
-        logs: [],
-        settings: { id: 's', platformName: 'OS', centralEngineName: 'E', allTimeMaxStreak: 99, allTimeMaxScore: 99, allTimeMaxStandardDays: 0, nightOwlCutoffHour: 4 },
-        userProfile: { id: 'user-victim-account', name: 'اکانت قربانی', email: '', phoneNumber: '', tier: 'free', isVip: false, isAdmin: false, activeCycleLimit: 1 }
-      });
-
-      const res = importAccountState(maliciousBackupJson, 'user-current-session');
-      assert.equal(res.success, true);
-      assert.equal(res.state?.userProfile.id, 'user-current-session');
-
-      // Victim account partition was NEVER created or modified
-      assert.equal(storageMock[getScopedStorageKey('user-victim-account')], undefined);
-      assert.ok(storageMock[getScopedStorageKey('user-current-session')]);
-    });
   });
 
   // ===========================================================================
   // 4. MIGRATION, CORRUPTION, AND PRESERVATION OF UNRELATED KEYS
   // ===========================================================================
   describe('4. Legacy Migration, Corruption Resiliency, and Key Preservation', () => {
-    it('Scenario 11: legacy guest migration preserves legacy data for guest, but NOT for authenticated user', () => {
+    it('Scenario 8: legacy guest migration preserves legacy data for guest, but NOT for authenticated user', () => {
       const legacyGuestData = {
         cycles: [{ id: 'legacy-c-guest', title: 'چرخه قدیمی مهمان', startDate: '2026-08-01', endDate: '2026-10-29', targetTheme: 'amber', isArchived: false, reportRead: false, inheritedStreak: 0 }],
         logs: [],
@@ -567,7 +503,7 @@ describe('Phase 3A: Client Local Ownership & Partition Isolation Contract', () =
       assert.equal(authLoaded.userProfile.id, 'user-fresh-100');
     });
 
-    it('Scenario 12: corrupted JSON in every partition falls back safely without throwing', () => {
+    it('Scenario 9: corrupted JSON in every partition falls back safely without throwing', () => {
       // Corrupted guest partition
       storageMock[getScopedStorageKey(null)] = '{ corrupt json !@#$%';
       const guestFallback = loadStoredSystemState(null);
@@ -586,14 +522,9 @@ describe('Phase 3A: Client Local Ownership & Partition Isolation Contract', () =
       const adminFallback = loadStoredSystemState('admin-master-001');
       assert.ok(adminFallback);
       assert.equal(adminFallback.userProfile.id, 'admin-master-001');
-
-      // Corrupted JSON string in importAccountState
-      const importErr = importAccountState('NOT_A_JSON', 'user-1');
-      assert.equal(importErr.success, false);
-      assert.equal(importErr.errorMessage, 'خطا در تجزیه فایل JSON.');
     });
 
-    it('Scenario 13: operations on User A preserve unrelated users’ scoped keys 100% unaltered', () => {
+    it('Scenario 10: operations on User A preserve unrelated users’ scoped keys 100% unaltered', () => {
       const userBKey = getScopedStorageKey('user-unrelated-b');
       const userCKey = getScopedStorageKey('user-unrelated-c');
       const adminKey = getScopedStorageKey('admin-master-001');
@@ -610,10 +541,9 @@ describe('Phase 3A: Client Local Ownership & Partition Isolation Contract', () =
         userProfile: userAProfile
       };
 
-      // Perform write, reset, import, and transitions on User A
+      // Perform write, reset, and transitions on User A
       writeStateDirect(userAState, 'user-active-a');
       resetAccountState(userAProfile);
-      importAccountState(JSON.stringify(userAState), 'user-active-a');
       transitionAccountState({ currentSystemState: userAState, targetUserId: 'user-active-a', targetUserProfile: userAProfile });
 
       // Verify all unrelated storage keys remain completely untouched

@@ -53,7 +53,7 @@ import {
   normalizeUserId,
   transitionAccountState,
   resetAccountState,
-  importAccountState,
+  buildExportPayload,
   safeGetLocalStorage,
   safeSetLocalStorage,
   safeRemoveLocalStorage,
@@ -139,7 +139,6 @@ export interface BushidoContextType {
   syncOfflineDataToServer: () => Promise<void>;
   exportData: () => void;
   confirmResetData: () => void;
-  importData: (jsonStr: string) => void;
 
   // Direct Helper Shortcuts
   toggleHabit: (date: string, habitKey: HabitKey) => Promise<void>;
@@ -937,13 +936,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [systemState.logs, activeCycleId, updateLog, showAppToast]);
 
   const exportData = useCallback(() => {
-    const data = {
-      cycles: systemState.cycles,
-      logs: systemState.logs,
-      settings: systemState.settings,
-      userProfile: systemState.userProfile,
-      exportedAt: new Date().toISOString()
-    };
+    const data = buildExportPayload(systemState);
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -961,17 +954,6 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     setIsResetConfirmOpen(false);
     showAppToast('داده‌های سامانه با موفقیت به مقادیر اولیه بوشیدو بازنشانی شد.');
   }, [showAppToast, systemState.userProfile]);
-
-  const importData = useCallback((dataStr: string) => {
-    const result = importAccountState(dataStr, systemState.userProfile?.id);
-    if (result.success && result.state) {
-      setSystemState(result.state);
-      setActiveCycleId(result.activeCycleId || result.state.cycles[0]?.id || 'cycle-1');
-      showAppToast('اطلاعات پشتیبان با موفقیت بازیابی شد.');
-    } else {
-      showAppToast(result.errorMessage || 'خطا در بازیابی داده‌ها.');
-    }
-  }, [showAppToast, systemState.userProfile?.id]);
 
   const handleAuthSuccess = useCallback((token: string, user: UserProfile) => {
     safeRemoveSessionStorage('bushido_explicit_logout');
@@ -1275,7 +1257,6 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
     syncOfflineDataToServer,
     exportData,
     confirmResetData,
-    importData,
 
     toggleHabit,
     submitAutopsy,

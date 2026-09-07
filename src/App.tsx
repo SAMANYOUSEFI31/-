@@ -27,7 +27,7 @@ import {
   normalizeUserId,
   transitionAccountState,
   resetAccountState,
-  importAccountState,
+  buildExportPayload,
   safeGetLocalStorage,
   safeSetLocalStorage,
   safeRemoveLocalStorage,
@@ -1183,13 +1183,7 @@ export default function App() {
   }, []);
 
   const handleExportData = () => {
-    const data = {
-      cycles: systemState.cycles,
-      logs: systemState.logs,
-      settings: systemState.settings,
-      userProfile: systemState.userProfile,
-      exportedAt: new Date().toISOString()
-    };
+    const data = buildExportPayload(systemState);
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1210,17 +1204,6 @@ export default function App() {
     setSelectedDate(getLogicalTodayDate());
     setIsResetConfirmOpen(false);
     showAppToast('داده‌های سامانه با موفقیت به مقادیر اولیه بوشیدو بازنشانی شد.');
-  };
-
-  const handleImportData = (dataStr: string) => {
-    const result = importAccountState(dataStr, systemState.userProfile?.id);
-    if (result.success && result.state) {
-      setSystemState(result.state);
-      setActiveCycleId(result.activeCycleId || result.state.cycles[0]?.id || 'cycle-1');
-      showAppToast('اطلاعات پشتیبان با موفقیت بازیابی شد.');
-    } else {
-      showAppToast(result.errorMessage || 'خطا در بازیابی داده‌ها.', 'error');
-    }
   };
 
   const handleAuthSuccess = (token: string, user: UserProfile) => {
@@ -1601,7 +1584,6 @@ export default function App() {
                     onQuickLogin={handleQuickLogin}
                     onLogout={handleLogout}
                     onResetData={handleResetData}
-                    onImportData={handleImportData}
                     onExportData={handleExportData}
                     onNavigateToAdmin={() => setActiveTab('admin')}
                   />

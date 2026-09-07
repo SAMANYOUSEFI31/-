@@ -13,7 +13,6 @@ import {
   Crown, 
   ShieldCheck, 
   Download, 
-  Upload, 
   RotateCcw, 
   Check, 
   LogIn, 
@@ -52,7 +51,6 @@ interface ProfileSettingsViewProps {
   onQuickLogin?: (role: 'admin' | 'test_user') => void;
   onLogout: () => void;
   onResetData: () => void;
-  onImportData: (jsonStr: string) => void;
   onExportData: () => void;
   onNavigateToAdmin: () => void;
 }
@@ -77,7 +75,6 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
   onQuickLogin,
   onLogout,
   onResetData,
-  onImportData,
   onExportData,
   onNavigateToAdmin
 }) => {
@@ -88,8 +85,6 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
   const [expandedHabitKey, setExpandedHabitKey] = useState<HabitKey | null>('wakeUp');
 
   useBodyScrollLock(isConfirmResetOpen);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const themeConfig = BUSHIDO_CRIMSON_THEME;
   const currentCutoff = userProfile.nightOwlCutoffHour ?? settings.nightOwlCutoffHour ?? 4;
@@ -158,24 +153,6 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
     onUpdateUserProfile(updatedProfile);
     onUpdateSettings(updatedSettings);
     showNotice(`مهلت پایانی شبانه روی ساعت ${toPersianDigits(hour)}:۰۰ بامداد تنظیم شد.`);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = event => {
-      const content = event.target?.result as string;
-      if (content) {
-        onImportData(content);
-        showNotice('پایگاه داده بوشیدو با موفقیت بازیابی شد.');
-      }
-    };
-    reader.readAsText(file);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
   };
 
   const isLoggedIn = !!userProfile.id && userProfile.id !== 'guest' && !!(userProfile.phoneNumber || userProfile.email);
@@ -425,7 +402,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                       تنظیمات و پیکربندی سامانه
                     </h3>
                     <p className="text-[11px] sm:text-xs text-zinc-400 mt-0.5 leading-relaxed">
-                      شخصی‌سازی مهلت کات‌آف شبانه، نسخه پشتیبان فایل و نگهداری پایگاه داده
+                      شخصی‌سازی مهلت کات‌آف شبانه، خروجی داده‌ها و نگهداری پایگاه داده
                     </p>
                   </div>
                 </div>
@@ -468,7 +445,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                   </div>
                 </div>
 
-                {/* Sub-Card 2: Backup & Database Vault */}
+                {/* Sub-Card 2: Data Export & Backup Vault */}
                 <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-4 sm:p-5 space-y-3.5">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0">
@@ -476,22 +453,22 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                     </div>
                     <div>
                       <h4 className="text-xs sm:text-sm font-bold text-zinc-200">
-                        پشتیبان‌گیری و بازیابی پایگاه داده
+                        خروجی و نگهداری داده‌ها
                       </h4>
                       <p className="text-[11px] text-zinc-400 mt-0.5">
-                        خروجی استاندارد JSON برای حفظ داده‌ها در حافظه آفلاین
+                        دریافت خروجی استاندارد JSON برای نگهداری نسخه شخصی و انتقال داده‌ها
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="grid grid-cols-1 gap-3 pt-1">
                     {/* Export JSON Card */}
                     <button
                       type="button"
                       onClick={() => {
                         soundFX.playCheck();
                         onExportData();
-                        showNotice('فایل پشتیبان داده‌های بوشیدو ذخیره شد.');
+                        showNotice('فایل خروجی داده‌های شخصی بوشیدو ذخیره شد.');
                       }}
                       className="bg-zinc-800/50 hover:bg-zinc-800/80 border border-zinc-750/70 hover:border-zinc-700 text-zinc-200 p-3.5 rounded-xl flex items-start gap-3 text-right transition cursor-pointer active:scale-[0.98] group"
                     >
@@ -499,32 +476,12 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                         <Download className="w-4 h-4" />
                       </div>
                       <div className="space-y-0.5 min-w-0 flex-1">
-                        <span className="font-bold text-xs sm:text-sm text-zinc-100 block">خروجی پشتیبان (JSON)</span>
+                        <span className="font-bold text-xs sm:text-sm text-zinc-100 block">دریافت خروجی داده‌ها (JSON)</span>
                         <p className="text-[11px] text-zinc-400 leading-relaxed text-right">
-                          دریافت نسخه کامل چرخه‌ها و لاگ‌ها
+                          دریافت خروجی JSON از داده‌های شخصی، چرخه‌ها و لاگ‌های نبرد
                         </p>
                       </div>
                     </button>
-
-                    {/* Import JSON Card */}
-                    <label className="bg-zinc-800/50 hover:bg-zinc-800/80 border border-zinc-750/70 hover:border-zinc-700 text-zinc-200 p-3.5 rounded-xl flex items-start gap-3 text-right transition cursor-pointer active:scale-[0.98] group">
-                      <div className="w-9 h-9 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 group-hover:text-zinc-100 transition shrink-0">
-                        <Upload className="w-4 h-4" />
-                      </div>
-                      <div className="space-y-0.5 min-w-0 flex-1">
-                        <span className="font-bold text-xs sm:text-sm text-zinc-100 block">بازیابی نسخه پشتیبان</span>
-                        <p className="text-[11px] text-zinc-400 leading-relaxed text-right">
-                          بارگذاری فایل JSON و بازیابی
-                        </p>
-                      </div>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        accept=".json"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                    </label>
                   </div>
                 </div>
 

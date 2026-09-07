@@ -1,4 +1,4 @@
-import { SystemState, Cycle, DailyLog, UserProfile } from '../types';
+import { SystemState, Cycle, DailyLog, UserProfile, SystemSettings, AccentTheme } from '../types';
 import { createInitialSystemState, createEmptySystemState, GUEST_USER_PROFILE } from '../data/initialData';
 import { clearOfflineQueue } from './offlineQueueUtils';
 import {
@@ -428,99 +428,110 @@ export function resetAccountState(currentUserProfile?: UserProfile | null): { fr
   return { freshState, activeCycleId };
 }
 
-export interface ImportStateResult {
-  success: boolean;
-  state?: SystemState;
-  activeCycleId?: string;
-  errorMessage?: string;
+export interface ExportProfileDto {
+  name: string;
+  nightOwlCutoffHour?: number;
+  accentTheme?: string;
+}
+
+export interface ExportBackupDto {
+  cycles: Cycle[];
+  logs: DailyLog[];
+  settings: SystemSettings;
+  userProfile: ExportProfileDto;
+  exportedAt: string;
 }
 
 /**
- * Validates, sanitizes, and imports system state from a JSON string under the active user's ownership.
- * Guarantees that:
- * 1. Imported data is scoped strictly to the current active user (overwriting/correcting userProfile.id).
- * 2. Mismatched userProfile.id in imported JSON is neutralized and bound to the current user (or guest).
- * 3. Scoped demo-consumed flag is marked true so demo seed is not resurrected.
- * 4. Stale pending debounced writes are canceled and imported state is written to storage.
+ * Builds a privacy-safe, narrowly scoped JSON export payload.
+ * Strictly excludes internal and security-relevant Profile fields such as
+ * isAdmin, tokenVersion, paymentRefId, email, phoneNumber, vipSince, etc.
+ * Does not export session data, tokens, offline queue, or quarantine items.
  */
-export function importAccountState(dataStr: string, currentUserId?: string | null): ImportStateResult {
-  try {
-    const parsed = JSON.parse(dataStr);
-    if (
-      !parsed ||
-      typeof parsed !== 'object' ||
-      !Array.isArray(parsed.cycles) ||
-      !Array.isArray(parsed.logs) ||
-      !parsed.settings ||
-      typeof parsed.settings !== 'object'
-    ) {
-      return { success: false, errorMessage: 'فرمت فایل پشتیبان معتبر نیست.' };
-    }
+export function buildExportPayload(state: SystemState): ExportBackupDto {
+  const safeProfile: ExportProfileDto = {
+    name: state.userProfile?.name || 'کاربر سامورایی'
+  };
 
-    const ownerId = normalizeUserId(currentUserId);
-
-    // Mismatched userProfile.id in imported JSON must never transfer ownership or leak across accounts
-    if (!parsed.userProfile || typeof parsed.userProfile !== 'object') {
-      parsed.userProfile = ownerId
-        ? { ...GUEST_USER_PROFILE, id: ownerId, name: 'کاربر سامورایی' }
-        : createInitialSystemState().userProfile;
-    } else if (ownerId) {
-      parsed.userProfile.id = ownerId;
-    } else {
-      parsed.userProfile.id = GUEST_USER_PROFILE.id;
-    }
-
-    parsed.cycles = parsed.cycles
-      .filter((c: any) => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.startDate === 'string')
-      .map((c: any) => ({
-        ...c,
-        isSynced: c.isSynced !== undefined ? Boolean(c.isSynced) : false
-      }));
-
-    parsed.logs = parsed.logs
-      .filter((l: any) => l && typeof l === 'object' && typeof l.date === 'string')
-      .map((l: any) => ({
-        ...l,
-        isSynced: l.isSynced !== undefined ? Boolean(l.isSynced) : false
-      }));
-
-    if (parsed.cycles.length === 0) {
-      return { success: false, errorMessage: 'حداقل یک نبرد در فایل پشتیبان الزامی است.' };
-    }
-
-    // Cancel any pending debounced writes and persist the imported state directly
-    cancelPendingStorageSave();
-    const scopedDemoKey = getScopedDemoConsumedKey(ownerId);
-    safeSetLocalStorage(scopedDemoKey, 'true');
-    writeStateDirect(parsed, ownerId);
-
-    const activeCycleId = parsed.cycles[0].id;
-    return {
-      success: true,
-      state: parsed as SystemState,
-      activeCycleId
-    };
-  } catch {
-    return { success: false, errorMessage: 'خطا در تجزیه فایل JSON.' };
+  if (
+    typeof state.userProfile?.nightOwlCutoffHour === 'number' &&
+    Number.isInteger(state.userProfile.nightOwlCutoffHour) &&
+    state.userProfile.nightOwlCutoffHour >= 0 &&
+    state.userProfile.nightOwlCutoffHour <= 23
+  ) {
+    safeProfile.nightOwlCutoffHour = state.userProfile.nightOwlCutoffHour;
   }
+
+  if (
+    typeof state.userProfile?.accentTheme === 'string' &&
+    ['amber', 'emerald', 'crimson', 'cyan'].includes(state.userProfile.accentTheme)
+  ) {
+    safeProfile.accentTheme = state.userProfile.accentTheme;
+  }
+
+  return {
+    cycles: Array.isArray(state.cycles) ? state.cycles : [],
+    logs: Array.isArray(state.logs) ? state.logs : [],
+    settings: state.settings,
+    userProfile: safeProfile,
+    exportedAt: new Date().toISOString()
+  };
 }
 
 /**
- * Sanitizes and validates a parsed raw JSON object into a structurally sound SystemState
+ * Sanitizes and validates a parsed raw JSON object into a structurally sound SystemState.
+ * Protects security boundaries against tampered Local Storage by strictly keeping
+ * Server-authoritative / security-relevant fields on the trusted defaultProfile,
+ * and only overlaying explicitly allowed local profile preferences (name, accentTheme, nightOwlCutoffHour).
  */
-function sanitizeSystemState(
+export function sanitizeSystemState(
   parsed: any, 
   fallbackState: SystemState, 
   defaultProfile: UserProfile
 ): SystemState {
   const result = { ...fallbackState };
 
-  // 1. User Profile Protection
+  // 1. User Profile Protection & Allow-List Policy
   if (parsed.userProfile && typeof parsed.userProfile === 'object') {
-    result.userProfile = {
-      ...defaultProfile,
-      ...parsed.userProfile
+    const raw = parsed.userProfile;
+    const sanitizedProfile: UserProfile = {
+      ...defaultProfile
     };
+
+    // Explicit allowlist for local-editable presentation fields:
+    if (typeof raw.name === 'string' && raw.name.trim().length > 0) {
+      sanitizedProfile.name = raw.name.trim().slice(0, 80);
+    }
+
+    if (
+      typeof raw.nightOwlCutoffHour === 'number' &&
+      Number.isInteger(raw.nightOwlCutoffHour) &&
+      raw.nightOwlCutoffHour >= 0 &&
+      raw.nightOwlCutoffHour <= 23
+    ) {
+      sanitizedProfile.nightOwlCutoffHour = raw.nightOwlCutoffHour;
+    }
+
+    if (
+      typeof raw.accentTheme === 'string' &&
+      ['amber', 'emerald', 'crimson', 'cyan'].includes(raw.accentTheme)
+    ) {
+      sanitizedProfile.accentTheme = raw.accentTheme as AccentTheme;
+    }
+
+    // Explicitly enforce server-authoritative / security-relevant fields from trusted defaultProfile
+    sanitizedProfile.id = defaultProfile.id;
+    sanitizedProfile.isAdmin = Boolean(defaultProfile.isAdmin);
+    sanitizedProfile.isVip = Boolean(defaultProfile.isVip);
+    sanitizedProfile.tier = defaultProfile.tier || 'free';
+    sanitizedProfile.activeCycleLimit = typeof defaultProfile.activeCycleLimit === 'number' ? defaultProfile.activeCycleLimit : 1;
+    sanitizedProfile.vipSince = defaultProfile.vipSince;
+    sanitizedProfile.vipExpiresAt = defaultProfile.vipExpiresAt;
+    sanitizedProfile.paymentRefId = defaultProfile.paymentRefId;
+    sanitizedProfile.email = defaultProfile.email;
+    sanitizedProfile.phoneNumber = defaultProfile.phoneNumber;
+
+    result.userProfile = sanitizedProfile;
   } else {
     result.userProfile = defaultProfile;
   }
