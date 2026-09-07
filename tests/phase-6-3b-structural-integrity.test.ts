@@ -290,11 +290,48 @@ describe('Phase 6.3B: Structural State Integrity and Corruption Recovery', () =>
       const result2 = recoverSystemState(raw, fallback, baseUser);
 
       assert.deepEqual(result1.state, result2.state);
-      assert.deepEqual(result1.recovery, result2.recovery);
+      const { timestamp: _t1, ...detRecovery1 } = result1.recovery;
+      const { timestamp: _t2, ...detRecovery2 } = result2.recovery;
+      assert.deepEqual(detRecovery1, detRecovery2);
+      assert.equal(typeof result1.recovery.timestamp, 'number');
+      assert.equal(typeof result2.recovery.timestamp, 'number');
+    });
+
+    it('preserves existing valid createdAt and does not synthesize timestamps for missing createdAt', () => {
+      const fallback = createEmptySystemState(baseUser);
+      const logWithCreatedAt: DailyLog = {
+        ...validLog1,
+        id: 'log-with-created',
+        date: '2026-09-01',
+        createdAt: '2026-09-01T12:00:00.000Z'
+      };
+      const logWithoutCreatedAt = {
+        id: 'log-without-created',
+        cycleId: 'cycle-1',
+        date: '2026-09-02',
+        wakeUp: true,
+        workout: true,
+        study: true,
+        journal: true,
+        hardTask: true,
+        specialMission: false
+      };
+
+      const { state } = recoverSystemState(
+        { cycles: [validCycle1], logs: [logWithCreatedAt, logWithoutCreatedAt] },
+        fallback,
+        baseUser
+      );
+
+      assert.equal(state.logs.length, 2);
+      // Valid createdAt preserved
+      assert.equal(state.logs[0].createdAt, '2026-09-01T12:00:00.000Z');
+      // Missing createdAt remains undefined and is not synthesized with current timestamp
+      assert.equal(state.logs[1].createdAt, undefined);
     });
   });
 
-  describe('5. Corrupted Raw JSON & Storage Partition Recovery', () => {
+  describe('5. Corrupted Raw JSON, Invalid Roots & Storage Partition Recovery', () => {
     it('clears unparseable JSON from storage and falls back safely without throwing', () => {
       const userKey = getScopedStorageKey('user-corrupted-99');
       storageMock[userKey] = '{ corrupted unparseable JSON #$%@! ';
@@ -316,6 +353,106 @@ describe('Phase 6.3B: Structural State Integrity and Corruption Recovery', () =>
       // On next load, storage is clean and does not attempt parsing invalid JSON
       const nextLoaded = loadStoredSystemState('user-corrupted-99');
       assert.equal(nextLoaded.userProfile.id, 'user-corrupted-99');
+    });
+
+    it('clears parseable non-object JSON roots (null, [], string, number, boolean) and records metadata', () => {
+      const invalidRoots = ['null', '[]', '"some-string-root"', '42', 'true', 'false'];
+
+      for (const rawVal of invalidRoots) {
+        const userId = `user-invalid-${Math.random().toString(36).slice(2, 7)}`;
+        const userKey = getScopedStorageKey(userId);
+        const otherUserKey = getScopedStorageKey('other-user-safe');
+        storageMock[userKey] = rawVal;
+        storageMock[otherUserKey] = JSON.stringify({ cycles: [validCycle1], logs: [] });
+
+        const loaded = loadStoredSystemState(userId);
+        assert.ok(loaded);
+        assert.equal(loaded.userProfile.id, userId);
+        assert.equal(loaded.cycles.length, 0);
+
+        // Active key cleared
+        assert.equal(storageMock[userKey], undefined, `Invalid root ${rawVal} must be cleared from storage`);
+
+        // Other partition remains untouched
+        assert.ok(storageMock[otherUserKey]);
+
+        // Recovery metadata written safely
+        const recovery = getStoredStateRecoveryMetadata(userId);
+        assert.ok(recovery);
+        assert.equal(recovery.usedFallback, true);
+        assert.equal(recovery.corruptedRawCleared, true);
+      }
+    });
+
+    it('clears parseable non-object roots in guest partition respecting demo-consumed state', () => {
+      const guestKey = getScopedStorageKey(null);
+      const demoConsumedKey = getScopedDemoConsumedKey(null);
+
+      // Guest root is [] with demo consumed = false -> initial demo state
+      storageMock[guestKey] = '[]';
+      delete storageMock[demoConsumedKey];
+      const initialGuest = loadStoredSystemState(null);
+      assert.equal(initialGuest.cycles.length, 1);
+      assert.equal(initialGuest.logs.length, 25);
+      assert.equal(storageMock[guestKey], undefined);
+
+      // Guest root is null with demo consumed = true -> empty state
+      storageMock[guestKey] = 'null';
+      storageMock[demoConsumedKey] = 'true';
+      const emptyGuest = loadStoredSystemState(null);
+      assert.equal(emptyGuest.cycles.length, 0);
+      assert.equal(emptyGuest.logs.length, 0);
+      assert.equal(storageMock[guestKey], undefined);
+    });
+
+    it('clears authenticated storage when embedded userProfile.id belongs to another owner and stores privacy-safe metadata', () => {
+      const requestedUserId = 'user-alice-100';
+      const mismatchedUserId = 'user-bob-200';
+      const aliceKey = getScopedStorageKey(requestedUserId);
+      const bobKey = getScopedStorageKey(mismatchedUserId);
+
+      // Alice's storage key contains Bob's data
+      storageMock[aliceKey] = JSON.stringify({
+        userProfile: {
+          id: mismatchedUserId,
+          name: 'Bob the Builder'
+        },
+        cycles: [validCycle1],
+        logs: [validLog1]
+      });
+
+      // Bob's real storage key
+      storageMock[bobKey] = JSON.stringify({
+        userProfile: {
+          id: mismatchedUserId,
+          name: 'Bob the Builder'
+        },
+        cycles: [validCycle2],
+        logs: []
+      });
+
+      const loadedAlice = loadStoredSystemState(requestedUserId);
+      // Fallback returned for Alice
+      assert.equal(loadedAlice.userProfile.id, requestedUserId);
+      assert.equal(loadedAlice.cycles.length, 0);
+
+      // Alice's key cleared
+      assert.equal(storageMock[aliceKey], undefined, "Alice's key with mismatched owner must be cleared");
+
+      // Bob's key completely untouched
+      assert.ok(storageMock[bobKey]);
+      const bobParsed = JSON.parse(storageMock[bobKey]);
+      assert.equal(bobParsed.userProfile.id, mismatchedUserId);
+      assert.equal(bobParsed.cycles.length, 1);
+
+      // Recovery metadata stored for Alice contains only aggregate safe fields
+      const recovery = getStoredStateRecoveryMetadata(requestedUserId);
+      assert.ok(recovery);
+      assert.equal(recovery.usedFallback, true);
+      assert.equal(recovery.corruptedRawCleared, true);
+      // Ensure no foreign IDs leaked into recovery metadata
+      assert.equal((recovery as any).mismatchedUserId, undefined);
+      assert.equal((recovery as any).foreignId, undefined);
     });
 
     it('handles guest partition corrupted JSON respecting demo-consumed state', () => {

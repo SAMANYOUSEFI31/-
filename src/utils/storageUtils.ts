@@ -297,18 +297,36 @@ export function loadStoredSystemState(userId?: string | null): SystemState {
           return guestFallback;
         }
 
-        if (parsed && typeof parsed === 'object') {
-          const { state: sanitized, recovery } = recoverSystemState(parsed, guestFallback, GUEST_USER_PROFILE);
-          sanitized.userProfile.id = GUEST_USER_PROFILE.id;
-          if (recovery.discardedCycleCount > 0 || recovery.discardedLogCount > 0 || recovery.duplicateCount > 0 || recovery.orphanCount > 0) {
-            saveRecoveryMetadata(null, recovery);
-            safeSetLocalStorage(scopedKey, JSON.stringify(sanitized));
-            if (isFromLegacy) {
-              safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
-            }
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          console.warn('[Bushido Storage] Invalid root structure in guest partition, clearing and falling back safely');
+          safeRemoveLocalStorage(scopedKey);
+          if (isFromLegacy) {
+            safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
           }
-          return sanitized;
+          saveRecoveryMetadata(null, {
+            recoveredCycleCount: guestFallback.cycles.length,
+            discardedCycleCount: 0,
+            recoveredLogCount: guestFallback.logs.length,
+            discardedLogCount: 0,
+            duplicateCount: 0,
+            orphanCount: 0,
+            usedFallback: true,
+            corruptedRawCleared: true,
+            timestamp: Date.now()
+          });
+          return guestFallback;
         }
+
+        const { state: sanitized, recovery } = recoverSystemState(parsed, guestFallback, GUEST_USER_PROFILE);
+        sanitized.userProfile.id = GUEST_USER_PROFILE.id;
+        if (recovery.discardedCycleCount > 0 || recovery.discardedLogCount > 0 || recovery.duplicateCount > 0 || recovery.orphanCount > 0) {
+          saveRecoveryMetadata(null, recovery);
+          safeSetLocalStorage(scopedKey, JSON.stringify(sanitized));
+          if (isFromLegacy) {
+            safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
+          }
+        }
+        return sanitized;
       }
     } catch (e) {
       console.warn('[Bushido Storage] Failed to load guest state from localStorage, initializing fresh:', e);
@@ -368,23 +386,56 @@ export function loadStoredSystemState(userId?: string | null): SystemState {
         return authFallback;
       }
 
-      if (parsed && typeof parsed === 'object') {
-        // Strict boundary: A mismatched userProfile.id in stored JSON must never transfer Cycles or DailyLogs into another authenticated account
-        if (parsed.userProfile?.id && parsed.userProfile.id !== normId && parsed.userProfile.id !== GUEST_USER_PROFILE.id) {
-          console.warn(`[Bushido Storage] Rejecting mismatched user state (expected ${normId}, found ${parsed.userProfile.id})`);
-          return authFallback;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        console.warn(`[Bushido Storage] Invalid root structure in user partition (${normId}), clearing and falling back safely`);
+        safeRemoveLocalStorage(scopedKey);
+        if (isFromLegacy) {
+          safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
         }
-        const { state: sanitized, recovery } = recoverSystemState(parsed, authFallback, authFallbackUser);
-        sanitized.userProfile.id = normId;
-        if (recovery.discardedCycleCount > 0 || recovery.discardedLogCount > 0 || recovery.duplicateCount > 0 || recovery.orphanCount > 0) {
-          saveRecoveryMetadata(normId, recovery);
-          safeSetLocalStorage(scopedKey, JSON.stringify(sanitized));
-          if (isFromLegacy) {
-            safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
-          }
-        }
-        return sanitized;
+        saveRecoveryMetadata(normId, {
+          recoveredCycleCount: authFallback.cycles.length,
+          discardedCycleCount: 0,
+          recoveredLogCount: authFallback.logs.length,
+          discardedLogCount: 0,
+          duplicateCount: 0,
+          orphanCount: 0,
+          usedFallback: true,
+          corruptedRawCleared: true,
+          timestamp: Date.now()
+        });
+        return authFallback;
       }
+
+      // Strict boundary: A mismatched userProfile.id in stored JSON must never transfer Cycles or DailyLogs into another authenticated account
+      if (parsed.userProfile?.id && parsed.userProfile.id !== normId && parsed.userProfile.id !== GUEST_USER_PROFILE.id) {
+        console.warn(`[Bushido Storage] Rejecting and clearing mismatched user state (expected ${normId})`);
+        safeRemoveLocalStorage(scopedKey);
+        if (isFromLegacy) {
+          safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
+        }
+        saveRecoveryMetadata(normId, {
+          recoveredCycleCount: authFallback.cycles.length,
+          discardedCycleCount: 0,
+          recoveredLogCount: authFallback.logs.length,
+          discardedLogCount: 0,
+          duplicateCount: 0,
+          orphanCount: 0,
+          usedFallback: true,
+          corruptedRawCleared: true,
+          timestamp: Date.now()
+        });
+        return authFallback;
+      }
+      const { state: sanitized, recovery } = recoverSystemState(parsed, authFallback, authFallbackUser);
+      sanitized.userProfile.id = normId;
+      if (recovery.discardedCycleCount > 0 || recovery.discardedLogCount > 0 || recovery.duplicateCount > 0 || recovery.orphanCount > 0) {
+        saveRecoveryMetadata(normId, recovery);
+        safeSetLocalStorage(scopedKey, JSON.stringify(sanitized));
+        if (isFromLegacy) {
+          safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
+        }
+      }
+      return sanitized;
     }
   } catch (e) {
     console.warn(`[Bushido Storage] Failed to load state for user ${normId}:`, e);
@@ -800,7 +851,6 @@ export function recoverSystemState(
         id: rawLog.id.trim(),
         cycleId,
         date,
-        createdAt: typeof rawLog.createdAt === 'string' && rawLog.createdAt.trim().length > 0 ? rawLog.createdAt : new Date().toISOString(),
         wakeUp: Boolean(rawLog.wakeUp),
         workout: Boolean(rawLog.workout),
         study: Boolean(rawLog.study),
@@ -810,6 +860,12 @@ export function recoverSystemState(
         isSynced: rawLog.isSynced !== undefined ? Boolean(rawLog.isSynced) : false,
         revision: typeof rawLog.revision === 'number' && Number.isInteger(rawLog.revision) && rawLog.revision > 0 ? rawLog.revision : undefined
       };
+
+      if (typeof rawLog.createdAt === 'string' && rawLog.createdAt.trim().length > 0) {
+        sanitizedLog.createdAt = rawLog.createdAt;
+      } else {
+        delete (sanitizedLog as any).createdAt;
+      }
 
       // 3.3 Duplicate Policy: Logical identity in product and database contract is `date`
       const logicalKey = date;
