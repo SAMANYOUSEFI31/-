@@ -314,6 +314,7 @@ export interface OfflineQueueItem {
   dedupKey?: string;
   inFlight?: boolean;
   persisted?: boolean;
+  parentOperationId?: string;
 }
 
 export type ConflictType = 'CONCURRENCY_CONFLICT' | 'PRECONDITION_REQUIRED';

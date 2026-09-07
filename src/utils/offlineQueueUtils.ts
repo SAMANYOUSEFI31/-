@@ -771,6 +771,11 @@ export function enqueueOfflineMutation(
       )) return false;
       return true;
     });
+
+    if (isCreateInFlight && pendingCreate) {
+      newItem.parentOperationId = pendingCreate.id;
+    }
+
     filteredQueue.push(newItem);
     const persisted = saveOfflineQueue(normOwner, filteredQueue);
     return { ...newItem, persisted };
@@ -2472,8 +2477,12 @@ async function executeReplayLoop(
 
       // Branch 3: FORBIDDEN (403) -> Stops replay, marks item as action-required/quarantine
       if (classification === 'FORBIDDEN') {
+        const dependentDeletes = getOfflineQueue(initialOwner).filter(qItem =>
+          qItem.type === 'DELETE_CYCLE' && qItem.parentOperationId === item.id
+        ).map(qItem => qItem.id);
+
         quarantineQueueItems([{ ...item, classification: 'FORBIDDEN' }], 'HTTP 403 Forbidden - permission denied', initialOwner);
-        removeReplayedQueueItems(initialOwner, [item.id]);
+        removeReplayedQueueItems(initialOwner, [item.id, ...dependentDeletes]);
         failedCount++;
         options.onItemFailure?.(item, new Error('HTTP 403 Forbidden'));
         return {
@@ -2577,8 +2586,12 @@ async function executeReplayLoop(
 
       // Branch 5: VALIDATION_ERROR (400, 422) -> Non-retryable validation failures quarantined immediately
       if (classification === 'VALIDATION_ERROR') {
+        const dependentDeletes = getOfflineQueue(initialOwner).filter(qItem =>
+          qItem.type === 'DELETE_CYCLE' && qItem.parentOperationId === item.id
+        ).map(qItem => qItem.id);
+
         quarantineQueueItems([{ ...item, classification: 'VALIDATION_ERROR' }], `HTTP ${res.status} Validation Error`, initialOwner);
-        removeReplayedQueueItems(initialOwner, [item.id]);
+        removeReplayedQueueItems(initialOwner, [item.id, ...dependentDeletes]);
         failedCount++;
         options.onItemFailure?.(item, new Error(`HTTP ${res.status} Validation Error`));
         continue;

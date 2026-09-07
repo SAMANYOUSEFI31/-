@@ -20,7 +20,9 @@ import {
   clearClientConflicts,
   markQueueItemInFlight,
   isQueueItemInFlight,
-  replayAccountOfflineQueue
+  replayAccountOfflineQueue,
+  getQuarantinedItems,
+  clearQuarantine
 } from '../src/utils/offlineQueueUtils.js';
 import { Cycle } from '../src/types.js';
 
@@ -726,23 +728,26 @@ test('Phase 6.1B Cycle Mutation Reliability & Lifecycle Contracts', async (t) =>
   // =========================================================================
   // SCENARIO 19: In-Flight CREATE_CYCLE Compaction Protection
   // =========================================================================
-  await t.test('Scenario 19: In-flight CREATE_CYCLE is protected from compaction when duplicate create occurs', async () => {
+  await t.test('Scenario 19: Duplicate direct CREATE_CYCLE dispatch is guarded; resolves to newer UPDATE_CYCLE', async () => {
     let resolveFetch: (val: any) => void;
     const fetchPromise = new Promise(resolve => { resolveFetch = resolve; });
+    let fetchCount = 0;
 
     const mockFetch = (async () => {
+      fetchCount++;
       await fetchPromise;
       return {
         ok: true,
         status: 201,
         json: async () => ({
-          cycle: { ...baseCycle, id: 'cycle_create_inflight', revision: 1 }
+          cycle: { ...baseCycle, id: 'cycle_create_inflight', revision: 1, title: 'عنوان اولیه' }
         })
       };
     }) as any;
 
     const newCycle: Cycle = { ...baseCycle, id: 'cycle_create_inflight', title: 'عنوان اولیه' };
 
+    // 1. Start executeDirectCreateCycleMutation
     const create1Promise = executeDirectCreateCycleMutation({
       newCycle,
       ownerId: userId,
@@ -756,22 +761,57 @@ test('Phase 6.1B Cycle Mutation Reliability & Lifecycle Contracts', async (t) =>
     assert.equal(queue1.length, 1);
     const item1Id = queue1[0].id;
     assert.equal(isQueueItemInFlight(userId, item1Id), true);
+    assert.equal(fetchCount, 1);
 
-    // Repeated create mutation while item 1 is in-flight
-    const duplicateMutation = enqueueOfflineMutation(userId, {
-      type: 'CREATE_CYCLE',
-      payload: { ...newCycle, title: 'عنوان تکراری' },
-      expectedRevision: undefined
+    // 2. Call executeDirectCreateCycleMutation again for same Cycle ID
+    const newCycle2: Cycle = { ...baseCycle, id: 'cycle_create_inflight', title: 'عنوان دوم' };
+    const create2Result = await executeDirectCreateCycleMutation({
+      newCycle: newCycle2,
+      ownerId: userId,
+      authToken: 'valid_token',
+      fetchFn: mockFetch
     });
 
-    const queue2 = getOfflineQueue(userId);
-    // In-flight item 1 must NOT be overwritten!
-    const inFlightItem = queue2.find(item => item.id === item1Id);
-    assert.ok(inFlightItem, 'In-flight item must still exist');
-    assert.equal(inFlightItem.payload.title, 'عنوان اولیه', 'In-flight payload must NOT be overwritten');
+    assert.equal(create2Result.status, 'QUEUED_OFFLINE');
+    assert.equal(fetchCount, 1, 'Duplicate network request must not be dispatched');
 
+    const queue2 = getOfflineQueue(userId);
+    assert.equal(queue2.length, 2);
+    assert.equal(queue2[0].id, item1Id);
+    assert.equal(queue2[0].payload.title, 'عنوان اولیه');
+    assert.equal(queue2[1].type, 'CREATE_CYCLE');
+    assert.equal(queue2[1].payload.title, 'عنوان دوم');
+    assert.equal(isQueueItemInFlight(userId, queue2[1].id), false);
+
+    // 3. Issue third same-Cycle Create intent
+    const newCycle3: Cycle = { ...baseCycle, id: 'cycle_create_inflight', title: 'عنوان سوم' };
+    const create3Result = await executeDirectCreateCycleMutation({
+      newCycle: newCycle3,
+      ownerId: userId,
+      authToken: 'valid_token',
+      fetchFn: mockFetch
+    });
+
+    assert.equal(create3Result.status, 'QUEUED_OFFLINE');
+    assert.equal(fetchCount, 1);
+
+    const queue3 = getOfflineQueue(userId);
+    assert.equal(queue3.length, 2, 'Must compact into at most two intents');
+    assert.equal(queue3[0].id, item1Id);
+    assert.equal(queue3[1].payload.title, 'عنوان سوم', 'Must contain newest meaningful payload');
+
+    // 4. Resolve the first request successfully
     resolveFetch!({});
-    await create1Promise;
+    const create1Result = await create1Promise;
+    assert.equal(create1Result.status, 'SUCCESS');
+
+    // 5. Assert: original create removed, no second create request sent, identical later intent -> no-op OR meaningful -> UPDATE_CYCLE
+    assert.equal(fetchCount, 1, 'No additional network request sent for deferred create');
+    const finalQueue = getOfflineQueue(userId);
+    assert.equal(finalQueue.length, 1);
+    assert.equal(finalQueue[0].type, 'UPDATE_CYCLE', 'Deferred CREATE_CYCLE with meaningful differences should be converted to UPDATE_CYCLE');
+    assert.equal(finalQueue[0].expectedRevision, 1, 'Must have expectedRevision from server');
+    assert.equal(finalQueue[0].payload.title, 'عنوان سوم');
   });
 
   // =========================================================================
@@ -951,70 +991,78 @@ test('Phase 6.1B Cycle Mutation Reliability & Lifecycle Contracts', async (t) =>
   });
 
   // =========================================================================
-  // SCENARIO 23: Definitive CREATE Failure (400) with Queued Delete
+  // SCENARIO 23: Definitive CREATE Failure Dependency Cleanup
   // =========================================================================
-  await t.test('Scenario 23: Definitive CREATE failure (400) quarantines CREATE; subsequent DELETE gets 404 and is removed idempotently', async () => {
-    let resolveCreateFetch: (val: any) => void;
-    const createFetchPromise = new Promise(resolve => { resolveCreateFetch = resolve; });
+  const definitiveFailureStatuses = [
+    { status: 400, expectedResult: 'VALIDATION_ERROR' },
+    { status: 403, expectedResult: 'FORBIDDEN' },
+    { status: 422, expectedResult: 'VALIDATION_ERROR' }
+  ];
 
-    const mockFetch = (async (url: string, init: any) => {
-      if (init.method === 'POST') {
-        await createFetchPromise;
-        return {
-          ok: false,
-          status: 400,
-          json: async () => ({ error: 'Invalid cycle dates', messageFa: 'تاریخ شروع نامعتبر است' })
-        };
-      }
-      if (init.method === 'DELETE') {
-        return {
-          ok: false,
-          status: 404,
-          json: async () => ({ error: 'Cycle not found' })
-        };
-      }
-      return { ok: true, status: 200, json: async () => ({}) };
-    }) as any;
+  for (const { status, expectedResult } of definitiveFailureStatuses) {
+    await t.test(`Scenario 23: Definitive CREATE failure (${status}) quarantines CREATE and resolves dependent DELETE locally`, async () => {
+      // Clear queue and quarantine before test due to loop
+      clearOfflineQueue(userId);
+      clearQuarantine(userId);
+      clearClientConflicts(userId);
 
-    const newCycle: Cycle = { ...baseCycle, id: 'cycle_400_del' };
+      let resolveCreateFetch: (val: any) => void;
+      const createFetchPromise = new Promise(resolve => { resolveCreateFetch = resolve; });
+      let deleteFetchCount = 0;
 
-    const createPromise = executeDirectCreateCycleMutation({
-      newCycle,
-      ownerId: userId,
-      authToken: 'valid_token',
-      fetchFn: mockFetch
+      const mockFetch = (async (url: string, init: any) => {
+        if (init.method === 'POST') {
+          await createFetchPromise;
+          return {
+            ok: false,
+            status: status,
+            json: async () => ({ error: 'Definitive error', messageFa: 'خطا' })
+          };
+        }
+        if (init.method === 'DELETE') {
+          deleteFetchCount++;
+          return {
+            ok: false,
+            status: 404,
+            json: async () => ({ error: 'Cycle not found' })
+          };
+        }
+        return { ok: true, status: 200, json: async () => ({}) };
+      }) as any;
+
+      const newCycle: Cycle = { ...baseCycle, id: `cycle_def_fail_${status}` };
+
+      const createPromise = executeDirectCreateCycleMutation({
+        newCycle,
+        ownerId: userId,
+        authToken: 'valid_token',
+        fetchFn: mockFetch
+      });
+
+      await new Promise(r => setTimeout(r, 10));
+
+      const delResult = await executeDirectDeleteCycleMutation({
+        cycleId: newCycle.id,
+        existingCycle: newCycle,
+        ownerId: userId,
+        authToken: 'valid_token',
+        fetchFn: mockFetch
+      });
+      assert.equal(delResult.status, 'QUEUED_OFFLINE');
+
+      resolveCreateFetch!({});
+      const createResult = await createPromise;
+      assert.equal(createResult.status, expectedResult);
+
+      const queueBeforeReplay = getOfflineQueue(userId);
+      assert.equal(queueBeforeReplay.length, 0, 'Active queue must have no remaining operation for that Cycle');
+      assert.equal(deleteFetchCount, 0, 'DELETE fetch count must be exactly zero');
+      assert.equal(getClientConflicts(userId).length, 0, 'No conflict record should be created');
+      
+      const quarantine = getQuarantinedItems(userId);
+      assert.ok(quarantine && quarantine.length > 0, 'Create must be quarantined');
     });
-
-    await new Promise(r => setTimeout(r, 10));
-
-    await executeDirectDeleteCycleMutation({
-      cycleId: 'cycle_400_del',
-      existingCycle: newCycle,
-      ownerId: userId,
-      authToken: 'valid_token',
-      fetchFn: mockFetch
-    });
-
-    resolveCreateFetch!({});
-    const createResult = await createPromise;
-    assert.equal(createResult.status, 'VALIDATION_ERROR');
-
-    // CREATE was quarantined/removed; DELETE_CYCLE remains
-    const queueBeforeReplay = getOfflineQueue(userId);
-    assert.equal(queueBeforeReplay.length, 1);
-    assert.equal(queueBeforeReplay[0].type, 'DELETE_CYCLE');
-
-    // Replay DELETE_CYCLE against server (gets 404, treated as idempotent success)
-    const replayResult = await replayAccountOfflineQueue({
-      authToken: 'valid_token',
-      activeAccountId: userId,
-      force: true,
-      fetchFn: mockFetch
-    });
-
-    assert.equal(replayResult.syncedCount, 1);
-    assert.equal(getOfflineQueue(userId).length, 0);
-  });
+  }
 
   // =========================================================================
   // SCENARIO 24: Deterministic Isolation & Zero State Leakage

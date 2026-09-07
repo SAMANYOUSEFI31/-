@@ -862,8 +862,16 @@ export async function executeDirectCreateCycleMutation(
 
   const queueItem = durableResult.queueItem;
 
-  // 2. Offline Guard: stop here if offline, item is already durable in the queue
-  if (guard.shouldQueue) {
+  const currentQueue = getOfflineQueue(ownerId);
+  const isEarlierCreateInFlight = currentQueue.some(
+    item => item.type === 'CREATE_CYCLE' &&
+      item.payload?.id === newCycle.id &&
+      item.id !== queueItem.id &&
+      (isQueueItemInFlight(ownerId, item.id) || item.inFlight)
+  );
+
+  // 2. Offline Guard: stop here if offline or if earlier CREATE_CYCLE is in-flight
+  if (guard.shouldQueue || isEarlierCreateInFlight) {
     return { status: 'QUEUED_OFFLINE', queueItem };
   }
 
@@ -907,19 +915,39 @@ export async function executeDirectCreateCycleMutation(
         // Check if a newer local edit was enqueued while this request was in flight
         const currentQueue = getOfflineQueue(ownerId);
         const hasNewerIntent = currentQueue.some(
-          item => (item.type === 'UPDATE_CYCLE' || item.type === 'DELETE_CYCLE') &&
+          item => (item.type === 'UPDATE_CYCLE' || item.type === 'DELETE_CYCLE' || item.type === 'CREATE_CYCLE') &&
             ((typeof item.payload === 'object' && item.payload?.id === newCycle.id) || item.payload === newCycle.id) &&
             item.id !== queueItem.id
         );
 
         if (hasNewerIntent) {
-          const updatedQueue = currentQueue.map(item => {
+          const updatedQueue = currentQueue.flatMap(item => {
             if (
-              (item.type === 'UPDATE_CYCLE' || item.type === 'DELETE_CYCLE') &&
+              (item.type === 'UPDATE_CYCLE' || item.type === 'DELETE_CYCLE' || item.type === 'CREATE_CYCLE') &&
               ((typeof item.payload === 'object' && item.payload?.id === newCycle.id) || item.payload === newCycle.id) &&
               item.id !== queueItem.id
             ) {
-              return {
+              if (item.type === 'CREATE_CYCLE') {
+                const isIdentical = (
+                  item.payload.title === serverCycle.title &&
+                  item.payload.startDate === serverCycle.startDate &&
+                  item.payload.endDate === serverCycle.endDate &&
+                  item.payload.targetTheme === serverCycle.targetTheme
+                );
+                if (isIdentical) return [];
+                
+                return [{
+                  ...item,
+                  type: 'UPDATE_CYCLE',
+                  expectedRevision: serverCycle.revision,
+                  payload: {
+                    ...item.payload,
+                    expectedRevision: serverCycle.revision
+                  }
+                }];
+              }
+
+              return [{
                 ...item,
                 expectedRevision: serverCycle.revision,
                 payload: typeof item.payload === 'object' && item.payload !== null
@@ -928,9 +956,9 @@ export async function executeDirectCreateCycleMutation(
                       expectedRevision: serverCycle.revision
                     }
                   : item.payload
-              };
+              }];
             }
-            return item;
+            return [item];
           });
           saveOfflineQueue(ownerId, updatedQueue);
         }
@@ -976,12 +1004,17 @@ export async function executeDirectCreateCycleMutation(
       }
 
       if (classification === 'FORBIDDEN') {
+        const currentQueueForCleanup = getOfflineQueue(ownerId);
+        const dependentDeletes = currentQueueForCleanup.filter(item =>
+          item.type === 'DELETE_CYCLE' && item.parentOperationId === queueItem.id
+        ).map(item => item.id);
+
         quarantineQueueItems(
           [{ ...queueItem, inFlight: false, classification: 'FORBIDDEN' }],
           'HTTP 403 Forbidden - permission denied',
           ownerId
         );
-        removeReplayedQueueItems(ownerId, [queueItem.id]);
+        removeReplayedQueueItems(ownerId, [queueItem.id, ...dependentDeletes]);
         return {
           status: 'FORBIDDEN',
           statusCode: 403,
@@ -990,12 +1023,17 @@ export async function executeDirectCreateCycleMutation(
       }
 
       if (classification === 'VALIDATION_ERROR') {
+        const currentQueueForCleanup = getOfflineQueue(ownerId);
+        const dependentDeletes = currentQueueForCleanup.filter(item =>
+          item.type === 'DELETE_CYCLE' && item.parentOperationId === queueItem.id
+        ).map(item => item.id);
+
         quarantineQueueItems(
           [{ ...queueItem, inFlight: false, classification: 'VALIDATION_ERROR' }],
           `HTTP ${res.status} Validation Error`,
           ownerId
         );
-        removeReplayedQueueItems(ownerId, [queueItem.id]);
+        removeReplayedQueueItems(ownerId, [queueItem.id, ...dependentDeletes]);
         return {
           status: 'VALIDATION_ERROR',
           statusCode: res.status,
