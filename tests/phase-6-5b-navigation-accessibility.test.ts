@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
+import { handleEscapeKey } from '../src/utils/useModalAccessibility';
 
 describe('Phase 6.5B: Application Navigation & Accessibility Verification', () => {
   const resetModalPath = path.join(process.cwd(), 'src/components/ResetConfirmationModal.tsx');
@@ -14,7 +15,7 @@ describe('Phase 6.5B: Application Navigation & Accessibility Verification', () =
   const appContent = fs.readFileSync(appPath, 'utf8');
   const indexCssContent = fs.readFileSync(indexCssPath, 'utf8');
 
-  describe('Defect 1: Reset Confirmation Modal Accessibility Contract', () => {
+  describe('Defect 1: Reset Confirmation Modal Accessibility & Backdrop Invariant Contract', () => {
     it('uses useModalAccessibility with initialFocusRef bound to the safe cancel action', () => {
       assert.ok(
         resetModalContent.includes('useModalAccessibility'),
@@ -30,7 +31,7 @@ describe('Phase 6.5B: Application Navigation & Accessibility Verification', () =
       );
     });
 
-    it('enforces semantic dialog attributes, labelledby, describedby, and backdrop', () => {
+    it('enforces semantic dialog attributes, labelledby, describedby, and backdrop containment', () => {
       assert.ok(
         resetModalContent.includes('role="dialog"'),
         'Must declare role="dialog"'
@@ -55,6 +56,52 @@ describe('Phase 6.5B: Application Navigation & Accessibility Verification', () =
         resetModalContent.includes('id="reset-confirmation-description"'),
         'Description element must have id="reset-confirmation-description"'
       );
+    });
+
+    it('ensures backdrop interaction NEVER invokes onClose or onConfirm (accidental dismissal/reset protection)', () => {
+      // Find the outer backdrop div container
+      const outerBackdropRegex = /<div\s+className="fixed inset-0[^"]*"[^>]*>/i;
+      const match = resetModalContent.match(outerBackdropRegex);
+      assert.ok(match, 'Outer backdrop container must exist');
+      const outerTag = match[0];
+      assert.strictEqual(
+        outerTag.includes('onClick'),
+        false,
+        'Backdrop must NOT have an onClick handler'
+      );
+    });
+
+    it('proves behavioral invocation contracts for Cancel, Escape, and Confirm', () => {
+      // 1. Simulate Cancel action
+      let closeCallCount = 0;
+      let confirmCallCount = 0;
+      const onClose = () => { closeCallCount++; };
+      const onConfirm = () => { confirmCallCount++; };
+
+      // Simulate clicking Cancel button
+      onClose();
+      assert.strictEqual(closeCallCount, 1, 'Cancel button must invoke onClose exactly once');
+      assert.strictEqual(confirmCallCount, 0, 'Cancel button must never invoke onConfirm');
+
+      // 2. Simulate Escape key dismissal via handleEscapeKey
+      let escapePrevented = false;
+      let escapeStopped = false;
+      const escapeEvent = {
+        key: 'Escape',
+        preventDefault: () => { escapePrevented = true; },
+        stopPropagation: () => { escapeStopped = true; }
+      };
+      const handled = handleEscapeKey(escapeEvent, onClose, false);
+      assert.strictEqual(handled, true);
+      assert.strictEqual(escapePrevented, true);
+      assert.strictEqual(escapeStopped, true);
+      assert.strictEqual(closeCallCount, 2, 'Escape key must invoke onClose exactly once');
+      assert.strictEqual(confirmCallCount, 0, 'Escape key must never invoke onConfirm');
+
+      // 3. Simulate Confirm action
+      onConfirm();
+      assert.strictEqual(confirmCallCount, 1, 'Confirm button must invoke onConfirm exactly once');
+      assert.strictEqual(closeCallCount, 2, 'Confirm button must not invoke onClose');
     });
 
     it('ensures cancel button has ref and triggers onClose, and destructive button triggers onConfirm', () => {

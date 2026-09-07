@@ -39,7 +39,6 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
     <div
       className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]"
       dir="rtl"
-      onClick={onClose}
     >
       <div
         ref={containerRef}
@@ -48,7 +47,6 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
         aria-labelledby="reset-confirmation-title"
         aria-describedby="reset-confirmation-description"
         tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
         className="bg-[#1c1c21] border border-red-500/40 rounded-3xl w-full max-w-md p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 motion-reduce:animate-none duration-150 my-auto focus:outline-none"
       >
         <div className="flex items-center gap-3">
