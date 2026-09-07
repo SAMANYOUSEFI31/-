@@ -152,6 +152,7 @@ svg {
   box-shadow: 0 10px 30px -10px rgba(225, 29, 72, 0.08);
 }
 
+/* Legacy Theme Glow Utilities (Documented as legacy visual debt; avoid expanding in new code) */
 .theme-glow {
   box-shadow: 0 0 25px var(--accent-glow);
 }

@@ -1,6 +1,7 @@
 /**
- * Bushido Discipline OS - Design System Tokens & Base Utility Classes
- * Conforms to APCA Luminance Benchmarks, Obsidian Dark Theme & PWA Standards (Items C1 & F7)
+ * Bushido Discipline OS - Design System Master Tokens & Governance SSOT
+ * Conforms to APCA Luminance Benchmarks, Obsidian Dark Theme & Strict Semantic Hierarchy
+ * Single Source of Truth for Primitives, Semantics and Component Surface Contracts
  */
 
 :root {
@@ -14,48 +15,53 @@
   
   --color-border-subtle: #27272a;      /* Standard Single Subtle Border (Anti-Wireframing) */
   --color-border-hover: #3f3f46;       /* Hover State Borders */
+  --color-border-active: #52525b;      /* Active State / Focus Borders */
   --color-border-muted: #1c1c20;       /* Muted Internal Dividers */
 
   /* =========================================================================
    * 2. SEMANTIC ACCENT PALETTE (Brand Truth & Status Tokens)
+   * Strict Semantic Ownership: One role each across the entire application
    * ========================================================================= */
-  /* Bushido Crimson (Brand Core & Accent) */
+  /* Discipline Crimson (Brand Core, Primary Commitments & Nav Focus) */
   --color-accent-primary: #E11D48;
   --color-accent-primary-rgb: 225, 29, 72;
   --color-accent-primary-hover: #BE123C;
   --color-accent-primary-light: #FB7185;
+  --color-accent-primary-subtle: rgba(225, 29, 72, 0.12);
+  --color-accent-primary-border: rgba(225, 29, 72, 0.35);
 
-  /* Samurai Amber (Mastery 10/10, AI Sensei, Total Score, VIP) */
+  /* Samurai Amber (Mastery 10/10, AI Sensei, Total Score, VIP Tier - NOT normal day success) */
   --color-accent-amber: #FBBF24;
   --color-accent-amber-rgb: 251, 191, 36;
   --color-accent-amber-bg: rgba(251, 191, 36, 0.1);
   --color-accent-amber-border: rgba(251, 191, 36, 0.25);
 
-  /* Vitality Emerald (Standard Day 8/10, Checks, Habit Fidelity) */
+  /* Vitality Emerald (Standard Day 8/10, 5/5 Checks, Completed Execution, Habit Fidelity) */
   --color-accent-emerald: #34D399;
   --color-accent-emerald-rgb: 52, 211, 153;
   --color-accent-emerald-bg: rgba(52, 211, 153, 0.1);
   --color-accent-emerald-border: rgba(52, 211, 153, 0.25);
 
-  /* Fiery Rose (Pure Continuous Streak - Immutable Token) */
+  /* Fiery Rose (Pure Continuous Streak - Immutable Semantic Token across all views) */
   --color-accent-rose: #FB7185;
   --color-accent-rose-rgb: 251, 113, 133;
   --color-accent-rose-bg: rgba(251, 113, 133, 0.1);
   --color-accent-rose-border: rgba(251, 113, 133, 0.25);
 
-  /* Honor Crimson / Alert Red (Open Debts, Behavior Locks, Failures) */
+  /* Honor Crimson / Alert Red (Open Debts, Behavior Locks, Failures, Burned Days) */
   --color-accent-red: #F87171;
+  --color-accent-red-deep: #EF4444;
   --color-accent-red-rgb: 248, 113, 113;
   --color-accent-red-bg: rgba(127, 29, 29, 0.3);
   --color-accent-red-border: rgba(248, 113, 113, 0.4);
 
-  /* Frost Blue (Personal Emergency Freeze) */
+  /* Frost Blue (Personal Emergency Freeze, Excused Pause) */
   --color-accent-blue: #60A5FA;
   --color-accent-blue-rgb: 96, 165, 250;
   --color-accent-blue-bg: rgba(96, 165, 250, 0.1);
   --color-accent-blue-border: rgba(96, 165, 250, 0.25);
 
-  /* Bushido Violet (Resolved Autopsy Cases, Deep Analysis) */
+  /* Bushido Violet (Resolved Autopsy Cases, Deep Retrospective Analysis) */
   --color-accent-purple: #C084FC;
   --color-accent-purple-rgb: 192, 132, 252;
   --color-accent-purple-bg: rgba(192, 132, 252, 0.1);
@@ -64,35 +70,61 @@
   /* =========================================================================
    * 3. TYPOGRAPHY & APCA LUMINANCE SCALE
    * ========================================================================= */
-  --color-text-primary: #F4F4F5;       /* Headings & Values (APCA Lc = 104) */
-  --color-text-secondary: #A1A1AA;     /* Body & Subtitles (APCA Lc = 78) */
+  --color-text-primary: #F4F4F5;       /* Headings, Critical Numbers & Values (APCA Lc = 104) */
+  --color-text-secondary: #A1A1AA;     /* Body, Explanatory & Subtitles (APCA Lc = 78) */
   --color-text-muted: #71717A;         /* Captions & Phantom Labels (APCA Lc = 60) */
   --color-text-disabled: #52525B;      /* Disabled States */
 
   /* =========================================================================
-   * 4. GEOMETRIC RADIUS HIERARCHY (Nested Radius Rule)
+   * 4. GEOMETRIC RADIUS HIERARCHY (Nested Radius Scale: Inner = Outer - Padding)
+   * Scale: 4 / 6 / 8 / 12 / 16 / 20 / 24 / 9999px
    * ========================================================================= */
-  --radius-outer-modal: 1.5rem;        /* 24px - Modals & Outer Canvas Cards */
-  --radius-card-level1: 1.25rem;       /* 20px - Main Bento & Section Cards */
-  --radius-card-level2: 1rem;          /* 16px - Inner Containers & Habit Cards */
-  --radius-button: 0.75rem;            /* 12px - Interactive Action Buttons */
-  --radius-badge: 0.5rem;              /* 8px - Status Badges & Chips */
-  --radius-pill: 9999px;              /* Full Capsule Pill */
+  --radius-xs: 0.25rem;                /* 4px - Mini checkboxes, sub-elements */
+  --radius-sm: 0.375rem;               /* 6px - Small inline tags */
+  --radius-md: 0.5rem;                 /* 8px - Badges, status chips, matrix cells */
+  --radius-lg: 0.75rem;                /* 12px - Action buttons, icon boxes, inputs */
+  --radius-xl: 1rem;                   /* 16px - Inner sub-containers & habit cards */
+  --radius-2xl: 1.25rem;               /* 20px - Elevated section & bento cards */
+  --radius-3xl: 1.5rem;                /* 24px - Floating modals & outer canvas cards */
+  --radius-pill: 9999px;               /* 9999px - Capsule pills & scrollbars */
+
+  /* Semantic Aliases for Radius */
+  --radius-outer-modal: var(--radius-3xl);
+  --radius-card-level1: var(--radius-2xl);
+  --radius-card-level2: var(--radius-xl);
+  --radius-button: var(--radius-lg);
+  --radius-badge: var(--radius-md);
 
   /* =========================================================================
-   * 5. ELEVATION, GLOW & SHADOW EFFECTS (Stoic Obsidian Lighting)
+   * 5. SPACING GRID (4px Base Metric)
+   * Gaps strictly: 4 / 8 / 16 / 24 / 32px
    * ========================================================================= */
-  --glow-crimson: rgba(225, 29, 72, 0.16);         /* Soft atmospheric ambient rather than harsh neon */
-  --glow-crimson-subtle: rgba(225, 29, 72, 0.08);
-  --glow-amber: rgba(251, 191, 36, 0.16);
-  --glow-emerald: rgba(52, 211, 153, 0.16);
-  
+  --spacing-1: 0.25rem;                /* 4px */
+  --spacing-2: 0.5rem;                 /* 8px */
+  --spacing-3: 0.75rem;                /* 12px */
+  --spacing-4: 1rem;                   /* 16px */
+  --spacing-5: 1.25rem;                /* 20px */
+  --spacing-6: 1.5rem;                 /* 24px */
+  --spacing-8: 2rem;                   /* 32px */
+
+  /* =========================================================================
+   * 6. ELEVATION, GLOW & SHADOW EFFECTS (Stoic Obsidian Lighting)
+   * Note on Glows: Treated as legacy design debt; avoid expanding in new UI
+   * Prioritize luminance-first subtle ambient separation.
+   * ========================================================================= */
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.15);
   --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.8);
   --shadow-dropdown: 0 20px 40px -15px rgba(0, 0, 0, 0.9);
   --shadow-ruby-hover: 0 10px 30px -10px rgba(225, 29, 72, 0.15);
 
+  /* Legacy ambient glow variables (use with restraint) */
+  --glow-crimson: rgba(225, 29, 72, 0.16);
+  --glow-crimson-subtle: rgba(225, 29, 72, 0.08);
+  --glow-amber: rgba(251, 191, 36, 0.16);
+  --glow-emerald: rgba(52, 211, 153, 0.16);
+
   /* =========================================================================
-   * 6. Z-INDEX SCALE
+   * 7. Z-INDEX SCALE
    * ========================================================================= */
   --z-base: 0;
   --z-card: 10;
@@ -104,7 +136,7 @@
   --z-modal-content: 100;
 
   /* =========================================================================
-   * 7. MOTION PHYSICS & ANIMATION TIMINGS
+   * 8. MOTION PHYSICS & ANIMATION TIMINGS
    * ========================================================================= */
   --duration-fast: 150ms;
   --duration-normal: 200ms;
@@ -114,17 +146,60 @@
   --ease-tactical: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* =========================================================================
-   * 8. PWA STANDALONE SAFE-AREA INSETS
+   * 9. PWA STANDALONE SAFE-AREA INSETS
    * ========================================================================= */
   --safe-area-top: max(0.5rem, env(safe-area-inset-top, 0px));
   --safe-area-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
 }
 
 /* =========================================================================
- * BASE UTILITY CLASSES & COMPONENT EXTENSIONS
+ * GOVERNANCE SEMANTIC UTILITY CLASSES & COMPONENT EXTENSIONS
  * ========================================================================= */
 
-/* Obsidian Surface Backgrounds */
+/* Surface Level Utilities (Z-Axis) */
+.surface-z0 {
+  background-color: var(--color-canvas-root) !important;
+}
+
+.surface-z1 {
+  background-color: var(--color-card-elevated) !important;
+}
+
+.surface-z2 {
+  background-color: var(--color-card-inner) !important;
+}
+
+.surface-z3 {
+  background-color: var(--color-card-floating) !important;
+}
+
+/* Standard Border Utilities */
+.border-standard {
+  border-color: var(--color-border-subtle) !important;
+}
+
+.border-hover {
+  border-color: var(--color-border-hover) !important;
+}
+
+.border-active {
+  border-color: var(--color-border-active) !important;
+}
+
+/* Text Role Luminance Utilities */
+.text-role-primary {
+  color: var(--color-text-primary) !important;
+}
+
+.text-role-secondary {
+  color: var(--color-text-secondary) !important;
+}
+
+.text-role-muted {
+  color: var(--color-text-muted) !important;
+}
+
+/* Backward-Compatible Obsidian Surface Classes (Preserved for Active Components) */
 .bg-card-obsidian {
   background-color: var(--color-card-elevated) !important;
 }
@@ -147,7 +222,7 @@
   box-shadow: var(--shadow-ruby-hover) !important;
 }
 
-/* Theme Glow Utilities */
+/* Legacy Theme Glow Utilities (Avoid expanding in new UI) */
 .theme-glow {
   box-shadow: 0 0 25px var(--glow-crimson) !important;
 }
@@ -157,7 +232,7 @@
 }
 
 .theme-border {
-  border-color: rgba(225, 29, 72, 0.4) !important;
+  border-color: var(--color-accent-primary-border) !important;
 }
 
 .theme-text {
@@ -169,7 +244,7 @@
 }
 
 .theme-bg-subtle {
-  background-color: var(--glow-crimson-subtle) !important;
+  background-color: var(--color-accent-primary-subtle) !important;
 }
 
 /* Glassmorphism Backdrop Blur */
