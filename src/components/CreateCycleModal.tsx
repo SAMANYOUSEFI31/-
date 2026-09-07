@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Cycle } from '../types';
 import { getLogicalTodayDate, addDaysToDate, formatPersianDate } from '../utils/dateUtils';
 import { toPersianDigits } from '../utils/numberUtils';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
+import { useModalAccessibility } from '../utils/useModalAccessibility';
+import { findOverlappingCycle } from '../utils/cycleValidation';
 import { 
   Sparkles, 
   Calendar, 
@@ -32,6 +34,13 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
 }) => {
   useBodyScrollLock(isOpen);
 
+  const { containerRef } = useModalAccessibility<HTMLDivElement>({
+    isOpen,
+    onClose
+  });
+
+  const startDateInputRef = useRef<HTMLInputElement>(null);
+
   const logicalToday = getLogicalTodayDate();
   const nonDemoCycles = existingCycles.filter(c => c.id !== 'cycle-1' && !c.title.includes('(نمونه)'));
   const defaultTitle = `چرخه نبرد ۹۰ روزه (دوره ${toPersianDigits(nonDemoCycles.length + 1)})`;
@@ -53,11 +62,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
     const proposedEnd = endDate;
 
     // Check for overlap against existing non-demo cycles
-    const overlappingCycle = nonDemoCycles.find(c => {
-      const cStart = c.startDate;
-      const cEnd = c.endDate || addDaysToDate(c.startDate, 89);
-      return proposedStart <= cEnd && proposedEnd >= cStart;
-    });
+    const overlappingCycle = findOverlappingCycle(proposedStart, proposedEnd, existingCycles);
 
     if (overlappingCycle) {
       soundFX.playWarning();
@@ -65,6 +70,10 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
       setOverlapError(
         `تداخل تقویمی: بازه زمانی این چرخه (${formatPersianDate(proposedStart)} تا ${formatPersianDate(proposedEnd)}) با چرخه «${overlappingCycle.title}» (${formatPersianDate(overlappingCycle.startDate)} تا ${formatPersianDate(overlappingCycle.endDate || addDaysToDate(overlappingCycle.startDate, 89))}) تداخل دارد.`
       );
+      // Move focus to start date input so user can immediately correct the date
+      setTimeout(() => {
+        startDateInputRef.current?.focus();
+      }, 50);
       return;
     }
 
@@ -79,7 +88,15 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
       className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 overscroll-contain overflow-y-auto"
       dir="rtl"
     >
-      <div className="bg-[#1c1c21] border border-zinc-800 rounded-3xl w-full max-w-lg p-5 sm:p-7 space-y-5 shadow-2xl animate-in zoom-in-95 duration-200 relative my-auto">
+      <div 
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-cycle-title"
+        aria-describedby="create-cycle-description"
+        tabIndex={-1}
+        className="bg-[#1c1c21] border border-zinc-800 rounded-3xl w-full max-w-lg p-5 sm:p-7 space-y-5 shadow-2xl animate-in zoom-in-95 motion-reduce:animate-none duration-200 relative my-auto focus:outline-none"
+      >
         {/* Close Button */}
         <button
           type="button"
@@ -97,10 +114,10 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
             <Swords className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-base sm:text-lg font-black text-zinc-100 flex items-center gap-2">
+            <h3 id="create-cycle-title" className="text-base sm:text-lg font-black text-zinc-100 flex items-center gap-2">
               <span>تعریف چرخه ۹۰ روزه نبرد</span>
             </h3>
-            <p className="text-xs text-zinc-400 mt-0.5">
+            <p id="create-cycle-description" className="text-xs text-zinc-400 mt-0.5">
               پایه‌ریزی دوره تمرکز و دیسیپلین سامورایی
             </p>
           </div>
@@ -108,7 +125,12 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
 
         {/* Overlap Error Alert if any */}
         {overlapError && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-300 rounded-2xl p-3.5 text-xs font-medium flex items-start gap-2.5 animate-in fade-in">
+          <div 
+            id="create-cycle-overlap-error"
+            role="alert" 
+            aria-live="assertive"
+            className="bg-red-500/10 border border-red-500/30 text-red-300 rounded-2xl p-3.5 text-xs font-medium flex items-start gap-2.5 animate-in fade-in motion-reduce:animate-none"
+          >
             <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
             <span className="leading-relaxed">{overlapError}</span>
           </div>
@@ -117,10 +139,11 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
         {/* Cycle Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+            <label htmlFor="create-cycle-title-input" className="text-xs font-bold text-zinc-300 block mb-1.5">
               عنوان چرخه نبرد:
             </label>
             <input
+              id="create-cycle-title-input"
               type="text"
               value={title}
               onChange={e => {
@@ -135,43 +158,52 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+              <label htmlFor="create-cycle-start-date-input" className="text-xs font-bold text-zinc-300 block mb-1.5">
                 تاریخ شروع چرخه:
               </label>
               <input
+                ref={startDateInputRef}
+                id="create-cycle-start-date-input"
                 type="date"
                 value={startDate}
+                aria-invalid={Boolean(overlapError)}
+                aria-describedby={overlapError ? "create-cycle-overlap-error create-cycle-start-date-helper" : "create-cycle-start-date-helper"}
                 onChange={e => {
                   setStartDate(e.target.value);
                   if (overlapError) setOverlapError(null);
                 }}
                 required
-                className="w-full bg-[#18181b] border border-zinc-800 focus:border-amber-500/60 rounded-xl p-2.5 text-xs sm:text-sm text-zinc-100 font-mono focus:outline-none transition text-right"
+                className={`w-full bg-[#18181b] border ${overlapError ? 'border-red-500/60' : 'border-zinc-800'} focus:border-amber-500/60 rounded-xl p-2.5 text-xs sm:text-sm text-zinc-100 font-mono focus:outline-none transition text-right`}
               />
-              <span className="text-[10px] text-zinc-400 mt-1 block">
+              <span id="create-cycle-start-date-helper" className="text-[10px] text-zinc-400 mt-1 block">
                 معادل: {formatPersianDate(startDate)}
               </span>
             </div>
 
             <div>
-              <label className="text-xs font-bold text-zinc-400 block mb-1.5">
+              <label htmlFor="create-cycle-end-date-display" className="text-xs font-bold text-zinc-400 block mb-1.5">
                 پایان دوره (۹۰ روزه):
               </label>
-              <div className="w-full bg-[#18181b]/60 border border-zinc-800 rounded-xl p-2.5 text-xs sm:text-sm text-zinc-400 font-mono select-none flex items-center justify-between">
+              <div 
+                id="create-cycle-end-date-display"
+                aria-describedby="create-cycle-end-date-helper"
+                className="w-full bg-[#18181b]/60 border border-zinc-800 rounded-xl p-2.5 text-xs sm:text-sm text-zinc-400 font-mono select-none flex items-center justify-between"
+              >
                 <span>{endDate}</span>
                 <span className="text-[10px] text-amber-400 font-sans font-bold">۹۰ روز</span>
               </div>
-              <span className="text-[10px] text-zinc-400 mt-1 block">
+              <span id="create-cycle-end-date-helper" className="text-[10px] text-zinc-400 mt-1 block">
                 معادل: {formatPersianDate(endDate)}
               </span>
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+            <label htmlFor="create-cycle-theme-input" className="text-xs font-bold text-zinc-300 block mb-1.5">
               میثاق و تم اصلی چرخه (جهت یادآوری هدف):
             </label>
             <textarea
+              id="create-cycle-theme-input"
               value={targetTheme}
               onChange={e => setTargetTheme(e.target.value)}
               rows={2}
@@ -190,13 +222,13 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-bold transition cursor-pointer active:scale-95 touch-manipulation"
+              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-bold transition cursor-pointer active:scale-95 motion-reduce:transform-none touch-manipulation"
             >
               انصراف
             </button>
             <button
               type="submit"
-              className="bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-black px-6 py-2.5 min-h-[44px] rounded-xl text-xs font-black shadow-lg shadow-amber-500/25 transition cursor-pointer active:scale-95 flex items-center gap-1.5 touch-manipulation"
+              className="bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-black px-6 py-2.5 min-h-[44px] rounded-xl text-xs font-black shadow-lg shadow-amber-500/25 transition cursor-pointer active:scale-95 motion-reduce:transform-none flex items-center gap-1.5 touch-manipulation"
             >
               <Sparkles className="w-4 h-4" />
               <span>آغاز چرخه نبرد</span>
