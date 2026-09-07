@@ -37,6 +37,7 @@ import {
   adminGetOverviewStats,
   ensureDefaultAdminAndUsers,
   isPrismaAvailable,
+  isDatabaseReady,
   getPlanById,
   isValidPlanId,
   getAllPlans
@@ -109,7 +110,7 @@ app.use(setSecurityHeaders);
 // JSON Body Parser
 app.use(express.json());
 
-// Lazy Database Initialization for Vercel Serverless (جلوگیری از کرش ۵۰۰ در Cold Start)
+// Lazy Database Initialization
 let isDbInitialized = false;
 let dbInitPromise: Promise<void> | null = null;
 app.use(async (req, res, next) => {
@@ -120,8 +121,13 @@ app.use(async (req, res, next) => {
           isDbInitialized = true;
         })
         .catch((err) => {
-          console.error('[Database Init Error]:', err);
-          isDbInitialized = true; // Prevent unhandled rejection loop
+          console.error('[Database Init Error]:', err?.message || err);
+          if (isProduction()) {
+            isDbInitialized = false;
+            dbInitPromise = null; // Do not treat failed init as initialized in production; allow retry
+          } else {
+            isDbInitialized = true; // Non-production environments allow fallback
+          }
         });
     }
     await dbInitPromise;
@@ -139,7 +145,7 @@ app.use('/api', apiRateLimiter);
 // Strict Authentication Limiter applied to auth routes
 app.use('/api/auth', authRateLimiter);
 
-// Minimal public health check endpoint (Container & PaaS Liveness/Readiness Probe)
+// Minimal public health check endpoint (Container & PaaS Liveness Probe - never exposes sensitive diagnostics)
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -147,7 +153,30 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Detailed system diagnostics for administrators
+// Public readiness probe - truthfully reports database persistence availability without diagnostic leakage
+const handleReadiness = (req: express.Request, res: express.Response) => {
+  const ready = isDatabaseReady();
+  if (ready) {
+    return res.status(200).json({
+      status: 'ready',
+      ready: true,
+      timestamp: new Date().toISOString()
+    });
+  }
+  return res.status(503).json({
+    status: 'unavailable',
+    ready: false,
+    code: 'SERVICE_UNAVAILABLE',
+    messageFa: 'سرویس پایگاه داده در دسترس نیست.',
+    timestamp: new Date().toISOString()
+  });
+};
+
+app.get('/api/ready', handleReadiness);
+app.get('/api/readiness', handleReadiness);
+app.get('/api/health/ready', handleReadiness);
+
+// Detailed system diagnostics for administrators (Strictly protected by adminMiddleware)
 app.get('/api/admin/diagnostics', adminMiddleware, (req: AuthenticatedRequest, res) => {
   const memory = process.memoryUsage();
   res.json({
@@ -161,6 +190,7 @@ app.get('/api/admin/diagnostics', adminMiddleware, (req: AuthenticatedRequest, r
     database: {
       driver: isPrismaAvailable ? 'postgresql_prisma' : 'local_file_fallback',
       isPrismaAvailable: Boolean(isPrismaAvailable),
+      isReady: isDatabaseReady(),
       isServerlessVercel: Boolean(process.env.VERCEL)
     }
   });
