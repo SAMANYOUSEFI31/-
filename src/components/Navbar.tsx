@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
+import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'motion/react';
 import { Cycle, CycleMetrics, SystemSettings, UserProfile } from '../types';
 import { toPersianDigits } from '../utils/numberUtils';
 import { THEME_PALETTES } from '../utils/themeUtils';
@@ -53,20 +53,62 @@ const NavbarComponent: React.FC<NavbarProps> = ({
   onDeleteCycle
 }) => {
   const displayedDebtCount = unresolvedDebtCount !== undefined ? unresolvedDebtCount : metrics.unresolvedDebtCount;
+  const shouldReduceMotion = useReducedMotion();
   const [isCycleDropdownOpen, setIsCycleDropdownOpen] = useState(false);
   const [confirmDeleteCycleId, setConfirmDeleteCycleId] = useState<string | null>(null);
   const cycleDropdownButtonRef = useRef<HTMLButtonElement>(null);
   const cycleDropdownPanelRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const currentCycleItemRef = useRef<HTMLButtonElement | null>(null);
+  const firstCycleItemRef = useRef<HTMLButtonElement | null>(null);
+  const wasDropdownOpenRef = useRef(false);
 
-  // Accessible dismissal on Escape & Native Non-Passive Touch Ghost-Click Prevention
+  // Focus current or first cycle item when dropdown opens, and return focus to trigger on close
+  useEffect(() => {
+    if (isCycleDropdownOpen) {
+      wasDropdownOpenRef.current = true;
+      const timer = setTimeout(() => {
+        if (currentCycleItemRef.current) {
+          currentCycleItemRef.current.focus();
+        } else if (firstCycleItemRef.current) {
+          firstCycleItemRef.current.focus();
+        }
+      }, 40);
+      return () => clearTimeout(timer);
+    } else if (wasDropdownOpenRef.current) {
+      wasDropdownOpenRef.current = false;
+      cycleDropdownButtonRef.current?.focus();
+    }
+  }, [isCycleDropdownOpen]);
+
+  // Accessible dismissal on Escape, Tab containment & Native Non-Passive Touch Ghost-Click Prevention
   useEffect(() => {
     if (!isCycleDropdownOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
         setIsCycleDropdownOpen(false);
         setConfirmDeleteCycleId(null);
+        cycleDropdownButtonRef.current?.focus();
+        return;
+      }
+
+      if (e.key === 'Tab' && cycleDropdownPanelRef.current) {
+        const focusable = cycleDropdownPanelRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length > 0) {
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
       }
     };
 
@@ -75,8 +117,6 @@ const NavbarComponent: React.FC<NavbarProps> = ({
     const backdropEl = backdropRef.current;
     if (backdropEl) {
       const handleNativeTouchStart = (e: TouchEvent) => {
-        // Native non-passive preventDefault strictly instructs the browser engine
-        // NOT to generate synthetic mousedown / mouseup / click events on underlying elements
         e.preventDefault();
         e.stopPropagation();
       };
@@ -247,7 +287,9 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                   ref={cycleDropdownButtonRef}
                   type="button"
                   onClick={() => setIsCycleDropdownOpen(!isCycleDropdownOpen)}
-                  className="h-8 sm:h-9 min-w-[44px] bg-[#121215] hover:bg-zinc-800 active:bg-zinc-750 border border-zinc-800 rounded-xl px-2 sm:px-2.5 text-xs text-zinc-200 inline-flex items-center justify-center gap-1 sm:gap-1.5 transition cursor-pointer shrink-0 touch-manipulation relative z-50"
+                  aria-expanded={isCycleDropdownOpen}
+                  aria-label={`انتخاب چرخه، چرخه فعلی: ${currentCycle ? currentCycle.title : 'تعریف نشده'}`}
+                  className="h-8 sm:h-9 min-w-[44px] bg-[#121215] hover:bg-zinc-800 active:bg-zinc-750 border border-zinc-800 rounded-xl px-2 sm:px-2.5 text-xs text-zinc-200 inline-flex items-center justify-center gap-1 sm:gap-1.5 transition cursor-pointer shrink-0 touch-manipulation relative z-50 focus-visible:outline-2 focus-visible:outline-amber-400"
                 >
                   <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${currentCycle ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
                   <span className="font-bold whitespace-nowrap text-[11px] sm:text-xs">
@@ -259,54 +301,67 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 {isCycleDropdownOpen && (
                   <div 
                     ref={cycleDropdownPanelRef}
-                    className="absolute right-0 mt-2 w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] bg-[#1c1c21] border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150"
+                    className="absolute right-0 mt-2 w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] bg-[#1c1c21] border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 motion-reduce:animate-none duration-150"
                   >
                     <div className="px-3.5 py-2.5 text-[10px] text-zinc-400 font-bold border-b border-zinc-800 flex items-center justify-between bg-[#18181b]/60">
                       <span>انتخاب و مدیریت چرخه‌های ۹۰ روزه:</span>
                       <span className="text-zinc-500 font-mono">{toPersianDigits(cycles.length)} چرخه</span>
                     </div>
-                    <div className="max-h-60 overflow-y-auto divide-y divide-zinc-800/40">
+                    <div className="max-h-60 overflow-y-auto divide-y divide-zinc-800/40 p-1">
                       {cycles.length === 0 ? (
                         <div className="p-3 text-center text-xs text-zinc-400">
                           چرخه‌ای تعریف نشده است.
                         </div>
                       ) : (
-                        cycles.map(c => {
+                        cycles.map((c, idx) => {
                           const isCurrent = currentCycle && c.id === currentCycle.id;
                           const isConfirming = confirmDeleteCycleId === c.id;
 
                           return (
                             <div
                               key={c.id}
-                              className={`w-full px-3.5 py-2.5 min-h-[44px] text-xs hover:bg-zinc-800/60 transition flex items-center justify-between gap-2 cursor-pointer touch-manipulation ${
-                                isCurrent ? 'text-emerald-400 font-bold bg-zinc-800/40' : 'text-zinc-300'
+                              className={`w-full p-1 min-h-[44px] flex items-center justify-between gap-1.5 transition rounded-xl ${
+                                isCurrent ? 'bg-zinc-800/40' : 'hover:bg-zinc-800/30'
                               }`}
-                              onClick={() => {
-                                onSelectCycle(c);
-                                setIsCycleDropdownOpen(false);
-                                setConfirmDeleteCycleId(null);
-                              }}
                             >
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                              {/* Native button for Cycle selection */}
+                              <button
+                                ref={isCurrent ? currentCycleItemRef : (idx === 0 ? firstCycleItemRef : undefined)}
+                                type="button"
+                                onClick={() => {
+                                  onSelectCycle(c);
+                                  setIsCycleDropdownOpen(false);
+                                  setConfirmDeleteCycleId(null);
+                                  cycleDropdownButtonRef.current?.focus();
+                                }}
+                                aria-current={isCurrent ? 'true' : undefined}
+                                className={`flex-1 min-h-[38px] px-2.5 py-1.5 text-xs rounded-lg flex items-center gap-2 text-right transition cursor-pointer touch-manipulation focus-visible:outline-2 focus-visible:outline-amber-400 ${
+                                  isCurrent ? 'text-emerald-400 font-bold bg-zinc-800/60' : 'text-zinc-300 hover:text-white'
+                                }`}
+                              >
                                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isCurrent ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
-                                <span className="truncate text-right">{c.title}</span>
+                                <span className="truncate flex-1">{c.title}</span>
                                 {c.isArchived && (
                                   <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded shrink-0">
                                     بایگانی
                                   </span>
                                 )}
-                              </div>
+                                {isCurrent && (
+                                  <span className="sr-only">(چرخه فعال)</span>
+                                )}
+                              </button>
 
-                              {/* Delete Action inside Dropdown */}
+                              {/* Separate Delete Action - NOT nested inside Cycle button */}
                               {onDeleteCycle && (
                                 <button
                                   type="button"
                                   onClick={(e) => handleDeleteCycleClick(e, c.id)}
-                                  className={`p-2 min-h-[36px] min-w-[36px] rounded-lg text-xs transition shrink-0 cursor-pointer flex items-center justify-center touch-manipulation ${
+                                  className={`p-2 min-h-[38px] min-w-[38px] rounded-lg text-xs transition shrink-0 cursor-pointer flex items-center justify-center touch-manipulation focus-visible:outline-2 focus-visible:outline-red-400 ${
                                     isConfirming 
-                                      ? 'bg-red-500 hover:bg-red-600 text-white font-black px-2 py-1 shadow-md animate-pulse' 
+                                      ? 'bg-red-500 hover:bg-red-600 text-white font-black px-2 py-1 shadow-md animate-pulse motion-reduce:animate-none' 
                                       : 'text-zinc-500 hover:text-red-400 hover:bg-red-500/10'
                                   }`}
+                                  aria-label={isConfirming ? `تایید حذف قطعی چرخه ${c.title}` : `حذف چرخه ${c.title}`}
                                   title={isConfirming ? 'کلیک مجدد برای حذف قطعی' : 'حذف این چرخه'}
                                 >
                                   {isConfirming ? (
@@ -331,7 +386,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                             setConfirmDeleteCycleId(null);
                             onOpenNewCycleModal();
                           }}
-                          className="w-full py-2.5 min-h-[44px] px-3 bg-amber-500 hover:bg-amber-400 text-zinc-950 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-amber-500/10 active:scale-[0.98] touch-manipulation"
+                          className="w-full py-2.5 min-h-[44px] px-3 bg-amber-500 hover:bg-amber-400 text-zinc-950 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-amber-500/10 active:scale-[0.98] touch-manipulation focus-visible:outline-2 focus-visible:outline-amber-400"
                         >
                           <Plus className="w-4 h-4" />
                           <span>+ تعریف چرخه جدید ۹۰ روزه</span>
@@ -344,7 +399,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                           setConfirmDeleteCycleId(null);
                           onSelectTab('archives');
                         }}
-                        className="w-full py-2.5 min-h-[44px] px-3 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation"
+                        className="w-full py-2.5 min-h-[44px] px-3 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation focus-visible:outline-2 focus-visible:outline-zinc-300"
                       >
                         <Archive className="w-3.5 h-3.5 text-zinc-400" />
                         <span>کارنامه و بایگانی چرخه‌ها</span>
@@ -368,7 +423,8 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       key={tab.id}
                       type="button"
                       onClick={() => handleTabClick(tab.id)}
-                      className={`h-9 px-3.5 rounded-xl text-xs xl:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer relative z-10 select-none touch-manipulation ${
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`h-9 px-3.5 rounded-xl text-xs xl:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer relative z-10 select-none touch-manipulation focus-visible:outline-2 focus-visible:outline-amber-400 ${
                         isActive
                           ? 'text-white font-bold'
                           : 'text-zinc-400 hover:text-zinc-200'
@@ -376,15 +432,15 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                     >
                       {isActive && (
                         <motion.div
-                          layoutId="desktopActiveTabIndicator"
-                          layout="position"
+                          layoutId={shouldReduceMotion ? undefined : "desktopActiveTabIndicator"}
+                          layout={shouldReduceMotion ? false : "position"}
                           className="absolute inset-0 rounded-xl -z-10 shadow-md border pointer-events-none"
                           style={{
                             backgroundColor: themeConfig.bgSubtle,
                             borderColor: `${themeConfig.colorHex}50`,
                             boxShadow: `0 0 20px ${themeConfig.glowColor}`
                           }}
-                          transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                          transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 450, damping: 35 }}
                         />
                       )}
                       <Icon 
@@ -394,7 +450,15 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       <span className="whitespace-nowrap leading-none">{tab.label}</span>
 
                       {hasDebtAlert && !isActive && (
-                        <span className="w-2 h-2 rounded-full bg-red-500 animate-ping absolute top-1.5 left-1.5" />
+                        <>
+                          <span 
+                            className="w-2 h-2 rounded-full bg-red-500 animate-ping motion-reduce:animate-none absolute top-1.5 left-1.5" 
+                            aria-hidden="true" 
+                          />
+                          <span className="sr-only">
+                            ({toPersianDigits(displayedDebtCount)} بدهی باز نیازمند رسیدگی)
+                          </span>
+                        </>
                       )}
                     </button>
                   );
@@ -415,7 +479,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       onSelectTab('battlefield');
                     }
                   }}
-                  className="h-8 sm:h-9 min-w-[44px] bg-red-950/80 border border-red-500/60 hover:bg-red-900/90 text-red-300 px-2 sm:px-2.5 rounded-xl text-[10px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer animate-pulse shrink-0 shadow-md transition touch-manipulation"
+                  className="h-8 sm:h-9 min-w-[44px] bg-red-950/80 border border-red-500/60 hover:bg-red-900/90 text-red-300 px-2 sm:px-2.5 rounded-xl text-[10px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer animate-pulse motion-reduce:animate-none shrink-0 shadow-md transition touch-manipulation focus-visible:outline-2 focus-visible:outline-red-400"
                   title="کلیک برای کالبدشکافی و تسویه فوری بدهی"
                 >
                   <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
@@ -438,7 +502,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={onOpenPaymentModal}
-                  className="h-8 sm:h-9 min-w-[44px] bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 hover:border-amber-500/50 text-amber-300 px-2 sm:px-2.5 rounded-xl text-[11px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shadow-xs shrink-0 transition active:scale-95 touch-manipulation"
+                  className="h-8 sm:h-9 min-w-[44px] bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 hover:border-amber-500/50 text-amber-300 px-2 sm:px-2.5 rounded-xl text-[11px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shadow-xs shrink-0 transition active:scale-95 touch-manipulation focus-visible:outline-2 focus-visible:outline-amber-400"
                   title="حساب سامورایی ویژه فعال است - کلیک برای مدیریت"
                 >
                   <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -451,7 +515,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={() => onSelectTab('admin')}
-                  className={`h-8 sm:h-9 min-w-[44px] bg-red-950/60 border border-red-500/50 hover:bg-red-900/80 text-red-300 px-2 sm:px-2.5 rounded-xl text-[10px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer transition shrink-0 touch-manipulation ${
+                  className={`h-8 sm:h-9 min-w-[44px] bg-red-950/60 border border-red-500/50 hover:bg-red-900/80 text-red-300 px-2 sm:px-2.5 rounded-xl text-[10px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer transition shrink-0 touch-manipulation focus-visible:outline-2 focus-visible:outline-red-400 ${
                     activeTab === 'admin' ? 'ring-2 ring-red-500 bg-red-900/80 text-white' : ''
                   }`}
                   title="ورود به پنل مدیریت"
@@ -486,7 +550,8 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                   key={tab.id}
                   type="button"
                   onClick={() => handleTabClick(tab.id)}
-                  className={`h-full min-h-[44px] min-w-[44px] w-full flex flex-col items-center justify-center relative cursor-pointer z-10 transition-colors touch-manipulation ${
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`h-full min-h-[44px] min-w-[44px] w-full flex flex-col items-center justify-center relative cursor-pointer z-10 transition-colors touch-manipulation focus-visible:outline-2 focus-visible:outline-amber-400 ${
                     isActive
                       ? 'font-bold text-white'
                       : 'text-zinc-400 hover:text-zinc-200'
@@ -495,15 +560,15 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                   <div className="relative w-12 h-7 flex items-center justify-center">
                     {isActive && (
                       <motion.div
-                        layoutId="activeTabIndicator"
-                        layout="position"
+                        layoutId={shouldReduceMotion ? undefined : "activeTabIndicator"}
+                        layout={shouldReduceMotion ? false : "position"}
                         className="absolute inset-0 rounded-xl border pointer-events-none"
                         style={{
                           backgroundColor: themeConfig.bgSubtle,
                           borderColor: `${themeConfig.colorHex}50`,
                           boxShadow: `0 0 16px ${themeConfig.glowColor}`
                         }}
-                        transition={{ type: 'spring', stiffness: 450, damping: 35, mass: 0.7 }}
+                        transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 450, damping: 35, mass: 0.7 }}
                       />
                     )}
                     <Icon 
@@ -512,11 +577,27 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                     />
 
                     {hasDebtAlert && !isActive && (
-                      <span className="w-2 h-2 rounded-full bg-red-500 animate-ping absolute top-0.5 right-1 z-20" />
+                      <>
+                        <span 
+                          className="w-2 h-2 rounded-full bg-red-500 animate-ping motion-reduce:animate-none absolute top-0.5 right-1 z-20" 
+                          aria-hidden="true" 
+                        />
+                        <span className="sr-only">
+                          ({toPersianDigits(displayedDebtCount)} بدهی باز)
+                        </span>
+                      </>
                     )}
 
                     {hasMilestoneAlert && !isActive && (
-                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse absolute top-0.5 right-1 z-20 shadow-xs" />
+                      <>
+                        <span 
+                          className="w-2 h-2 rounded-full bg-amber-400 animate-pulse motion-reduce:animate-none absolute top-0.5 right-1 z-20 shadow-xs" 
+                          aria-hidden="true" 
+                        />
+                        <span className="sr-only">
+                          (نقطه عطف جدید در دسترس است)
+                        </span>
+                      </>
                     )}
                   </div>
 

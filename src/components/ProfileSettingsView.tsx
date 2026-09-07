@@ -81,10 +81,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
   const [activeSection, setActiveSection] = useState<SettingsSection>('account');
   const [navDirection, setNavDirection] = useState<number>(0);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
-  const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
   const [expandedHabitKey, setExpandedHabitKey] = useState<HabitKey | null>('wakeUp');
-
-  useBodyScrollLock(isConfirmResetOpen);
 
   const themeConfig = BUSHIDO_CRIMSON_THEME;
   const currentCutoff = userProfile.nightOwlCutoffHour ?? settings.nightOwlCutoffHour ?? 4;
@@ -503,10 +500,8 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsConfirmResetOpen(true);
-                    }}
-                    className="bg-red-950/40 hover:bg-red-900/60 border border-red-500/40 hover:border-red-500/60 text-red-300 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition whitespace-nowrap shrink-0 shadow-sm"
+                    onClick={onResetData}
+                    className="bg-red-950/40 hover:bg-red-900/60 border border-red-500/40 hover:border-red-500/60 text-red-300 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition whitespace-nowrap shrink-0 shadow-sm focus-visible:outline-2 focus-visible:outline-red-400"
                   >
                     <RotateCcw className="w-4 h-4" />
                     <span>بازنشانی به وضعیت اولیه</span>
@@ -700,56 +695,6 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
             </div>
           )}
         </motion.div>
-      </AnimatePresence>
-
-      {/* Confirmation Modal for Reset Factory Data */}
-      <AnimatePresence>
-        {isConfirmResetOpen && (
-          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#1c1c21] border border-red-500/40 rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl space-y-4 text-right my-auto"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shrink-0">
-                  <AlertTriangle className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-white">تایید بازنشانی داده‌ها</h3>
-                  <p className="text-xs text-zinc-400 mt-0.5">آیا از پاک‌سازی کامل تمام چرخه‌ها و لاگ‌ها اطمینان دارید؟</p>
-                </div>
-              </div>
-
-              <p className="text-xs text-zinc-300 bg-[#18181b] border border-red-500/30 p-3.5 rounded-2xl leading-relaxed">
-                این عملیات غیرقابل بازگشت است و تمام رکوردهای استریک، عادات ثبت‌شده و احکام دادگاه بوشیدو حذف خواهند شد.
-              </p>
-
-              <div className="flex items-center gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    soundFX.playSlash();
-                    setIsConfirmResetOpen(false);
-                    onResetData();
-                    showNotice('داده‌های سامانه به حالت اولیه بازنشانی شد.');
-                  }}
-                  className="flex-1 bg-red-600 hover:bg-red-500 text-white font-black text-xs py-3 rounded-xl transition cursor-pointer active:scale-95 shadow-md shadow-red-600/30"
-                >
-                  بله، بازنشانی کامل شود
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsConfirmResetOpen(false)}
-                  className="px-5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs py-3 rounded-xl transition cursor-pointer active:scale-95"
-                >
-                  انصراف
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
       </AnimatePresence>
     </div>
   );

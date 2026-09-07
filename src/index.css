@@ -7,11 +7,6 @@
   --font-en: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* قفل کردن تغییر رنگ اجباری مرورگر سامسونگ و حالت کنتراست بالا */
-html, body, #root, header, nav {
-  forced-color-adjust: none !important;
-}
-
 /* استفاده از گرادیان یکدست به جای رنگ تک‌بُعدی برای خنثی‌سازی موتور تشخیص پس‌زمینه سامسونگ */
 html, body, #root, header {
   background-image: linear-gradient(to bottom, #09090b, #09090b) !important;

@@ -5,7 +5,7 @@ import React, {
   useCallback, 
   useRef 
 } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { Cycle, DailyLog, SystemSettings, UserProfile, AdminUserItem, OfflineQueueItem } from './types';
 import { createInitialSystemState, GUEST_USER_PROFILE } from './data/initialData';
 import { computeCycleMetrics, createEmptyCycleMetrics, computeDailyProperties } from './engine/bushidoCalculations';
@@ -94,6 +94,7 @@ import { AutopsyModal } from './components/AutopsyModal';
 import { PaymentModal } from './components/PaymentModal';
 import { AuthModal } from './components/AuthModal';
 import { CreateCycleModal } from './components/CreateCycleModal';
+import { ResetConfirmationModal } from './components/ResetConfirmationModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useBodyScrollLock } from './utils/useBodyScrollLock';
 import { Toast, ToastItem, ToastType } from './components/Toast';
@@ -1442,15 +1443,41 @@ export default function App() {
     setActiveTab(tab);
   }, []);
 
+  const shouldReduceMotion = useReducedMotion();
+  const pageMotion = useMemo(() => {
+    if (shouldReduceMotion) {
+      return {
+        initial: { opacity: 1 },
+        animate: { opacity: 1 },
+        exit: { opacity: 1 },
+        transition: { duration: 0 }
+      };
+    }
+    return {
+      initial: { opacity: 0, y: 6 },
+      animate: { opacity: 1, y: 0 },
+      exit: { opacity: 0, y: -6 },
+      transition: { duration: 0.18, ease: 'easeOut' as const }
+    };
+  }, [shouldReduceMotion]);
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col w-full max-w-full selection:bg-amber-500 selection:text-black">
+        {/* Skip Link for direct keyboard navigation to main content */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:right-3 focus:z-[100] focus:px-4 focus:py-2.5 focus:bg-amber-500 focus:text-zinc-950 focus:font-black focus:text-xs focus:rounded-xl focus:shadow-2xl focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-zinc-900 transition-none"
+        >
+          پرش به محتوای اصلی
+        </a>
+
         {/* Top Banner when Admin is Impersonating a User */}
         {impersonatingUser && (
           <div className="bg-sky-950 border-b border-sky-500/50 py-2.5 px-4 sticky top-0 z-50 shadow-2xl backdrop-blur-md">
             <div className="max-w-7xl w-full mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
               <div className="flex items-center gap-2 text-sky-200 font-bold">
-                <Eye className="w-4 h-4 text-sky-400 animate-pulse shrink-0" />
+                <Eye className="w-4 h-4 text-sky-400 animate-pulse motion-reduce:animate-none shrink-0" />
                 <span>
                   حالت شبیه‌سازی کاربر: در حال بررسی سامانه از دید «{impersonatingUser.name}»
                 </span>
@@ -1494,15 +1521,12 @@ export default function App() {
         />
 
         {/* Main Content Area */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 pb-32 lg:pb-16 min-w-0">
+        <main id="main-content" tabIndex={-1} className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 pb-32 lg:pb-16 min-w-0 outline-none">
           <AnimatePresence mode="wait">
               {activeTab === 'battlefield' && (
                 <motion.div
                   key="battlefield"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  {...pageMotion}
                   className="w-full"
                 >
                   <BattlefieldView
@@ -1524,10 +1548,7 @@ export default function App() {
               {(activeTab === 'dashboard' || activeTab === 'cycle') && (
                 <motion.div
                   key="dashboard"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  {...pageMotion}
                   className="w-full"
                 >
                   <CycleDashboardView
@@ -1546,10 +1567,7 @@ export default function App() {
               {(activeTab === 'archives' || activeTab === 'database' || activeTab === 'court') && (
                 <motion.div
                   key="archives"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  {...pageMotion}
                   className="w-full"
                 >
                   <ArchivesView
@@ -1573,10 +1591,7 @@ export default function App() {
               {(activeTab === 'profile' || activeTab === 'settings') && (
                 <motion.div
                   key="profile"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  {...pageMotion}
                   className="w-full"
                 >
                   <ProfileSettingsView
@@ -1598,10 +1613,7 @@ export default function App() {
               {activeTab === 'admin' && (
                 <motion.div
                   key="admin"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  {...pageMotion}
                   className="w-full"
                 >
                   <AdminView
@@ -1685,47 +1697,11 @@ export default function App() {
         )}
 
         {/* Reset Confirmation Modal */}
-        {isResetConfirmOpen && (
-          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]">
-            <div className="bg-[#1c1c21] border border-red-500/40 rounded-3xl w-full max-w-md p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 my-auto">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shrink-0">
-                  <RotateCcw className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-base text-zinc-100">
-                    بازنشانی داده‌های سامانه
-                  </h3>
-                  <p className="text-xs text-red-400 mt-0.5">
-                    بازگشت به مقادیر اولیه سیستم بوشیدو
-                  </p>
-                </div>
-              </div>
-
-              <p className="text-xs text-zinc-300 leading-relaxed bg-[#18181b] border border-zinc-800 rounded-2xl p-4">
-                آیا از بازنشانی کلیه داده‌ها، لاگ‌ها و چرخه‌ها به اطلاعات نمونه اولیه سیستم بوشیدو اطمینان دارید؟ تمام تغییرات ثبت‌شده محلی پاک خواهند شد.
-              </p>
-
-              <div className="flex items-center justify-end gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsResetConfirmOpen(false)}
-                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer"
-                >
-                  انصراف
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmReset}
-                  className="bg-red-600 hover:bg-red-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-red-600/30 transition cursor-pointer"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  <span>بله، بازنشانی داده‌ها</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ResetConfirmationModal
+          isOpen={isResetConfirmOpen}
+          onClose={() => setIsResetConfirmOpen(false)}
+          onConfirm={handleConfirmReset}
+        />
       </div>
     </ErrorBoundary>
   );
