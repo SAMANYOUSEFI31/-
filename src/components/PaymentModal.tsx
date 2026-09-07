@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { UserProfile, SubscriptionPlan } from '../types';
 import { PLANS } from '../config/plans';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
+import { useModalAccessibility } from '../utils/useModalAccessibility';
 import {
   validateAuthoritativePaymentResponse,
   AuthoritativePaymentReceipt
@@ -18,8 +19,7 @@ import {
   AlertCircle, 
   X, 
   Loader2, 
-  FlaskConical,
-  RotateCcw
+  FlaskConical
 } from 'lucide-react';
 
 interface PaymentModalProps {
@@ -44,7 +44,32 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [paymentError, setPaymentError] = useState('');
   const [receiptData, setReceiptData] = useState<AuthoritativePaymentReceipt | null>(null);
 
+  const shouldReduceMotion = useReducedMotion();
+  const { containerRef } = useModalAccessibility<HTMLDivElement>({
+    isOpen,
+    onClose,
+    isBusy: isLoading,
+    focusKey: step
+  });
+
   if (!isOpen) return null;
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (isLoading) return;
+    onClose();
+  };
+
+  const handlePlanKeyDown = (e: React.KeyboardEvent, index: number) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const nextIndex = (index + 1) % PLANS.length;
+      setSelectedPlan(PLANS[nextIndex]);
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const prevIndex = (index - 1 + PLANS.length) % PLANS.length;
+      setSelectedPlan(PLANS[prevIndex]);
+    }
+  };
 
   const handleStartPayment = async () => {
     setIsLoading(true);
@@ -173,14 +198,35 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     >
       <div 
         className="fixed inset-0" 
-        onClick={onClose}
+        onClick={handleBackdropClick}
+        aria-hidden="true"
       />
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95, y: 15 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 15 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="relative z-10 bg-[#1c1c21] border border-zinc-800 rounded-2xl sm:rounded-3xl w-full max-w-2xl text-zinc-100 shadow-2xl overflow-hidden flex flex-col max-h-[92dvh] my-auto"
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-busy={isLoading}
+        aria-labelledby={
+          step === 'plans'
+            ? 'payment-modal-title'
+            : step === 'simulator'
+            ? 'payment-simulator-title'
+            : 'payment-success-title'
+        }
+        aria-describedby={
+          step === 'plans'
+            ? 'payment-modal-desc'
+            : step === 'simulator'
+            ? 'payment-simulator-desc'
+            : 'payment-success-desc'
+        }
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 15 }}
+        animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
+        exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 15 }}
+        transition={{ duration: shouldReduceMotion ? 0.01 : 0.2, ease: 'easeOut' }}
+        className="relative z-10 bg-[#1c1c21] border border-zinc-800 rounded-2xl sm:rounded-3xl w-full max-w-2xl text-zinc-100 shadow-2xl overflow-hidden flex flex-col max-h-[92dvh] my-auto focus:outline-none"
       >
         {/* STEP 1: PLANS SELECTION */}
         {step === 'plans' && (
@@ -192,10 +238,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <Crown className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
                 <div>
-                  <h2 className="text-sm sm:text-lg md:text-xl font-black text-zinc-100 flex items-center gap-2">
+                  <h2 id="payment-modal-title" className="text-sm sm:text-lg md:text-xl font-black text-zinc-100 flex items-center gap-2">
                     ارتقا به اشتراک «سامورایی ویژه VIP»
                   </h2>
-                  <p className="text-[10px] sm:text-xs text-zinc-400 mt-0.5">
+                  <p id="payment-modal-desc" className="text-[10px] sm:text-xs text-zinc-400 mt-0.5">
                     فعال‌سازی تمامی ابزارهای مهندسی دیسیپلین، آنالیز و صدور گواهینامه
                   </p>
                 </div>
@@ -203,7 +249,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition cursor-pointer shrink-0 touch-manipulation"
+                disabled={isLoading}
+                className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition cursor-pointer shrink-0 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-amber-400"
                 aria-label="بستن"
               >
                 <X className="w-5 h-5" />
@@ -211,15 +258,23 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
 
             <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto overscroll-contain flex-1 min-h-0">
-              {/* Plan Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
-                {PLANS.map(plan => {
+              {/* Plan Cards as accessible Radio Group */}
+              <div 
+                role="radiogroup" 
+                aria-label="انتخاب طرح اشتراک"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4"
+              >
+                {PLANS.map((plan, index) => {
                   const isSelected = selectedPlan.id === plan.id;
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={plan.id}
+                      role="radio"
+                      aria-checked={isSelected}
                       onClick={() => setSelectedPlan(plan)}
-                      className={`rounded-2xl p-4 sm:p-5 border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
+                      onKeyDown={(e) => handlePlanKeyDown(e, index)}
+                      className={`text-right w-full rounded-2xl p-4 sm:p-5 border-2 transition-all cursor-pointer relative flex flex-col justify-between focus-visible:outline-2 focus-visible:outline-amber-400 ${
                         isSelected
                           ? 'bg-amber-950/30 border-amber-500 shadow-xl shadow-amber-500/10'
                           : 'bg-[#18181b] border-zinc-800 hover:border-zinc-700'
@@ -231,9 +286,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         </div>
                       )}
 
-                      <div className="space-y-2.5 sm:space-y-3">
+                      <div className="space-y-2.5 sm:space-y-3 w-full">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-bold text-xs sm:text-sm text-zinc-100">{plan.title}</h3>
+                          <span className="font-bold text-xs sm:text-sm text-zinc-100">{plan.title}</span>
                           <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                             isSelected ? 'border-amber-400 bg-amber-400 text-black' : 'border-zinc-600'
                           }`}>
@@ -257,7 +312,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                           ))}
                         </ul>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -265,7 +320,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               {/* Secure Payment Note */}
               <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-3 sm:p-4 flex items-center justify-between text-xs text-zinc-400">
                 <div className="flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <Lock className="w-4 h-4 text-emerald-400 shrink-0" aria-hidden="true" />
                   <span className="text-[11px] sm:text-xs">پرداخت امن از طریق درگاه رسمی بانکی</span>
                 </div>
                 <span className="text-[10px] sm:text-[11px] text-zinc-500 shrink-0">
@@ -274,8 +329,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
 
               {paymentError && (
-                <div className="bg-red-950/60 border border-red-500/40 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                <div 
+                  role="alert" 
+                  aria-live="assertive"
+                  className="bg-red-950/60 border border-red-500/40 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2"
+                >
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" aria-hidden="true" />
                   <span>{paymentError}</span>
                 </div>
               )}
@@ -285,7 +344,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2.5 sm:px-5 sm:py-2.5 min-h-[44px] rounded-xl text-zinc-400 hover:text-white text-xs font-semibold cursor-pointer touch-manipulation"
+                  disabled={isLoading}
+                  className="px-4 py-2.5 sm:px-5 sm:py-2.5 min-h-[44px] rounded-xl text-zinc-400 hover:text-white text-xs font-semibold cursor-pointer touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-zinc-400"
                 >
                   انصراف
                 </button>
@@ -294,17 +354,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={handleStartPayment}
                   disabled={isLoading}
-                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs sm:text-sm px-5 py-2.5 sm:px-6 sm:py-3 rounded-2xl flex items-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer"
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs sm:text-sm px-5 py-2.5 sm:px-6 sm:py-3 rounded-2xl flex items-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-amber-400"
                 >
                   {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      در حال اتصال به درگاه...
-                    </>
+                    <span className="flex items-center gap-2" aria-live="polite">
+                      <Loader2 className={`w-4 h-4 ${shouldReduceMotion ? '' : 'animate-spin'}`} aria-hidden="true" />
+                      <span>در حال اتصال به درگاه...</span>
+                    </span>
                   ) : (
                     <>
-                      <CreditCard className="w-4 h-4" />
-                      پرداخت آنلاین {selectedPlan.formattedPrice} تومان
+                      <CreditCard className="w-4 h-4" aria-hidden="true" />
+                      <span>پرداخت آنلاین {selectedPlan.formattedPrice} تومان</span>
                     </>
                   )}
                 </button>
@@ -320,18 +380,18 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <div className="p-4 sm:p-5 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
-                  <FlaskConical className="w-5 h-5" />
+                  <FlaskConical className="w-5 h-5" aria-hidden="true" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm sm:text-base font-bold text-zinc-100">
+                    <h3 id="payment-simulator-title" className="text-sm sm:text-base font-bold text-zinc-100">
                       شبیه‌ساز پرداخت (محیط توسعه)
                     </h3>
                     <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">
                       DEV ONLY
                     </span>
                   </div>
-                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                  <p id="payment-simulator-desc" className="text-[11px] text-zinc-400 mt-0.5">
                     تست فنی تایید تراکنش و صدور اشتراک، بدون ورود داده‌های حساس بانکی
                   </p>
                 </div>
@@ -339,7 +399,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <button
                 type="button"
                 onClick={() => setStep('plans')}
-                className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition cursor-pointer"
+                disabled={isLoading}
+                className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-amber-400"
                 aria-label="بازگشت به پلن‌ها"
               >
                 <X className="w-5 h-5" />
@@ -359,7 +420,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-zinc-400">شناسه تراکنش دیوان:</span>
-                  <span className="font-mono text-amber-400 text-[11px] break-all">{authority}</span>
+                  <span dir="ltr" className="font-mono text-amber-400 text-[11px] break-all">{authority}</span>
                 </div>
               </div>
 
@@ -370,8 +431,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
 
               {paymentError && (
-                <div className="bg-red-950/60 border border-red-500/40 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                <div 
+                  role="alert" 
+                  aria-live="assertive"
+                  className="bg-red-950/60 border border-red-500/40 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2"
+                >
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" aria-hidden="true" />
                   <span>{paymentError}</span>
                 </div>
               )}
@@ -381,7 +446,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setStep('plans')}
-                  className="px-4 py-2.5 min-h-[44px] rounded-xl text-zinc-400 hover:text-white text-xs font-semibold cursor-pointer"
+                  disabled={isLoading}
+                  className="px-4 py-2.5 min-h-[44px] rounded-xl text-zinc-400 hover:text-white text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-zinc-400"
                 >
                   انصراف و بازگشت
                 </button>
@@ -390,17 +456,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={handleVerifyPayment}
                   disabled={isLoading}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm px-6 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-950 transition cursor-pointer active:scale-[0.98]"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm px-6 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-950 transition cursor-pointer active:scale-[0.98] disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-emerald-400"
                 >
                   {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      در حال تایید با سرور...
-                    </>
+                    <span className="flex items-center gap-2" aria-live="polite">
+                      <Loader2 className={`w-4 h-4 ${shouldReduceMotion ? '' : 'animate-spin'}`} aria-hidden="true" />
+                      <span>در حال تایید با سرور...</span>
+                    </span>
                   ) : (
                     <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      تایید پرداخت شبیه‌سازی‌شده
+                      <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                      <span>تایید پرداخت شبیه‌سازی‌شده</span>
                     </>
                   )}
                 </button>
@@ -411,19 +477,23 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
         {/* STEP 3: PAYMENT SUCCESS RECEIPT */}
         {step === 'success' && receiptData && (
-          <div className="p-6 sm:p-8 text-center space-y-5 sm:space-y-6 overflow-y-auto flex-1">
+          <div 
+            role="status" 
+            aria-live="polite" 
+            className="p-6 sm:p-8 text-center space-y-5 sm:space-y-6 overflow-y-auto flex-1"
+          >
             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto shadow-xl shadow-emerald-950">
-              <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
+              <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" aria-hidden="true" />
             </div>
 
             <div className="space-y-2">
               <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full font-bold font-mono">
                 👑 سامورایی ویژه (VIP Samurai) فعال شد
               </span>
-              <h2 className="text-xl sm:text-2xl font-black text-zinc-100">
+              <h2 id="payment-success-title" className="text-xl sm:text-2xl font-black text-zinc-100">
                 پرداخت با موفقیت انجام شد!
               </h2>
-              <p className="text-xs sm:text-sm text-zinc-300 max-w-md mx-auto leading-relaxed">
+              <p id="payment-success-desc" className="text-xs sm:text-sm text-zinc-300 max-w-md mx-auto leading-relaxed">
                 دیوان عالی بوشیدو ارتقای سطح شما را به رسمیت شناخته و دسترسی نامحدود به تمامی امکانات فعال گردید.
               </p>
             </div>
@@ -431,32 +501,33 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             {/* Official Digital Receipt */}
             <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-4 sm:p-5 max-w-md mx-auto text-xs space-y-3 font-mono text-zinc-300">
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <span className="text-zinc-400">شماره پیگیری تراکنش (RefID):</span>
-                <span className="text-amber-400 font-bold">{receiptData.refId}</span>
+                <span className="text-zinc-400 font-sans">شماره پیگیری تراکنش (RefID):</span>
+                <span dir="ltr" className="text-amber-400 font-bold">{receiptData.refId}</span>
               </div>
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <span className="text-zinc-400">طرح اشتراک:</span>
+                <span className="text-zinc-400 font-sans">طرح اشتراک:</span>
                 <span className="text-zinc-100 font-sans font-bold">{selectedPlan.title}</span>
               </div>
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <span className="text-zinc-400">مبلغ پرداخت شده:</span>
+                <span className="text-zinc-400 font-sans">مبلغ پرداخت شده:</span>
                 <span className="text-emerald-400 font-bold">{selectedPlan.formattedPrice} تومان</span>
               </div>
               {receiptData.cardPan && (
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                  <span className="text-zinc-400">شماره کارت:</span>
-                  <span>{receiptData.cardPan}</span>
+                  <span className="text-zinc-400 font-sans">شماره کارت:</span>
+                  <span dir="ltr">{receiptData.cardPan}</span>
                 </div>
               )}
               <div className="flex items-center justify-between">
-                <span className="text-zinc-400">زمان ثبت:</span>
-                <span>{receiptData.date}</span>
+                <span className="text-zinc-400 font-sans">زمان ثبت:</span>
+                <span dir="ltr">{receiptData.date}</span>
               </div>
             </div>
 
             <button
+              type="button"
               onClick={onClose}
-              className="bg-amber-500 hover:bg-amber-400 text-black font-black text-sm px-8 py-3 rounded-2xl transition shadow-lg shadow-amber-500/20 cursor-pointer"
+              className="bg-amber-500 hover:bg-amber-400 text-black font-black text-sm px-8 py-3 rounded-2xl transition shadow-lg shadow-amber-500/20 cursor-pointer focus-visible:outline-2 focus-visible:outline-amber-400"
             >
               ورود به میدان نبرد با اشتراک ویژه
             </button>
@@ -467,3 +538,4 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     </div>
   );
 };
+
