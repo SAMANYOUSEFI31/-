@@ -167,6 +167,31 @@ export function rollbackOptimisticCycleDelete(
   return { nextCycles, nextLogs };
 }
 
+export function rollbackOptimisticCycleCreate(
+  currentCycles: Cycle[],
+  currentLogs: DailyLog[],
+  newCycleId: string,
+  previousCyclesSnapshot: Cycle[],
+  previousLogsSnapshot: DailyLog[]
+): { nextCycles: Cycle[]; nextLogs: DailyLog[] } {
+  const nextCycles = currentCycles.filter(c => c.id !== newCycleId);
+  
+  for (const snapshotCycle of previousCyclesSnapshot) {
+    if (!nextCycles.some(c => c.id === snapshotCycle.id)) {
+      nextCycles.push({ ...snapshotCycle });
+    }
+  }
+
+  const nextLogs = [...currentLogs];
+  for (const snapshotLog of previousLogsSnapshot) {
+    if (!nextLogs.some(l => l.date === snapshotLog.date && l.cycleId === snapshotLog.cycleId)) {
+      nextLogs.push({ ...snapshotLog });
+    }
+  }
+
+  return { nextCycles, nextLogs };
+}
+
 /**
  * Validates and prepares the explicit expectedRevision for an entity mutation.
  * Rejects missing or non-positive integer revisions for existing entities.
@@ -938,7 +963,7 @@ export async function executeDirectCreateCycleMutation(
                 
                 return [{
                   ...item,
-                  type: 'UPDATE_CYCLE',
+                  type: 'UPDATE_CYCLE' as 'UPDATE_CYCLE',
                   expectedRevision: serverCycle.revision,
                   payload: {
                     ...item.payload,

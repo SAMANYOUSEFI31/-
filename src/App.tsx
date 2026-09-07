@@ -48,6 +48,7 @@ import {
   applyOptimisticCycleUpdate,
   rollbackOptimisticCycleUpdate,
   rollbackOptimisticCycleDelete,
+  rollbackOptimisticCycleCreate,
   prepareDirectLogPayload,
   prepareDirectCyclePayload,
   verifyActiveAccount,
@@ -954,8 +955,20 @@ export default function App() {
   }, [authToken, systemState.userProfile, showAppToast, requestSync]);
 
   const handleCreateNewCycle = useCallback(async (title: string, startDate: string, targetTheme: string) => {
-    // User created their own real cycle; demo is permanently consumed
-    const scopedDemoKey = getScopedDemoConsumedKey(systemState.userProfile?.id);
+    const ownerId = systemState.userProfile?.id;
+    const initialOwner = ownerId;
+    const scopedDemoKey = getScopedDemoConsumedKey(initialOwner);
+    const previousDemoConsumed = safeGetLocalStorage(scopedDemoKey);
+    
+    // Capture remaining baseline inside the synchronous setSystemState to ensure no stale closure issues
+    let previousCyclesSnapshot: Cycle[] = [];
+    let previousLogsSnapshot: DailyLog[] = [];
+    
+    // Component state baseline captured from current render
+    const previousActiveCycleId = activeCycleId;
+    const previousSelectedDate = selectedDate;
+    const previousActiveTab = activeTab;
+
     safeSetLocalStorage(scopedDemoKey, 'true');
 
     const newCycle: Cycle = {
@@ -970,6 +983,8 @@ export default function App() {
     };
 
     setSystemState(prev => {
+      previousCyclesSnapshot = prev.cycles;
+      previousLogsSnapshot = prev.logs;
       // Filter out starter demo cycle & logs so user starts on clean slate
       const nonDemoCycles = prev.cycles.filter(c => c.id !== 'cycle-1' && !c.title.includes('(نمونه)'));
       const nonDemoLogs = prev.logs.filter(l => l.cycleId !== 'cycle-1');
@@ -979,12 +994,10 @@ export default function App() {
         logs: nonDemoLogs
       };
     });
+    
     setActiveCycleId(newCycle.id);
     setSelectedDate(startDate);
     setActiveTab('battlefield');
-
-    const ownerId = systemState.userProfile?.id;
-    const initialOwner = ownerId;
 
     const result = await executeDirectCreateCycleMutation({
       newCycle,
@@ -993,31 +1006,48 @@ export default function App() {
       activeAccountRef
     });
 
+    const doRollback = () => {
+      if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return;
+
+      if (previousDemoConsumed === null) {
+        safeRemoveLocalStorage(scopedDemoKey);
+      } else {
+        safeSetLocalStorage(scopedDemoKey, previousDemoConsumed);
+      }
+
+      setSystemState(prev => {
+        const { nextCycles, nextLogs } = rollbackOptimisticCycleCreate(
+          prev.cycles,
+          prev.logs,
+          newCycle.id,
+          previousCyclesSnapshot,
+          previousLogsSnapshot
+        );
+        return {
+          ...prev,
+          cycles: nextCycles,
+          logs: nextLogs
+        };
+      });
+
+      setActiveCycleId(previousActiveCycleId);
+      setSelectedDate(previousSelectedDate);
+      setActiveTab(previousActiveTab);
+    };
+
     if (result.status === 'IGNORED_NO_AUTH_NO_QUEUE') {
       showAppToast('چرخه جدید با موفقیت ایجاد شد.', 'success');
       return;
     }
 
     if (result.status === 'STORAGE_WRITE_FAILED') {
-      setSystemState(prev => {
-        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-        return {
-          ...prev,
-          cycles: prev.cycles.filter(c => c.id !== newCycle.id)
-        };
-      });
+      doRollback();
       showAppToast(result.messageFa, 'error');
       return;
     }
 
     if (result.status === 'INVALID_PRECONDITION') {
-      setSystemState(prev => {
-        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-        return {
-          ...prev,
-          cycles: prev.cycles.filter(c => c.id !== newCycle.id)
-        };
-      });
+      doRollback();
       showAppToast(result.messageFa, 'warning');
       return;
     }
@@ -1050,13 +1080,7 @@ export default function App() {
     }
 
     if (result.status === 'CONFLICT') {
-      setSystemState(prev => {
-        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-        return {
-          ...prev,
-          cycles: prev.cycles.filter(c => c.id !== newCycle.id)
-        };
-      });
+      doRollback();
       showAppToast(result.conflictDetails.messageFa, 'warning');
       requestSync('NETWORK_ONLINE', ownerId, authToken, true);
       return;
@@ -1068,13 +1092,7 @@ export default function App() {
     }
 
     if (result.status === 'FORBIDDEN' || result.status === 'VALIDATION_ERROR' || result.status === 'ENTITY_MISSING') {
-      setSystemState(prev => {
-        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-        return {
-          ...prev,
-          cycles: prev.cycles.filter(c => c.id !== newCycle.id)
-        };
-      });
+      doRollback();
       console.warn('[Create Cycle Mutation] Non-retryable error, quarantined and rolled back:', result);
       return;
     }
@@ -1088,7 +1106,7 @@ export default function App() {
       showAppToast('چرخه ایجاد شد و پس از رفع اختلال ارتباط با سرور، همگام‌سازی تکمیل می‌شود.', 'info');
       return;
     }
-  }, [authToken, cycleMetrics?.pureStreak, systemState.userProfile?.id, showAppToast, requestSync]);
+  }, [authToken, cycleMetrics?.pureStreak, systemState.userProfile?.id, activeCycleId, selectedDate, activeTab, showAppToast, requestSync]);
 
   const handleUpdateSettings = useCallback(async (updatedSettings: SystemSettings) => {
     setSystemState(prev => ({
