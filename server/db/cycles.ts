@@ -129,7 +129,24 @@ export async function createCycle(
         rules: Array.isArray(created.rules) ? created.rules : []
       };
     } catch (e: any) {
-      if (e?.code === 'P2002') {
+      if (e?.code === 'P2002' || e?.message?.includes('Unique constraint failed') || e?.message?.includes('P2002')) {
+        if (targetId) {
+          const authoritative = await prisma.cycle.findUnique({
+            where: { id: targetId }
+          });
+          if (authoritative) {
+            if (authoritative.userId === userId) {
+              return {
+                ...authoritative,
+                revision: authoritative.revision ?? 1,
+                rules: Array.isArray(authoritative.rules) ? authoritative.rules : []
+              };
+            }
+            const err: any = new Error('Cycle ID collision: ID already belongs to another user');
+            err.code = 'CYCLE_ID_COLLISION';
+            throw err;
+          }
+        }
         const err: any = new Error('Cycle ID collision: ID already exists');
         err.code = 'CYCLE_ID_COLLISION';
         throw err;
