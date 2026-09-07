@@ -960,11 +960,9 @@ export default function App() {
     const scopedDemoKey = getScopedDemoConsumedKey(initialOwner);
     const previousDemoConsumed = safeGetLocalStorage(scopedDemoKey);
     
-    // Capture remaining baseline inside the synchronous setSystemState to ensure no stale closure issues
-    let previousCyclesSnapshot: Cycle[] = [];
-    let previousLogsSnapshot: DailyLog[] = [];
-    
-    // Component state baseline captured from current render
+    // Capture baseline synchronously from current render state before optimistic transition
+    const previousCyclesSnapshot: Cycle[] = systemState.cycles.map(c => ({ ...c }));
+    const previousLogsSnapshot: DailyLog[] = systemState.logs.map(l => ({ ...l }));
     const previousActiveCycleId = activeCycleId;
     const previousSelectedDate = selectedDate;
     const previousActiveTab = activeTab;
@@ -983,8 +981,6 @@ export default function App() {
     };
 
     setSystemState(prev => {
-      previousCyclesSnapshot = prev.cycles;
-      previousLogsSnapshot = prev.logs;
       // Filter out starter demo cycle & logs so user starts on clean slate
       const nonDemoCycles = prev.cycles.filter(c => c.id !== 'cycle-1' && !c.title.includes('(نمونه)'));
       const nonDemoLogs = prev.logs.filter(l => l.cycleId !== 'cycle-1');
@@ -1106,7 +1102,7 @@ export default function App() {
       showAppToast('چرخه ایجاد شد و پس از رفع اختلال ارتباط با سرور، همگام‌سازی تکمیل می‌شود.', 'info');
       return;
     }
-  }, [authToken, cycleMetrics?.pureStreak, systemState.userProfile?.id, activeCycleId, selectedDate, activeTab, showAppToast, requestSync]);
+  }, [authToken, cycleMetrics?.pureStreak, systemState.userProfile?.id, systemState.cycles, systemState.logs, activeCycleId, selectedDate, activeTab, showAppToast, requestSync]);
 
   const handleUpdateSettings = useCallback(async (updatedSettings: SystemSettings) => {
     setSystemState(prev => ({
