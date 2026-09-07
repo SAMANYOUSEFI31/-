@@ -58,6 +58,10 @@ import {
   executeDirectUpdateCycleMutation,
   executeDirectDeleteCycleMutation
 } from './utils/directMutationUtils';
+import {
+  deriveUnresolvedDebtLogs,
+  convertVirtualDebtLogForMutation
+} from './utils/debtAutopsyUtils';
 import { reconcileBootState } from './utils/syncReconciliation';
 import { emitSyncDiagnostic } from './utils/syncDiagnostics';
 import { 
@@ -558,55 +562,15 @@ export default function App() {
     return computeCycleMetrics(currentCycle, systemState.logs, systemState.cycles, logicalToday);
   }, [currentCycle, systemState.logs, systemState.cycles, logicalToday, emptyMetrics]);
 
-  // List of all past unresolved debt logs in the active cycle for autopsy modal and carousel
+  // Authoritative list of all past unresolved debt logs in the active cycle for autopsy modal, carousel and navbar
   const unresolvedDebtLogs: DailyLog[] = useMemo(() => {
-    const list: DailyLog[] = [];
-    if (!currentCycle) return list;
-    const cycleStartDate = currentCycle.startDate;
-    const seenDates = new Set<string>();
-
-    if (cycleStartDate && cycleStartDate < logicalToday) {
-      let checkDate = cycleStartDate;
-      while (checkDate < logicalToday) {
-        seenDates.add(checkDate);
-        let l = systemState.logs.find(
-          item => item.date === checkDate && (!item.cycleId || item.cycleId === currentCycle.id)
-        );
-        if (!l) {
-          l = {
-            id: `virtual-${checkDate}`,
-            cycleId: currentCycle.id,
-            date: checkDate,
-            createdAt: new Date().toISOString(),
-            wakeUp: false,
-            workout: false,
-            study: false,
-            journal: false,
-            hardTask: false,
-            specialMission: false
-          };
-        }
-        const c = computeDailyProperties(l, systemState.logs, logicalToday, cycleStartDate);
-        if (c.statusType === 'burned_unresolved') {
-          list.push(l);
-        }
-        checkDate = addDaysToDate(checkDate, 1);
-      }
-    }
-
-    systemState.logs.forEach(l => {
-      if (l.cycleId === currentCycle.id && l.date < logicalToday && !seenDates.has(l.date)) {
-        const c = computeDailyProperties(l, systemState.logs, logicalToday, cycleStartDate);
-        if (c.statusType === 'burned_unresolved') {
-          list.push(l);
-        }
-      }
-    });
-
-    return list.sort((a, b) => a.date.localeCompare(b.date));
+    return deriveUnresolvedDebtLogs(currentCycle, systemState.logs, logicalToday);
   }, [currentCycle, systemState.logs, logicalToday]);
 
-  const handleUpdateLog = useCallback(async (updatedLog: DailyLog) => {
+  const handleUpdateLog = useCallback(async (incomingLog: DailyLog) => {
+    // Convert virtual placeholder into established DailyLog mutation input before state update or mutation
+    const updatedLog = convertVirtualDebtLogForMutation(incomingLog, activeCycleId, systemState.logs);
+
     // 1. Capture confirmed baseline before mutation for truthful rollback
     const existingLog = systemState.logs.find(l => l.date === updatedLog.date) || null;
     const previousConfirmedSnapshot = existingLog ? { ...existingLog } : null;
@@ -1513,6 +1477,7 @@ export default function App() {
           currentCycle={currentCycle}
           onSelectCycle={c => setActiveCycleId(c.id)}
           metrics={cycleMetrics}
+          unresolvedDebtCount={unresolvedDebtLogs.length}
           settings={systemState.settings}
           userProfile={systemState.userProfile}
           onOpenPaymentModal={() => setIsPaymentModalOpen(true)}

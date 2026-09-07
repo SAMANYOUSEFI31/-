@@ -51,6 +51,10 @@ export function applyOptimisticLogUpdate(
     ...updatedLog,
     isSynced: false
   };
+  if (optimisticLog.id && optimisticLog.id.startsWith('virtual-')) {
+    optimisticLog.id = `log-${optimisticLog.date}`;
+  }
+  delete (optimisticLog as any).isVirtual;
 
   let nextLogs: DailyLog[];
   if (existingIdx >= 0) {
@@ -243,6 +247,10 @@ export function prepareDirectLogPayload(
       cycleId,
       ...(clientOperationId ? { clientOperationId } : {})
     };
+    if (payload.id && typeof payload.id === 'string' && payload.id.startsWith('virtual-')) {
+      payload.id = `log-${payload.date}`;
+    }
+    delete payload.isVirtual;
     delete payload.expectedRevision;
     return { payload, isExisting: false, isValid: true };
   }
@@ -251,8 +259,13 @@ export function prepareDirectLogPayload(
   const isValidRev = typeof rev === 'number' && Number.isInteger(rev) && rev > 0;
 
   if (!isValidRev) {
+    const payload = { ...updatedLog, cycleId, ...(clientOperationId ? { clientOperationId } : {}) };
+    if (payload.id && typeof payload.id === 'string' && payload.id.startsWith('virtual-')) {
+      payload.id = `log-${payload.date}`;
+    }
+    delete (payload as any).isVirtual;
     return {
-      payload: { ...updatedLog, cycleId, ...(clientOperationId ? { clientOperationId } : {}) },
+      payload,
       isExisting: true,
       isValid: false
     };
@@ -264,6 +277,10 @@ export function prepareDirectLogPayload(
     expectedRevision: rev,
     ...(clientOperationId ? { clientOperationId } : {})
   };
+  if (payload.id && typeof payload.id === 'string' && payload.id.startsWith('virtual-')) {
+    payload.id = `log-${payload.date}`;
+  }
+  delete payload.isVirtual;
 
   return {
     payload,

@@ -47,9 +47,10 @@ export interface DailyLog {
   id: string;
   cycleId: string;
   date: string; // YYYY-MM-DD
-  createdAt: string;
+  createdAt?: string;
   isSynced?: boolean; // نشانگر همگام‌سازی ابری آفلاین به آنلاین
   revision?: number;
+  isVirtual?: boolean; // نشانگر موقت برای روزهای مفقود بدهی در رابط کاربری
   
   // Foundation 5 Core Habits
   wakeUp: boolean;     // سحرخیزی

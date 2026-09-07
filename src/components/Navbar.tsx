@@ -26,6 +26,7 @@ interface NavbarProps {
   currentCycle: Cycle;
   onSelectCycle: (cycle: Cycle) => void;
   metrics: CycleMetrics;
+  unresolvedDebtCount?: number;
   settings: SystemSettings;
   userProfile: UserProfile;
   onOpenPaymentModal: () => void;
@@ -42,6 +43,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
   currentCycle,
   onSelectCycle,
   metrics,
+  unresolvedDebtCount,
   settings,
   userProfile,
   onOpenPaymentModal,
@@ -50,6 +52,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
   onOpenNewCycleModal,
   onDeleteCycle
 }) => {
+  const displayedDebtCount = unresolvedDebtCount !== undefined ? unresolvedDebtCount : metrics.unresolvedDebtCount;
   const [isCycleDropdownOpen, setIsCycleDropdownOpen] = useState(false);
   const [confirmDeleteCycleId, setConfirmDeleteCycleId] = useState<string | null>(null);
   const cycleDropdownButtonRef = useRef<HTMLButtonElement>(null);
@@ -358,7 +361,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 {mainTabs.map(tab => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
-                  const hasDebtAlert = tab.id === 'battlefield' && metrics.unresolvedDebtCount > 0;
+                  const hasDebtAlert = tab.id === 'battlefield' && displayedDebtCount > 0;
 
                   return (
                     <button
@@ -402,7 +405,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             {/* User Tier, Auth & Streak Controls */}
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               {/* Debt Alert Badge */}
-              {metrics.unresolvedDebtCount > 0 && (
+              {displayedDebtCount > 0 && (
                 <button 
                   type="button"
                   onClick={() => {
@@ -416,8 +419,8 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                   title="کلیک برای کالبدشکافی و تسویه فوری بدهی"
                 >
                   <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                  <span className="hidden xs:inline">{toPersianDigits(metrics.unresolvedDebtCount)} بدهی باز</span>
-                  <span className="xs:hidden">{toPersianDigits(metrics.unresolvedDebtCount)}!</span>
+                  <span className="hidden xs:inline">{toPersianDigits(displayedDebtCount)} بدهی باز</span>
+                  <span className="xs:hidden">{toPersianDigits(displayedDebtCount)}!</span>
                 </button>
               )}
 
@@ -475,7 +478,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             {mainTabs.map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
-              const hasDebtAlert = tab.id === 'battlefield' && metrics.unresolvedDebtCount > 0;
+              const hasDebtAlert = tab.id === 'battlefield' && displayedDebtCount > 0;
               const hasMilestoneAlert = tab.id === 'profile' && !userProfile.isVip && (metrics.elapsedDays >= 30 || metrics.pureStreak >= 7);
 
               return (

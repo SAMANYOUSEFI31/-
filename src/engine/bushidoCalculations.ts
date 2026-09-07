@@ -304,13 +304,13 @@ export function computeCycleMetrics(
           id: `virtual-${curr}`,
           cycleId: cycle.id,
           date: curr,
-          createdAt: new Date().toISOString(),
           wakeUp: false,
           workout: false,
           study: false,
           journal: false,
           hardTask: false,
-          specialMission: false
+          specialMission: false,
+          isVirtual: true
         };
       }
       synthesizedList.push({
