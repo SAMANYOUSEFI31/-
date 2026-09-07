@@ -5,6 +5,7 @@ import { toPersianDigits } from '../utils/numberUtils';
 import { haptics } from '../utils/haptics';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { useModalAccessibility } from '../utils/useModalAccessibility';
+import { handleTabListKeyDown, AuthTab } from '../utils/authTabNavigation';
 import { 
   ShieldCheck, 
   Smartphone, 
@@ -34,7 +35,7 @@ interface AuthModalProps {
   onLogout: () => void;
 }
 
-type AuthTab = 'login' | 'register' | 'forgot';
+type AuthErrorField = 'phone' | 'password' | 'otp' | 'newPassword' | null;
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -69,12 +70,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Status state
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [errorField, setErrorField] = useState<AuthErrorField>(null);
   const [successMessage, setSuccessMessage] = useState('');
 
   // Hidden secret dev/admin mode state (hidden from public users)
   const [showSecretDev, setShowSecretDev] = useState(false);
   const secretClickCountRef = useRef(0);
   const secretTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const switchTab = (newTab: AuthTab) => {
+    setActiveTab(newTab);
+    if (newTab === 'register') setRegisterStep('request');
+    if (newTab === 'forgot') setForgotStep('request');
+    setErrorMessage('');
+    setErrorField(null);
+    setSuccessMessage('');
+    setTimeout(() => {
+      document.getElementById(`auth-tab-${newTab}`)?.focus();
+    }, 0);
+  };
+
+  const handleTabKeyDown = (e: React.KeyboardEvent) => {
+    const nextTab = handleTabListKeyDown(e.key, activeTab, true);
+    if (nextTab) {
+      e.preventDefault();
+      switchTab(nextTab);
+    }
+  };
 
   const shouldReduceMotion = useReducedMotion();
   const { containerRef } = useModalAccessibility<HTMLDivElement>({
@@ -96,6 +118,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setErrorMessage('');
+      setErrorField(null);
       setSuccessMessage('');
       try {
         const isSecretUnlocked = localStorage.getItem('bushido_secret_dev_mode') === 'true';
@@ -131,17 +154,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+    setErrorField(null);
     setSuccessMessage('');
 
     const cleanPhone = phoneNumber.trim();
     if (!cleanPhone) {
       setErrorMessage('لطفاً شماره موبایل خود را وارد نمایید.');
+      setErrorField('phone');
       haptics.warningAlert();
       return;
     }
 
     if (!password) {
       setErrorMessage('لطفاً رمز عبور خود را وارد نمایید.');
+      setErrorField('password');
       haptics.warningAlert();
       return;
     }
@@ -179,6 +205,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err: any) {
       haptics.warningAlert();
       setErrorMessage(err.message || 'خطا در ورود به حساب.');
+      setErrorField(null);
     } finally {
       setIsLoading(false);
     }
@@ -188,12 +215,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleRegisterRequestOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMessage('');
+    setErrorField(null);
     setSuccessMessage('');
     setDebugOtp(null);
 
     const cleanPhone = phoneNumber.trim();
     if (!cleanPhone) {
       setErrorMessage('لطفاً شماره موبایل خود را وارد نمایید.');
+      setErrorField('phone');
       haptics.warningAlert();
       return;
     }
@@ -224,6 +253,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err: any) {
       haptics.warningAlert();
       setErrorMessage(err.message || 'خطا در ارسال کد تایید.');
+      setErrorField(null);
     } finally {
       setIsLoading(false);
     }
@@ -233,16 +263,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleRegisterVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+    setErrorField(null);
     setSuccessMessage('');
 
     if (!otpCode.trim()) {
       setErrorMessage('لطفاً کد تایید ۵ رقمی پیامک‌شده را وارد نمایید.');
+      setErrorField('otp');
       haptics.warningAlert();
       return;
     }
 
     if (!password || password.length < 8) {
       setErrorMessage('رمز عبور باید حداقل دارای ۸ نویسه (کاراکتر) باشد.');
+      setErrorField('password');
       haptics.warningAlert();
       return;
     }
@@ -285,6 +318,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err: any) {
       haptics.warningAlert();
       setErrorMessage(err.message || 'خطا در ثبت‌نام کاربر.');
+      setErrorField(null);
     } finally {
       setIsLoading(false);
     }
@@ -294,12 +328,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleForgotRequestOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMessage('');
+    setErrorField(null);
     setSuccessMessage('');
     setDebugOtp(null);
 
     const cleanPhone = phoneNumber.trim();
     if (!cleanPhone) {
       setErrorMessage('لطفاً شماره موبایل خود را وارد نمایید.');
+      setErrorField('phone');
       haptics.warningAlert();
       return;
     }
@@ -330,6 +366,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err: any) {
       haptics.warningAlert();
       setErrorMessage(err.message || 'خطا در ارسال کد تایید.');
+      setErrorField(null);
     } finally {
       setIsLoading(false);
     }
@@ -339,15 +376,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+    setErrorField(null);
 
     if (!otpCode.trim()) {
       setErrorMessage('لطفاً کد تایید ۵ رقمی را وارد نمایید.');
+      setErrorField('otp');
       haptics.warningAlert();
       return;
     }
 
     if (!newPassword || newPassword.length < 8) {
       setErrorMessage('رمز عبور جدید باید حداقل دارای ۸ نویسه باشد.');
+      setErrorField('newPassword');
       haptics.warningAlert();
       return;
     }
@@ -389,6 +429,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err: any) {
       haptics.warningAlert();
       setErrorMessage(err.message || 'خطا در تغییر رمز عبور.');
+      setErrorField(null);
     } finally {
       setIsLoading(false);
     }
@@ -398,6 +439,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleQuickLogin = async (role: 'admin' | 'test_user') => {
     setIsLoading(true);
     setErrorMessage('');
+    setErrorField(null);
     try {
       const res = await fetch('/api/auth/quick-login', {
         method: 'POST',
@@ -426,6 +468,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'خطا در ورود سریع.');
+      setErrorField(null);
     } finally {
       setIsLoading(false);
     }
@@ -490,11 +533,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               role="tab"
               aria-selected={activeTab === 'login'}
               aria-controls="auth-panel-login"
-              onClick={() => {
-                setActiveTab('login');
-                setErrorMessage('');
-                setSuccessMessage('');
-              }}
+              tabIndex={activeTab === 'login' ? 0 : -1}
+              onKeyDown={handleTabKeyDown}
+              onClick={() => switchTab('login')}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'login'
                   ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
@@ -511,12 +552,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               role="tab"
               aria-selected={activeTab === 'register'}
               aria-controls="auth-panel-register"
-              onClick={() => {
-                setActiveTab('register');
-                setRegisterStep('request');
-                setErrorMessage('');
-                setSuccessMessage('');
-              }}
+              tabIndex={activeTab === 'register' ? 0 : -1}
+              onKeyDown={handleTabKeyDown}
+              onClick={() => switchTab('register')}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'register'
                   ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
@@ -533,12 +571,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               role="tab"
               aria-selected={activeTab === 'forgot'}
               aria-controls="auth-panel-forgot"
-              onClick={() => {
-                setActiveTab('forgot');
-                setForgotStep('request');
-                setErrorMessage('');
-                setSuccessMessage('');
-              }}
+              tabIndex={activeTab === 'forgot' ? 0 : -1}
+              onKeyDown={handleTabKeyDown}
+              onClick={() => switchTab('forgot')}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'forgot'
                   ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
@@ -628,7 +663,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           value={phoneNumber}
                           onChange={e => setPhoneNumber(e.target.value)}
                           placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                          aria-invalid={Boolean(errorMessage)}
+                          aria-invalid={errorField === 'phone'}
                           aria-describedby={errorMessage ? "auth-login-error" : undefined}
                           className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition tracking-wider text-left font-mono"
                           dir="ltr"
@@ -645,9 +680,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            setActiveTab('forgot');
+                            switchTab('forgot');
                             setForgotStep('request');
-                            setErrorMessage('');
                           }}
                           className="text-[11px] text-amber-400/90 hover:text-amber-300 hover:underline cursor-pointer whitespace-nowrap"
                         >
@@ -661,7 +695,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           value={password}
                           onChange={e => setPassword(e.target.value)}
                           placeholder="رمز عبور خود را وارد نمایید"
-                          aria-invalid={Boolean(errorMessage)}
+                          aria-invalid={errorField === 'password'}
                           aria-describedby={errorMessage ? "auth-login-error" : undefined}
                           className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
                           dir="ltr"
@@ -705,9 +739,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <button
                         type="button"
                         onClick={() => {
-                          setActiveTab('register');
+                          switchTab('register');
                           setRegisterStep('request');
-                          setErrorMessage('');
                         }}
                         className="text-xs text-zinc-400 hover:text-amber-400 transition cursor-pointer"
                       >
@@ -733,7 +766,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           value={phoneNumber}
                           onChange={e => setPhoneNumber(e.target.value)}
                           placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                          aria-invalid={Boolean(errorMessage)}
+                          aria-invalid={errorField === 'phone'}
                           aria-describedby={errorMessage ? "auth-register-error" : undefined}
                           className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition tracking-wider text-left font-mono"
                           dir="ltr"
@@ -784,8 +817,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            setActiveTab('login');
-                            setErrorMessage('');
+                            switchTab('login');
                           }}
                           className="text-xs text-zinc-400 hover:text-amber-400 transition cursor-pointer"
                         >
@@ -806,6 +838,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             onClick={() => {
                               setRegisterStep('request');
                               setErrorMessage('');
+                              setErrorField(null);
                             }}
                             className="text-[11px] text-amber-400 underline hover:text-amber-300 cursor-pointer whitespace-nowrap"
                           >
@@ -852,7 +885,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           value={otpCode}
                           onChange={e => setOtpCode(e.target.value)}
                           placeholder="_____ "
-                          aria-invalid={Boolean(errorMessage)}
+                          aria-invalid={errorField === 'otp'}
                           aria-describedby={errorMessage ? "auth-register-verify-error" : undefined}
                           className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-center text-lg tracking-[0.4em] font-mono text-amber-400 placeholder:text-zinc-700 focus:outline-none focus:border-amber-500 transition"
                           dir="ltr"
@@ -871,7 +904,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             value={password}
                             onChange={e => setPassword(e.target.value)}
                             placeholder="رمز عبور دلخواه خود را تعیین کنید"
-                            aria-invalid={Boolean(errorMessage)}
+                            aria-invalid={errorField === 'password'}
                             aria-describedby={errorMessage ? "auth-register-verify-error" : undefined}
                             className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
                             dir="ltr"
@@ -899,7 +932,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          onClick={() => setRegisterStep('request')}
+                          onClick={() => {
+                            setRegisterStep('request');
+                            setErrorField(null);
+                            setErrorMessage('');
+                          }}
                           className="w-1/3 min-h-[44px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold py-3.5 rounded-2xl transition cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none"
                         >
                           تغییر شماره
@@ -940,7 +977,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           value={phoneNumber}
                           onChange={e => setPhoneNumber(e.target.value)}
                           placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                          aria-invalid={Boolean(errorMessage)}
+                          aria-invalid={errorField === 'phone'}
                           aria-describedby={errorMessage ? "auth-forgot-error" : undefined}
                           className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition tracking-wider text-left font-mono"
                           dir="ltr"
@@ -974,8 +1011,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            setActiveTab('login');
-                            setErrorMessage('');
+                            switchTab('login');
                           }}
                           className="text-xs text-zinc-400 hover:text-zinc-200 transition cursor-pointer"
                         >
@@ -995,6 +1031,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             type="button"
                             onClick={() => {
                               setForgotStep('request');
+                              setErrorField(null);
                               setErrorMessage('');
                             }}
                             className="text-[11px] text-amber-400 underline hover:text-amber-300 cursor-pointer whitespace-nowrap"
@@ -1042,7 +1079,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           value={otpCode}
                           onChange={e => setOtpCode(e.target.value)}
                           placeholder="_____ "
-                          aria-invalid={Boolean(errorMessage)}
+                          aria-invalid={errorField === 'otp'}
                           aria-describedby={errorMessage ? "auth-forgot-reset-error" : undefined}
                           className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-center text-lg tracking-[0.4em] font-mono text-amber-400 placeholder:text-zinc-700 focus:outline-none focus:border-amber-500 transition"
                           dir="ltr"
@@ -1061,7 +1098,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             value={newPassword}
                             onChange={e => setNewPassword(e.target.value)}
                             placeholder="رمز عبور جدید را وارد کنید"
-                            aria-invalid={Boolean(errorMessage)}
+                            aria-invalid={errorField === 'newPassword'}
                             aria-describedby={errorMessage ? "auth-forgot-reset-error" : undefined}
                             className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
                             dir="ltr"

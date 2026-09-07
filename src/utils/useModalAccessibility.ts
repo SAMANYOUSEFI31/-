@@ -21,17 +21,23 @@ export const FOCUSABLE_ELEMENTS_SELECTOR = [
 export function isElementVisible(el: HTMLElement): boolean {
   if (el.getAttribute('aria-hidden') === 'true') return false;
   if (el.hasAttribute('disabled')) return false;
+  if (el.getAttribute('tabindex') === '-1') return false;
 
-  // In standard browser environment, check layout dimensions
+  // Check inline style directly (works in Node and browser)
+  if (el.style && (el.style.display === 'none' || el.style.visibility === 'hidden')) {
+    return false;
+  }
+
+  // In standard browser environment, check computed style
   if (typeof window !== 'undefined' && 'getComputedStyle' in window) {
     const style = window.getComputedStyle(el);
     if (style.display === 'none' || style.visibility === 'hidden') return false;
   }
 
   // If layout metrics exist, verify non-zero size or parent attachment
-  if (el.offsetWidth === 0 && el.offsetHeight === 0 && el.getClientRects().length === 0) {
+  if (el.offsetWidth === 0 && el.offsetHeight === 0 && el.getClientRects && el.getClientRects().length === 0) {
     // If element or parent has offsetParent null and not fixed/body, it may be hidden
-    if (el.offsetParent === null && el.style.position !== 'fixed' && el.tagName !== 'BODY') {
+    if (el.offsetParent === null && el.style && el.style.position !== 'fixed' && el.tagName !== 'BODY') {
       return false;
     }
   }

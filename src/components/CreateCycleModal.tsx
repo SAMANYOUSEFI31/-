@@ -181,17 +181,18 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
             </div>
 
             <div>
-              <label htmlFor="create-cycle-end-date-display" className="text-xs font-bold text-zinc-400 block mb-1.5">
+              <label htmlFor="create-cycle-end-date-output" className="text-xs font-bold text-zinc-400 block mb-1.5">
                 پایان دوره (۹۰ روزه):
               </label>
-              <div 
-                id="create-cycle-end-date-display"
+              <output 
+                id="create-cycle-end-date-output"
+                htmlFor="create-cycle-start-date-input"
                 aria-describedby="create-cycle-end-date-helper"
-                className="w-full bg-[#18181b]/60 border border-zinc-800 rounded-xl p-2.5 text-xs sm:text-sm text-zinc-400 font-mono select-none flex items-center justify-between"
+                className="w-full bg-[#18181b]/60 border border-zinc-800 rounded-xl p-2.5 text-xs sm:text-sm text-zinc-400 font-mono select-none flex items-center justify-between block"
               >
                 <span>{endDate}</span>
                 <span className="text-[10px] text-amber-400 font-sans font-bold">۹۰ روز</span>
-              </div>
+              </output>
               <span id="create-cycle-end-date-helper" className="text-[10px] text-zinc-400 mt-1 block">
                 معادل: {formatPersianDate(endDate)}
               </span>
