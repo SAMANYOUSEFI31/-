@@ -7,6 +7,20 @@ import './index.css';
 
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   if (import.meta.env.PROD) {
+    // On controllerchange (new SW took over after skipWaiting + clients.claim), reload once safely without loops
+    let isRefreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (isRefreshing) return;
+      const reloadedKey = 'bushido_sw_reloaded';
+      if (sessionStorage.getItem(reloadedKey) === 'true') {
+        sessionStorage.removeItem(reloadedKey);
+        return;
+      }
+      isRefreshing = true;
+      sessionStorage.setItem(reloadedKey, 'true');
+      window.location.reload();
+    });
+
     window.addEventListener('load', () => {
       navigator.serviceWorker
         .register('/sw.js')

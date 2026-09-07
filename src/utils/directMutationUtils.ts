@@ -412,7 +412,7 @@ export function verifyActiveAccount(
  */
 export function applyReplayItemToActiveState(
   currentState: { cycles: Cycle[]; logs: DailyLog[] },
-  item: { type: string; payload?: any; id?: string },
+  item: { type: string; payload?: any; id?: string; ownerId?: string; dedupKey?: string },
   serverResult?: any
 ): { cycles: Cycle[]; logs: DailyLog[] } {
   const { cycles, logs } = currentState;
@@ -423,8 +423,23 @@ export function applyReplayItemToActiveState(
     if (!isValidLogResponse(serverLog, targetDate)) {
       return currentState;
     }
+    const ownerId = normalizeQueueOwner(item.ownerId);
+    const currentQueue = getOfflineQueue(ownerId);
+    const dedupKey = item.dedupKey || (item.payload?.cycleId ? `log:${item.payload.cycleId}:${targetDate}` : null);
+    const hasNewerInQueue = currentQueue.some(
+      q => q.type === 'UPDATE_LOG' && (dedupKey ? q.dedupKey === dedupKey : q.payload?.date === targetDate) && q.id !== item.id
+    );
+
     const nextLogs = logs.map(l => {
       if (l.date === targetDate) {
+        if (hasNewerInQueue) {
+          // A newer local edit is still pending in the queue, preserve local habit flags and update revision
+          return {
+            ...l,
+            revision: serverLog.revision,
+            isSynced: false
+          };
+        }
         return {
           ...l,
           ...serverLog,

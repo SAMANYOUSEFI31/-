@@ -1,6 +1,6 @@
-// Bushido Discipline OS - Service Worker (Offline PWA Cache v3)
-const STATIC_CACHE_NAME = 'bushido-static-v3';
-const RUNTIME_CACHE_NAME = 'bushido-runtime-v3';
+// Bushido Discipline OS - Service Worker (Offline PWA Cache v4 - Purpose: prevent stale UI after Vercel deploy)
+const STATIC_CACHE_NAME = 'bushido-static-v4';
+const RUNTIME_CACHE_NAME = 'bushido-runtime-v4';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -80,7 +80,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 1. API Requests: Network Only with Graceful Offline JSON Fallback
+  // 1. API Requests: Network Only with Graceful Offline JSON Fallback (Never cached as authority)
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request).catch(() => {
@@ -124,30 +124,36 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Vite Hashed Immutable Assets (/assets/*): Cache-First
-  if (url.pathname.startsWith('/assets/')) {
+  // 3. Same-Origin Scripts & Styles (Vite hashed bundles, JS, CSS): Network-First with Cache Fallback
+  // Prevents stale UI after Vercel deployments by always attempting network for scripts and stylesheets
+  const isScriptOrStyle = 
+    url.origin === self.location.origin && (
+      request.destination === 'script' ||
+      request.destination === 'style' ||
+      url.pathname.startsWith('/assets/') ||
+      url.pathname.endsWith('.js') ||
+      url.pathname.endsWith('.css')
+    );
+
+  if (isScriptOrStyle) {
     event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(request)
-          .then((networkResponse) => {
-            if (
-              networkResponse &&
-              networkResponse.status === 200 &&
-              !networkResponse.headers.get('content-type')?.includes('text/html')
-            ) {
-              const copy = networkResponse.clone();
-              caches.open(RUNTIME_CACHE_NAME).then((cache) => cache.put(request, copy));
-            }
-            return networkResponse;
-          })
-          .catch((err) => {
-            console.warn('[SW] Asset fetch failed, checking cache:', request.url, err);
-            return caches.match(request);
-          });
-      })
+      fetch(request)
+        .then((networkResponse) => {
+          if (
+            networkResponse &&
+            networkResponse.status === 200 &&
+            !networkResponse.headers.get('content-type')?.includes('text/html')
+          ) {
+            const copy = networkResponse.clone();
+            caches.open(RUNTIME_CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          return new Response('Asset offline unavailable', { status: 503 });
+        })
     );
     return;
   }
@@ -177,18 +183,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 5. Other Static Assets (Images, Icons, Scripts): Stale-While-Revalidate with Runtime Cache
-  const isStatic = 
+  // 5. Other Static Assets (Images, Icons, Favicons, SVGs, Manifest): Stale-While-Revalidate with Runtime Cache
+  const isStaticMedia = 
     url.origin === self.location.origin && (
-      request.destination === 'style' ||
-      request.destination === 'script' ||
       request.destination === 'image' ||
       url.pathname.endsWith('.svg') ||
       url.pathname.endsWith('.png') ||
-      url.pathname.endsWith('.json')
+      url.pathname.endsWith('.json') ||
+      url.pathname.endsWith('.ico')
     );
 
-  if (isStatic) {
+  if (isStaticMedia) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         if (cachedResponse) {

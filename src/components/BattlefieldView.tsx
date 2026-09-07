@@ -126,12 +126,18 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
   const [isSaved, setIsSaved] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Keep latest notes, activeLog, and handler in refs to guarantee zero data-loss on rapid unmount / date switch
+  // Keep latest notes, activeLog, and handler in refs to guarantee zero data-loss on rapid unmount / date switch / rapid habit taps
   const latestNotesRef = useRef(notesValue);
   latestNotesRef.current = notesValue;
 
-  const latestActiveLogRef = useRef(activeLog);
-  latestActiveLogRef.current = activeLog;
+  const latestActiveLogRef = useRef<DailyLog>(activeLog);
+
+  // Sync ref with props/state whenever activeLog changes
+  useEffect(() => {
+    if (activeLog && activeLog.date === selectedDate) {
+      latestActiveLogRef.current = activeLog;
+    }
+  }, [activeLog, selectedDate]);
 
   const onUpdateLogRef = useRef(onUpdateLog);
   onUpdateLogRef.current = onUpdateLog;
@@ -144,7 +150,9 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
 
   // Flush any pending note changes immediately
   const flushPendingNotes = useCallback(() => {
-    const currentActiveLog = latestActiveLogRef.current;
+    const currentActiveLog = (latestActiveLogRef.current && latestActiveLogRef.current.date === selectedDate)
+      ? latestActiveLogRef.current
+      : activeLog;
     if (!currentActiveLog || isCycleArchivedRef.current || isFutureRef.current) return;
     const currentVal = latestNotesRef.current;
     if (currentVal !== (currentActiveLog.notes || '')) {
@@ -152,10 +160,11 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
         ...currentActiveLog,
         notes: currentVal
       };
+      latestActiveLogRef.current = updated;
       onUpdateLogRef.current(updated);
       setIsSaved(true);
     }
-  }, []);
+  }, [selectedDate, activeLog]);
 
   // Sync with selected date changes while flushing any unsaved pending edits from the previous date
   const lastSyncDateRef = useRef(selectedDate);
@@ -165,10 +174,11 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
       setNotesValue(activeLog?.notes || '');
       setIsSaved(true);
       lastSyncDateRef.current = selectedDate;
+      latestActiveLogRef.current = activeLog;
     } else if (isSaved && notesValue !== (activeLog?.notes || '')) {
       setNotesValue(activeLog?.notes || '');
     }
-  }, [selectedDate, activeLog?.notes, isSaved, flushPendingNotes]);
+  }, [selectedDate, activeLog?.notes, isSaved, flushPendingNotes, activeLog]);
 
   // Auto-resize textarea height to fit content naturally without awkward drag scroll
   useEffect(() => {
@@ -190,19 +200,22 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
     if (isCycleArchived || isFuture || isSaved) return;
 
     const timer = setTimeout(() => {
-      const currentActiveLog = latestActiveLogRef.current;
+      const currentActiveLog = (latestActiveLogRef.current && latestActiveLogRef.current.date === selectedDate)
+        ? latestActiveLogRef.current
+        : activeLog;
       if (currentActiveLog) {
         const updated: DailyLog = {
           ...currentActiveLog,
           notes: notesValue
         };
+        latestActiveLogRef.current = updated;
         onUpdateLogRef.current(updated);
         setIsSaved(true);
       }
     }, 450);
 
     return () => clearTimeout(timer);
-  }, [notesValue, isSaved, isCycleArchived, isFuture]);
+  }, [notesValue, isSaved, isCycleArchived, isFuture, selectedDate, activeLog]);
 
   // Track navigation direction for directional slide animation (1: next, -1: prev)
   const [navDirection, setNavDirection] = useState<number>(0);
@@ -279,14 +292,22 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
       return;
     }
 
-    const nextVal = !activeLog![key];
+    // Always compute next state from the latest known log for selectedDate to prevent race conditions on rapid taps
+    const baseLog = (latestActiveLogRef.current && latestActiveLogRef.current.date === selectedDate)
+      ? latestActiveLogRef.current
+      : activeLog;
+
+    const nextVal = !baseLog[key];
     const updated: DailyLog = {
-      ...activeLog!,
+      ...baseLog,
       [key]: nextVal
     };
 
+    // Immediately record locally so subsequent clicks in the same frame/tick build on top of this state
+    latestActiveLogRef.current = updated;
+
     const habitKeys: HabitKey[] = ['wakeUp', 'workout', 'study', 'journal', 'hardTask'];
-    const wasStandard = habitKeys.every(k => activeLog![k]);
+    const wasStandard = habitKeys.every(k => baseLog[k]);
     const willBeStandard = habitKeys.every(k => (k === key ? nextVal : updated[k]));
 
     if (!nextVal) {
@@ -316,11 +337,20 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
       haptics.warningAlert();
       return;
     }
-    const nextVal = !activeLog!.specialMission;
+
+    // Always compute next state from the latest known log for selectedDate to prevent race conditions on rapid taps
+    const baseLog = (latestActiveLogRef.current && latestActiveLogRef.current.date === selectedDate)
+      ? latestActiveLogRef.current
+      : activeLog;
+
+    const nextVal = !baseLog.specialMission;
     const updated: DailyLog = {
-      ...activeLog!,
+      ...baseLog,
       specialMission: nextVal
     };
+
+    // Immediately record locally so subsequent clicks in the same frame/tick build on top of this state
+    latestActiveLogRef.current = updated;
 
     const habitKeys: HabitKey[] = ['wakeUp', 'workout', 'study', 'journal', 'hardTask'];
     const isStandard = habitKeys.every(k => updated[k]);

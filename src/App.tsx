@@ -224,6 +224,14 @@ export default function App() {
     systemStateRef.current = systemState;
   }, [systemState]);
 
+  const latestLogsRef = useRef<DailyLog[]>(systemState.logs);
+  useEffect(() => {
+    latestLogsRef.current = systemState.logs;
+  }, [systemState.logs]);
+
+  // Monotonic local mutation generation tracking per (ownerId:date) to protect rapid successive habit taps from stale rollbacks or older out-of-order server responses
+  const logMutationGenerationsRef = useRef<Map<string, number>>(new Map());
+
   const lastRemotePullTimestampRef = useRef<number>(0);
   const isVisibilityRefetchInFlightRef = useRef<boolean>(false);
 
@@ -569,21 +577,32 @@ export default function App() {
   }, [currentCycle, systemState.logs, logicalToday]);
 
   const handleUpdateLog = useCallback(async (incomingLog: DailyLog) => {
+    const currentLogs = latestLogsRef.current || systemState.logs;
     // Convert virtual placeholder into established DailyLog mutation input before state update or mutation
-    const updatedLog = convertVirtualDebtLogForMutation(incomingLog, activeCycleId, systemState.logs);
+    const updatedLog = convertVirtualDebtLogForMutation(incomingLog, activeCycleId, currentLogs);
 
     // 1. Capture confirmed baseline before mutation for truthful rollback
-    const existingLog = systemState.logs.find(l => l.date === updatedLog.date) || null;
+    const existingLog = currentLogs.find(l => l.date === updatedLog.date) || null;
     const previousConfirmedSnapshot = existingLog ? { ...existingLog } : null;
-
-    // Optimistic UI update: unmark isSynced during in-flight state
-    setSystemState(prev => ({
-      ...prev,
-      logs: applyOptimisticLogUpdate(prev.logs, updatedLog).nextLogs
-    }));
 
     const ownerId = systemState.userProfile?.id;
     const initialOwner = ownerId;
+
+    // Track monotonic generation for this specific (ownerId:date) to guarantee newer rapid taps are never overwritten
+    const genKey = `${normalizeQueueOwner(ownerId)}:${updatedLog.date}`;
+    const nextGen = (logMutationGenerationsRef.current.get(genKey) || 0) + 1;
+    logMutationGenerationsRef.current.set(genKey, nextGen);
+    const thisMutationGen = nextGen;
+
+    // Optimistic UI update: unmark isSynced during in-flight state and sync latestLogsRef immediately
+    setSystemState(prev => {
+      const { nextLogs } = applyOptimisticLogUpdate(prev.logs, updatedLog);
+      latestLogsRef.current = nextLogs;
+      return {
+        ...prev,
+        logs: nextLogs
+      };
+    });
 
     const result = await executeDirectDailyLogMutation({
       updatedLog,
@@ -598,27 +617,38 @@ export default function App() {
       return;
     }
 
+    const currentLatestGen = logMutationGenerationsRef.current.get(genKey) || 0;
+    const hasNewerLocalMutation = currentLatestGen > thisMutationGen;
+
     if (result.status === 'STORAGE_WRITE_FAILED') {
-      setSystemState(prev => {
-        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-        return {
-          ...prev,
-          logs: rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot)
-        };
-      });
-      showAppToast(result.messageFa || 'خطا در ذخیره‌سازی محلی. تغییرات اعمال نشد.', 'warning');
+      if (!hasNewerLocalMutation) {
+        setSystemState(prev => {
+          if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+          const nextLogs = rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot);
+          latestLogsRef.current = nextLogs;
+          return {
+            ...prev,
+            logs: nextLogs
+          };
+        });
+        showAppToast(result.messageFa || 'خطا در ذخیره‌سازی محلی. تغییرات اعمال نشد.', 'warning');
+      }
       return;
     }
 
     if (result.status === 'INVALID_PRECONDITION') {
-      setSystemState(prev => {
-        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-        return {
-          ...prev,
-          logs: rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot)
-        };
-      });
-      showAppToast(result.messageFa, 'warning');
+      if (!hasNewerLocalMutation) {
+        setSystemState(prev => {
+          if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+          const nextLogs = rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot);
+          latestLogsRef.current = nextLogs;
+          return {
+            ...prev,
+            logs: nextLogs
+          };
+        });
+        showAppToast(result.messageFa, 'warning');
+      }
       requestSync('MANUAL_FORCE', ownerId, authToken, true);
       return;
     }
@@ -626,16 +656,32 @@ export default function App() {
     if (result.status === 'SUCCESS') {
       setSystemState(prev => {
         if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-        if (result.hasNewerIntent) {
-          // A newer local edit is still pending in the queue, keep optimistic state
-          return prev;
+        if (hasNewerLocalMutation || result.hasNewerIntent) {
+          // A newer local edit is still pending, keep optimistic state with updated server revision
+          const nextLogs = prev.logs.map(l => {
+            if (l.date === updatedLog.date) {
+              return {
+                ...l,
+                revision: result.serverLog.revision,
+                isSynced: false
+              };
+            }
+            return l;
+          });
+          latestLogsRef.current = nextLogs;
+          return {
+            ...prev,
+            logs: nextLogs
+          };
         }
+        const nextLogs = prev.logs.map(l => l.date === updatedLog.date ? { ...l, ...result.serverLog, isSynced: true } : l);
+        latestLogsRef.current = nextLogs;
         return {
           ...prev,
-          logs: prev.logs.map(l => l.date === updatedLog.date ? { ...l, ...result.serverLog, isSynced: true } : l)
+          logs: nextLogs
         };
       });
-      if (result.hasNewerIntent) {
+      if (hasNewerLocalMutation || result.hasNewerIntent) {
         // Trigger sync to dispatch the newer pending mutation
         requestSync('NETWORK_ONLINE', ownerId, authToken);
       }
@@ -643,14 +689,18 @@ export default function App() {
     }
 
     if (result.status === 'CONFLICT') {
-      setSystemState(prev => {
-        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-        return {
-          ...prev,
-          logs: rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot)
-        };
-      });
-      showAppToast(result.conflictDetails.messageFa, 'warning');
+      if (!hasNewerLocalMutation) {
+        setSystemState(prev => {
+          if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+          const nextLogs = rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot);
+          latestLogsRef.current = nextLogs;
+          return {
+            ...prev,
+            logs: nextLogs
+          };
+        });
+        showAppToast(result.conflictDetails.messageFa, 'warning');
+      }
       requestSync('NETWORK_ONLINE', ownerId, authToken, true);
       return;
     }
@@ -661,13 +711,17 @@ export default function App() {
     }
 
     if (result.status === 'FORBIDDEN' || result.status === 'VALIDATION_ERROR' || result.status === 'ENTITY_MISSING') {
-      setSystemState(prev => {
-        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-        return {
-          ...prev,
-          logs: rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot)
-        };
-      });
+      if (!hasNewerLocalMutation) {
+        setSystemState(prev => {
+          if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+          const nextLogs = rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot);
+          latestLogsRef.current = nextLogs;
+          return {
+            ...prev,
+            logs: nextLogs
+          };
+        });
+      }
       console.warn('[DailyLog Mutation] Non-retryable error, quarantined and rolled back:', result);
       return;
     }
