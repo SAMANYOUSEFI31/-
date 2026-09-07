@@ -8,7 +8,7 @@ import React, {
 import { motion, AnimatePresence } from 'motion/react';
 import { Cycle, DailyLog, SystemSettings, UserProfile, AdminUserItem, OfflineQueueItem } from './types';
 import { createInitialSystemState, GUEST_USER_PROFILE } from './data/initialData';
-import { computeCycleMetrics, createEmptyCycleMetrics } from './engine/bushidoCalculations';
+import { computeCycleMetrics, createEmptyCycleMetrics, computeDailyProperties } from './engine/bushidoCalculations';
 import { getLogicalTodayDate, addDaysToDate } from './utils/dateUtils';
 import { applyAccentTheme } from './utils/themeUtils';
 import { 
@@ -557,6 +557,54 @@ export default function App() {
     if (!currentCycle) return emptyMetrics;
     return computeCycleMetrics(currentCycle, systemState.logs, systemState.cycles, logicalToday);
   }, [currentCycle, systemState.logs, systemState.cycles, logicalToday, emptyMetrics]);
+
+  // List of all past unresolved debt logs in the active cycle for autopsy modal and carousel
+  const unresolvedDebtLogs: DailyLog[] = useMemo(() => {
+    const list: DailyLog[] = [];
+    if (!currentCycle) return list;
+    const cycleStartDate = currentCycle.startDate;
+    const seenDates = new Set<string>();
+
+    if (cycleStartDate && cycleStartDate < logicalToday) {
+      let checkDate = cycleStartDate;
+      while (checkDate < logicalToday) {
+        seenDates.add(checkDate);
+        let l = systemState.logs.find(
+          item => item.date === checkDate && (!item.cycleId || item.cycleId === currentCycle.id)
+        );
+        if (!l) {
+          l = {
+            id: `virtual-${checkDate}`,
+            cycleId: currentCycle.id,
+            date: checkDate,
+            createdAt: new Date().toISOString(),
+            wakeUp: false,
+            workout: false,
+            study: false,
+            journal: false,
+            hardTask: false,
+            specialMission: false
+          };
+        }
+        const c = computeDailyProperties(l, systemState.logs, logicalToday, cycleStartDate);
+        if (c.statusType === 'burned_unresolved') {
+          list.push(l);
+        }
+        checkDate = addDaysToDate(checkDate, 1);
+      }
+    }
+
+    systemState.logs.forEach(l => {
+      if (l.cycleId === currentCycle.id && l.date < logicalToday && !seenDates.has(l.date)) {
+        const c = computeDailyProperties(l, systemState.logs, logicalToday, cycleStartDate);
+        if (c.statusType === 'burned_unresolved') {
+          list.push(l);
+        }
+      }
+    });
+
+    return list.sort((a, b) => a.date.localeCompare(b.date));
+  }, [currentCycle, systemState.logs, logicalToday]);
 
   const handleUpdateLog = useCallback(async (updatedLog: DailyLog) => {
     // 1. Capture confirmed baseline before mutation for truthful rollback
@@ -1472,16 +1520,8 @@ export default function App() {
           onOpenNewCycleModal={() => setIsCreateCycleModalOpen(true)}
           onDeleteCycle={handleDeleteCycle}
           onOpenDebtAutopsy={() => {
-            const firstDebt = systemState.logs.find(l => {
-              if (l.date >= logicalToday) return false;
-              const habitKeys = ['wakeUp', 'workout', 'study', 'journal', 'hardTask'] as const;
-              const isStd = habitKeys.every(k => l[k]);
-              const isFrozen = l.failureReason === 'دلایل شخصی';
-              const isResolved = !!(l.failureReason && (isFrozen || l.failureTime));
-              return !isStd && !isResolved;
-            });
-            if (firstDebt) {
-              setAutopsyTargetLog(firstDebt);
+            if (unresolvedDebtLogs.length > 0) {
+              setAutopsyTargetLog(unresolvedDebtLogs[0]);
             } else {
               setActiveTab('battlefield');
             }
@@ -1641,14 +1681,7 @@ export default function App() {
           <AutopsyModal
             log={autopsyTargetLog}
             cycleTheme={currentCycle?.targetTheme ?? 'amber'}
-            allUnresolvedLogs={systemState.logs.filter(l => {
-              if (l.date >= logicalToday) return false;
-              const habitKeys = ['wakeUp', 'workout', 'study', 'journal', 'hardTask'] as const;
-              const isStd = habitKeys.every(k => l[k]);
-              const isFrozen = l.failureReason === 'دلایل شخصی';
-              const isResolved = !!(l.failureReason && (isFrozen || l.failureTime));
-              return !isStd && !isResolved;
-            })}
+            allUnresolvedLogs={unresolvedDebtLogs}
             onSelectLog={nextLog => setAutopsyTargetLog(nextLog)}
             onSave={handleUpdateLog}
             onClose={() => setAutopsyTargetLog(null)}
