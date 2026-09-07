@@ -9,16 +9,59 @@
 
 /* استفاده از گرادیان یکدست به جای رنگ تک‌بُعدی برای خنثی‌سازی موتور تشخیص پس‌زمینه سامسونگ */
 html, body, #root, header {
-  background-image: linear-gradient(to bottom, #09090b, #09090b) !important;
-  background-color: #09090b !important;
+  background-image: linear-gradient(to bottom, #09090b, #09090b);
+  background-color: #09090b;
 }
 
 @media (prefers-color-scheme: dark) {
   :root, html, body, #root {
-    color-scheme: dark !important;
-    supported-color-schemes: dark !important;
-    background-color: #09090b !important;
-    color: #f4f4f5 !important;
+    color-scheme: dark;
+    supported-color-schemes: dark;
+    background-color: #09090b;
+    color: #f4f4f5;
+  }
+}
+
+/* =========================================================================
+ * FORCED-COLORS & HIGH CONTRAST ACCESSIBILITY ENHANCEMENTS
+ * Ensures WCAG & WHCM (Windows High Contrast Mode) full compliance without
+ * suppressing forced-color-adjust globally on html/body/#root/header/nav.
+ * ========================================================================= */
+@media (forced-colors: active) {
+  html, body, #root, header, nav, main {
+    background-image: none !important;
+    forced-color-adjust: auto;
+  }
+
+  /* Explicit visible focus outline for all focusable elements */
+  :focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+
+  /* Dialog panels and Modals */
+  [role="dialog"] {
+    border: 2px solid ButtonText !important;
+    background-color: Canvas !important;
+    color: CanvasText !important;
+  }
+
+  /* Buttons & Interactive Controls */
+  button, [role="button"], a {
+    border: 1px solid ButtonText;
+  }
+
+  /* Active navigation & current items */
+  [aria-current="page"],
+  [aria-current="true"],
+  [aria-selected="true"] {
+    border: 2px solid Highlight !important;
+    outline: 1px solid Highlight !important;
+  }
+
+  /* Status Badges, Pills & Indicators */
+  .animate-ping, .animate-pulse {
+    animation: none !important;
   }
 }
 

@@ -110,6 +110,25 @@ const NavbarComponent: React.FC<NavbarProps> = ({
           }
         }
       }
+
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && cycleDropdownPanelRef.current) {
+        const focusable = Array.from(
+          cycleDropdownPanelRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        );
+        if (focusable.length > 0) {
+          e.preventDefault();
+          const currentIndex = focusable.indexOf(document.activeElement as HTMLElement);
+          if (e.key === 'ArrowDown') {
+            const nextIndex = currentIndex < focusable.length - 1 ? currentIndex + 1 : 0;
+            focusable[nextIndex].focus();
+          } else {
+            const prevIndex = currentIndex > 0 ? currentIndex - 1 : focusable.length - 1;
+            focusable[prevIndex].focus();
+          }
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -288,6 +307,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                   type="button"
                   onClick={() => setIsCycleDropdownOpen(!isCycleDropdownOpen)}
                   aria-expanded={isCycleDropdownOpen}
+                  aria-haspopup="true"
                   aria-label={`انتخاب چرخه، چرخه فعلی: ${currentCycle ? currentCycle.title : 'تعریف نشده'}`}
                   className="h-8 sm:h-9 min-w-[44px] bg-[#121215] hover:bg-zinc-800 active:bg-zinc-750 border border-zinc-800 rounded-xl px-2 sm:px-2.5 text-xs text-zinc-200 inline-flex items-center justify-center gap-1 sm:gap-1.5 transition cursor-pointer shrink-0 touch-manipulation relative z-50 focus-visible:outline-2 focus-visible:outline-amber-400"
                 >
@@ -301,6 +321,8 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 {isCycleDropdownOpen && (
                   <div 
                     ref={cycleDropdownPanelRef}
+                    role="region"
+                    aria-label="انتخاب و مدیریت چرخه‌ها"
                     className="absolute right-0 mt-2 w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] bg-[#1c1c21] border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 motion-reduce:animate-none duration-150"
                   >
                     <div className="px-3.5 py-2.5 text-[10px] text-zinc-400 font-bold border-b border-zinc-800 flex items-center justify-between bg-[#18181b]/60">
@@ -412,7 +434,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
 
             {/* Desktop Navigation Tabs */}
             <LayoutGroup id="desktopNavGroup">
-              <nav className="hidden lg:flex items-center gap-1 xl:gap-2 h-10">
+              <nav className="hidden lg:flex items-center gap-1 xl:gap-2 h-10" aria-label="ناوبری اصلی">
                 {mainTabs.map(tab => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -535,6 +557,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
         <nav 
           className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#09090b]/95 border-t border-zinc-800/90 crisp-blur px-2 py-1 pb-safe select-none touch-pan-x"
           dir="rtl"
+          aria-label="ناوبری اصلی همراه"
           onTouchStart={handleBottomNavTouchStart}
           onTouchEnd={handleBottomNavTouchEnd}
         >
