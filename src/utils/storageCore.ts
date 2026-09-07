@@ -18,6 +18,7 @@ export const GUEST_USER_ID = '__guest__';
 export const GUEST_QUEUE_OWNER = 'guest';
 export const OFFLINE_QUEUE_PREFIX = 'bushido_offline_queue_';
 export const LEGACY_OFFLINE_QUEUE_KEY = 'bushido_offline_queue';
+export const STATE_RECOVERY_PREFIX = 'bushido_recovery_';
 
 /**
  * Safe development environment check compatible with Vite browser runtime
@@ -103,6 +104,14 @@ export function getScopedOfflineQueueKey(ownerId?: string | null): string {
   return norm === GUEST_QUEUE_OWNER
     ? `${OFFLINE_QUEUE_PREFIX}guest`
     : `${OFFLINE_QUEUE_PREFIX}user_${norm}`;
+}
+
+/**
+ * Generates an account-scoped storage key for structural state recovery metadata.
+ */
+export function getScopedStateRecoveryKey(ownerId?: string | null): string {
+  const normId = normalizeUserId(ownerId);
+  return normId ? `${STATE_RECOVERY_PREFIX}user_${normId}` : `${STATE_RECOVERY_PREFIX}guest`;
 }
 
 /**

@@ -17,6 +17,7 @@ import {
   getScopedStorageKey,
   getScopedDemoConsumedKey,
   getScopedOfflineQueueKey,
+  getScopedStateRecoveryKey,
   isGuestQueueOwner,
   shouldQueueOfflineMutation
 } from './storageCore';
@@ -254,6 +255,7 @@ export function loadStoredSystemState(userId?: string | null): SystemState {
 
     try {
       let saved = safeGetLocalStorage(scopedKey);
+      let isFromLegacy = false;
       // Migration fallback for initial legacy guest key if present
       if (!saved && safeGetLocalStorage(LEGACY_STORAGE_KEY)) {
         const legacyRaw = safeGetLocalStorage(LEGACY_STORAGE_KEY);
@@ -263,24 +265,49 @@ export function loadStoredSystemState(userId?: string | null): SystemState {
             // Only migrate if legacy data belongs to guest
             if (!legacyParsed.userProfile?.id || legacyParsed.userProfile?.id === GUEST_USER_PROFILE.id) {
               saved = legacyRaw;
+              isFromLegacy = true;
             }
           } catch {
-            // ignore
+            safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
           }
         }
       }
 
       if (saved) {
+        let parsed: any;
         try {
-          const parsed = JSON.parse(saved);
-          if (parsed && typeof parsed === 'object') {
-            const sanitized = sanitizeSystemState(parsed, guestFallback, GUEST_USER_PROFILE);
-            sanitized.userProfile.id = GUEST_USER_PROFILE.id;
-            return sanitized;
-          }
+          parsed = JSON.parse(saved);
         } catch {
-          console.warn('[Bushido Storage] Corrupted JSON in guest partition, falling back safely');
+          console.warn('[Bushido Storage] Corrupted JSON in guest partition, clearing and falling back safely');
+          safeRemoveLocalStorage(scopedKey);
+          if (isFromLegacy) {
+            safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
+          }
+          saveRecoveryMetadata(null, {
+            recoveredCycleCount: guestFallback.cycles.length,
+            discardedCycleCount: 0,
+            recoveredLogCount: guestFallback.logs.length,
+            discardedLogCount: 0,
+            duplicateCount: 0,
+            orphanCount: 0,
+            usedFallback: true,
+            corruptedRawCleared: true,
+            timestamp: Date.now()
+          });
           return guestFallback;
+        }
+
+        if (parsed && typeof parsed === 'object') {
+          const { state: sanitized, recovery } = recoverSystemState(parsed, guestFallback, GUEST_USER_PROFILE);
+          sanitized.userProfile.id = GUEST_USER_PROFILE.id;
+          if (recovery.discardedCycleCount > 0 || recovery.discardedLogCount > 0 || recovery.duplicateCount > 0 || recovery.orphanCount > 0) {
+            saveRecoveryMetadata(null, recovery);
+            safeSetLocalStorage(scopedKey, JSON.stringify(sanitized));
+            if (isFromLegacy) {
+              safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
+            }
+          }
+          return sanitized;
         }
       }
     } catch (e) {
@@ -299,6 +326,7 @@ export function loadStoredSystemState(userId?: string | null): SystemState {
 
   try {
     let saved = safeGetLocalStorage(scopedKey);
+    let isFromLegacy = false;
 
     // Backward-compat check for initial admin master profile if stored under legacy key
     if (!saved && normId === 'admin-master-001') {
@@ -308,30 +336,54 @@ export function loadStoredSystemState(userId?: string | null): SystemState {
           const legacyParsed = JSON.parse(legacyRaw);
           if (legacyParsed.userProfile?.id === 'admin-master-001') {
             saved = legacyRaw;
+            isFromLegacy = true;
           }
         } catch {
-          // ignore corrupted legacy JSON
+          safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
         }
       }
     }
 
     if (saved) {
+      let parsed: any;
       try {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') {
-          // Strict boundary: A mismatched userProfile.id in stored JSON must never transfer Cycles or DailyLogs into another authenticated account
-          if (parsed.userProfile?.id && parsed.userProfile.id !== normId && parsed.userProfile.id !== GUEST_USER_PROFILE.id) {
-            console.warn(`[Bushido Storage] Rejecting mismatched user state (expected ${normId}, found ${parsed.userProfile.id})`);
-            return authFallback;
-          }
-          const sanitized = sanitizeSystemState(parsed, authFallback, authFallbackUser);
-          // Strict boundary: ensure userProfile.id matches the requested authenticated normId
-          sanitized.userProfile.id = normId;
-          return sanitized;
-        }
+        parsed = JSON.parse(saved);
       } catch {
-        console.warn(`[Bushido Storage] Corrupted JSON in user partition (${normId}), falling back safely`);
+        console.warn(`[Bushido Storage] Corrupted JSON in user partition (${normId}), clearing and falling back safely`);
+        safeRemoveLocalStorage(scopedKey);
+        if (isFromLegacy) {
+          safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
+        }
+        saveRecoveryMetadata(normId, {
+          recoveredCycleCount: authFallback.cycles.length,
+          discardedCycleCount: 0,
+          recoveredLogCount: authFallback.logs.length,
+          discardedLogCount: 0,
+          duplicateCount: 0,
+          orphanCount: 0,
+          usedFallback: true,
+          corruptedRawCleared: true,
+          timestamp: Date.now()
+        });
         return authFallback;
+      }
+
+      if (parsed && typeof parsed === 'object') {
+        // Strict boundary: A mismatched userProfile.id in stored JSON must never transfer Cycles or DailyLogs into another authenticated account
+        if (parsed.userProfile?.id && parsed.userProfile.id !== normId && parsed.userProfile.id !== GUEST_USER_PROFILE.id) {
+          console.warn(`[Bushido Storage] Rejecting mismatched user state (expected ${normId}, found ${parsed.userProfile.id})`);
+          return authFallback;
+        }
+        const { state: sanitized, recovery } = recoverSystemState(parsed, authFallback, authFallbackUser);
+        sanitized.userProfile.id = normId;
+        if (recovery.discardedCycleCount > 0 || recovery.discardedLogCount > 0 || recovery.duplicateCount > 0 || recovery.orphanCount > 0) {
+          saveRecoveryMetadata(normId, recovery);
+          safeSetLocalStorage(scopedKey, JSON.stringify(sanitized));
+          if (isFromLegacy) {
+            safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
+          }
+        }
+        return sanitized;
       }
     }
   } catch (e) {
@@ -407,8 +459,9 @@ export function resetAccountState(currentUserProfile?: UserProfile | null): { fr
   // 1. Cancel any pending un-reset debounced writes so they cannot overwrite the reset
   cancelPendingStorageSave();
 
-  // 2. Clear demo-consumed state and scoped offline queue
+  // 2. Clear demo-consumed state, recovery metadata, and scoped offline queue
   safeRemoveLocalStorage(scopedDemoKey);
+  clearStoredStateRecoveryMetadata(ownerId);
   clearOfflineQueue(ownerId);
   if (!ownerId) {
     safeRemoveLocalStorage(LEGACY_DEMO_CONSUMED_KEY);
@@ -479,20 +532,148 @@ export function buildExportPayload(state: SystemState): ExportBackupDto {
 }
 
 /**
- * Sanitizes and validates a parsed raw JSON object into a structurally sound SystemState.
- * Protects security boundaries against tampered Local Storage by strictly keeping
- * Server-authoritative / security-relevant fields on the trusted defaultProfile,
- * and only overlaying explicitly allowed local profile preferences (name, accentTheme, nightOwlCutoffHour).
+ * Validates whether a value is a valid calendar date string in strict YYYY-MM-DD format.
  */
-export function sanitizeSystemState(
+export function isValidISODateString(val: unknown): val is string {
+  if (typeof val !== 'string') return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) return false;
+  const y = Number(val.slice(0, 4));
+  const m = Number(val.slice(5, 7));
+  const d = Number(val.slice(8, 10));
+  if (y < 1000 || y > 9999 || m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return (
+    dt.getUTCFullYear() === y &&
+    dt.getUTCMonth() === m - 1 &&
+    dt.getUTCDate() === d
+  );
+}
+
+/**
+ * Validates whether an object is a structurally valid Cycle candidate.
+ */
+export function isStructurallyValidCycleCandidate(c: any): c is Cycle {
+  if (!c || typeof c !== 'object' || Array.isArray(c)) return false;
+  if (typeof c.id !== 'string' || c.id.trim().length === 0) return false;
+  if (typeof c.title !== 'string' || c.title.trim().length === 0) return false;
+  if (!isValidISODateString(c.startDate)) return false;
+  if (!isValidISODateString(c.endDate)) return false;
+  if (c.startDate > c.endDate) return false;
+  if (c.rules !== undefined && !Array.isArray(c.rules)) return false;
+  return true;
+}
+
+/**
+ * Validates whether an object is a structurally valid DailyLog candidate.
+ */
+export function isStructurallyValidLogCandidate(l: any): l is DailyLog {
+  if (!l || typeof l !== 'object' || Array.isArray(l)) return false;
+  if (typeof l.id !== 'string' || l.id.trim().length === 0) return false;
+  if (typeof l.cycleId !== 'string' || l.cycleId.trim().length === 0) return false;
+  if (!isValidISODateString(l.date)) return false;
+  return true;
+}
+
+export interface StateRecoveryMetadata {
+  recoveredCycleCount: number;
+  discardedCycleCount: number;
+  recoveredLogCount: number;
+  discardedLogCount: number;
+  duplicateCount: number;
+  orphanCount: number;
+  usedFallback: boolean;
+  timestamp?: number;
+  corruptedRawCleared?: boolean;
+}
+
+export interface StateRecoveryResult {
+  state: SystemState;
+  recovery: StateRecoveryMetadata;
+}
+
+/**
+ * Persists privacy-safe recovery metadata for an account partition.
+ */
+export function saveRecoveryMetadata(ownerId: string | null | undefined, metadata: StateRecoveryMetadata): boolean {
+  const normId = normalizeUserId(ownerId);
+  const recoveryKey = getScopedStateRecoveryKey(normId);
+  try {
+    return safeSetLocalStorage(recoveryKey, JSON.stringify(metadata));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Retrieves stored recovery metadata for an account partition.
+ */
+export function getStoredStateRecoveryMetadata(ownerId?: string | null): StateRecoveryMetadata | null {
+  const normId = normalizeUserId(ownerId);
+  const recoveryKey = getScopedStateRecoveryKey(normId);
+  const raw = safeGetLocalStorage(recoveryKey);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && typeof parsed.recoveredCycleCount === 'number') {
+      return parsed as StateRecoveryMetadata;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Clears stored recovery metadata for an account partition.
+ */
+export function clearStoredStateRecoveryMetadata(ownerId?: string | null): void {
+  const normId = normalizeUserId(ownerId);
+  const recoveryKey = getScopedStateRecoveryKey(normId);
+  safeRemoveLocalStorage(recoveryKey);
+}
+
+/**
+ * Deterministically recovers and sanitizes a parsed state object into a structurally sound SystemState.
+ * Guarantees:
+ * 1. Discards structurally invalid Cycles (malformed dates, missing id/title, inverted date range).
+ * 2. Deduplicates Cycles with identical IDs: prefers higher valid revision, otherwise preserves first stable occurrence.
+ * 3. Discards structurally invalid DailyLogs (malformed dates, missing id/cycleId).
+ * 4. Orphan Policy: Excludes DailyLogs referencing missing, rejected, or duplicate-loser Cycles.
+ * 5. Deduplicates DailyLogs with identical dates: prefers higher valid revision, otherwise preserves first stable occurrence.
+ * 6. Strictly enforces Phase 6.3A Profile security allowlist and server-authoritative boundary.
+ * 7. Safely retains valid Settings values.
+ * 8. Returns privacy-safe aggregated recovery metadata (no personal identifiers, tokens, or titles).
+ */
+export function recoverSystemState(
   parsed: any, 
   fallbackState: SystemState, 
   defaultProfile: UserProfile
-): SystemState {
-  const result = { ...fallbackState };
+): StateRecoveryResult {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return {
+      state: fallbackState,
+      recovery: {
+        recoveredCycleCount: fallbackState.cycles.length,
+        discardedCycleCount: 0,
+        recoveredLogCount: fallbackState.logs.length,
+        discardedLogCount: 0,
+        duplicateCount: 0,
+        orphanCount: 0,
+        usedFallback: true,
+        timestamp: Date.now()
+      }
+    };
+  }
 
-  // 1. User Profile Protection & Allow-List Policy
-  if (parsed.userProfile && typeof parsed.userProfile === 'object') {
+  const result: SystemState = {
+    cycles: [],
+    logs: [],
+    settings: { ...fallbackState.settings },
+    userProfile: { ...defaultProfile }
+  };
+
+  // 1. User Profile Protection & Strict Allow-List Policy (Phase 6.3A intact)
+  if (parsed.userProfile && typeof parsed.userProfile === 'object' && !Array.isArray(parsed.userProfile)) {
     const raw = parsed.userProfile;
     const sanitizedProfile: UserProfile = {
       ...defaultProfile
@@ -536,35 +717,171 @@ export function sanitizeSystemState(
     result.userProfile = defaultProfile;
   }
 
-  // 2. Cycles Array Protection
+  // 2. Cycles Array Validation & Deduplication
+  let discardedCycleCount = 0;
+  let cycleDuplicateCount = 0;
+  const cycleMap = new Map<string, { candidate: Cycle; index: number }>();
+
   if (Array.isArray(parsed.cycles)) {
-    result.cycles = parsed.cycles
-      .filter((c: any) => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.startDate === 'string')
-      .map((c: any) => ({
-        ...c,
-        isSynced: c.isSynced !== undefined ? Boolean(c.isSynced) : false
-      }));
+    parsed.cycles.forEach((rawCycle: any, idx: number) => {
+      if (!isStructurallyValidCycleCandidate(rawCycle)) {
+        discardedCycleCount++;
+        return;
+      }
+
+      const cycleId = rawCycle.id.trim();
+      const sanitizedCycle: Cycle = {
+        ...rawCycle,
+        id: cycleId,
+        title: rawCycle.title.trim(),
+        startDate: rawCycle.startDate,
+        endDate: rawCycle.endDate,
+        targetTheme: typeof rawCycle.targetTheme === 'string' ? rawCycle.targetTheme : '',
+        inheritedStreak: typeof rawCycle.inheritedStreak === 'number' && Number.isFinite(rawCycle.inheritedStreak) && rawCycle.inheritedStreak >= 0 ? Math.floor(rawCycle.inheritedStreak) : 0,
+        rules: Array.isArray(rawCycle.rules) ? rawCycle.rules.filter((r: any) => typeof r === 'string') : [],
+        isArchived: Boolean(rawCycle.isArchived),
+        reportRead: Boolean(rawCycle.reportRead),
+        isSynced: rawCycle.isSynced !== undefined ? Boolean(rawCycle.isSynced) : false,
+        revision: typeof rawCycle.revision === 'number' && Number.isInteger(rawCycle.revision) && rawCycle.revision > 0 ? rawCycle.revision : undefined,
+        verdict: rawCycle.verdict && typeof rawCycle.verdict === 'object' ? rawCycle.verdict : undefined
+      };
+
+      if (!cycleMap.has(cycleId)) {
+        cycleMap.set(cycleId, { candidate: sanitizedCycle, index: idx });
+      } else {
+        // Duplicate Cycle ID Policy:
+        // Prefer higher valid revision; if equal or absent, preserve first stable occurrence.
+        cycleDuplicateCount++;
+        discardedCycleCount++;
+        const existing = cycleMap.get(cycleId)!;
+        const existingRev = existing.candidate.revision ?? 1;
+        const newRev = sanitizedCycle.revision ?? 1;
+
+        if (newRev > existingRev) {
+          cycleMap.set(cycleId, { candidate: sanitizedCycle, index: existing.index });
+        }
+      }
+    });
+
+    result.cycles = Array.from(cycleMap.values())
+      .sort((a, b) => a.index - b.index)
+      .map(entry => entry.candidate);
+  } else if (parsed.cycles === undefined) {
+    result.cycles = fallbackState.cycles;
   }
 
-  // 3. Logs Array Protection
+  // 3. DailyLogs Array Validation, Orphan Removal & Deduplication
+  const retainedCycleIds = new Set(result.cycles.map(c => c.id));
+  let discardedLogCount = 0;
+  let logDuplicateCount = 0;
+  let orphanCount = 0;
+  const logMap = new Map<string, { candidate: DailyLog; index: number }>();
+
   if (Array.isArray(parsed.logs)) {
-    result.logs = parsed.logs
-      .filter((l: any) => l && typeof l === 'object' && typeof l.date === 'string')
-      .map((l: any) => ({
-        ...l,
-        isSynced: l.isSynced !== undefined ? Boolean(l.isSynced) : false
-      }));
+    parsed.logs.forEach((rawLog: any, idx: number) => {
+      // 3.1 Structural validation check
+      if (!isStructurallyValidLogCandidate(rawLog)) {
+        discardedLogCount++;
+        return;
+      }
+
+      const cycleId = rawLog.cycleId.trim();
+      const date = rawLog.date;
+
+      // 3.2 Orphan Policy: DailyLog must reference a retained, valid Cycle
+      if (!retainedCycleIds.has(cycleId)) {
+        orphanCount++;
+        discardedLogCount++;
+        return;
+      }
+
+      const sanitizedLog: DailyLog = {
+        ...rawLog,
+        id: rawLog.id.trim(),
+        cycleId,
+        date,
+        createdAt: typeof rawLog.createdAt === 'string' && rawLog.createdAt.trim().length > 0 ? rawLog.createdAt : new Date().toISOString(),
+        wakeUp: Boolean(rawLog.wakeUp),
+        workout: Boolean(rawLog.workout),
+        study: Boolean(rawLog.study),
+        journal: Boolean(rawLog.journal),
+        hardTask: Boolean(rawLog.hardTask),
+        specialMission: Boolean(rawLog.specialMission),
+        isSynced: rawLog.isSynced !== undefined ? Boolean(rawLog.isSynced) : false,
+        revision: typeof rawLog.revision === 'number' && Number.isInteger(rawLog.revision) && rawLog.revision > 0 ? rawLog.revision : undefined
+      };
+
+      // 3.3 Duplicate Policy: Logical identity in product and database contract is `date`
+      const logicalKey = date;
+
+      if (!logMap.has(logicalKey)) {
+        logMap.set(logicalKey, { candidate: sanitizedLog, index: idx });
+      } else {
+        // Duplicate DailyLog Policy:
+        // Prefer higher valid revision; if equal or absent, preserve first stable occurrence.
+        logDuplicateCount++;
+        discardedLogCount++;
+        const existing = logMap.get(logicalKey)!;
+        const existingRev = existing.candidate.revision ?? 1;
+        const newRev = sanitizedLog.revision ?? 1;
+
+        if (newRev > existingRev) {
+          logMap.set(logicalKey, { candidate: sanitizedLog, index: existing.index });
+        }
+      }
+    });
+
+    result.logs = Array.from(logMap.values())
+      .sort((a, b) => a.index - b.index)
+      .map(entry => entry.candidate);
+  } else if (parsed.logs === undefined) {
+    result.logs = fallbackState.logs.filter(l => retainedCycleIds.has(l.cycleId));
   }
 
   // 4. Settings Protection
-  if (parsed.settings && typeof parsed.settings === 'object') {
+  if (parsed.settings && typeof parsed.settings === 'object' && !Array.isArray(parsed.settings)) {
+    const rawS = parsed.settings;
     result.settings = {
-      ...fallbackState.settings,
-      ...parsed.settings
+      id: typeof rawS.id === 'string' && rawS.id.trim().length > 0 ? rawS.id : fallbackState.settings.id,
+      platformName: typeof rawS.platformName === 'string' && rawS.platformName.trim().length > 0 ? rawS.platformName : fallbackState.settings.platformName,
+      centralEngineName: typeof rawS.centralEngineName === 'string' && rawS.centralEngineName.trim().length > 0 ? rawS.centralEngineName : fallbackState.settings.centralEngineName,
+      allTimeMaxStreak: typeof rawS.allTimeMaxStreak === 'number' && Number.isFinite(rawS.allTimeMaxStreak) && rawS.allTimeMaxStreak >= 0 ? Math.floor(rawS.allTimeMaxStreak) : fallbackState.settings.allTimeMaxStreak,
+      allTimeMaxScore: typeof rawS.allTimeMaxScore === 'number' && Number.isFinite(rawS.allTimeMaxScore) && rawS.allTimeMaxScore >= 0 ? Math.floor(rawS.allTimeMaxScore) : fallbackState.settings.allTimeMaxScore,
+      allTimeMaxStandardDays: typeof rawS.allTimeMaxStandardDays === 'number' && Number.isFinite(rawS.allTimeMaxStandardDays) && rawS.allTimeMaxStandardDays >= 0 ? Math.floor(rawS.allTimeMaxStandardDays) : fallbackState.settings.allTimeMaxStandardDays,
+      nightOwlCutoffHour: typeof rawS.nightOwlCutoffHour === 'number' && Number.isInteger(rawS.nightOwlCutoffHour) && rawS.nightOwlCutoffHour >= 0 && rawS.nightOwlCutoffHour <= 23 ? rawS.nightOwlCutoffHour : fallbackState.settings.nightOwlCutoffHour,
+      accentTheme: typeof rawS.accentTheme === 'string' && ['amber', 'emerald', 'crimson', 'cyan'].includes(rawS.accentTheme) ? rawS.accentTheme : fallbackState.settings.accentTheme
     };
+  } else {
+    result.settings = { ...fallbackState.settings };
   }
 
-  return result;
+  const recovery: StateRecoveryMetadata = {
+    recoveredCycleCount: result.cycles.length,
+    discardedCycleCount,
+    recoveredLogCount: result.logs.length,
+    discardedLogCount,
+    duplicateCount: cycleDuplicateCount + logDuplicateCount,
+    orphanCount,
+    usedFallback: false,
+    timestamp: Date.now()
+  };
+
+  return {
+    state: result,
+    recovery
+  };
+}
+
+/**
+ * Sanitizes and validates a parsed raw JSON object into a structurally sound SystemState.
+ * Delegated directly to recoverSystemState for unified contract adherence.
+ */
+export function sanitizeSystemState(
+  parsed: any, 
+  fallbackState: SystemState, 
+  defaultProfile: UserProfile
+): SystemState {
+  return recoverSystemState(parsed, fallbackState, defaultProfile).state;
 }
 
 /**
@@ -577,10 +894,12 @@ export function clearUserLocalState(userId?: string | null): void {
   const scopedDemoKey = getScopedDemoConsumedKey(normId);
   safeRemoveLocalStorage(scopedKey);
   safeRemoveLocalStorage(scopedDemoKey);
+  clearStoredStateRecoveryMetadata(normId);
   clearOfflineQueue(normId);
   if (!normId) {
     safeRemoveLocalStorage(LEGACY_STORAGE_KEY);
     safeRemoveLocalStorage(LEGACY_DEMO_CONSUMED_KEY);
+    clearStoredStateRecoveryMetadata(null);
     clearOfflineQueue(null);
   }
 }
