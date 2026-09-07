@@ -344,4 +344,309 @@ describe('Debt Autopsy Flow & Invariants Verification', () => {
     // Invariant from Phase 6: JSON import was permanently removed
     assert.equal(typeof (globalThis as any).importJSONState, 'undefined');
   });
+
+  // 21. Duplicate same-date logs: higher valid revision wins regardless of input order
+  it('21. Duplicate same-date logs: higher valid revision wins regardless of input order', () => {
+    const logicalToday = '2026-09-05';
+    const logRev1: DailyLog = {
+      id: 'log-rev-1',
+      cycleId: sampleCycle.id,
+      date: '2026-09-02',
+      wakeUp: false,
+      workout: false,
+      study: false,
+      journal: false,
+      hardTask: false,
+      specialMission: false,
+      notes: 'نسخه ۱',
+      revision: 1
+    };
+    const logRev4: DailyLog = {
+      id: 'log-rev-4',
+      cycleId: sampleCycle.id,
+      date: '2026-09-02',
+      wakeUp: false,
+      workout: false,
+      study: false,
+      journal: false,
+      hardTask: false,
+      specialMission: false,
+      notes: 'نسخه ۴',
+      revision: 4
+    };
+
+    // Case A: [logRev1, logRev4] -> logRev4 must win
+    const debtsA = deriveUnresolvedDebtLogs(sampleCycle, [logRev1, logRev4], logicalToday);
+    const targetA = debtsA.find(d => d.date === '2026-09-02');
+    assert.ok(targetA);
+    assert.equal(targetA.id, 'log-rev-4');
+    assert.equal(targetA.revision, 4);
+    assert.equal(targetA.notes, 'نسخه ۴');
+
+    // Case B: [logRev4, logRev1] -> logRev4 must still win
+    const debtsB = deriveUnresolvedDebtLogs(sampleCycle, [logRev4, logRev1], logicalToday);
+    const targetB = debtsB.find(d => d.date === '2026-09-02');
+    assert.ok(targetB);
+    assert.equal(targetB.id, 'log-rev-4');
+    assert.equal(targetB.revision, 4);
+
+    // Case C: valid revision wins against absent or invalid revision
+    const logNoRev: DailyLog = {
+      ...logRev1,
+      id: 'log-no-rev',
+      revision: undefined
+    };
+    const logInvalidRev: DailyLog = {
+      ...logRev1,
+      id: 'log-invalid-rev',
+      revision: -2
+    };
+
+    const debtsC = deriveUnresolvedDebtLogs(sampleCycle, [logNoRev, logRev4], logicalToday);
+    assert.equal(debtsC.find(d => d.date === '2026-09-02')?.id, 'log-rev-4');
+
+    const debtsD = deriveUnresolvedDebtLogs(sampleCycle, [logRev4, logInvalidRev], logicalToday);
+    assert.equal(debtsD.find(d => d.date === '2026-09-02')?.id, 'log-rev-4');
+  });
+
+  // 22. Duplicate same-date logs: equal revision preserves first stable occurrence
+  it('22. Duplicate same-date logs: equal revision preserves first stable occurrence', () => {
+    const logicalToday = '2026-09-05';
+    const logFirst: DailyLog = {
+      id: 'log-first-occurrence',
+      cycleId: sampleCycle.id,
+      date: '2026-09-02',
+      wakeUp: false,
+      workout: false,
+      study: false,
+      journal: false,
+      hardTask: false,
+      specialMission: false,
+      notes: 'رخداد اول',
+      revision: 2
+    };
+    const logSecond: DailyLog = {
+      id: 'log-second-occurrence',
+      cycleId: sampleCycle.id,
+      date: '2026-09-02',
+      wakeUp: false,
+      workout: false,
+      study: false,
+      journal: false,
+      hardTask: false,
+      specialMission: false,
+      notes: 'رخداد دوم',
+      revision: 2
+    };
+
+    // Equal revision: first occurrence wins
+    const debts = deriveUnresolvedDebtLogs(sampleCycle, [logFirst, logSecond], logicalToday);
+    const target = debts.find(d => d.date === '2026-09-02');
+    assert.ok(target);
+    assert.equal(target.id, 'log-first-occurrence');
+    assert.equal(target.notes, 'رخداد اول');
+
+    // Both absent revision: first occurrence wins
+    const logNoRev1: DailyLog = { ...logFirst, id: 'no-rev-1', revision: undefined };
+    const logNoRev2: DailyLog = { ...logSecond, id: 'no-rev-2', revision: undefined };
+    const debtsAbsent = deriveUnresolvedDebtLogs(sampleCycle, [logNoRev1, logNoRev2], logicalToday);
+    assert.equal(debtsAbsent.find(d => d.date === '2026-09-02')?.id, 'no-rev-1');
+  });
+
+  // 23. Duplicate same-date logs do not merge fields
+  it('23. Duplicate same-date logs do not merge fields', () => {
+    const logicalToday = '2026-09-05';
+    const logA: DailyLog = {
+      id: 'log-a',
+      cycleId: sampleCycle.id,
+      date: '2026-09-02',
+      wakeUp: false,
+      workout: false,
+      study: false,
+      journal: false,
+      hardTask: false,
+      specialMission: false,
+      notes: 'یادداشت فقط در آ',
+      revision: 1
+    };
+    const logB: DailyLog = {
+      id: 'log-b',
+      cycleId: sampleCycle.id,
+      date: '2026-09-02',
+      wakeUp: false,
+      workout: false,
+      study: false,
+      journal: false,
+      hardTask: false,
+      specialMission: false,
+      failureReason: undefined,
+      revision: 3
+    };
+
+    const debts = deriveUnresolvedDebtLogs(sampleCycle, [logA, logB], logicalToday);
+    const target = debts.find(d => d.date === '2026-09-02');
+    assert.ok(target);
+    assert.equal(target.id, 'log-b');
+    // Field from logA must NOT bleed into logB
+    assert.equal(target.notes, undefined);
+  });
+
+  // 24. Input logs array is not mutated
+  it('24. Input logs array is not mutated', () => {
+    const logicalToday = '2026-09-05';
+    const log1: DailyLog = {
+      id: 'log-1',
+      cycleId: sampleCycle.id,
+      date: '2026-09-03',
+      wakeUp: false,
+      workout: false,
+      study: false,
+      journal: false,
+      hardTask: false,
+      specialMission: false,
+      revision: 1
+    };
+    const log2: DailyLog = {
+      id: 'log-2',
+      cycleId: sampleCycle.id,
+      date: '2026-09-01',
+      wakeUp: false,
+      workout: false,
+      study: false,
+      journal: false,
+      hardTask: false,
+      specialMission: false,
+      revision: 1
+    };
+
+    const inputLogs = Object.freeze([Object.freeze({ ...log1 }), Object.freeze({ ...log2 })]);
+    assert.doesNotThrow(() => {
+      const debts = deriveUnresolvedDebtLogs(sampleCycle, inputLogs as any, logicalToday);
+      assert.ok(debts.length > 0);
+    });
+    // Order of input array remains unchanged
+    assert.equal(inputLogs[0].id, 'log-1');
+    assert.equal(inputLogs[1].id, 'log-2');
+  });
+
+  // 25. Results remain sorted by ascending date even with shuffled input logs
+  it('25. Results remain sorted by ascending date even with shuffled input logs', () => {
+    const logicalToday = '2026-09-06';
+    const shuffledLogs: DailyLog[] = [
+      { id: 'log-4', cycleId: sampleCycle.id, date: '2026-09-04', wakeUp: false, workout: false, study: false, journal: false, hardTask: false, specialMission: false },
+      { id: 'log-1', cycleId: sampleCycle.id, date: '2026-09-01', wakeUp: false, workout: false, study: false, journal: false, hardTask: false, specialMission: false },
+      { id: 'log-3', cycleId: sampleCycle.id, date: '2026-09-03', wakeUp: false, workout: false, study: false, journal: false, hardTask: false, specialMission: false }
+    ];
+
+    const debts = deriveUnresolvedDebtLogs(sampleCycle, shuffledLogs, logicalToday);
+    const dates = debts.map(d => d.date);
+    assert.deepEqual(dates, ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05']);
+  });
+
+  // 26. Every derived virtual placeholder in collection strictly lacks createdAt
+  it('26. Every derived virtual placeholder in collection strictly lacks createdAt', () => {
+    const logicalToday = '2026-09-05';
+    const debts = deriveUnresolvedDebtLogs(sampleCycle, [], logicalToday);
+    assert.equal(debts.length, 4);
+    for (const d of debts) {
+      assert.equal(isVirtualDebtPlaceholder(d), true);
+      assert.equal('createdAt' in d, false);
+      assert.equal(d.createdAt, undefined);
+    }
+  });
+
+  // 27. Full 90-day cycle behavioral parity with mixed real, resolved, frozen and virtual days
+  it('27. Full 90-day cycle behavioral parity with mixed real, resolved, frozen and virtual days', () => {
+    const fullCycle: Cycle = {
+      id: 'cycle-full-90',
+      userId: 'user-1',
+      title: 'نبرد نود روزه',
+      startDate: '2026-06-01',
+      endDate: '2026-08-29',
+      targetTheme: 'amber',
+      status: 'completed',
+      createdAt: '2026-06-01T00:00:00.000Z',
+      revision: 1
+    };
+    const logicalToday = '2026-09-01';
+
+    // Seed 10 standard days, 5 resolved burned days, 2 personal frozen days, 1 real unresolved day
+    const mixedLogs: DailyLog[] = [
+      // Standard days (5/5 habits)
+      { id: 'std-1', cycleId: 'cycle-full-90', date: '2026-06-01', wakeUp: true, workout: true, study: true, journal: true, hardTask: true, specialMission: false },
+      { id: 'std-2', cycleId: 'cycle-full-90', date: '2026-06-02', wakeUp: true, workout: true, study: true, journal: true, hardTask: true, specialMission: false },
+      // Resolved burned days
+      { id: 'res-1', cycleId: 'cycle-full-90', date: '2026-06-03', wakeUp: false, workout: false, study: false, journal: false, hardTask: false, specialMission: false, failureReason: 'fatigue', failureTime: 'morning' },
+      // Personal frozen day
+      { id: 'frz-1', cycleId: 'cycle-full-90', date: '2026-06-04', wakeUp: false, workout: false, study: false, journal: false, hardTask: false, specialMission: false, failureReason: 'دلایل شخصی' },
+      // Real unresolved debt
+      { id: 'real-unres-1', cycleId: 'cycle-full-90', date: '2026-06-05', wakeUp: false, workout: false, study: false, journal: false, hardTask: false, specialMission: false }
+    ];
+
+    const debts = deriveUnresolvedDebtLogs(fullCycle, mixedLogs, logicalToday);
+
+    // Total candidate days in cycle: 90 (2026-06-01 to 2026-08-29)
+    // Excluded: 2 standard days, 1 resolved day, 1 frozen day = 4 days
+    // Included: 1 real unresolved + 85 missing past days = 86 debts
+    assert.equal(debts.length, 86);
+    assert.equal(debts.find(d => d.date === '2026-06-01'), undefined); // standard excluded
+    assert.equal(debts.find(d => d.date === '2026-06-02'), undefined); // standard excluded
+    assert.equal(debts.find(d => d.date === '2026-06-03'), undefined); // resolved excluded
+    assert.equal(debts.find(d => d.date === '2026-06-04'), undefined); // frozen excluded
+
+    const unresLog = debts.find(d => d.date === '2026-06-05');
+    assert.ok(unresLog);
+    assert.equal(unresLog.id, 'real-unres-1'); // real ID preserved
+    assert.equal(isVirtualDebtPlaceholder(unresLog), false);
+
+    // Remaining missing days are virtual
+    const missingLog = debts.find(d => d.date === '2026-06-06');
+    assert.ok(missingLog);
+    assert.equal(isVirtualDebtPlaceholder(missingLog), true);
+    assert.equal(missingLog.id, 'virtual-2026-06-06');
+  });
+
+  // 28. Micro-benchmark observation: non-flaky runtime measurement for active cycle date derivation
+  it('28. Micro-benchmark observation: non-flaky runtime measurement for active cycle date derivation', () => {
+    const benchmarkCycle: Cycle = {
+      id: 'cycle-bench',
+      userId: 'user-bench',
+      title: 'نبرد بنچ‌مارک',
+      startDate: '2026-01-01',
+      endDate: '2026-03-31',
+      targetTheme: 'amber',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      revision: 1
+    };
+
+    // 90 candidate logs
+    const benchmarkLogs: DailyLog[] = [];
+    let d = '2026-01-01';
+    for (let i = 0; i < 90; i++) {
+      benchmarkLogs.push({
+        id: `bench-log-${i}`,
+        cycleId: 'cycle-bench',
+        date: d,
+        wakeUp: i % 2 === 0,
+        workout: i % 3 === 0,
+        study: i % 4 === 0,
+        journal: i % 5 === 0,
+        hardTask: false,
+        specialMission: false,
+        revision: (i % 3) + 1
+      });
+      d = addDaysToDate(d, 1);
+    }
+
+    const tStart = performance.now();
+    const result = deriveUnresolvedDebtLogs(benchmarkCycle, benchmarkLogs, '2026-04-01');
+    const tElapsed = performance.now() - tStart;
+
+    assert.ok(Array.isArray(result));
+    assert.ok(result.length > 0);
+    // Non-flaky observational report
+    assert.equal(typeof tElapsed, 'number');
+    assert.ok(tElapsed >= 0);
+  });
 });

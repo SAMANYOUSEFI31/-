@@ -138,12 +138,28 @@ export function convertVirtualDebtLogForMutation(
 }
 
 /**
+ * Helper to validate positive integer revisions.
+ * Returns the revision number if valid (> 0 integer), otherwise null.
+ */
+function getValidRevision(rev: unknown): number | null {
+  return typeof rev === 'number' && Number.isInteger(rev) && rev > 0 ? rev : null;
+}
+
+/**
  * Derives the authoritative list of unresolved debt logs for the active cycle.
  * Used identically for:
  * - Navbar debt badge count
  * - Actionability of debt control
  * - First opened date on debt click
  * - Autopsy carousel in AutopsyModal
+ *
+ * Performance:
+ * Single-pass date-indexed Map<string, DailyLog> construction in O(logs) time.
+ * Resolves each candidate date in O(1) Map lookup, achieving O(candidate days + cycle logs) overall.
+ * Deterministically deduplicates in-memory same-date logs:
+ * - prefers the candidate with a valid higher revision when revisions differ,
+ * - otherwise preserves the first stable occurrence.
+ * No fields are merged from duplicate logs.
  */
 export function deriveUnresolvedDebtLogs(
   currentCycle: Cycle | null | undefined,
@@ -157,21 +173,50 @@ export function deriveUnresolvedDebtLogs(
 
   const { startDate, endDateExclusive } = candidateRange;
   const list: DailyLog[] = [];
-  const seenDates = new Set<string>();
 
   // Strictly filter logs belonging to the active cycle
   const cycleEndDateFallback = currentCycle.endDate && currentCycle.endDate >= currentCycle.startDate
     ? currentCycle.endDate
     : addDaysToDate(currentCycle.startDate, 89);
 
-  const cycleLogs = logs.filter(
-    l => l.cycleId === currentCycle.id || (!l.cycleId && l.date >= currentCycle.startDate && l.date <= cycleEndDateFallback)
-  );
+  // Build a date-indexed Map once for active cycle logs: O(logs)
+  const cycleLogsByDate = new Map<string, DailyLog>();
 
+  for (const log of logs) {
+    const isCycleMatch = log.cycleId === currentCycle.id ||
+      (!log.cycleId && log.date >= currentCycle.startDate && log.date <= cycleEndDateFallback);
+
+    if (!isCycleMatch) continue;
+
+    const existing = cycleLogsByDate.get(log.date);
+    if (!existing) {
+      cycleLogsByDate.set(log.date, log);
+    } else {
+      // Deterministic duplicate selection policy:
+      // Prefer the valid higher revision when revisions differ,
+      // otherwise preserve the first stable occurrence.
+      const existingRev = getValidRevision(existing.revision);
+      const candidateRev = getValidRevision(log.revision);
+
+      let shouldReplace = false;
+      if (candidateRev !== null && existingRev !== null) {
+        shouldReplace = candidateRev > existingRev;
+      } else if (candidateRev !== null && existingRev === null) {
+        shouldReplace = true;
+      }
+
+      if (shouldReplace) {
+        cycleLogsByDate.set(log.date, log);
+      }
+    }
+  }
+
+  const cycleLogs = Array.from(cycleLogsByDate.values());
+
+  // Iterate each candidate date with O(1) Map resolution: O(candidate days)
   let checkDate = startDate;
   while (checkDate < endDateExclusive) {
-    seenDates.add(checkDate);
-    let l = cycleLogs.find(item => item.date === checkDate);
+    let l = cycleLogsByDate.get(checkDate);
     if (!l) {
       l = createVirtualDebtPlaceholder(currentCycle.id, checkDate);
     }
@@ -181,20 +226,6 @@ export function deriveUnresolvedDebtLogs(
     }
     checkDate = addDaysToDate(checkDate, 1);
   }
-
-  // Also include any real cycle logs within the candidate range that might have been outside sequential walk
-  cycleLogs.forEach(l => {
-    if (
-      l.date >= startDate &&
-      l.date < endDateExclusive &&
-      !seenDates.has(l.date)
-    ) {
-      const c = computeDailyProperties(l, cycleLogs, logicalToday, startDate);
-      if (c.statusType === 'burned_unresolved') {
-        list.push(l);
-      }
-    }
-  });
 
   return list.sort((a, b) => a.date.localeCompare(b.date));
 }
