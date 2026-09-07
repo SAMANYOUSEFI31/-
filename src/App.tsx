@@ -68,6 +68,10 @@ import {
   bindBootAuthAndRequestSync
 } from './utils/syncOrchestrator';
 import {
+  performVisibilityRefetch,
+  setupVisibilityRefetchListeners
+} from './utils/visibilitySyncUtils';
+import {
   IMPERSONATOR_TOKEN_KEY,
   IMPERSONATING_USER_KEY,
   validateAdminTokenForExit,
@@ -209,6 +213,14 @@ export default function App() {
   useEffect(() => {
     showAppToastRef.current = showAppToast;
   }, [showAppToast]);
+
+  const systemStateRef = useRef(systemState);
+  useEffect(() => {
+    systemStateRef.current = systemState;
+  }, [systemState]);
+
+  const lastRemotePullTimestampRef = useRef<number>(0);
+  const isVisibilityRefetchInFlightRef = useRef<boolean>(false);
 
   const handleAppItemSuccess = useCallback((item: OfflineQueueItem, serverResult?: any) => {
     if (!verifyActiveAccount(activeAccountRef.current, item.ownerId)) {
@@ -453,6 +465,7 @@ export default function App() {
 
         // Replay identity binding: Replay starts after verified auth identity from /api/auth/me
         if (fetchedUserProfile?.id && currentToken) {
+          lastRemotePullTimestampRef.current = Date.now();
           bindBootAuthAndRequestSync({
             verifiedUserId: fetchedUserProfile.id,
             verifiedToken: currentToken,
@@ -473,6 +486,64 @@ export default function App() {
       isCancelled = true;
     };
   }, [authToken, requestSync]);
+
+  // Remote pull on visibility is for multi-device catch-up, not realtime.
+  useEffect(() => {
+    const handleVisibilityRefetch = () => {
+      performVisibilityRefetch({
+        getCurrentActiveOwnerId: () => activeAccountRef.current,
+        getCurrentAuthToken: () => authTokenRef.current || safeGetLocalStorage(TOKEN_KEY),
+        getCurrentLocalState: () => ({
+          cycles: systemStateRef.current.cycles,
+          logs: systemStateRef.current.logs,
+          userProfile: systemStateRef.current.userProfile
+        }),
+        onApplyReconciledState: (reconciled, targetOwnerId) => {
+          if (!verifyActiveAccount(activeAccountRef.current, targetOwnerId)) {
+            return;
+          }
+          const { cycles: reconciledCycles, logs: reconciledLogs, userProfile: reconciledProfile, nextActiveCycleId } = reconciled;
+          if (reconciledProfile || reconciledCycles !== null || reconciledLogs !== null) {
+            setSystemState(prev => ({
+              ...prev,
+              userProfile: reconciledProfile ? { ...prev.userProfile, ...reconciledProfile } : prev.userProfile,
+              cycles: reconciledCycles !== null ? reconciledCycles : prev.cycles,
+              logs: reconciledLogs !== null ? reconciledLogs : prev.logs
+            }));
+
+            if (nextActiveCycleId) {
+              setActiveCycleId(prev => {
+                if (!prev || (reconciledCycles && !reconciledCycles.some(c => c.id === prev))) {
+                  return nextActiveCycleId!;
+                }
+                return prev;
+              });
+            }
+          }
+        },
+        requestSyncReplay: async (ownerId, token) => {
+          const queue = getOfflineQueue(ownerId);
+          if (queue.length > 0) {
+            await requestSync('NETWORK_ONLINE', ownerId, token);
+          }
+        },
+        getLastPullTimestamp: () => lastRemotePullTimestampRef.current,
+        setLastPullTimestamp: (ts) => {
+          lastRemotePullTimestampRef.current = ts;
+        },
+        isInFlight: () => isVisibilityRefetchInFlightRef.current,
+        setIsInFlight: (val) => {
+          isVisibilityRefetchInFlightRef.current = val;
+        }
+      });
+    };
+
+    const cleanup = setupVisibilityRefetchListeners({
+      onTriggerRefetch: handleVisibilityRefetch
+    });
+
+    return cleanup;
+  }, [requestSync]);
 
   const currentCycle = useMemo(() => {
     return systemState.cycles.find(c => c.id === activeCycleId) || systemState.cycles[0] || null;
@@ -1345,6 +1416,7 @@ export default function App() {
   const handleLogout = () => {
     activeAccountRef.current = null;
     authTokenRef.current = null;
+    lastRemotePullTimestampRef.current = 0;
     syncOrchestrator.cancelPendingSync();
     const transition = executeLogoutDuringImpersonation(systemState);
     setAuthToken(null);
