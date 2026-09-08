@@ -561,7 +561,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           >
           {/* 2. Lock & Information Banners with Contextual Jump Action */}
           {isFuture ? (
-            <div className="surface-z1/80 border-standard radius-card p-3.5 sm:p-4 text-role-primary shadow-subtle backdrop-blur-md">
+            <div className="surface-z1 border-standard radius-card p-3.5 sm:p-4 text-role-primary shadow-subtle backdrop-blur-md">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
                 <div className="flex items-start gap-3 min-w-0">
                   <div className="w-9 h-9 radius-component surface-z2 border-standard text-role-secondary flex items-center justify-center shrink-0 shadow-inner">
@@ -593,7 +593,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               </div>
             </div>
           ) : isPast && !isCycleArchived ? (
-            <div className="surface-z1/80 border-standard radius-card p-3 sm:p-3.5 text-role-primary shadow-subtle">
+            <div className="surface-z1 border-standard radius-card p-3 sm:p-3.5 text-role-primary shadow-subtle">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-4">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-8 h-8 radius-component surface-z2 border-standard text-role-muted flex items-center justify-center shrink-0 shadow-inner">

@@ -381,13 +381,13 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
 
               {/* Resolved Debt (Purple) */}
               <div className="surface-z1 border-standard hover:border-standard-hover radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
-                <div className="flex items-center justify-between text-autopsy">
+                <div className="flex items-center justify-between text-purple">
                   <span className="text-xs text-role-secondary">کالبدشکافی شده</span>
-                  <div className="w-7 h-7 radius-component bg-autopsy-subtle flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-4 h-4 text-autopsy" />
+                  <div className="w-7 h-7 radius-component bg-purple-subtle flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-4 h-4 text-purple" />
                   </div>
                 </div>
-                <div className="text-2xl font-bold font-mono text-autopsy leading-none my-1">
+                <div className="text-2xl font-bold font-mono text-purple leading-none my-1">
                   {toPersianDigits(metrics.resolvedDebtCount)} <span className="text-xs text-role-muted font-normal">روز</span>
                 </div>
                 <p className="text-[11px] text-role-secondary truncate">

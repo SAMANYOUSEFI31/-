@@ -158,7 +158,7 @@ const TacticalHeatmap90Component: React.FC<TacticalHeatmap90Props> = ({
 
       {/* Unified 90-Cell Tactical Grid */}
       <div className="w-full max-w-full surface-z2 border-standard radius-card p-2 sm:p-3.5 md:p-5 overflow-hidden touch-pan-y">
-        <div className="grid grid-cols-6 sm:grid-cols-10 md:grid-cols-15 lg:grid-cols-18 gap-1 sm:gap-1.5 md:gap-2 w-full">
+        <div className="grid grid-cols-6 sm:grid-cols-10 md:grid-cols-[repeat(15,minmax(0,1fr))] lg:grid-cols-[repeat(18,minmax(0,1fr))] gap-1 sm:gap-1.5 md:gap-2 w-full">
           {allDays.map(cell => (
             <button
               key={cell.dayNumber}
