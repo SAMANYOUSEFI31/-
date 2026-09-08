@@ -188,7 +188,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
                 id="create-cycle-end-date-output"
                 htmlFor="create-cycle-start-date-input"
                 aria-describedby="create-cycle-end-date-helper"
-                className="w-full surface-z2/60 border-standard radius-component p-2.5 text-xs sm:text-sm text-role-muted font-mono select-none flex items-center justify-between block"
+                className="w-full surface-z2 border-standard radius-component p-2.5 text-xs sm:text-sm text-role-muted font-mono select-none flex items-center justify-between block"
               >
                 <span>{endDate}</span>
                 <span className="text-[10px] text-amber font-sans font-bold">۹۰ روز</span>

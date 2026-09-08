@@ -275,7 +275,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
 
       {/* Top Hub Bar Header with Dynamic Island & PWA Safe-Area Support */}
       <header 
-        className="sticky top-0 z-40 surface-z0/95 backdrop-blur-md border-b border-standard transition-all pt-safe shadow-subtle" 
+        className="sticky top-0 z-40 surface-shell backdrop-blur-md border-b border-standard transition-all pt-safe shadow-subtle" 
         dir="rtl"
       >
         <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 relative">
@@ -325,7 +325,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                     aria-label="انتخاب و مدیریت چرخه‌ها"
                     className="absolute right-0 mt-2 w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] surface-z3 border-standard radius-modal shadow-dropdown overflow-hidden z-50 animate-in fade-in zoom-in-95 motion-reduce:animate-none duration-150"
                   >
-                    <div className="px-3.5 py-2.5 text-[10px] text-role-secondary font-bold border-b border-standard flex items-center justify-between surface-z2/60">
+                    <div className="px-3.5 py-2.5 text-[10px] text-role-secondary font-bold border-b border-standard flex items-center justify-between surface-z2">
                       <span>انتخاب و مدیریت چرخه‌های ۹۰ روزه:</span>
                       <span className="text-role-muted font-mono">{toPersianDigits(cycles.length)} چرخه</span>
                     </div>
@@ -343,7 +343,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                             <div
                               key={c.id}
                               className={`w-full p-1 min-h-[44px] flex items-center justify-between gap-1.5 transition radius-component ${
-                                isCurrent ? 'surface-z2/60' : 'hover:surface-z2/40'
+                                isCurrent ? 'surface-z2' : 'hover:surface-z2'
                               }`}
                             >
                               {/* Native button for Cycle selection */}
@@ -399,7 +399,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       )}
                     </div>
                     
-                    <div className="p-2.5 border-t border-standard space-y-2 surface-z2/70">
+                    <div className="p-2.5 border-t border-standard space-y-2 surface-z2">
                       {onOpenNewCycleModal && (
                         <button
                           type="button"
@@ -554,7 +554,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
       {/* Mobile Bottom Navigation Bar (3 Clean Canonical Tabs with Swipe Support) */}
       <LayoutGroup id="mobileBottomNavGroup">
         <nav 
-          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 surface-z0/95 border-t border-standard crisp-blur px-2 py-1 pb-safe select-none touch-pan-x"
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 surface-shell backdrop-blur-md border-t border-standard px-2 py-1 pb-safe select-none touch-pan-x shadow-subtle"
           dir="rtl"
           aria-label="ناوبری اصلی همراه"
           onTouchStart={handleBottomNavTouchStart}

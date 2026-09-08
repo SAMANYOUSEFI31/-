@@ -226,7 +226,7 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
       </div>
 
       {/* 2. Search & Filter Bar */}
-      <div className="surface-z1/80 border-standard radius-card p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="surface-z1 border-standard radius-card p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-role-muted absolute right-3 top-3" />
           <input
@@ -294,7 +294,7 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
                   const isToday = l.date === logicalToday;
 
                   return (
-                    <tr key={l.id} className={`hover:surface-z2/40 transition ${isToday ? 'bg-amber-subtle/30' : ''}`}>
+                    <tr key={l.id} className={`hover:surface-z2 transition ${isToday ? 'bg-amber-subtle/30' : ''}`}>
                       <td className="p-3.5 font-mono whitespace-nowrap">
                         <button
                           onClick={() => onSelectDate(l.date)}

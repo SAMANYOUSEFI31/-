@@ -526,7 +526,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Navigation Tabs (Only when not logged in) */}
         {!currentUser?.id && (
-          <div role="tablist" aria-label="شیوه‌های احراز هویت" className="px-5 sm:px-6 pt-4 pb-2 surface-z2/70 border-b border-standard flex gap-2">
+          <div role="tablist" aria-label="شیوه‌های احراز هویت" className="px-5 sm:px-6 pt-4 pb-2 surface-z2 border-b border-standard flex gap-2">
             <button
               id="auth-tab-login"
               type="button"

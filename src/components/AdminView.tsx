@@ -522,7 +522,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
                 <thead>
-                  <tr className="surface-z0/80 text-role-muted border-b border-standard font-bold">
+                  <tr className="surface-z0 text-role-muted border-b border-standard font-bold">
                     <th className="py-3 px-4">کاربر</th>
                     <th className="py-3 px-4">اطلاعات تماس</th>
                     <th className="py-3 px-4">وضعیت اشتراک</th>
@@ -544,7 +544,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                       const isVip = user.isVip;
 
                       return (
-                        <tr key={user.id} className="hover:surface-z2/40 transition-colors">
+                        <tr key={user.id} className="hover:surface-z2 transition-colors">
                           {/* User Name & ID */}
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-2.5">
@@ -689,7 +689,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       {activeSubTab === 'subscriptions' && (
         <div className="space-y-4">
           <div className="surface-z1 border-standard radius-card overflow-hidden shadow-subtle">
-            <div className="p-4 surface-z0/80 border-b border-standard flex items-center justify-between">
+            <div className="p-4 surface-z0 border-b border-standard flex items-center justify-between">
               <span className="font-bold text-xs text-role-primary">
                 گزارش تراکنش‌های درگاه پرداخت (زرین‌پال / شاپرک)
               </span>
@@ -720,7 +720,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     </tr>
                   ) : (
                     subscriptions.map(sub => (
-                      <tr key={sub.id} className="hover:surface-z2/40 transition-colors">
+                      <tr key={sub.id} className="hover:surface-z2 transition-colors">
                         <td className="py-3.5 px-4 text-amber font-bold text-[11px]">
                           {sub.authority}
                         </td>
@@ -799,7 +799,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </div>
             </div>
 
-            <div className="text-[11px] text-role-muted leading-relaxed surface-z0/40 p-3 radius-component border-subtle">
+            <div className="text-[11px] text-role-muted leading-relaxed surface-z0 p-3 radius-component border-subtle">
               💡 برای اتصال به درگاه واقعی پذیرنده زرین‌پال، کافیست شناسه مرچنت کد ۳۶ رقمی خود را در فایل <code className="text-amber">.env</code> در متغیر <code className="text-amber">ZARINPAL_MERCHANT_ID</code> قرار دهید.
             </div>
           </div>
@@ -832,7 +832,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </div>
             </div>
 
-            <div className="text-[11px] text-role-muted leading-relaxed surface-z0/40 p-3 radius-component border-subtle">
+            <div className="text-[11px] text-role-muted leading-relaxed surface-z0 p-3 radius-component border-subtle">
               ⚡ در صورت اجرای پروژه در VS Code، با دستور <code className="text-blue">npx prisma db push</code> جداول روی دیتابیس PostgreSQL شما همگام‌سازی می‌شوند.
             </div>
           </div>

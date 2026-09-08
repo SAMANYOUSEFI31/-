@@ -10,6 +10,8 @@
    * Staging by luminance deltas (1% - 3%)
    * ========================================================================= */
   --color-canvas-root: #09090b;        /* Main App Background (Obsidian Black - Z0) */
+  --color-shell-chrome: rgba(9, 9, 11, 0.95); /* Shell Chrome Surface: Unified Top Header & Bottom Nav (Z0 + 95% Alpha) */
+  --color-shell-chrome-rgb: 9, 9, 11;
   --color-card-elevated: #121215;      /* Elevated Card Containers (Level 1 - Z1) */
   --color-card-elevated-alt: #131215;  /* Documented Z1 alias for subtle elevation */
   --color-card-inner: #18181b;         /* Sub-Containers & Inputs (Level 2 - Z2) */
@@ -187,6 +189,11 @@
 /* Surface Level Utilities (Z-Axis Luminance Hierarchy) */
 .surface-z0 {
   background-color: var(--color-canvas-root) !important;
+}
+
+.surface-shell {
+  background-color: var(--color-shell-chrome) !important;
+  background-image: none !important;
 }
 
 .surface-z1 {

@@ -424,7 +424,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 </div>
               </div>
 
-              <div className="surface-z2/60 border-standard radius-component p-3.5 text-xs text-role-secondary leading-relaxed">
+              <div className="surface-z2 border-standard radius-component p-3.5 text-xs text-role-secondary leading-relaxed">
                 <p>
                   این شبیه‌ساز تنها در محیط توسعه فعال است و هیچ‌گونه شماره کارت، رمز دوم یا کد اعتبارسنجی بانکی دریافت نمی‌کند. برای تکمیل چرخه و ارسال درخواست تایید به سرور، دکمه زیر را کلیک نمایید.
                 </p>

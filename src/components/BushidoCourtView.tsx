@@ -270,7 +270,7 @@ export const BushidoCourtView: React.FC<BushidoCourtViewProps> = ({
           )}
         </div>
       ) : (
-        <div className="surface-z1/60 border-standard radius-modal p-12 text-center space-y-3">
+        <div className="surface-z1 border-standard radius-modal p-12 text-center space-y-3">
           <Award className="w-12 h-12 text-role-muted mx-auto" />
           <h3 className="font-bold text-base text-role-primary">
             دیوان آماده دریافت و ارزیابی گزارش ۹۰ روزه است

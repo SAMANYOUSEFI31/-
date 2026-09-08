@@ -431,7 +431,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                           className={`px-3.5 py-2.5 radius-component text-xs font-bold flex items-center justify-between border transition cursor-pointer active:scale-[0.98] ${
                             isSelected
                               ? 'surface-z2 border-standard text-role-primary shadow-xs'
-                              : 'surface-z1/60 hover:surface-z2 border-standard text-role-muted hover:text-role-primary'
+                              : 'surface-z1 hover:surface-z2 border-standard text-role-muted hover:text-role-primary'
                           }`}
                         >
                           <span className="whitespace-nowrap">{item.label}</span>
@@ -547,7 +547,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                           onClick={() => {
                             setExpandedHabitKey(isExpanded ? null : item.key);
                           }}
-                          className="w-full p-4 flex items-center justify-between gap-3 text-right hover:surface-z2/40 transition cursor-pointer group"
+                          className="w-full p-4 flex items-center justify-between gap-3 text-right hover:surface-z2 transition cursor-pointer group"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className={`w-9 h-9 radius-component flex items-center justify-center shrink-0 border transition ${

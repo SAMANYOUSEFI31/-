@@ -40,7 +40,7 @@ export const Toast: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
                   ? 'bg-amber-subtle border-amber-subtle text-role-primary'
                   : type === 'info'
                   ? 'bg-blue-subtle border-blue-subtle text-role-primary'
-                  : 'surface-z1/95 border-emerald-subtle text-role-primary'
+                  : 'surface-z1 border-emerald-subtle text-role-primary'
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">

@@ -206,7 +206,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
         dir="rtl"
       >
         {/* Sticky Modal Header */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 surface-z3/95 border-b border-standard flex items-center justify-between shrink-0 sticky top-0 z-20 backdrop-blur-md">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 surface-z3 border-b border-standard flex items-center justify-between shrink-0 sticky top-0 z-20 backdrop-blur-md">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <div className={`w-9 h-9 sm:w-10 sm:h-10 radius-component flex items-center justify-center shrink-0 ${isPersonalFrozen ? 'bg-blue-subtle text-blue border border-blue-subtle' : 'bg-debt-subtle text-debt border border-debt-subtle'}`}>
               {isPersonalFrozen ? <Snowflake className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
@@ -423,7 +423,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
           </div>
 
           {/* Sticky Modal Footer Actions */}
-          <div className="px-4 sm:px-6 py-3.5 sm:py-4 surface-z3/95 border-t border-standard flex items-center justify-end gap-2 sm:gap-3 shrink-0 sticky bottom-0 z-20 backdrop-blur-md">
+          <div className="px-4 sm:px-6 py-3.5 sm:py-4 surface-z3 border-t border-standard flex items-center justify-end gap-2 sm:gap-3 shrink-0 sticky bottom-0 z-20 backdrop-blur-md">
             <button
               type="button"
               onClick={onClose}

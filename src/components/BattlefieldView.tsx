@@ -747,12 +747,12 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               </div>
 
               {/* Score & Gauge Box (Centered, Symmetrical & Dignified Proportions with Golden Ratio micro-focusing) */}
-              <div className={`border radius-card p-3.5 sm:p-5 text-center w-full max-w-[260px] mx-auto md:mx-0 md:w-[230px] md:max-w-none shrink-0 transition-all flex flex-col items-center justify-center gap-2.5 ${
+              <div className={`border radius-card p-3.5 sm:p-5 text-center w-full max-w-[260px] mx-auto md:mx-0 md:w-[230px] md:max-w-none shrink-0 transition-colors duration-200 flex flex-col items-center justify-center gap-2.5 ${
                 computed.score === 10
-                  ? 'bg-amber-subtle border-amber-subtle shadow-subtle ring-1 ring-amber-subtle'
+                  ? 'bg-amber-subtle border-amber-subtle shadow-subtle'
                   : computed.isStandard
-                  ? 'bg-emerald-subtle border-emerald-subtle shadow-subtle ring-1 ring-emerald-subtle'
-                  : 'surface-z2 border-standard'
+                  ? 'bg-emerald-subtle border-emerald-subtle shadow-subtle'
+                  : 'surface-z2 border-standard shadow-subtle'
               }`}>
                 {/* Score Header Label */}
                 <div className="text-[11px] sm:text-xs text-role-secondary font-medium flex items-center justify-center gap-1.5">
@@ -802,15 +802,15 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       return (
                         <div
                           key={idx}
-                          className={`h-1.5 sm:h-2 flex-1 rounded-full transition-all duration-300 ${
+                          className={`h-1.5 sm:h-2 flex-1 rounded-full border transition-colors duration-200 ${
                             isFilled
                               ? computed.score === 10
-                                ? 'bg-amber shadow-[0_0_8px_rgba(251,191,36,0.6)]'
+                                ? 'bg-amber border-amber'
                                 : computed.isStandard
-                                ? 'bg-emerald shadow-[0_0_6px_rgba(52,211,153,0.5)]'
+                                ? 'bg-emerald border-emerald'
                                 : computed.statusType === 'personal_frozen'
-                                ? 'bg-blue'
-                                : 'bg-[var(--color-text-secondary)]'
+                                ? 'bg-blue border-blue'
+                                : 'bg-[var(--color-text-secondary)] border-[var(--color-text-secondary)]'
                               : 'surface-z1 border-standard'
                           }`}
                           title={`قطعه ${toPersianDigits(segmentIndex)} از ۱۰`}
@@ -846,15 +846,15 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                     onClick={() => toggleHabit(h.key)}
                     className={`p-3 sm:p-3.5 radius-card border text-right transition-all flex items-center justify-between gap-3 group cursor-pointer active:scale-[0.98] focus-ring-tactical ${
                       isChecked
-                        ? 'surface-z1 border-emerald-subtle text-role-primary shadow-subtle'
+                        ? 'bg-emerald-subtle border-emerald-subtle text-role-primary shadow-subtle'
                         : 'surface-z1 border-standard text-role-secondary hover:border-[var(--color-border-hover)]'
                     } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                      <div className={`w-9 h-9 sm:w-10 sm:h-10 radius-component flex items-center justify-center shrink-0 transition-all ${
+                      <div className={`w-9 h-9 sm:w-10 sm:h-10 radius-component border flex items-center justify-center shrink-0 transition-colors ${
                         isChecked
-                          ? 'bg-emerald-subtle text-emerald ring-2 ring-emerald-subtle'
-                          : 'surface-z2 text-role-muted group-hover:text-role-primary'
+                          ? 'bg-emerald-subtle text-emerald border-emerald-subtle'
+                          : 'surface-z2 text-role-muted border-standard group-hover:text-role-primary'
                       }`}>
                         {HABIT_ICONS[h.key]}
                       </div>
@@ -868,12 +868,12 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       </div>
                     </div>
 
-                    <div className={`w-6 h-6 sm:w-7 sm:h-7 radius-component border flex items-center justify-center transition-all shrink-0 ${
+                    <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full border flex items-center justify-center transition-colors shrink-0 ${
                       isChecked
-                        ? 'bg-emerald border-emerald text-black shadow-subtle scale-105'
+                        ? 'bg-emerald-subtle border-emerald text-emerald shadow-subtle'
                         : 'border-standard surface-z2 text-transparent group-hover:border-[var(--color-border-hover)]'
                     }`}>
-                      <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
                     </div>
                   </button>
                 );
@@ -899,15 +899,15 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               onClick={toggleSpecialMission}
               className={`w-full p-3 sm:p-3.5 radius-card border text-right transition-all flex items-center justify-between gap-3 group cursor-pointer active:scale-[0.98] focus-ring-tactical ${
                 activeLog?.specialMission
-                  ? 'surface-z1 border-amber-subtle shadow-subtle'
+                  ? 'bg-amber-subtle border-amber-subtle text-role-primary shadow-subtle'
                   : 'surface-z1 border-standard text-role-secondary hover:border-[var(--color-border-hover)]'
               } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                <div className={`w-9 h-9 sm:w-10 sm:h-10 radius-component flex items-center justify-center shrink-0 transition-all ${
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 radius-component border flex items-center justify-center shrink-0 transition-colors ${
                   activeLog?.specialMission
-                    ? 'bg-amber-subtle text-amber ring-2 ring-amber-subtle'
-                    : 'surface-z2 text-role-muted group-hover:text-role-primary'
+                    ? 'bg-amber-subtle text-amber border-amber-subtle'
+                    : 'surface-z2 text-role-muted border-standard group-hover:text-role-primary'
                 }`}>
                   <Target className={`w-5 h-5 ${activeLog?.specialMission ? 'text-amber' : 'text-role-muted group-hover:text-role-primary'}`} />
                 </div>
@@ -928,12 +928,12 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 </div>
               </div>
 
-              <div className={`w-6 h-6 sm:w-7 sm:h-7 radius-component border flex items-center justify-center transition-all shrink-0 ${
+              <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full border flex items-center justify-center transition-colors shrink-0 ${
                 activeLog?.specialMission
-                  ? 'bg-amber border-amber text-black shadow-subtle scale-105'
+                  ? 'bg-amber-subtle border-amber text-amber shadow-subtle'
                   : 'border-standard surface-z2 text-transparent group-hover:border-[var(--color-border-hover)]'
               }`}>
-                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
               </div>
             </button>
           </div>
@@ -950,8 +950,8 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 cleanFailureReason === 'دلایل شخصی'
                   ? 'bg-blue-subtle border-blue-subtle'
                   : hasFailureReason
-                  ? 'surface-z1/80 border-standard'
-                  : (isToday ? 'surface-z1/80 border-standard' : 'bg-debt-subtle border-debt-subtle')
+                  ? 'surface-z1 border-standard'
+                  : (isToday ? 'surface-z1 border-standard' : 'bg-debt-subtle border-debt-subtle')
               }`}>
                 <div className="flex items-start sm:items-center gap-3">
                   <div className={`w-9 h-9 radius-component flex items-center justify-center shrink-0 ${
@@ -1004,7 +1004,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           })()}
 
           {/* 6. Daily Reflection & Strategy Notes */}
-          <div className="surface-z1/80 border-standard radius-card p-3.5 sm:p-4 space-y-2.5">
+          <div className="surface-z0 border-standard radius-card p-3.5 sm:p-4 space-y-2.5">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <label className="text-xs font-bold text-role-primary inline-flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-role-muted" />
@@ -1058,7 +1058,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               rows={2}
               className={`w-full radius-component p-3 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none transition-all leading-relaxed font-sans resize-none overflow-hidden ${
                 isFuture || isCycleArchived
-                  ? 'surface-z2/50 border-standard opacity-60 cursor-not-allowed'
+                  ? 'surface-z2 border-standard opacity-60 cursor-not-allowed'
                   : 'surface-z2 border-standard hover:border-[var(--color-border-hover)] focus:border-crimson focus:ring-1 focus:ring-crimson/30'
               }`}
             />

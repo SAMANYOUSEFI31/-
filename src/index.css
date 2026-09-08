@@ -8,7 +8,7 @@
 }
 
 /* استفاده از گرادیان یکدست به جای رنگ تک‌بُعدی برای خنثی‌سازی موتور تشخیص پس‌زمینه سامسونگ */
-html, body, #root, header {
+html, body, #root {
   background-image: linear-gradient(to bottom, #09090b, #09090b);
   background-color: #09090b;
 }
