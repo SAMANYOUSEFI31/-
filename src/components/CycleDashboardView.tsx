@@ -313,7 +313,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
               {/* Streak Card (Fiery Rose) */}
               <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
-                <div className="flex items-center justify-between text-rose">
+                <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">زنجیره فعال</span>
                   <div className="w-7 h-7 radius-component bg-rose-subtle flex items-center justify-center shrink-0">
                     <Flame className="w-4 h-4 text-rose" />
@@ -329,7 +329,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
 
               {/* Standard Days (Emerald) */}
               <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
-                <div className="flex items-center justify-between text-emerald">
+                <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">روزهای استاندارد</span>
                   <div className="w-7 h-7 radius-component bg-emerald-subtle flex items-center justify-center shrink-0">
                     <CheckCircle2 className="w-4 h-4 text-emerald" />
@@ -345,7 +345,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
 
               {/* Total Score (Amber) */}
               <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
-                <div className="flex items-center justify-between text-amber">
+                <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">مجموع امتیاز</span>
                   <div className="w-7 h-7 radius-component bg-amber-subtle flex items-center justify-center shrink-0">
                     <Award className="w-4 h-4 text-amber" />
@@ -359,19 +359,19 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                 </p>
               </div>
 
-              {/* Unresolved Debt (Red) */}
-              <div className={`border radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all ${
-                metrics.unresolvedDebtCount > 0 
-                  ? 'bg-debt-subtle border-debt-subtle text-debt shadow-subtle' 
-                  : 'surface-z1 border-standard hover:border-[var(--color-border-hover)]'
-              }`}>
-                <div className="flex items-center justify-between text-debt">
+              {/* Unresolved Debt (Neutral Surface with conditional status accent) */}
+              <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
+                <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">بدهی کالبدشکافی</span>
-                  <div className="w-7 h-7 radius-component bg-debt-subtle flex items-center justify-center shrink-0">
-                    <AlertOctagon className="w-4 h-4 text-debt" />
+                  <div className={`w-7 h-7 radius-component surface-z2 border-standard flex items-center justify-center shrink-0 ${
+                    metrics.unresolvedDebtCount > 0 ? 'text-debt' : 'text-role-muted'
+                  }`}>
+                    <AlertOctagon className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-bold font-mono text-debt leading-none my-1">
+                <div className={`text-2xl font-bold font-mono leading-none my-1 ${
+                  metrics.unresolvedDebtCount > 0 ? 'text-debt' : 'text-role-primary'
+                }`}>
                   {toPersianDigits(metrics.unresolvedDebtCount)} <span className="text-xs text-role-muted font-normal">روز</span>
                 </div>
                 <p className="text-[11px] text-role-secondary truncate">
@@ -379,15 +379,15 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                 </p>
               </div>
 
-              {/* Resolved Debt (Purple) */}
+              {/* Resolved Debt (Neutral Surface) */}
               <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
-                <div className="flex items-center justify-between text-purple">
+                <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">کالبدشکافی شده</span>
-                  <div className="w-7 h-7 radius-component bg-purple-subtle flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-4 h-4 text-purple" />
+                  <div className="w-7 h-7 radius-component surface-z2 border-standard flex items-center justify-center shrink-0 text-role-muted">
+                    <ShieldCheck className="w-4 h-4 text-role-muted" />
                   </div>
                 </div>
-                <div className="text-2xl font-bold font-mono text-purple leading-none my-1">
+                <div className="text-2xl font-bold font-mono text-role-primary leading-none my-1">
                   {toPersianDigits(metrics.resolvedDebtCount)} <span className="text-xs text-role-muted font-normal">روز</span>
                 </div>
                 <p className="text-[11px] text-role-secondary truncate">
@@ -395,15 +395,15 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                 </p>
               </div>
 
-              {/* Frozen Days (Blue) */}
+              {/* Frozen Days (Neutral Surface) */}
               <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
-                <div className="flex items-center justify-between text-blue">
+                <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">توقف اضطراری</span>
-                  <div className="w-7 h-7 radius-component bg-blue-subtle flex items-center justify-center shrink-0">
-                    <Snowflake className="w-4 h-4 text-blue" />
+                  <div className="w-7 h-7 radius-component surface-z2 border-standard flex items-center justify-center shrink-0 text-role-muted">
+                    <Snowflake className="w-4 h-4 text-role-muted" />
                   </div>
                 </div>
-                <div className="text-2xl font-bold font-mono text-blue leading-none my-1">
+                <div className="text-2xl font-bold font-mono text-role-primary leading-none my-1">
                   {toPersianDigits(metrics.frozenDaysCount)} <span className="text-xs text-role-muted font-normal">روز</span>
                 </div>
                 <p className="text-[11px] text-role-secondary truncate">

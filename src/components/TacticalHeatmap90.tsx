@@ -125,33 +125,33 @@ const TacticalHeatmap90Component: React.FC<TacticalHeatmap90Props> = ({
 
         {/* Legend Badges */}
         <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-role-secondary flex-wrap">
-          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border border-amber-subtle text-amber select-none pointer-events-none whitespace-nowrap">
+          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-secondary select-none pointer-events-none whitespace-nowrap">
             <span className="w-2.5 h-2.5 radius-capsule bg-amber shadow-subtle shrink-0"></span>
-            <span className="whitespace-nowrap leading-none">کمال ۱۰/۱۰ (با ماموریت ویژه)</span>
+            <span className="whitespace-nowrap leading-none">کمال ۱۰/۱۰</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border border-emerald-subtle text-emerald select-none pointer-events-none whitespace-nowrap">
+          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-secondary select-none pointer-events-none whitespace-nowrap">
             <span className="w-2.5 h-2.5 radius-capsule bg-emerald shadow-subtle shrink-0"></span>
-            <span className="whitespace-nowrap leading-none">استاندارد ۸/۱۰ (۵ پایه)</span>
+            <span className="whitespace-nowrap leading-none">استاندارد ۸/۱۰</span>
           </div>
           <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-primary select-none pointer-events-none whitespace-nowrap">
             <span className="w-2.5 h-2.5 radius-capsule surface-z3 ring-1 ring-amber shrink-0"></span>
-            <span className="whitespace-nowrap leading-none">امروز در حال نبرد</span>
+            <span className="whitespace-nowrap leading-none">امروز جاری</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border border-blue-subtle text-blue select-none pointer-events-none whitespace-nowrap">
+          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-secondary select-none pointer-events-none whitespace-nowrap">
             <span className="w-2.5 h-2.5 radius-capsule bg-blue shrink-0"></span>
             <span className="whitespace-nowrap leading-none">فریز اضطراری</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border border-debt-subtle text-debt select-none pointer-events-none whitespace-nowrap">
+          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-secondary select-none pointer-events-none whitespace-nowrap">
             <span className="w-2.5 h-2.5 radius-capsule bg-debt animate-pulse shrink-0"></span>
             <span className="whitespace-nowrap leading-none">بدهی باز</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border border-purple-subtle text-purple select-none pointer-events-none whitespace-nowrap">
+          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-secondary select-none pointer-events-none whitespace-nowrap">
             <span className="w-2.5 h-2.5 radius-capsule bg-purple shrink-0"></span>
             <span className="whitespace-nowrap leading-none">کالبدشکافی شده</span>
           </div>
           <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-muted select-none pointer-events-none whitespace-nowrap">
             <span className="w-2.5 h-2.5 radius-capsule surface-z1 border-standard shrink-0"></span>
-            <span className="whitespace-nowrap leading-none">آینده</span>
+            <span className="whitespace-nowrap leading-none">روزهای آینده</span>
           </div>
         </div>
       </div>

@@ -521,11 +521,11 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           </button>
         </div>
 
-        {/* Auxiliary Row: Night Owl Cutoff Badge (Centered & Stable) */}
+        {/* Auxiliary Row: Night Owl Cutoff (Quiet Meta Indicator) */}
         <div className="flex items-center justify-center pt-2 border-t border-standard">
-          <div className="h-8 surface-z2 px-3.5 radius-component border-standard text-[11px] sm:text-xs text-role-secondary inline-flex items-center justify-center gap-2 whitespace-nowrap shadow-subtle">
+          <div className="text-[11px] sm:text-xs text-role-muted inline-flex items-center justify-center gap-1.5 whitespace-nowrap leading-none select-none">
             <Clock className="w-3.5 h-3.5 text-role-muted shrink-0" />
-            <span className="leading-none">کات‌آف شبانه: {toPersianDigits(nightOwlCutoffHour)}:۰۰ بامداد</span>
+            <span>کات‌آف شبانه: {toPersianDigits(nightOwlCutoffHour)}:۰۰ بامداد</span>
           </div>
         </div>
       </div>
@@ -564,7 +564,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
             <div className="surface-z1 border-standard radius-card p-3.5 sm:p-4 text-role-primary shadow-subtle backdrop-blur-md">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="w-9 h-9 radius-component surface-z2 border-standard text-role-secondary flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 radius-component surface-z2 text-role-secondary flex items-center justify-center shrink-0">
                     <Compass className="w-4 h-4 text-role-secondary" />
                   </div>
                   <div className="space-y-0.5 min-w-0">
@@ -572,7 +572,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       <h3 className="text-xs sm:text-sm font-bold text-role-primary">
                         {getRelativeDateLabel(selectedDate, logicalToday)}
                       </h3>
-                      <span className="text-[10px] sm:text-[11px] surface-z2 text-role-secondary border-standard px-2 py-0.5 radius-control font-mono font-medium">
+                      <span className="text-[10px] sm:text-[11px] surface-z2 text-role-secondary px-2 py-0.5 radius-control font-mono font-medium">
                         {formatPersianDate(selectedDate, { short: true })}
                       </span>
                     </div>
@@ -596,7 +596,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
             <div className="surface-z1 border-standard radius-card p-3 sm:p-3.5 text-role-primary shadow-subtle">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-4">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 radius-component surface-z2 border-standard text-role-muted flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 radius-component surface-z2 text-role-muted flex items-center justify-center shrink-0">
                     <Calendar className="w-4 h-4 text-role-muted" />
                   </div>
                   <div className="min-w-0">
@@ -604,7 +604,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       <span className="text-xs font-bold text-role-primary">
                         مشاهده تاریخچه ({getRelativeDateLabel(selectedDate, logicalToday)})
                       </span>
-                      <span className="text-[10px] surface-z2 text-role-secondary border-standard px-2 py-0.5 radius-control font-mono">
+                      <span className="text-[10px] surface-z2 text-role-secondary px-2 py-0.5 radius-control font-mono">
                         {formatPersianDate(selectedDate, { short: true })}
                       </span>
                     </div>
@@ -624,7 +624,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           ) : isCycleArchived ? (
             <div className="bg-purple-subtle border border-purple-subtle radius-card p-4 text-role-primary shadow-subtle">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 radius-component bg-purple-subtle text-purple flex items-center justify-center shrink-0 border border-purple-subtle">
+                <div className="w-9 h-9 radius-component bg-purple-subtle text-purple flex items-center justify-center shrink-0">
                   <Lock className="w-4 h-4" />
                 </div>
                 <div className="flex-1">
@@ -633,7 +633,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       <Lock className="w-4 h-4 text-purple" />
                       <span>این چرخه بایگانی شده است (فقط‌خواندنی)</span>
                     </h3>
-                    <span className="text-[10px] bg-purple-subtle border border-purple-subtle text-purple px-2 py-0.5 radius-control font-bold">
+                    <span className="text-[10px] bg-purple-subtle text-purple px-2 py-0.5 radius-control font-bold">
                       سوابق قفل‌شده
                     </span>
                   </div>
@@ -644,9 +644,9 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               </div>
             </div>
           ) : (unresolvedPastLogs.length > 0 && isToday) ? (
-            <div className="bg-debt-subtle border-2 border-debt-subtle radius-card p-4 text-role-primary shadow-subtle animate-pulse">
+            <div className="bg-debt-subtle border border-debt-subtle radius-card p-4 text-role-primary shadow-subtle animate-pulse">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 radius-component bg-debt-subtle text-debt flex items-center justify-center shrink-0 border border-debt-subtle">
+                <div className="w-9 h-9 radius-component bg-debt-subtle text-debt flex items-center justify-center shrink-0">
                   <Lock className="w-4 h-4" />
                 </div>
                 <div className="flex-1">
@@ -655,7 +655,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       <ShieldAlert className="w-4 h-4 text-debt" />
                       <span>قفل اجرا فعال است (Behavior Lock)</span>
                     </h3>
-                    <span className="text-[10px] bg-debt-subtle border border-debt-subtle text-debt px-2 py-0.5 radius-control font-bold">
+                    <span className="text-[10px] bg-debt-subtle text-debt px-2 py-0.5 radius-control font-bold">
                       {toPersianDigits(unresolvedPastLogs.length)} روز بدهی باز
                     </span>
                   </div>
@@ -692,9 +692,9 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       : computed.statusType === 'personal_frozen'
                       ? 'bg-blue-subtle border-blue-subtle text-blue'
                       : computed.statusType === 'burned_resolved'
-                      ? 'surface-z2 border-standard text-role-primary'
+                      ? 'surface-z2 border-transparent text-role-primary'
                       : (isToday 
-                          ? 'surface-z2 border-standard text-role-primary' 
+                          ? 'surface-z2 border-transparent text-role-primary' 
                           : 'bg-debt-subtle border-debt-subtle text-debt')
                   }`}>
                     {computed.statusType === 'standard' && <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -712,7 +712,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   </span>
 
                   {/* Habit Count Badge */}
-                  <span className="text-[11px] sm:text-xs text-role-secondary surface-z2 px-2.5 py-1 radius-component border-standard font-medium shrink-0">
+                  <span className="text-[11px] sm:text-xs text-role-secondary surface-z2 px-2.5 py-1 radius-component font-medium shrink-0">
                     {toPersianDigits(computed.habitsCount)} از {toPersianDigits(5)} پایه
                   </span>
 
@@ -723,7 +723,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       : computed.statusType === 'personal_frozen'
                       ? 'bg-blue-subtle border-blue-subtle text-blue'
                       : isToday
-                      ? 'surface-z2 border-standard text-role-muted'
+                      ? 'surface-z2 border-transparent text-role-muted'
                       : 'bg-debt-subtle border-debt-subtle text-debt'
                   }`}>
                     <Flame className={`w-3.5 h-3.5 ${
@@ -799,13 +799,13 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                           className={`h-1.5 sm:h-2 flex-1 radius-capsule border transition-colors duration-200 ${
                             isFilled
                               ? computed.score === 10
-                                ? 'bg-amber border-amber'
+                                ? 'bg-amber border-transparent'
                                 : computed.isStandard
-                                ? 'bg-emerald border-emerald'
+                                ? 'bg-emerald border-transparent'
                                 : computed.statusType === 'personal_frozen'
-                                ? 'bg-blue border-blue'
-                                : 'bg-[var(--color-text-secondary)] border-[var(--color-text-secondary)]'
-                              : 'surface-z1 border-standard'
+                                ? 'bg-blue border-transparent'
+                                : 'bg-[var(--color-text-secondary)] border-transparent'
+                              : 'surface-z2 border-transparent'
                           }`}
                           title={`قطعه ${toPersianDigits(segmentIndex)} از ۱۰`}
                         />
@@ -838,17 +838,17 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                     key={h.key}
                     disabled={isLocked}
                     onClick={() => toggleHabit(h.key)}
-                    className={`p-3 sm:p-3.5 radius-card border text-right transition-all flex items-center justify-between gap-3 group cursor-pointer active:scale-[0.98] focus-ring-tactical ${
+                    className={`min-h-[44px] p-3 sm:p-3.5 radius-card border text-right transition-all flex items-center justify-between gap-3 group cursor-pointer active:scale-[0.98] focus-ring-tactical ${
                       isChecked
-                        ? 'bg-emerald-subtle border-emerald-subtle text-role-primary shadow-subtle'
+                        ? 'bg-emerald-subtle border-emerald-subtle text-role-primary'
                         : 'surface-z1 border-standard text-role-secondary hover:border-[var(--color-border-hover)]'
                     } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                      <div className={`w-9 h-9 sm:w-10 sm:h-10 radius-component border flex items-center justify-center shrink-0 transition-colors ${
+                      <div className={`w-9 h-9 sm:w-10 sm:h-10 radius-component flex items-center justify-center shrink-0 transition-colors ${
                         isChecked
-                          ? 'bg-emerald-subtle text-emerald border-emerald-subtle'
-                          : 'surface-z2 text-role-muted border-standard group-hover:text-role-primary'
+                          ? 'bg-emerald-subtle text-emerald'
+                          : 'surface-z2 text-role-muted group-hover:text-role-primary'
                       }`}>
                         {HABIT_ICONS[h.key]}
                       </div>
@@ -864,7 +864,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
 
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 radius-capsule border flex items-center justify-center transition-colors shrink-0 ${
                       isChecked
-                        ? 'bg-emerald-subtle border-emerald text-emerald shadow-subtle'
+                        ? 'bg-emerald-subtle border-transparent text-emerald'
                         : 'border-standard surface-z2 text-transparent group-hover:border-[var(--color-border-hover)]'
                     }`}>
                       <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
@@ -891,27 +891,27 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               type="button"
               disabled={isLocked}
               onClick={toggleSpecialMission}
-              className={`w-full p-3 sm:p-3.5 radius-card border text-right transition-all flex items-center justify-between gap-3 group cursor-pointer active:scale-[0.98] focus-ring-tactical ${
+              className={`w-full min-h-[44px] p-3 sm:p-3.5 radius-card border text-right transition-all flex items-center justify-between gap-3 group cursor-pointer active:scale-[0.98] focus-ring-tactical ${
                 activeLog?.specialMission
-                  ? 'bg-amber-subtle border-amber-subtle text-role-primary shadow-subtle'
+                  ? 'bg-amber-subtle border-amber-subtle text-role-primary'
                   : 'surface-z1 border-standard text-role-secondary hover:border-[var(--color-border-hover)]'
               } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                <div className={`w-9 h-9 sm:w-10 sm:h-10 radius-component border flex items-center justify-center shrink-0 transition-colors ${
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 radius-component flex items-center justify-center shrink-0 transition-colors ${
                   activeLog?.specialMission
-                    ? 'bg-amber-subtle text-amber border-amber-subtle'
-                    : 'surface-z2 text-role-muted border-standard group-hover:text-role-primary'
+                    ? 'bg-amber-subtle text-amber'
+                    : 'surface-z2 text-role-muted group-hover:text-role-primary'
                 }`}>
                   <Target className={`w-5 h-5 ${activeLog?.specialMission ? 'text-amber' : 'text-role-muted group-hover:text-role-primary'}`} />
                 </div>
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <div className="font-bold text-xs sm:text-sm text-role-primary flex items-center gap-2 leading-snug">
                     <span className="truncate">ماموریت ویژه روز</span>
-                    <span className={`text-[10px] px-2 py-0.5 radius-capsule font-bold font-mono border shrink-0 ${
+                    <span className={`text-[10px] px-2 py-0.5 radius-capsule font-bold font-mono shrink-0 ${
                       activeLog?.specialMission
-                        ? 'bg-amber-subtle text-amber border-amber-subtle'
-                        : 'surface-z2 text-role-secondary border-standard'
+                        ? 'bg-amber-subtle text-amber'
+                        : 'surface-z2 text-role-secondary'
                     }`}>
                       +{toPersianDigits(2)} امتیاز
                     </span>
@@ -924,7 +924,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
 
               <div className={`w-6 h-6 sm:w-7 sm:h-7 radius-capsule border flex items-center justify-center transition-colors shrink-0 ${
                 activeLog?.specialMission
-                  ? 'bg-amber-subtle border-amber text-amber shadow-subtle'
+                  ? 'bg-amber-subtle border-transparent text-amber'
                   : 'border-standard surface-z2 text-transparent group-hover:border-[var(--color-border-hover)]'
               }`}>
                 <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
@@ -950,10 +950,10 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <div className="flex items-start sm:items-center gap-3">
                   <div className={`w-9 h-9 radius-component flex items-center justify-center shrink-0 ${
                     cleanFailureReason === 'دلایل شخصی' 
-                      ? 'bg-blue-subtle text-blue border border-blue-subtle' 
+                      ? 'bg-blue-subtle text-blue' 
                       : hasFailureReason 
-                      ? 'surface-z2 text-role-primary border-standard' 
-                      : (isToday ? 'surface-z2 text-role-primary border-standard' : 'bg-debt-subtle text-debt border border-debt-subtle')
+                      ? 'surface-z2 text-role-primary' 
+                      : (isToday ? 'surface-z2 text-role-primary' : 'bg-debt-subtle text-debt')
                   }`}>
                     {cleanFailureReason === 'دلایل شخصی' ? (
                       <Snowflake className="w-4 h-4 text-blue" />
@@ -1006,11 +1006,11 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               </label>
               <div className="flex items-center gap-2 text-[11px]">
                 {isFuture ? (
-                  <span className="text-role-muted surface-z2 px-2 py-0.5 radius-control border-standard">
+                  <span className="text-role-muted text-[11px]">
                     در روز موعود فعال می‌شود
                   </span>
                 ) : isCycleArchived ? (
-                  <span className="text-purple bg-purple-subtle px-2 py-0.5 radius-control border border-purple-subtle">
+                  <span className="text-purple text-[11px] font-medium">
                     بایگانی (فقط‌خواندنی)
                   </span>
                 ) : (

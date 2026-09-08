@@ -271,7 +271,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
 
       {/* Top Hub Bar Header with Dynamic Island & PWA Safe-Area Support */}
       <header 
-        className="sticky top-0 z-40 surface-shell backdrop-blur-md border-b border-standard transition-all pt-safe shadow-subtle" 
+        className="sticky top-0 z-40 surface-shell backdrop-blur-md border-b border-standard pt-safe shadow-subtle" 
         dir="rtl"
       >
         <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 relative">
@@ -324,7 +324,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       <span>انتخاب و مدیریت چرخه‌های ۹۰ روزه:</span>
                       <span className="text-role-muted font-mono">{toPersianDigits(cycles.length)} چرخه</span>
                     </div>
-                    <div className="max-h-60 overflow-y-auto divide-y divide-[var(--color-border-subtle)]/40 p-1">
+                    <div className="max-h-60 overflow-y-auto divide-y divide-subtle p-1">
                       {cycles.length === 0 ? (
                         <div className="p-3 text-center text-xs text-role-secondary">
                           چرخه‌ای تعریف نشده است.
