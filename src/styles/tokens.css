@@ -1,28 +1,34 @@
 /**
  * Bushido Discipline OS - Design System Master Tokens & Governance SSOT
  * Conforms to APCA Luminance Benchmarks, Obsidian Dark Theme & Strict Semantic Hierarchy
- * Single Source of Truth for Primitives, Semantics and Component Surface Contracts
+ * Single Source of Truth for Primitives, Semantics, Spacing, Radius, Motion, and Component Contracts
  */
 
 :root {
   /* =========================================================================
    * 1. OBSIDIAN NEUTRAL SURFACE PALETTE (Z-Axis Dark/Stoic Canvas)
+   * Staging by luminance deltas (1% - 3%)
    * ========================================================================= */
   --color-canvas-root: #09090b;        /* Main App Background (Obsidian Black - Z0) */
   --color-card-elevated: #121215;      /* Elevated Card Containers (Level 1 - Z1) */
-  --color-card-inner: #18181b;         /* Sub-Containers & Nested Boxes (Level 2 - Z2) */
-  --color-card-floating: #1c1c21;      /* Floating Modals & Dropdowns (Level 3 - Z3) */
-  
-  --color-border-subtle: #27272a;      /* Standard Single Subtle Border (Anti-Wireframing) */
+  --color-card-elevated-alt: #131215;  /* Documented Z1 alias for subtle elevation */
+  --color-card-inner: #18181b;         /* Sub-Containers & Inputs (Level 2 - Z2) */
+  --color-card-inner-nested: #0c0b0e;  /* Documented nested alias for embedded panels */
+  --color-card-floating: #1c1c21;      /* Floating Modals, Sheets & Menus (Level 3 - Z3) */
+
+  /* =========================================================================
+   * 2. BORDERS & DIVIDERS (1px Single Subtle Line - Anti-Wireframing)
+   * ========================================================================= */
+  --color-border-subtle: #27272a;      /* Standard 1px Subtle Border */
   --color-border-hover: #3f3f46;       /* Hover State Borders */
   --color-border-active: #52525b;      /* Active State / Focus Borders */
   --color-border-muted: #1c1c20;       /* Muted Internal Dividers */
 
   /* =========================================================================
-   * 2. SEMANTIC ACCENT PALETTE (Brand Truth & Status Tokens)
-   * Strict Semantic Ownership: One role each across the entire application
+   * 3. SEMANTIC ACCENT PALETTE (Exclusive Semantic Ownership)
+   * One single role each across the entire application — no overlap or reuse
    * ========================================================================= */
-  /* Discipline Crimson (Brand Core, Primary Commitments & Nav Focus) */
+  /* Discipline Crimson: Brand Identity, Primary Commitments & Navigation Focus */
   --color-accent-primary: #E11D48;
   --color-accent-primary-rgb: 225, 29, 72;
   --color-accent-primary-hover: #BE123C;
@@ -30,101 +36,133 @@
   --color-accent-primary-subtle: rgba(225, 29, 72, 0.12);
   --color-accent-primary-border: rgba(225, 29, 72, 0.35);
 
-  /* Samurai Amber (Mastery 10/10, AI Sensei, Total Score, VIP Tier - NOT normal day success) */
+  /* Samurai Amber: Mastery (10/10), AI Sensei, Total Score, VIP Tier (NEVER normal success) */
   --color-accent-amber: #FBBF24;
   --color-accent-amber-rgb: 251, 191, 36;
   --color-accent-amber-bg: rgba(251, 191, 36, 0.1);
   --color-accent-amber-border: rgba(251, 191, 36, 0.25);
 
-  /* Vitality Emerald (Standard Day 8/10, 5/5 Checks, Completed Execution, Habit Fidelity) */
+  /* Vitality Emerald: Completed Execution / Habit Done / Healthy Consistency (8/10, 5/5) */
   --color-accent-emerald: #34D399;
   --color-accent-emerald-rgb: 52, 211, 153;
   --color-accent-emerald-bg: rgba(52, 211, 153, 0.1);
   --color-accent-emerald-border: rgba(52, 211, 153, 0.25);
 
-  /* Fiery Rose (Pure Continuous Streak - Immutable Semantic Token across all views) */
+  /* Fiery Rose: Active Pure Streak / Momentum only (Immutable Token) */
   --color-accent-rose: #FB7185;
   --color-accent-rose-rgb: 251, 113, 133;
   --color-accent-rose-bg: rgba(251, 113, 133, 0.1);
   --color-accent-rose-border: rgba(251, 113, 133, 0.25);
 
-  /* Honor Crimson / Alert Red (Open Debts, Behavior Locks, Failures, Burned Days) */
+  /* Debt Red / Honor Crimson: Open Debts, Failures, Burned Days, Behavior Locks */
   --color-accent-red: #F87171;
   --color-accent-red-deep: #EF4444;
   --color-accent-red-rgb: 248, 113, 113;
   --color-accent-red-bg: rgba(127, 29, 29, 0.3);
   --color-accent-red-border: rgba(248, 113, 113, 0.4);
 
-  /* Frost Blue (Personal Emergency Freeze, Excused Pause) */
+  /* Frost Blue: Freeze / Emergency Pause / Excused Pause */
   --color-accent-blue: #60A5FA;
   --color-accent-blue-rgb: 96, 165, 250;
   --color-accent-blue-bg: rgba(96, 165, 250, 0.1);
   --color-accent-blue-border: rgba(96, 165, 250, 0.25);
 
-  /* Bushido Violet (Resolved Autopsy Cases, Deep Retrospective Analysis) */
+  /* Bushido Violet: Retrospective / Autopsy / Post-Action Review */
   --color-accent-purple: #C084FC;
   --color-accent-purple-rgb: 192, 132, 252;
   --color-accent-purple-bg: rgba(192, 132, 252, 0.1);
   --color-accent-purple-border: rgba(192, 132, 252, 0.25);
 
   /* =========================================================================
-   * 3. TYPOGRAPHY & APCA LUMINANCE SCALE
+   * 4. TYPOGRAPHY & APCA LUMINANCE SCALE
    * ========================================================================= */
   --color-text-primary: #F4F4F5;       /* Headings, Critical Numbers & Values (APCA Lc = 104) */
   --color-text-secondary: #A1A1AA;     /* Body, Explanatory & Subtitles (APCA Lc = 78) */
-  --color-text-muted: #71717A;         /* Captions & Phantom Labels (APCA Lc = 60) */
+  --color-text-muted: #71717A;         /* Captions, Phantom Labels, Secondary Denominators (APCA Lc = 60) */
   --color-text-disabled: #52525B;      /* Disabled States */
 
   /* =========================================================================
-   * 4. GEOMETRIC RADIUS HIERARCHY (Nested Radius Scale: Inner = Outer - Padding)
-   * Scale: 4 / 6 / 8 / 12 / 16 / 20 / 24 / 9999px
+   * 5. GEOMETRIC RADIUS HIERARCHY (Scale: 4 / 6 / 8 / 12 / 14 / 20 / 9999px)
+   * Formula: Inner Radius = Outer Radius - Padding
    * ========================================================================= */
-  --radius-xs: 0.25rem;                /* 4px - Mini checkboxes, sub-elements */
-  --radius-sm: 0.375rem;               /* 6px - Small inline tags */
-  --radius-md: 0.5rem;                 /* 8px - Badges, status chips, matrix cells */
-  --radius-lg: 0.75rem;                /* 12px - Action buttons, icon boxes, inputs */
-  --radius-xl: 1rem;                   /* 16px - Inner sub-containers & habit cards */
-  --radius-2xl: 1.25rem;               /* 20px - Elevated section & bento cards */
-  --radius-3xl: 1.5rem;                /* 24px - Floating modals & outer canvas cards */
-  --radius-pill: 9999px;               /* 9999px - Capsule pills & scrollbars */
+  --radius-micro: 4px;                 /* 4px - Mini checkboxes, sub-elements */
+  --radius-badge: 6px;                 /* 6px - Small inline tags & micro chips */
+  --radius-control: 8px;               /* 8px - Badges, status chips, matrix cells */
+  --radius-component: 12px;           /* 12px - Action buttons, icon boxes, inputs */
+  --radius-card: 14px;                /* 14px - Habit cards, elevated containers */
+  --radius-modal: 20px;               /* 20px - Floating modals, sheets & menus */
+  --radius-capsule: 9999px;           /* 9999px - Capsule pills & scrollbars */
 
-  /* Semantic Aliases for Radius */
-  --radius-outer-modal: var(--radius-3xl);
-  --radius-card-level1: var(--radius-2xl);
-  --radius-card-level2: var(--radius-xl);
-  --radius-button: var(--radius-lg);
-  --radius-badge: var(--radius-md);
+  /* Aliases for backwards compatibility */
+  --radius-xs: var(--radius-micro);
+  --radius-sm: var(--radius-badge);
+  --radius-md: var(--radius-control);
+  --radius-lg: var(--radius-component);
+  --radius-xl: var(--radius-card);
+  --radius-2xl: var(--radius-modal);
+  --radius-3xl: 24px;
+  --radius-pill: var(--radius-capsule);
 
   /* =========================================================================
-   * 5. SPACING GRID (4px Base Metric)
+   * 6. SPACING GRID (4px Base Metric)
    * Gaps strictly: 4 / 8 / 16 / 24 / 32px
    * ========================================================================= */
-  --spacing-1: 0.25rem;                /* 4px */
-  --spacing-2: 0.5rem;                 /* 8px */
-  --spacing-3: 0.75rem;                /* 12px */
-  --spacing-4: 1rem;                   /* 16px */
-  --spacing-5: 1.25rem;                /* 20px */
-  --spacing-6: 1.5rem;                 /* 24px */
-  --spacing-8: 2rem;                   /* 32px */
+  --spacing-base: 4px;
+  --spacing-1: 4px;                    /* 4px */
+  --spacing-2: 8px;                    /* 8px */
+  --spacing-3: 12px;                   /* 12px */
+  --spacing-4: 16px;                   /* 16px */
+  --spacing-5: 20px;                   /* 20px */
+  --spacing-6: 24px;                   /* 24px */
+  --spacing-8: 32px;                   /* 32px */
+
+  /* Gap Specific Scale Tokens */
+  --gap-4: 4px;
+  --gap-8: 8px;
+  --gap-16: 16px;
+  --gap-24: 24px;
+  --gap-32: 32px;
 
   /* =========================================================================
-   * 6. ELEVATION, GLOW & SHADOW EFFECTS (Stoic Obsidian Lighting)
-   * Note on Glows: Treated as legacy design debt; avoid expanding in new UI
-   * Prioritize luminance-first subtle ambient separation.
+   * 7. LAYOUT BOUNDS
+   * ========================================================================= */
+  --layout-content-max: 1024px;        /* Standard content max width (max-w-5xl) */
+  --layout-wide-max: 1152px;           /* Wide dashboard max width (max-w-6xl) */
+
+  /* =========================================================================
+   * 8. MOTION PHYSICS & ANIMATION TIMINGS
+   * Instant (100ms), Fast (150ms), Regular (200ms), Deliberate (300ms)
+   * ========================================================================= */
+  --duration-instant: 100ms;           /* 100ms - Micro-toggles, tactile clicks */
+  --duration-fast: 150ms;              /* 150ms - Buttons, cards, input interactions */
+  --duration-regular: 200ms;           /* 200ms - Heatmap filtering, tab switching */
+  --duration-deliberate: 300ms;         /* 300ms - Modals, drawer sheets, large views */
+
+  /* Aliases for backwards compatibility */
+  --duration-normal: var(--duration-regular);
+  --duration-slow: var(--duration-deliberate);
+  
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-tactical: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* =========================================================================
+   * 9. ELEVATION & SHADOW EFFECTS (Luminance-First Stoic Lighting)
+   * Standard allowed shadow: 0 1px 2px rgba(0,0,0,0.15)
+   * Heavy shadows & colored glows are legacy debt — do not expand in new UI
    * ========================================================================= */
   --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.15);
   --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.8);
   --shadow-dropdown: 0 20px 40px -15px rgba(0, 0, 0, 0.9);
   --shadow-ruby-hover: 0 10px 30px -10px rgba(225, 29, 72, 0.15);
 
-  /* Legacy ambient glow variables (use with restraint) */
+  /* Legacy ambient glow variables (document as legacy debt) */
   --glow-crimson: rgba(225, 29, 72, 0.16);
   --glow-crimson-subtle: rgba(225, 29, 72, 0.08);
   --glow-amber: rgba(251, 191, 36, 0.16);
   --glow-emerald: rgba(52, 211, 153, 0.16);
 
   /* =========================================================================
-   * 7. Z-INDEX SCALE
+   * 10. Z-INDEX SCALE
    * ========================================================================= */
   --z-base: 0;
   --z-card: 10;
@@ -136,27 +174,17 @@
   --z-modal-content: 100;
 
   /* =========================================================================
-   * 8. MOTION PHYSICS & ANIMATION TIMINGS
-   * ========================================================================= */
-  --duration-fast: 150ms;
-  --duration-normal: 200ms;
-  --duration-slow: 300ms;
-  
-  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-tactical: cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* =========================================================================
-   * 9. PWA STANDALONE SAFE-AREA INSETS
+   * 11. PWA STANDALONE SAFE-AREA INSETS
    * ========================================================================= */
   --safe-area-top: max(0.5rem, env(safe-area-inset-top, 0px));
   --safe-area-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
 }
 
 /* =========================================================================
- * GOVERNANCE SEMANTIC UTILITY CLASSES & COMPONENT EXTENSIONS
+ * GOVERNANCE SEMANTIC UTILITY CLASSES & COMPONENT CONTRACTS
  * ========================================================================= */
 
-/* Surface Level Utilities (Z-Axis) */
+/* Surface Level Utilities (Z-Axis Luminance Hierarchy) */
 .surface-z0 {
   background-color: var(--color-canvas-root) !important;
 }
@@ -175,10 +203,10 @@
 
 /* Standard Border Utilities */
 .border-standard {
-  border-color: var(--color-border-subtle) !important;
+  border: 1px solid var(--color-border-subtle) !important;
 }
 
-.border-hover {
+.border-hover:hover {
   border-color: var(--color-border-hover) !important;
 }
 
@@ -199,6 +227,143 @@
   color: var(--color-text-muted) !important;
 }
 
+.text-role-disabled {
+  color: var(--color-text-disabled) !important;
+}
+
+/* Semantic Accent Text Roles */
+.text-crimson {
+  color: var(--color-accent-primary) !important;
+}
+
+.text-amber {
+  color: var(--color-accent-amber) !important;
+}
+
+.text-emerald {
+  color: var(--color-accent-emerald) !important;
+}
+
+.text-rose {
+  color: var(--color-accent-rose) !important;
+}
+
+.text-debt {
+  color: var(--color-accent-red) !important;
+}
+
+.text-blue {
+  color: var(--color-accent-blue) !important;
+}
+
+.text-purple {
+  color: var(--color-accent-purple) !important;
+}
+
+/* Semantic Accent Background Roles */
+.bg-crimson-subtle {
+  background-color: var(--color-accent-primary-subtle) !important;
+}
+
+.bg-amber-subtle {
+  background-color: var(--color-accent-amber-bg) !important;
+}
+
+.bg-emerald-subtle {
+  background-color: var(--color-accent-emerald-bg) !important;
+}
+
+.bg-rose-subtle {
+  background-color: var(--color-accent-rose-bg) !important;
+}
+
+.bg-debt-subtle {
+  background-color: var(--color-accent-red-bg) !important;
+}
+
+.bg-blue-subtle {
+  background-color: var(--color-accent-blue-bg) !important;
+}
+
+.bg-purple-subtle {
+  background-color: var(--color-accent-purple-bg) !important;
+}
+
+/* Semantic Accent Border Roles */
+.border-crimson-subtle {
+  border-color: var(--color-accent-primary-border) !important;
+}
+
+.border-amber-subtle {
+  border-color: var(--color-accent-amber-border) !important;
+}
+
+.border-emerald-subtle {
+  border-color: var(--color-accent-emerald-border) !important;
+}
+
+.border-rose-subtle {
+  border-color: var(--color-accent-rose-border) !important;
+}
+
+.border-debt-subtle {
+  border-color: var(--color-accent-red-border) !important;
+}
+
+.border-blue-subtle {
+  border-color: var(--color-accent-blue-border) !important;
+}
+
+.border-purple-subtle {
+  border-color: var(--color-accent-purple-border) !important;
+}
+
+/* Semantic Radius Utilities */
+.radius-micro {
+  border-radius: var(--radius-micro) !important;
+}
+
+.radius-badge {
+  border-radius: var(--radius-badge) !important;
+}
+
+.radius-control {
+  border-radius: var(--radius-control) !important;
+}
+
+.radius-component {
+  border-radius: var(--radius-component) !important;
+}
+
+.radius-card {
+  border-radius: var(--radius-card) !important;
+}
+
+.radius-modal {
+  border-radius: var(--radius-modal) !important;
+}
+
+.radius-capsule {
+  border-radius: var(--radius-capsule) !important;
+}
+
+/* Semantic Motion Utilities */
+.motion-instant {
+  transition-duration: var(--duration-instant) !important;
+}
+
+.motion-fast {
+  transition-duration: var(--duration-fast) !important;
+}
+
+.motion-regular {
+  transition-duration: var(--duration-regular) !important;
+}
+
+.motion-deliberate {
+  transition-duration: var(--duration-deliberate) !important;
+}
+
 /* Backward-Compatible Obsidian Surface Classes (Preserved for Active Components) */
 .bg-card-obsidian {
   background-color: var(--color-card-elevated) !important;
@@ -214,7 +379,7 @@
 
 /* Interactive Ruby Hover Effect */
 .card-hover-ruby {
-  transition: all var(--duration-normal) var(--ease-tactical);
+  transition: all var(--duration-fast) var(--ease-tactical);
 }
 
 .card-hover-ruby:hover {
@@ -288,9 +453,21 @@
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-border-subtle);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-capsule);
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-border-hover);
+}
+
+/* Accessibility: Global Reduced Motion Compliance */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
