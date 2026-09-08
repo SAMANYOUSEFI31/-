@@ -260,62 +260,139 @@
   color: var(--color-accent-purple) !important;
 }
 
-/* Semantic Accent Background Roles */
+/* Semantic Accent Background Roles (Solid & Subtle) */
+.bg-crimson {
+  background-color: var(--color-accent-primary) !important;
+}
+
 .bg-crimson-subtle {
   background-color: var(--color-accent-primary-subtle) !important;
+}
+
+.bg-amber {
+  background-color: var(--color-accent-amber) !important;
 }
 
 .bg-amber-subtle {
   background-color: var(--color-accent-amber-bg) !important;
 }
 
+.bg-emerald {
+  background-color: var(--color-accent-emerald) !important;
+}
+
 .bg-emerald-subtle {
   background-color: var(--color-accent-emerald-bg) !important;
+}
+
+.bg-rose {
+  background-color: var(--color-accent-rose) !important;
 }
 
 .bg-rose-subtle {
   background-color: var(--color-accent-rose-bg) !important;
 }
 
+.bg-debt {
+  background-color: var(--color-accent-red-deep) !important;
+}
+
 .bg-debt-subtle {
   background-color: var(--color-accent-red-bg) !important;
+}
+
+.bg-blue {
+  background-color: var(--color-accent-blue) !important;
 }
 
 .bg-blue-subtle {
   background-color: var(--color-accent-blue-bg) !important;
 }
 
+.bg-purple {
+  background-color: var(--color-accent-purple) !important;
+}
+
 .bg-purple-subtle {
   background-color: var(--color-accent-purple-bg) !important;
 }
 
-/* Semantic Accent Border Roles */
+/* Semantic Accent Border Roles (Solid & Subtle) */
+.border-crimson {
+  border-color: var(--color-accent-primary) !important;
+}
+
 .border-crimson-subtle {
   border-color: var(--color-accent-primary-border) !important;
+}
+
+.border-amber {
+  border-color: var(--color-accent-amber) !important;
 }
 
 .border-amber-subtle {
   border-color: var(--color-accent-amber-border) !important;
 }
 
+.border-emerald {
+  border-color: var(--color-accent-emerald) !important;
+}
+
 .border-emerald-subtle {
   border-color: var(--color-accent-emerald-border) !important;
+}
+
+.border-rose {
+  border-color: var(--color-accent-rose) !important;
 }
 
 .border-rose-subtle {
   border-color: var(--color-accent-rose-border) !important;
 }
 
+.border-debt {
+  border-color: var(--color-accent-red) !important;
+}
+
 .border-debt-subtle {
   border-color: var(--color-accent-red-border) !important;
+}
+
+.border-blue {
+  border-color: var(--color-accent-blue) !important;
 }
 
 .border-blue-subtle {
   border-color: var(--color-accent-blue-border) !important;
 }
 
+.border-purple {
+  border-color: var(--color-accent-purple) !important;
+}
+
 .border-purple-subtle {
   border-color: var(--color-accent-purple-border) !important;
+}
+
+/* Semantic Spacing & Gap Utilities (4px Grid Discrete Steps) */
+.gap-token-4 {
+  gap: var(--gap-4) !important;
+}
+
+.gap-token-8 {
+  gap: var(--gap-8) !important;
+}
+
+.gap-token-16 {
+  gap: var(--gap-16) !important;
+}
+
+.gap-token-24 {
+  gap: var(--gap-24) !important;
+}
+
+.gap-token-32 {
+  gap: var(--gap-32) !important;
 }
 
 /* Semantic Radius Utilities */
@@ -410,6 +487,76 @@
 
 .theme-bg-subtle {
   background-color: var(--color-accent-primary-subtle) !important;
+}
+
+/* Focus Ring Helper (Tactical 2px visible ring, respects APCA & dark background) */
+.focus-ring-tactical:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px var(--color-canvas-root), 0 0 0 4px var(--color-accent-primary-border) !important;
+}
+
+/* Button Contract Utility Classes */
+.btn-contract-primary {
+  background-color: var(--color-accent-primary) !important;
+  color: #ffffff !important;
+  border-radius: var(--radius-component) !important;
+  transition: all var(--duration-fast) var(--ease-tactical) !important;
+  cursor: pointer;
+}
+
+.btn-contract-primary:hover {
+  background-color: var(--color-accent-primary-hover) !important;
+}
+
+.btn-contract-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-contract-mastery {
+  background-color: var(--color-accent-amber) !important;
+  color: #09090b !important;
+  border-radius: var(--radius-component) !important;
+  transition: all var(--duration-fast) var(--ease-tactical) !important;
+  cursor: pointer;
+}
+
+.btn-contract-mastery:active {
+  transform: scale(0.98);
+}
+
+.btn-contract-secondary {
+  background-color: var(--color-card-inner) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  color: var(--color-text-primary) !important;
+  border-radius: var(--radius-component) !important;
+  transition: all var(--duration-fast) var(--ease-tactical) !important;
+  cursor: pointer;
+}
+
+.btn-contract-secondary:hover {
+  border-color: var(--color-border-hover) !important;
+  background-color: var(--color-card-floating) !important;
+}
+
+.btn-contract-secondary:active {
+  transform: scale(0.98);
+}
+
+.btn-contract-ghost {
+  background-color: transparent !important;
+  color: var(--color-text-secondary) !important;
+  border-radius: var(--radius-component) !important;
+  transition: all var(--duration-fast) var(--ease-tactical) !important;
+  cursor: pointer;
+}
+
+.btn-contract-ghost:hover {
+  background-color: var(--color-card-inner) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.btn-contract-ghost:active {
+  transform: scale(0.98);
 }
 
 /* Glassmorphism Backdrop Blur */
