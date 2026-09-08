@@ -133,7 +133,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
           <button
             type="button"
             onClick={handleOpenNewCycleModal}
-            className="bg-amber hover:brightness-105 text-black font-black text-sm px-6 py-3 radius-card inline-flex items-center justify-center gap-2 mx-auto shadow-subtle transition cursor-pointer active:scale-95 whitespace-nowrap"
+            className="bg-amber hover:brightness-105 text-[var(--color-canvas-root)] font-black text-sm px-6 py-3 radius-card inline-flex items-center justify-center gap-2 mx-auto shadow-subtle transition cursor-pointer active:scale-95 whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             <span>تعریف چرخه نبرد ۹۰ روزه</span>
@@ -142,7 +142,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
 
         {/* New Cycle Modal when empty */}
         {showNewCycleModal && (
-          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]">
+          <div className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]">
             <div className="surface-z2 border-standard radius-modal w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150 my-auto">
               <h3 className="font-bold text-base sm:text-lg text-role-primary flex items-center gap-2">
                 <Layers className="w-5 h-5 text-role-secondary" />
@@ -199,7 +199,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                   </button>
                   <button
                     type="submit"
-                    className="bg-amber hover:brightness-105 text-black font-black px-5 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-95"
+                    className="bg-amber hover:brightness-105 text-[var(--color-canvas-root)] font-black px-5 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-95"
                   >
                     <Plus className="w-4 h-4" />
                     <span>ایجاد چرخه نبرد</span>
@@ -1261,7 +1261,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
 
       {/* Archive Cycle Confirmation Modal */}
       {showArchiveConfirmModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-sm flex items-center justify-center p-4">
           <div className="surface-z1 border-standard radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 radius-card surface-z2 border-standard flex items-center justify-center text-role-secondary shrink-0">
@@ -1304,7 +1304,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
 
       {/* Unarchive Cycle Confirmation Modal */}
       {showUnarchiveConfirmModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-sm flex items-center justify-center p-4">
           <div className="surface-z1 border-standard radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 radius-card surface-z2 border-standard flex items-center justify-center text-role-secondary shrink-0">
@@ -1347,7 +1347,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
 
       {/* Delete Cycle Confirmation Modal */}
       {showDeleteConfirmModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-sm flex items-center justify-center p-4">
           <div className="surface-z1 border border-debt-subtle radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 radius-card bg-debt-subtle border border-debt-subtle flex items-center justify-center text-debt shrink-0">
@@ -1378,7 +1378,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                className="bg-debt hover:brightness-110 active:brightness-95 text-white font-bold px-4 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-[0.98]"
+                className="bg-debt hover:brightness-110 active:brightness-95 text-role-primary font-bold px-4 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-[0.98]"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>حذف قطعی</span>

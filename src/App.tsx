@@ -1517,11 +1517,11 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen surface-z0 text-role-primary flex flex-col w-full max-w-full selection:bg-amber selection:text-black">
+      <div className="min-h-screen surface-z0 text-role-primary flex flex-col w-full max-w-full selection:bg-amber selection:text-[var(--color-canvas-root)]">
         {/* Skip Link for direct keyboard navigation to main content */}
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:right-3 focus:z-[100] focus:px-4 focus:py-2.5 focus:bg-amber focus:text-black focus:font-black focus:text-xs focus:radius-component focus:shadow-subtle focus-ring-tactical transition-none"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:right-3 focus:z-[100] focus:px-4 focus:py-2.5 focus:bg-amber focus:text-[var(--color-canvas-root)] focus:font-black focus:text-xs focus:radius-component focus:shadow-subtle focus-ring-tactical transition-none"
         >
           پرش به محتوای اصلی
         </a>
@@ -1541,9 +1541,9 @@ export default function App() {
               </div>
               <button
                 onClick={handleExitImpersonation}
-                className="bg-blue hover:brightness-110 text-black font-black text-xs px-3.5 py-1.5 radius-component transition cursor-pointer flex items-center gap-1.5 shadow-subtle shrink-0 active:scale-95 focus-ring-tactical"
+                className="bg-blue hover:brightness-110 text-[var(--color-canvas-root)] font-black text-xs px-3.5 py-1.5 radius-component transition cursor-pointer flex items-center gap-1.5 shadow-subtle shrink-0 active:scale-95 focus-ring-tactical"
               >
-                <ShieldCheck className="w-4 h-4 text-black" />
+                <ShieldCheck className="w-4 h-4 text-[var(--color-canvas-root)]" />
                 <span>بازگشت به حساب مدیریت</span>
               </button>
             </div>

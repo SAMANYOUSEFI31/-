@@ -107,7 +107,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
   return (
     <div className="surface-z1 border-standard radius-card sm:radius-modal p-5 sm:p-7 shadow-subtle space-y-6" dir="rtl">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-standard pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--color-border-subtle)] pb-5">
         <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 radius-component surface-z2 border-standard flex items-center justify-center text-role-primary shadow-subtle shrink-0">
             <Layers className="w-6 h-6 text-role-primary" />
@@ -117,7 +117,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
               <h2 className="text-base sm:text-lg font-black text-role-primary">
                 ماتریس وفاداری به ارکان دیسیپلین (Fidelity Matrix)
               </h2>
-              <span className="surface-z2 border-standard text-role-secondary text-[10px] px-2.5 py-0.5 rounded-full font-bold select-none pointer-events-none cursor-default font-mono">
+              <span className="surface-z2 border-standard text-role-secondary text-[10px] px-2.5 py-0.5 radius-capsule font-bold select-none pointer-events-none cursor-default font-mono">
                 ارزیابی {toPersianDigits(activeBase)} روز فعال
               </span>
             </div>
@@ -174,9 +174,9 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
 
             {/* Progress Bar */}
             <div className="space-y-1.5">
-              <div className="w-full surface-z0 h-2 rounded-full overflow-hidden border-standard">
+              <div className="w-full surface-z0 h-2 radius-capsule overflow-hidden border-standard">
                 <div 
-                  className={`${habit.barColor} h-full rounded-full transition-all duration-500`}
+                  className={`${habit.barColor} h-full radius-capsule transition-all duration-500`}
                   style={{ width: `${habit.ratePct}%` }}
                 />
               </div>
@@ -215,9 +215,9 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
           </div>
 
           <div className="space-y-1.5">
-            <div className="w-full surface-z0 h-2 rounded-full overflow-hidden border-standard">
+            <div className="w-full surface-z0 h-2 radius-capsule overflow-hidden border-standard">
               <div 
-                className="bg-amber h-full rounded-full transition-all duration-500"
+                className="bg-amber h-full radius-capsule transition-all duration-500"
                 style={{ width: `${specialMissionRate}%` }}
               />
             </div>

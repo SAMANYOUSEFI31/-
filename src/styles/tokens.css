@@ -208,6 +208,15 @@
   background-color: var(--color-card-floating) !important;
 }
 
+/* Modal & Dropdown Backdrop Utilities */
+.surface-backdrop-modal {
+  background-color: rgba(9, 9, 11, 0.85) !important;
+}
+
+.surface-backdrop-dropdown {
+  background-color: rgba(9, 9, 11, 0.35) !important;
+}
+
 /* Surface Pseudo-Class State Utilities (Technical Gap Fix) */
 .hover\:surface-z1:hover {
   background-color: var(--color-card-elevated) !important;

@@ -408,7 +408,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCreateUserOpen(!isCreateUserOpen)}
-                className="bg-amber hover:brightness-110 text-black font-bold text-xs px-4 py-2 radius-component transition cursor-pointer flex items-center gap-2 shrink-0 shadow-subtle focus-ring-tactical"
+                className="bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-bold text-xs px-4 py-2 radius-component transition cursor-pointer flex items-center gap-2 shrink-0 shadow-subtle focus-ring-tactical"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>{isCreateUserOpen ? 'بستن فرم ایجاد' : 'ایجاد حساب کاربری تست جدید'}</span>
@@ -466,7 +466,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   <button
                     type="submit"
                     disabled={isCreatingUser}
-                    className="bg-emerald hover:brightness-110 text-black font-bold text-xs px-4 py-2 radius-component transition cursor-pointer h-[38px] flex items-center justify-center shrink-0 disabled:opacity-50 focus-ring-tactical"
+                    className="bg-emerald hover:brightness-110 text-[var(--color-canvas-root)] font-bold text-xs px-4 py-2 radius-component transition cursor-pointer h-[38px] flex items-center justify-center shrink-0 disabled:opacity-50 focus-ring-tactical"
                   >
                     {isCreatingUser ? 'در حال ثبت...' : 'ثبت کاربر'}
                   </button>
@@ -666,7 +666,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                 <button
                                   onClick={() => handleUpdateUserTier(user.id, 'vip_samurai', 90)}
                                   disabled={isUpdatingUser === user.id}
-                                  className="bg-amber hover:brightness-110 text-black font-black px-3 py-1 radius-control text-[11px] transition cursor-pointer shadow-subtle flex items-center gap-1 focus-ring-tactical"
+                                  className="bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black px-3 py-1 radius-control text-[11px] transition cursor-pointer shadow-subtle flex items-center gap-1 focus-ring-tactical"
                                 >
                                   <Crown className="w-3 h-3" />
                                   <span>ارتقا VIP</span>

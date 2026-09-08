@@ -37,7 +37,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto max-h-[100dvh]"
+      className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto max-h-[100dvh]"
       dir="rtl"
     >
       <div

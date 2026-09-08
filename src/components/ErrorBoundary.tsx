@@ -104,7 +104,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="w-full sm:flex-1 py-3 px-4 radius-component bg-amber hover:brightness-110 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-subtle transition cursor-pointer active:scale-[0.98] touch-manipulation focus-ring-tactical"
+                className="w-full sm:flex-1 py-3 px-4 radius-component bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-subtle transition cursor-pointer active:scale-[0.98] touch-manipulation focus-ring-tactical"
                 title="بارگذاری مجدد بدون دستکاری و حذف داده‌های ثبت‌شده"
               >
                 <RefreshCw className="w-4 h-4" />

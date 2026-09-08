@@ -268,7 +268,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
       {isCycleDropdownOpen && (
         <div 
           ref={backdropRef}
-          className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[1px] select-none cursor-default touch-none"
+          className="fixed inset-0 z-40 surface-backdrop-dropdown backdrop-blur-[1px] select-none cursor-default touch-none"
           aria-hidden="true"
         />
       )}
@@ -285,7 +285,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-2 sm:gap-3.5 min-w-0 shrink">
               <div className="flex items-center gap-2 shrink-0">
                 <div
-                  className="h-8 w-8 sm:h-9 sm:w-9 radius-component flex items-center justify-center text-black font-black shadow-subtle text-sm sm:text-base shrink-0 select-none pointer-events-none"
+                  className="h-8 w-8 sm:h-9 sm:w-9 radius-component flex items-center justify-center text-[var(--color-canvas-root)] font-black shadow-subtle text-sm sm:text-base shrink-0 select-none pointer-events-none"
                   style={{ backgroundColor: themeConfig.colorHex }}
                 >
                   武
@@ -311,7 +311,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                   aria-label={`انتخاب چرخه، چرخه فعلی: ${currentCycle ? currentCycle.title : 'تعریف نشده'}`}
                   className="h-8 sm:h-9 min-w-[44px] surface-z1 hover:bg-[var(--color-border-subtle)] active:bg-[var(--color-border-hover)] border-standard radius-component px-2 sm:px-2.5 text-xs text-role-primary inline-flex items-center justify-center gap-1 sm:gap-1.5 transition cursor-pointer shrink-0 touch-manipulation relative z-50 focus-ring-tactical"
                 >
-                  <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${currentCycle ? 'bg-emerald' : 'bg-amber'}`}></span>
+                  <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 radius-capsule shrink-0 ${currentCycle ? 'bg-emerald' : 'bg-amber'}`}></span>
                   <span className="font-bold whitespace-nowrap text-[11px] sm:text-xs">
                     {cycleTitleDisplay}
                   </span>
@@ -361,7 +361,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                                   isCurrent ? 'text-emerald font-bold surface-z2' : 'text-role-secondary hover:text-role-primary'
                                 }`}
                               >
-                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isCurrent ? 'bg-emerald' : 'bg-[var(--color-text-muted)]'}`} />
+                                <span className={`w-1.5 h-1.5 radius-capsule shrink-0 ${isCurrent ? 'bg-emerald' : 'bg-[var(--color-text-muted)]'}`} />
                                 <span className="truncate flex-1">{c.title}</span>
                                 {c.isArchived && (
                                   <span className="text-[9px] surface-z1 text-role-muted px-1.5 py-0.5 radius-badge shrink-0 border-standard">
@@ -380,7 +380,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                                   onClick={(e) => handleDeleteCycleClick(e, c.id)}
                                   className={`p-2 min-h-[38px] min-w-[38px] radius-control text-xs transition shrink-0 cursor-pointer flex items-center justify-center touch-manipulation focus-ring-tactical ${
                                     isConfirming 
-                                      ? 'bg-debt hover:brightness-110 text-white font-black px-2 py-1 shadow-subtle animate-pulse motion-reduce:animate-none' 
+                                      ? 'bg-debt hover:brightness-110 text-role-primary font-black px-2 py-1 shadow-subtle animate-pulse motion-reduce:animate-none' 
                                       : 'text-role-muted hover:text-debt hover:bg-debt-subtle'
                                   }`}
                                   aria-label={isConfirming ? `تایید حذف قطعی چرخه ${c.title}` : `حذف چرخه ${c.title}`}
@@ -408,7 +408,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                             setConfirmDeleteCycleId(null);
                             onOpenNewCycleModal();
                           }}
-                          className="w-full py-2.5 min-h-[44px] px-3 bg-amber hover:brightness-110 text-black radius-component text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-subtle active:scale-[0.98] touch-manipulation focus-ring-tactical"
+                          className="w-full py-2.5 min-h-[44px] px-3 bg-amber hover:brightness-110 text-[var(--color-canvas-root)] radius-component text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-subtle active:scale-[0.98] touch-manipulation focus-ring-tactical"
                         >
                           <Plus className="w-4 h-4" />
                           <span>+ تعریف چرخه جدید ۹۰ روزه</span>
@@ -473,7 +473,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       {hasDebtAlert && !isActive && (
                         <>
                           <span 
-                            className="w-2 h-2 rounded-full bg-debt animate-ping motion-reduce:animate-none absolute top-1.5 left-1.5" 
+                            className="w-2 h-2 radius-capsule bg-debt animate-ping motion-reduce:animate-none absolute top-1.5 left-1.5" 
                             aria-hidden="true" 
                           />
                           <span className="sr-only">
@@ -537,7 +537,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                   type="button"
                   onClick={() => onSelectTab('admin')}
                   className={`h-8 sm:h-9 min-w-[44px] bg-debt-subtle border border-debt hover:bg-[var(--color-accent-red-bg)] text-debt px-2 sm:px-2.5 radius-component text-[10px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer transition shrink-0 touch-manipulation focus-ring-tactical ${
-                    activeTab === 'admin' ? 'bg-debt text-white border-debt shadow-subtle' : ''
+                    activeTab === 'admin' ? 'bg-debt text-role-primary border-debt shadow-subtle' : ''
                   }`}
                   title="ورود به پنل مدیریت"
                 >
@@ -600,7 +600,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                     {hasDebtAlert && !isActive && (
                       <>
                         <span 
-                          className="w-2 h-2 rounded-full bg-debt animate-ping motion-reduce:animate-none absolute top-0.5 right-1 z-20" 
+                          className="w-2 h-2 radius-capsule bg-debt animate-ping motion-reduce:animate-none absolute top-0.5 right-1 z-20" 
                           aria-hidden="true" 
                         />
                         <span className="sr-only">
@@ -612,7 +612,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                     {hasMilestoneAlert && !isActive && (
                       <>
                         <span 
-                          className="w-2 h-2 rounded-full bg-amber animate-pulse motion-reduce:animate-none absolute top-0.5 right-1 z-20 shadow-subtle" 
+                          className="w-2 h-2 radius-capsule bg-amber animate-pulse motion-reduce:animate-none absolute top-0.5 right-1 z-20 shadow-subtle" 
                           aria-hidden="true" 
                         />
                         <span className="sr-only">

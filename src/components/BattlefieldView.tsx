@@ -464,7 +464,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               <button
                 type="button"
                 onClick={onOpenCreateCycle}
-                className="bg-amber hover:brightness-110 text-black font-black text-xs px-3.5 py-1.5 radius-control transition cursor-pointer active:scale-95 shadow-subtle whitespace-nowrap focus-ring-tactical"
+                className="bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-xs px-3.5 py-1.5 radius-control transition cursor-pointer active:scale-95 shadow-subtle whitespace-nowrap focus-ring-tactical"
               >
                 شروع چرخه واقعی
               </button>
@@ -564,7 +564,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
             <div className="surface-z1 border-standard radius-card p-3.5 sm:p-4 text-role-primary shadow-subtle backdrop-blur-md">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="w-9 h-9 radius-component surface-z2 border-standard text-role-secondary flex items-center justify-center shrink-0 shadow-inner">
+                  <div className="w-9 h-9 radius-component surface-z2 border-standard text-role-secondary flex items-center justify-center shrink-0">
                     <Compass className="w-4 h-4 text-role-secondary" />
                   </div>
                   <div className="space-y-0.5 min-w-0">
@@ -585,7 +585,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onSelectDate(logicalToday)}
-                  className="w-full sm:w-auto h-9 bg-rose-subtle hover:brightness-125 text-rose border-rose-subtle font-bold text-xs px-3.5 radius-component inline-flex items-center justify-center gap-1.5 transition cursor-pointer shadow-subtle shrink-0 whitespace-nowrap active:scale-[0.98] focus-ring-tactical"
+                  className="w-full sm:w-auto h-9 bg-rose-subtle hover:brightness-125 text-rose border border-rose-subtle font-bold text-xs px-3.5 radius-component inline-flex items-center justify-center gap-1.5 transition cursor-pointer shadow-subtle shrink-0 whitespace-nowrap active:scale-[0.98] focus-ring-tactical"
                 >
                   <Zap className="w-3.5 h-3.5 text-rose shrink-0" />
                   <span className="leading-none">پرش به روز جاری</span>
@@ -596,7 +596,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
             <div className="surface-z1 border-standard radius-card p-3 sm:p-3.5 text-role-primary shadow-subtle">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-4">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 radius-component surface-z2 border-standard text-role-muted flex items-center justify-center shrink-0 shadow-inner">
+                  <div className="w-8 h-8 radius-component surface-z2 border-standard text-role-muted flex items-center justify-center shrink-0">
                     <Calendar className="w-4 h-4 text-role-muted" />
                   </div>
                   <div className="min-w-0">
@@ -614,7 +614,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onSelectDate(logicalToday)}
-                  className="w-full sm:w-auto h-8 bg-rose-subtle hover:brightness-125 text-rose border-rose-subtle font-bold text-xs px-3 radius-component inline-flex items-center justify-center gap-1.5 transition cursor-pointer shadow-subtle shrink-0 whitespace-nowrap active:scale-[0.98] focus-ring-tactical"
+                  className="w-full sm:w-auto h-8 bg-rose-subtle hover:brightness-125 text-rose border border-rose-subtle font-bold text-xs px-3 radius-component inline-flex items-center justify-center gap-1.5 transition cursor-pointer shadow-subtle shrink-0 whitespace-nowrap active:scale-[0.98] focus-ring-tactical"
                 >
                   <Zap className="w-3.5 h-3.5 text-rose shrink-0" />
                   <span className="leading-none">پرش به روز جاری</span>
@@ -668,7 +668,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       <button
                         key={ul.id}
                         onClick={() => onOpenAutopsy(ul)}
-                        className="bg-debt hover:brightness-110 text-white text-xs font-bold px-2.5 py-1 radius-control flex items-center gap-1.5 transition cursor-pointer shadow-subtle active:scale-95 focus-ring-tactical"
+                        className="bg-debt hover:brightness-110 text-role-primary text-xs font-bold px-2.5 py-1 radius-control flex items-center gap-1.5 transition cursor-pointer shadow-subtle active:scale-95 focus-ring-tactical"
                       >
                         <AlertTriangle className="w-3.5 h-3.5" />
                         <span>کالبدشکافی {formatPersianDate(ul.date, { short: true })}</span>
@@ -796,7 +796,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       return (
                         <div
                           key={idx}
-                          className={`h-1.5 sm:h-2 flex-1 rounded-full border transition-colors duration-200 ${
+                          className={`h-1.5 sm:h-2 flex-1 radius-capsule border transition-colors duration-200 ${
                             isFilled
                               ? computed.score === 10
                                 ? 'bg-amber border-amber'
@@ -862,7 +862,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       </div>
                     </div>
 
-                    <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full border flex items-center justify-center transition-colors shrink-0 ${
+                    <div className={`w-6 h-6 sm:w-7 sm:h-7 radius-capsule border flex items-center justify-center transition-colors shrink-0 ${
                       isChecked
                         ? 'bg-emerald-subtle border-emerald text-emerald shadow-subtle'
                         : 'border-standard surface-z2 text-transparent group-hover:border-[var(--color-border-hover)]'
@@ -908,7 +908,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <div className="font-bold text-xs sm:text-sm text-role-primary flex items-center gap-2 leading-snug">
                     <span className="truncate">ماموریت ویژه روز</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold font-mono border shrink-0 ${
+                    <span className={`text-[10px] px-2 py-0.5 radius-capsule font-bold font-mono border shrink-0 ${
                       activeLog?.specialMission
                         ? 'bg-amber-subtle text-amber border-amber-subtle'
                         : 'surface-z2 text-role-secondary border-standard'
@@ -922,7 +922,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 </div>
               </div>
 
-              <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full border flex items-center justify-center transition-colors shrink-0 ${
+              <div className={`w-6 h-6 sm:w-7 sm:h-7 radius-capsule border flex items-center justify-center transition-colors shrink-0 ${
                 activeLog?.specialMission
                   ? 'bg-amber-subtle border-amber text-amber shadow-subtle'
                   : 'border-standard surface-z2 text-transparent group-hover:border-[var(--color-border-hover)]'
@@ -987,7 +987,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       ? 'surface-z2 hover:surface-z3 text-role-primary border-standard'
                       : (isToday 
                           ? 'surface-z2 hover:surface-z3 text-role-primary border-standard' 
-                          : 'bg-debt hover:brightness-110 text-white border-debt shadow-subtle')
+                          : 'bg-debt hover:brightness-110 text-role-primary border-debt shadow-subtle')
                   }`}
                 >
                   <Sparkles className="w-3.5 h-3.5 text-role-secondary" />

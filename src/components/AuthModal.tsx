@@ -476,7 +476,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto max-h-[100dvh]" 
+      className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto max-h-[100dvh]" 
       dir="rtl"
     >
       <motion.div 
@@ -500,10 +500,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               onClick={handleSecretIconClick}
-              className="w-10 h-10 radius-component bg-amber flex items-center justify-center text-black font-black shadow-subtle active:scale-90 motion-reduce:transform-none transition-transform cursor-pointer focus-ring-tactical shrink-0"
+              className="w-10 h-10 radius-component bg-amber flex items-center justify-center text-[var(--color-canvas-root)] font-black shadow-subtle active:scale-90 motion-reduce:transform-none transition-transform cursor-pointer focus-ring-tactical shrink-0"
               title="ورود سامورایی"
             >
-              <Smartphone className="w-5 h-5 text-black" />
+              <Smartphone className="w-5 h-5 text-[var(--color-canvas-root)]" />
             </button>
             <div className="min-w-0">
               <h2 id="auth-title" className="text-sm sm:text-base font-black text-role-primary truncate">
@@ -517,7 +517,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-standard flex items-center justify-center transition cursor-pointer shrink-0 touch-manipulation focus-ring-tactical"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] radius-capsule surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-standard flex items-center justify-center transition cursor-pointer shrink-0 touch-manipulation focus-ring-tactical"
             aria-label="بستن"
           >
             <X className="w-5 h-5" />
@@ -538,7 +538,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={() => switchTab('login')}
               className={`flex-1 py-2 radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical ${
                 activeTab === 'login'
-                  ? 'bg-amber text-black shadow-subtle'
+                  ? 'bg-amber text-[var(--color-canvas-root)] shadow-subtle'
                   : 'surface-z1 text-role-secondary hover:text-role-primary border-standard'
               }`}
             >
@@ -557,7 +557,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={() => switchTab('register')}
               className={`flex-1 py-2 radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical ${
                 activeTab === 'register'
-                  ? 'bg-amber text-black shadow-subtle'
+                  ? 'bg-amber text-[var(--color-canvas-root)] shadow-subtle'
                   : 'surface-z1 text-role-secondary hover:text-role-primary border-standard'
               }`}
             >
@@ -576,7 +576,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={() => switchTab('forgot')}
               className={`flex-1 py-2 radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical ${
                 activeTab === 'forgot'
-                  ? 'bg-amber text-black shadow-subtle'
+                  ? 'bg-amber text-[var(--color-canvas-root)] shadow-subtle'
                   : 'surface-z1 text-role-secondary hover:text-role-primary border-standard'
               }`}
             >
@@ -723,10 +723,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full min-h-[44px] bg-amber hover:brightness-110 text-black font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
+                      className="w-full min-h-[44px] bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
                     >
                       {isLoading ? (
-                        <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin motion-reduce:animate-none"></span>
+                        <span className="w-5 h-5 border-2 border-[var(--color-canvas-root)] border-t-transparent radius-capsule animate-spin motion-reduce:animate-none"></span>
                       ) : (
                         <>
                           <span>ورود به سامانه</span>
@@ -801,10 +801,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full min-h-[44px] bg-amber hover:brightness-110 text-black font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
+                        className="w-full min-h-[44px] bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
                       >
                         {isLoading ? (
-                          <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin motion-reduce:animate-none"></span>
+                          <span className="w-5 h-5 border-2 border-[var(--color-canvas-root)] border-t-transparent radius-capsule animate-spin motion-reduce:animate-none"></span>
                         ) : (
                           <>
                             <span>دریافت کد تایید پیامکی</span>
@@ -944,10 +944,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <button
                           type="submit"
                           disabled={isLoading}
-                          className="w-2/3 min-h-[44px] bg-amber hover:brightness-110 text-black font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
+                          className="w-2/3 min-h-[44px] bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
                         >
                           {isLoading ? (
-                            <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin motion-reduce:animate-none"></span>
+                            <span className="w-5 h-5 border-2 border-[var(--color-canvas-root)] border-t-transparent radius-capsule animate-spin motion-reduce:animate-none"></span>
                           ) : (
                             <span>تکمیل ثبت‌نام و ورود</span>
                           )}
@@ -995,10 +995,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full min-h-[44px] bg-amber hover:brightness-110 text-black font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
+                        className="w-full min-h-[44px] bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
                       >
                         {isLoading ? (
-                          <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin motion-reduce:animate-none"></span>
+                          <span className="w-5 h-5 border-2 border-[var(--color-canvas-root)] border-t-transparent radius-capsule animate-spin motion-reduce:animate-none"></span>
                         ) : (
                           <>
                             <span>ارسال کد تایید بازیابی</span>
@@ -1134,10 +1134,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <button
                           type="submit"
                           disabled={isLoading}
-                          className="w-2/3 min-h-[44px] bg-amber hover:brightness-110 text-black font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
+                          className="w-2/3 min-h-[44px] bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
                         >
                           {isLoading ? (
-                            <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin motion-reduce:animate-none"></span>
+                            <span className="w-5 h-5 border-2 border-[var(--color-canvas-root)] border-t-transparent radius-capsule animate-spin motion-reduce:animate-none"></span>
                           ) : (
                             <span>تغییر رمز و ورود</span>
                           )}

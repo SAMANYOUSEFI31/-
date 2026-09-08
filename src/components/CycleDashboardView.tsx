@@ -78,7 +78,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
             <button
               onClick={onOpenCreateCycle || (() => onNavigateTab('archives'))}
-              className="w-full sm:w-auto bg-amber hover:brightness-105 text-black font-black text-xs px-5 py-2.5 radius-component transition cursor-pointer active:scale-95 shadow-subtle inline-flex items-center justify-center gap-1.5"
+              className="w-full sm:w-auto bg-amber hover:brightness-105 text-[var(--color-canvas-root)] font-black text-xs px-5 py-2.5 radius-component transition cursor-pointer active:scale-95 shadow-subtle inline-flex items-center justify-center gap-1.5 focus-ring-tactical"
             >
               <Plus className="w-4 h-4" />
               <span>تعریف چرخه ۹۰ روزه</span>
@@ -208,7 +208,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
             <div className="space-y-3">
               {/* Top Row: Temporal Timeline Cluster (روز چند از ۹۰ + بازه تاریخ) followed by Status */}
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="surface-z2 border-standard radius-component px-3 py-1 text-xs font-mono inline-flex items-center gap-2 text-role-primary shadow-xs leading-none">
+                <div className="surface-z2 border-standard radius-component px-3 py-1 text-xs font-mono inline-flex items-center gap-2 text-role-primary shadow-subtle leading-none">
                   <span className="font-bold text-amber">روز {toPersianDigits(metrics.elapsedDays)} از ۹۰</span>
                   <span className="text-role-muted font-normal">|</span>
                   <span className="text-role-secondary">{formatPersianDate(currentCycle.startDate, { short: true })} تا {formatPersianDate(currentCycle.endDate, { short: true })}</span>
@@ -240,9 +240,9 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                   <span>پیشروی تقویمی دوره</span>
                   <span>{toPersianDigits(elapsedPercentage)}٪ سپری شده</span>
                 </div>
-                <div className="w-full surface-z0 h-2 radius-badge overflow-hidden border-standard">
+                <div className="w-full surface-z0 h-2 radius-capsule overflow-hidden border-standard">
                   <div 
-                    className="bg-rose h-full radius-badge transition-all duration-500" 
+                    className="bg-rose h-full radius-capsule transition-all duration-500" 
                     style={{ width: `${elapsedPercentage}%` }}
                   />
                 </div>
@@ -250,7 +250,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
             </div>
 
             {/* Coach Voice Banner */}
-            <div className="w-full surface-z0 border-standard radius-card p-3.5 sm:p-4 flex items-start gap-3.5 mt-2 shadow-xs">
+            <div className="w-full surface-z0 border-standard radius-card p-3.5 sm:p-4 flex items-start gap-3.5 mt-2 shadow-subtle">
               <div className="w-10 h-10 radius-component surface-z2 border-standard flex items-center justify-center text-role-secondary shrink-0">
                 <Compass className="w-5 h-5 text-role-primary" />
               </div>
@@ -264,7 +264,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
           </div>
 
           {/* Discipline Score Badge Column (Harmonized with Battlefield Daily Score Box) */}
-          <div className="lg:col-span-4 surface-z0 border-standard radius-card p-4 sm:p-5 text-center flex flex-col items-center justify-center space-y-2.5 shadow-xs transition-all w-full max-w-[280px] mx-auto lg:max-w-none lg:w-full">
+          <div className="lg:col-span-4 surface-z0 border-standard radius-card p-4 sm:p-5 text-center flex flex-col items-center justify-center space-y-2.5 shadow-subtle transition-all w-full max-w-[280px] mx-auto lg:max-w-none lg:w-full">
             <span className="text-xs text-role-secondary font-medium inline-flex items-center gap-1.5">
               <TrendingUp className="w-4 h-4 text-role-muted" />
               <span>شاخص انضباط سیستم (Discipline Score)</span>
@@ -362,7 +362,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
               {/* Unresolved Debt (Red) */}
               <div className={`border radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all ${
                 metrics.unresolvedDebtCount > 0 
-                  ? 'bg-debt-subtle border-debt-subtle text-debt shadow-xs' 
+                  ? 'bg-debt-subtle border-debt-subtle text-debt shadow-subtle' 
                   : 'surface-z1 border-standard hover:border-[var(--color-border-hover)]'
               }`}>
                 <div className="flex items-center justify-between text-debt">
@@ -442,7 +442,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                     </span>
                     <span className="text-xs text-role-secondary font-mono">روز متوالی</span>
                   </div>
-                  <div className="text-[11px] text-role-secondary flex items-center justify-between pt-1 border-t border-standard">
+                  <div className="text-[11px] text-role-secondary flex items-center justify-between pt-1 border-t border-[var(--color-border-subtle)]">
                     <span>در چرخه فعلی:</span>
                     <span className="font-bold text-rose font-mono">{toPersianDigits(metrics.maxPureStreak)} روز</span>
                   </div>
@@ -462,7 +462,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                     </span>
                     <span className="text-xs text-role-secondary font-mono">روز (۵/۵ کامل)</span>
                   </div>
-                  <div className="text-[11px] text-role-secondary flex items-center justify-between pt-1 border-t border-standard">
+                  <div className="text-[11px] text-role-secondary flex items-center justify-between pt-1 border-t border-[var(--color-border-subtle)]">
                     <span>در چرخه فعلی:</span>
                     <span className="font-bold text-emerald font-mono">{toPersianDigits(metrics.standardDaysCount)} روز</span>
                   </div>
@@ -482,7 +482,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                     </span>
                     <span className="text-xs text-role-secondary font-mono">امتیاز کل</span>
                   </div>
-                  <div className="text-[11px] text-role-secondary flex items-center justify-between pt-1 border-t border-standard">
+                  <div className="text-[11px] text-role-secondary flex items-center justify-between pt-1 border-t border-[var(--color-border-subtle)]">
                     <span>در چرخه فعلی:</span>
                     <span className="font-bold text-amber font-mono">{toPersianDigits(metrics.totalScore)}</span>
                   </div>
@@ -572,9 +572,9 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                             </p>
                           </div>
 
-                          <div className="w-24 surface-z2 h-2.5 radius-badge overflow-hidden shrink-0 border-standard">
+                          <div className="w-24 surface-z2 h-2.5 radius-capsule overflow-hidden shrink-0 border-standard">
                             <div 
-                              className="bg-debt h-full radius-badge" 
+                              className="bg-debt h-full radius-capsule" 
                               style={{ width: `${v.ratePct}%` }}
                             />
                           </div>

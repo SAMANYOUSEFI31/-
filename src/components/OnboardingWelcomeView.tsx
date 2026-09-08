@@ -34,7 +34,7 @@ export const OnboardingWelcomeView: React.FC<OnboardingWelcomeViewProps> = ({
         </div>
 
         <div className="space-y-2 max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 radius-pill bg-amber-subtle border border-amber-subtle text-amber text-xs font-bold font-mono">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 radius-capsule bg-amber-subtle border border-amber-subtle text-amber text-xs font-bold font-mono">
             <Sparkles className="w-3.5 h-3.5 text-amber" />
             <span>سیستم عامل انضباط بوشیدو (Bushido OS)</span>
           </div>
@@ -51,9 +51,9 @@ export const OnboardingWelcomeView: React.FC<OnboardingWelcomeViewProps> = ({
           <button
             type="button"
             onClick={onOpenCreateCycle}
-            className="w-full sm:w-auto bg-amber hover:brightness-110 active:brightness-90 text-black font-black text-xs sm:text-sm px-6 py-3.5 radius-card inline-flex items-center justify-center gap-2 shadow-subtle transition cursor-pointer active:scale-95 focus-ring-tactical"
+            className="w-full sm:w-auto bg-amber hover:brightness-110 active:brightness-90 text-[var(--color-canvas-root)] font-black text-xs sm:text-sm px-6 py-3.5 radius-card inline-flex items-center justify-center gap-2 shadow-subtle transition cursor-pointer active:scale-95 focus-ring-tactical"
           >
-            <Sparkles className="w-4 h-4 text-black" />
+            <Sparkles className="w-4 h-4 text-[var(--color-canvas-root)]" />
             <span>تعریف اولین چرخه ۹۰ روزه نبرد</span>
           </button>
 
@@ -71,7 +71,7 @@ export const OnboardingWelcomeView: React.FC<OnboardingWelcomeViewProps> = ({
       {/* 2. Three Pillars of the Bushido Journey */}
       <div className="space-y-3">
         <h2 className="text-sm sm:text-base font-black text-role-primary px-1 flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald" />
+          <ShieldCheck className="w-4 h-4 text-role-secondary" />
           <span>مسیر گام‌به‌گام پیروزی در سامانه بوشیدو</span>
         </h2>
 

@@ -94,7 +94,7 @@ export function ResponsiveSubTabBar<T extends string = string>({
 
               {/* Optional alert ping */}
               {tab.hasAlert && (
-                <span className="w-2 h-2 rounded-full bg-debt animate-pulse shrink-0" />
+                <span className="w-2 h-2 radius-capsule bg-debt animate-pulse shrink-0" />
               )}
             </button>
           );

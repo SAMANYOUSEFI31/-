@@ -154,7 +154,7 @@ export const BushidoCourtView: React.FC<BushidoCourtViewProps> = ({
           <button
             onClick={handleGenerateVerdict}
             disabled={isGenerating || hasDebt}
-            className="w-full sm:w-auto bg-amber hover:brightness-110 active:scale-[0.98] disabled:opacity-50 text-black font-black text-xs sm:text-sm px-6 py-3.5 radius-card flex items-center justify-center gap-2 transition-all shadow-subtle cursor-pointer shrink-0 focus-ring-tactical"
+            className="w-full sm:w-auto bg-amber hover:brightness-110 active:scale-[0.98] disabled:opacity-50 text-[var(--color-canvas-root)] font-black text-xs sm:text-sm px-6 py-3.5 radius-card flex items-center justify-center gap-2 transition-all shadow-subtle cursor-pointer shrink-0 focus-ring-tactical"
           >
             {isGenerating ? (
               <>
@@ -222,7 +222,7 @@ export const BushidoCourtView: React.FC<BushidoCourtViewProps> = ({
               <ul className="space-y-1 text-xs text-role-secondary">
                 {verdictData.strengths.map((s, i) => (
                   <li key={i} className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald"></span>
+                    <span className="w-1.5 h-1.5 radius-capsule bg-emerald"></span>
                     {s}
                   </li>
                 ))}
@@ -237,7 +237,7 @@ export const BushidoCourtView: React.FC<BushidoCourtViewProps> = ({
               <ul className="space-y-1 text-xs text-role-secondary">
                 {verdictData.weaknesses.map((w, i) => (
                   <li key={i} className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber"></span>
+                    <span className="w-1.5 h-1.5 radius-capsule bg-amber"></span>
                     {w}
                   </li>
                 ))}
@@ -261,9 +261,9 @@ export const BushidoCourtView: React.FC<BushidoCourtViewProps> = ({
             <div className="pt-2 flex justify-end">
               <button
                 onClick={handleSealAndArchive}
-                className="bg-emerald hover:brightness-110 text-black font-bold text-xs sm:text-sm px-6 py-2.5 radius-card flex items-center gap-2 transition cursor-pointer shadow-subtle focus-ring-tactical"
+                className="bg-emerald hover:brightness-110 text-[var(--color-canvas-root)] font-bold text-xs sm:text-sm px-6 py-2.5 radius-card flex items-center gap-2 transition cursor-pointer shadow-subtle focus-ring-tactical"
               >
-                <CheckCircle2 className="w-4 h-4 text-black" />
+                <CheckCircle2 className="w-4 h-4 text-[var(--color-canvas-root)]" />
                 تایید گزارش، ممهور کردن و بایگانی چرخه
               </button>
             </div>

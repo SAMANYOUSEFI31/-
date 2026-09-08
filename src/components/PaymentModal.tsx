@@ -193,7 +193,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-2.5 sm:p-4 pt-safe pb-safe overflow-y-auto" 
+      className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex items-center justify-center p-2.5 sm:p-4 pt-safe pb-safe overflow-y-auto" 
       dir="rtl"
     >
       <div 
@@ -281,7 +281,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       }`}
                     >
                       {plan.isPopular && (
-                        <div className="absolute -top-3 left-4 bg-amber text-black text-[10px] font-black px-2.5 py-0.5 radius-badge shadow-subtle">
+                        <div className="absolute -top-3 left-4 bg-amber text-[var(--color-canvas-root)] text-[10px] font-black px-2.5 py-0.5 radius-badge shadow-subtle">
                           {plan.badgeFa}
                         </div>
                       )}
@@ -289,8 +289,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       <div className="space-y-2.5 sm:space-y-3 w-full">
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-xs sm:text-sm text-role-primary">{plan.title}</span>
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            isSelected ? 'border-amber bg-amber text-black' : 'border-standard'
+                          <div className={`w-5 h-5 radius-capsule border-2 flex items-center justify-center ${
+                            isSelected ? 'border-amber bg-amber text-[var(--color-canvas-root)]' : 'border-standard'
                           }`}>
                             {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                           </div>
@@ -354,7 +354,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={handleStartPayment}
                   disabled={isLoading}
-                  className="bg-amber hover:brightness-110 text-black font-black text-xs sm:text-sm px-5 py-2.5 sm:px-6 sm:py-3 radius-card flex items-center gap-2 shadow-subtle transition cursor-pointer disabled:opacity-75 focus-ring-tactical"
+                  className="bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-xs sm:text-sm px-5 py-2.5 sm:px-6 sm:py-3 radius-card flex items-center gap-2 shadow-subtle transition cursor-pointer disabled:opacity-75 focus-ring-tactical"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2" aria-live="polite">
@@ -456,7 +456,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={handleVerifyPayment}
                   disabled={isLoading}
-                  className="bg-emerald hover:brightness-110 text-black font-bold text-xs sm:text-sm px-6 py-2.5 radius-component flex items-center gap-2 shadow-subtle transition cursor-pointer active:scale-[0.98] disabled:opacity-75 focus-ring-tactical"
+                  className="bg-emerald hover:brightness-110 text-[var(--color-canvas-root)] font-bold text-xs sm:text-sm px-6 py-2.5 radius-component flex items-center gap-2 shadow-subtle transition cursor-pointer active:scale-[0.98] disabled:opacity-75 focus-ring-tactical"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2" aria-live="polite">
@@ -527,7 +527,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="bg-amber hover:brightness-110 text-black font-black text-sm px-8 py-3 radius-card transition shadow-subtle cursor-pointer focus-ring-tactical"
+              className="bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-sm px-8 py-3 radius-card transition shadow-subtle cursor-pointer focus-ring-tactical"
             >
               ورود به میدان نبرد با اشتراک ویژه
             </button>

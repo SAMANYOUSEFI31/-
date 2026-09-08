@@ -85,7 +85,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto"
+      className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto"
       dir="rtl"
     >
       <div 
@@ -229,7 +229,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
             </button>
             <button
               type="submit"
-              className="bg-amber hover:brightness-110 active:brightness-90 text-black px-6 py-2.5 min-h-[44px] radius-component text-xs font-black shadow-subtle transition cursor-pointer active:scale-95 motion-reduce:transform-none flex items-center gap-1.5 touch-manipulation focus-ring-tactical"
+              className="bg-amber hover:brightness-110 active:brightness-90 text-[var(--color-canvas-root)] px-6 py-2.5 min-h-[44px] radius-component text-xs font-black shadow-subtle transition cursor-pointer active:scale-95 motion-reduce:transform-none flex items-center gap-1.5 touch-manipulation focus-ring-tactical"
             >
               <Sparkles className="w-4 h-4" />
               <span>آغاز چرخه نبرد</span>

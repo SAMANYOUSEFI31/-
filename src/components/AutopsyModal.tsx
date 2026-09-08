@@ -188,7 +188,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto max-h-[100dvh]"
+      className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto max-h-[100dvh]"
     >
       <motion.div 
         ref={containerRef}
@@ -249,7 +249,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                     aria-current={isSelected ? 'true' : undefined}
                     className={`px-2.5 py-1 radius-control text-[11px] font-bold transition whitespace-nowrap cursor-pointer focus-ring-tactical ${
                       isSelected
-                        ? 'bg-debt text-white shadow-subtle'
+                        ? 'bg-debt text-role-primary shadow-subtle'
                         : 'surface-z1 text-role-secondary hover:text-role-primary border-standard'
                     }`}
                   >
@@ -357,7 +357,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                   onClick={handleAiAutopsy}
                   disabled={isLoadingAi || !reason}
                   aria-busy={isLoadingAi}
-                  className="min-h-[44px] w-full sm:w-auto bg-amber hover:brightness-110 disabled:opacity-50 text-black font-bold text-xs px-3.5 py-2.5 radius-component flex items-center justify-center gap-1.5 transition-all shadow-subtle cursor-pointer active:scale-[0.98] motion-reduce:transform-none whitespace-nowrap focus-ring-tactical"
+                  className="min-h-[44px] w-full sm:w-auto bg-amber hover:brightness-110 disabled:opacity-50 text-[var(--color-canvas-root)] font-bold text-xs px-3.5 py-2.5 radius-component flex items-center justify-center gap-1.5 transition-all shadow-subtle cursor-pointer active:scale-[0.98] motion-reduce:transform-none whitespace-nowrap focus-ring-tactical"
                 >
                   {isLoadingAi ? (
                     <>
@@ -434,7 +434,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
             <button
               type="submit"
               disabled={!reason || (!isPersonalFrozen && !time)}
-              className="min-h-[44px] bg-emerald hover:brightness-110 disabled:opacity-50 text-black font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 radius-component flex items-center justify-center gap-2 transition shadow-subtle cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
+              className="min-h-[44px] bg-emerald hover:brightness-110 disabled:opacity-50 text-[var(--color-canvas-root)] font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 radius-component flex items-center justify-center gap-2 transition shadow-subtle cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
             >
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span className="whitespace-nowrap">ثبت کالبدشکافی و تسویه بدهی</span>
