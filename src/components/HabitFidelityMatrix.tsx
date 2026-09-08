@@ -146,7 +146,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
         {habitStats.map(habit => (
           <div 
             key={habit.key}
-            className="surface-z2 border-standard hover:border-[var(--color-border-hover)] radius-card p-4.5 space-y-3.5 transition-all shadow-subtle"
+            className="surface-z2 border-standard border-hover radius-card p-4.5 space-y-3.5 transition-all shadow-subtle"
           >
             {/* Title Row */}
             <div className="flex items-start justify-between gap-3">
@@ -191,7 +191,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
         ))}
 
         {/* Special Mission Bonus Card (6th Card to complete the layout) */}
-        <div className="surface-z2 border-standard hover:border-[var(--color-border-hover)] radius-card p-4.5 space-y-3.5 transition-all shadow-subtle">
+        <div className="surface-z2 border-standard border-hover radius-card p-4.5 space-y-3.5 transition-all shadow-subtle">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 radius-component bg-amber-subtle border border-amber-subtle flex items-center justify-center shrink-0">

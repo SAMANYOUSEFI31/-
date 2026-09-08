@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'motion/react';
 import { Cycle, CycleMetrics, SystemSettings, UserProfile } from '../types';
 import { toPersianDigits } from '../utils/numberUtils';
-import { THEME_PALETTES } from '../utils/themeUtils';
 import { haptics } from '../utils/haptics';
 import { soundFX } from '../utils/audioEffects';
 import { 
@@ -178,9 +177,6 @@ const NavbarComponent: React.FC<NavbarProps> = ({
     { id: 'profile', label: 'بیشتر', icon: Menu },
   ];
 
-  const currentTheme = userProfile.accentTheme || settings.accentTheme || 'amber';
-  const themeConfig = THEME_PALETTES[currentTheme] || THEME_PALETTES.amber;
-
   const handleTabClick = (tabId: string) => {
     if (tabId !== activeTab) {
       haptics.lightTap();
@@ -285,8 +281,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-2 sm:gap-3.5 min-w-0 shrink">
               <div className="flex items-center gap-2 shrink-0">
                 <div
-                  className="h-8 w-8 sm:h-9 sm:w-9 radius-component flex items-center justify-center text-[var(--color-canvas-root)] font-black shadow-subtle text-sm sm:text-base shrink-0 select-none pointer-events-none"
-                  style={{ backgroundColor: themeConfig.colorHex }}
+                  className="h-8 w-8 sm:h-9 sm:w-9 radius-component flex items-center justify-center bg-crimson text-white font-black shadow-subtle text-sm sm:text-base shrink-0 select-none pointer-events-none"
                 >
                   武
                 </div>
@@ -309,7 +304,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                   aria-expanded={isCycleDropdownOpen}
                   aria-haspopup="true"
                   aria-label={`انتخاب چرخه، چرخه فعلی: ${currentCycle ? currentCycle.title : 'تعریف نشده'}`}
-                  className="h-8 sm:h-9 min-w-[44px] surface-z1 hover:bg-[var(--color-border-subtle)] active:bg-[var(--color-border-hover)] border-standard radius-component px-2 sm:px-2.5 text-xs text-role-primary inline-flex items-center justify-center gap-1 sm:gap-1.5 transition cursor-pointer shrink-0 touch-manipulation relative z-50 focus-ring-tactical"
+                  className="h-8 sm:h-9 min-w-[44px] surface-z1 hover:surface-z2 active:surface-z3 border-standard radius-component px-2 sm:px-2.5 text-xs text-role-primary inline-flex items-center justify-center gap-1 sm:gap-1.5 transition cursor-pointer shrink-0 touch-manipulation relative z-50 focus-ring-tactical"
                 >
                   <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 radius-capsule shrink-0 ${currentCycle ? 'bg-emerald' : 'bg-amber'}`}></span>
                   <span className="font-bold whitespace-nowrap text-[11px] sm:text-xs">
@@ -361,7 +356,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                                   isCurrent ? 'text-emerald font-bold surface-z2' : 'text-role-secondary hover:text-role-primary'
                                 }`}
                               >
-                                <span className={`w-1.5 h-1.5 radius-capsule shrink-0 ${isCurrent ? 'bg-emerald' : 'bg-[var(--color-text-muted)]'}`} />
+                                <span className={`w-1.5 h-1.5 radius-capsule shrink-0 ${isCurrent ? 'bg-emerald' : 'bg-text-muted'}`} />
                                 <span className="truncate flex-1">{c.title}</span>
                                 {c.isArchived && (
                                   <span className="text-[9px] surface-z1 text-role-muted px-1.5 py-0.5 radius-badge shrink-0 border-standard">
@@ -408,7 +403,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                             setConfirmDeleteCycleId(null);
                             onOpenNewCycleModal();
                           }}
-                          className="w-full py-2.5 min-h-[44px] px-3 bg-amber hover:brightness-110 text-[var(--color-canvas-root)] radius-component text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-subtle active:scale-[0.98] touch-manipulation focus-ring-tactical"
+                          className="w-full py-2.5 min-h-[44px] px-3 bg-amber hover:brightness-110 text-canvas-root radius-component text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-subtle active:scale-[0.98] touch-manipulation focus-ring-tactical"
                         >
                           <Plus className="w-4 h-4" />
                           <span>+ تعریف چرخه جدید ۹۰ روزه</span>
@@ -421,7 +416,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                           setConfirmDeleteCycleId(null);
                           onSelectTab('archives');
                         }}
-                        className="w-full py-2.5 min-h-[44px] px-3 surface-z1 hover:bg-[var(--color-border-subtle)] text-role-secondary hover:text-role-primary border-standard radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation focus-ring-tactical"
+                        className="w-full py-2.5 min-h-[44px] px-3 surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-standard radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation focus-ring-tactical"
                       >
                         <Archive className="w-3.5 h-3.5 text-role-muted" />
                         <span>کارنامه و بایگانی چرخه‌ها</span>
@@ -456,17 +451,12 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                         <motion.div
                           layoutId={shouldReduceMotion ? undefined : "desktopActiveTabIndicator"}
                           layout={shouldReduceMotion ? false : "position"}
-                          className="absolute inset-0 radius-component -z-10 shadow-subtle border pointer-events-none"
-                          style={{
-                            backgroundColor: themeConfig.bgSubtle,
-                            borderColor: `${themeConfig.colorHex}50`
-                          }}
+                          className="absolute inset-0 radius-component -z-10 shadow-subtle border pointer-events-none bg-crimson-subtle border-crimson-subtle"
                           transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 450, damping: 35 }}
                         />
                       )}
                       <Icon 
-                        className="w-4 h-4 transition-colors shrink-0"
-                        style={{ color: isActive ? themeConfig.colorHex : undefined }}
+                        className={`w-4 h-4 transition-colors shrink-0 ${isActive ? 'text-crimson' : 'text-role-secondary'}`}
                       />
                       <span className="whitespace-nowrap leading-none">{tab.label}</span>
 
@@ -500,7 +490,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       onSelectTab('battlefield');
                     }
                   }}
-                  className="h-8 sm:h-9 min-w-[44px] bg-debt-subtle border border-debt hover:bg-[var(--color-accent-red-bg)] text-debt px-2 sm:px-2.5 radius-component text-[10px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer animate-pulse motion-reduce:animate-none shrink-0 shadow-subtle transition touch-manipulation focus-ring-tactical"
+                  className="h-8 sm:h-9 min-w-[44px] bg-debt-subtle border border-debt hover:bg-debt-subtle text-debt px-2 sm:px-2.5 radius-component text-[10px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer animate-pulse motion-reduce:animate-none shrink-0 shadow-subtle transition touch-manipulation focus-ring-tactical"
                   title="کلیک برای کالبدشکافی و تسویه فوری بدهی"
                 >
                   <AlertTriangle className="w-3.5 h-3.5 text-debt shrink-0" />
@@ -523,7 +513,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={onOpenPaymentModal}
-                  className="h-8 sm:h-9 min-w-[44px] bg-amber-subtle hover:bg-amber/20 border border-amber-subtle hover:border-amber text-amber px-2 sm:px-2.5 radius-component text-[11px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shadow-subtle shrink-0 transition active:scale-95 touch-manipulation focus-ring-tactical"
+                  className="h-8 sm:h-9 min-w-[44px] bg-amber-subtle hover:bg-amber-subtle border border-amber-subtle hover:border-amber text-amber px-2 sm:px-2.5 radius-component text-[11px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shadow-subtle shrink-0 transition active:scale-95 touch-manipulation focus-ring-tactical"
                   title="حساب سامورایی ویژه فعال است - کلیک برای مدیریت"
                 >
                   <Crown className="w-3.5 h-3.5 text-amber shrink-0" />
@@ -536,7 +526,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={() => onSelectTab('admin')}
-                  className={`h-8 sm:h-9 min-w-[44px] bg-debt-subtle border border-debt hover:bg-[var(--color-accent-red-bg)] text-debt px-2 sm:px-2.5 radius-component text-[10px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer transition shrink-0 touch-manipulation focus-ring-tactical ${
+                  className={`h-8 sm:h-9 min-w-[44px] bg-debt-subtle border border-debt hover:bg-debt-subtle text-debt px-2 sm:px-2.5 radius-component text-[10px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer transition shrink-0 touch-manipulation focus-ring-tactical ${
                     activeTab === 'admin' ? 'bg-debt text-role-primary border-debt shadow-subtle' : ''
                   }`}
                   title="ورود به پنل مدیریت"
@@ -584,17 +574,12 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       <motion.div
                         layoutId={shouldReduceMotion ? undefined : "activeTabIndicator"}
                         layout={shouldReduceMotion ? false : "position"}
-                        className="absolute inset-0 radius-component border pointer-events-none"
-                        style={{
-                          backgroundColor: themeConfig.bgSubtle,
-                          borderColor: `${themeConfig.colorHex}50`
-                        }}
+                        className="absolute inset-0 radius-component border pointer-events-none bg-crimson-subtle border-crimson-subtle"
                         transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 450, damping: 35, mass: 0.7 }}
                       />
                     )}
                     <Icon 
-                      className="w-5 h-5 relative z-10 transition-colors motion-fast" 
-                      style={{ color: isActive ? themeConfig.colorHex : undefined }}
+                      className={`w-5 h-5 relative z-10 transition-colors motion-fast ${isActive ? 'text-crimson' : 'text-role-secondary'}`} 
                     />
 
                     {hasDebtAlert && !isActive && (
@@ -623,8 +608,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                   </div>
 
                   <span 
-                    className="h-3.5 text-[10.5px] tracking-tight mt-0.5 leading-none whitespace-nowrap transition-colors motion-fast flex items-center justify-center"
-                    style={{ color: isActive ? themeConfig.colorHex : undefined }}
+                    className={`h-3.5 text-[10.5px] tracking-tight mt-0.5 leading-none whitespace-nowrap transition-colors motion-fast flex items-center justify-center ${isActive ? 'text-crimson font-bold' : 'text-role-secondary'}`}
                   >
                     {tab.label}
                   </span>

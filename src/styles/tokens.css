@@ -234,6 +234,14 @@
   background-color: var(--color-card-floating) !important;
 }
 
+.hover\:bg-amber-subtle:hover {
+  background-color: var(--color-accent-amber-bg) !important;
+}
+
+.hover\:bg-debt-subtle:hover {
+  background-color: var(--color-accent-red-bg) !important;
+}
+
 /* Standard Border Utilities */
 .border-standard {
   border: 1px solid var(--color-border-subtle) !important;
@@ -262,6 +270,18 @@
 
 .text-role-disabled {
   color: var(--color-text-disabled) !important;
+}
+
+.text-canvas-root {
+  color: var(--color-canvas-root) !important;
+}
+
+.bg-text-muted {
+  background-color: var(--color-text-muted) !important;
+}
+
+.ring-offset-canvas-root {
+  --tw-ring-offset-color: var(--color-canvas-root) !important;
 }
 
 /* Semantic Accent Text Roles */

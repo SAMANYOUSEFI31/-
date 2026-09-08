@@ -76,7 +76,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             ref={cancelButtonRef}
             type="button"
             onClick={onClose}
-            className="surface-z1 hover:bg-[var(--color-border-subtle)] text-role-secondary hover:text-role-primary border-standard px-4 py-2.5 radius-component text-xs font-bold transition cursor-pointer focus-ring-tactical"
+            className="surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-standard px-4 py-2.5 radius-component text-xs font-bold transition cursor-pointer focus-ring-tactical"
           >
             انصراف
           </button>

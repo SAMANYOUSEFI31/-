@@ -51,9 +51,9 @@ export const OnboardingWelcomeView: React.FC<OnboardingWelcomeViewProps> = ({
           <button
             type="button"
             onClick={onOpenCreateCycle}
-            className="w-full sm:w-auto bg-amber hover:brightness-110 active:brightness-90 text-[var(--color-canvas-root)] font-black text-xs sm:text-sm px-6 py-3.5 radius-card inline-flex items-center justify-center gap-2 shadow-subtle transition cursor-pointer active:scale-95 focus-ring-tactical"
+            className="w-full sm:w-auto bg-amber hover:brightness-110 active:brightness-90 text-canvas-root font-black text-xs sm:text-sm px-6 py-3.5 radius-card inline-flex items-center justify-center gap-2 shadow-subtle transition cursor-pointer active:scale-95 focus-ring-tactical"
           >
-            <Sparkles className="w-4 h-4 text-[var(--color-canvas-root)]" />
+            <Sparkles className="w-4 h-4 text-canvas-root" />
             <span>تعریف اولین چرخه ۹۰ روزه نبرد</span>
           </button>
 

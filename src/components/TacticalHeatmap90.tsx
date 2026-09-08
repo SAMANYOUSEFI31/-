@@ -43,36 +43,36 @@ const TacticalHeatmap90Component: React.FC<TacticalHeatmap90Props> = ({
       const isPast = dateStr < logicalToday;
       const isFuture = dateStr > logicalToday;
 
-      let bgClass = 'surface-z1 text-role-muted border-standard hover:border-[var(--color-border-hover)] hover:text-role-secondary';
+      let bgClass = 'surface-z1 text-role-muted border-standard border-hover hover:text-role-secondary';
       let title = `روز ${toPersianDigits(dayNumber)} (${formatPersianDate(dateStr, { short: true })}): بدون داده`;
 
       if (isToday) {
         if (computed && computed.statusType === 'standard') {
           if (computed.score === 10) {
-            bgClass = 'bg-amber text-[var(--color-canvas-root)] border-amber font-black shadow-subtle ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-canvas-root)] scale-105 z-10';
+            bgClass = 'bg-amber text-canvas-root border-amber font-black shadow-subtle ring-2 ring-amber ring-offset-2 ring-offset-canvas-root scale-105 z-10';
             title = `روز ${toPersianDigits(dayNumber)} (امروز): کمال تعهد ۱۰ از ۱۰ (۵ پایه + ماموریت ویژه)`;
           } else {
-            bgClass = 'bg-emerald text-[var(--color-canvas-root)] border-emerald font-bold shadow-subtle ring-2 ring-emerald ring-offset-2 ring-offset-[var(--color-canvas-root)] scale-105 z-10';
+            bgClass = 'bg-emerald text-canvas-root border-emerald font-bold shadow-subtle ring-2 ring-emerald ring-offset-2 ring-offset-canvas-root scale-105 z-10';
             title = `روز ${toPersianDigits(dayNumber)} (امروز): روز استاندارد ۸ از ۱۰ (۵ پایه کامل)`;
           }
         } else if (computed && computed.statusType === 'personal_frozen') {
-          bgClass = 'bg-blue text-role-primary border-blue ring-2 ring-blue ring-offset-2 ring-offset-[var(--color-canvas-root)] scale-105 z-10';
+          bgClass = 'bg-blue text-role-primary border-blue ring-2 ring-blue ring-offset-2 ring-offset-canvas-root scale-105 z-10';
           title = `روز ${toPersianDigits(dayNumber)} (امروز): توقف اضطراری (فریز)`;
         } else {
           // Today in progress (neutral zinc token with amber active battle ring)
           const habitsDone = computed ? computed.habitsCount : 0;
-          bgClass = 'surface-z2 text-role-primary border-standard ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-canvas-root)] font-black scale-105 z-10 shadow-subtle';
+          bgClass = 'surface-z2 text-role-primary border-standard ring-2 ring-amber ring-offset-2 ring-offset-canvas-root font-black scale-105 z-10 shadow-subtle';
           title = `روز ${toPersianDigits(dayNumber)} (امروز نبرد جاری): در حال اجرا (${toPersianDigits(habitsDone)} از ۵ پایه)`;
         }
       } else if (computed) {
         if (computed.statusType === 'standard') {
           if (computed.score === 10) {
             // 10/10 Gold / Amber Mastery Day
-            bgClass = 'bg-amber text-[var(--color-canvas-root)] border-amber font-black shadow-subtle ring-1 ring-amber-subtle';
+            bgClass = 'bg-amber text-canvas-root border-amber font-black shadow-subtle ring-1 ring-amber-subtle';
             title = `روز ${toPersianDigits(dayNumber)} (${formatPersianDate(dateStr, { short: true })}): کمال تعهد ۱۰ از ۱۰ (۵ پایه + ماموریت ویژه)`;
           } else {
             // 8/10 Emerald Standard Day
-            bgClass = 'bg-emerald text-[var(--color-canvas-root)] border-emerald font-bold shadow-subtle';
+            bgClass = 'bg-emerald text-canvas-root border-emerald font-bold shadow-subtle';
             title = `روز ${toPersianDigits(dayNumber)} (${formatPersianDate(dateStr, { short: true })}): روز استاندارد ۸ از ۱۰ (۵ پایه کامل)`;
           }
         } else if (computed.statusType === 'personal_frozen') {
@@ -103,7 +103,7 @@ const TacticalHeatmap90Component: React.FC<TacticalHeatmap90Props> = ({
   return (
     <div className="w-full max-w-full surface-z1 border-standard radius-card sm:radius-modal p-3.5 sm:p-5 md:p-7 shadow-subtle space-y-4 sm:space-y-5 overflow-hidden" dir="rtl">
       {/* Header & Unified Summary */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 border-b border-[var(--color-border-subtle)] pb-3.5 sm:pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 border-b border-standard pb-3.5 sm:pb-5">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 sm:w-12 sm:h-12 radius-component surface-z2 border-standard flex items-center justify-center text-role-primary shadow-subtle shrink-0">
             <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-role-primary" />

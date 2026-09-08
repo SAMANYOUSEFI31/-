@@ -332,7 +332,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                     <button
                       type="button"
                       onClick={onOpenPaymentModal}
-                      className="w-full bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-xs py-3 radius-card flex items-center justify-center gap-2 shadow-subtle transition cursor-pointer active:scale-[0.98] whitespace-nowrap focus-ring-tactical"
+                      className="w-full bg-amber hover:brightness-110 text-canvas-root font-black text-xs py-3 radius-card flex items-center justify-center gap-2 shadow-subtle transition cursor-pointer active:scale-[0.98] whitespace-nowrap focus-ring-tactical"
                     >
                       <Crown className="w-4 h-4" />
                       <span>ارتقا به حساب سامورایی ویژه (VIP)</span>
@@ -373,7 +373,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                       <button
                         type="button"
                         onClick={onOpenAuthModal}
-                        className="w-full bg-amber hover:brightness-110 text-[var(--color-canvas-root)] text-xs font-black py-3 radius-card flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-[0.98] whitespace-nowrap shadow-subtle focus-ring-tactical"
+                        className="w-full bg-amber hover:brightness-110 text-canvas-root text-xs font-black py-3 radius-card flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-[0.98] whitespace-nowrap shadow-subtle focus-ring-tactical"
                       >
                         <LogIn className="w-4 h-4" />
                         <span>ورود یا ایجاد حساب کاربری</span>
