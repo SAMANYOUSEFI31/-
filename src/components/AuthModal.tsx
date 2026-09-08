@@ -476,7 +476,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]" 
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto max-h-[100dvh]" 
       dir="rtl"
     >
       <motion.div 
@@ -491,25 +491,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
         exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 15 }}
         transition={{ duration: shouldReduceMotion ? 0.05 : 0.2, ease: 'easeOut' }}
-        className="bg-[#1c1c21] border border-zinc-800 rounded-2xl sm:rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.5rem))] my-auto focus:outline-none"
+        className="surface-z3 border-standard radius-modal w-full max-w-md shadow-subtle overflow-hidden flex flex-col max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.5rem))] my-auto focus:outline-none"
       >
         {/* Header */}
-        <div className="px-5 sm:px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-[#1c1c21] shrink-0">
+        <div className="px-5 sm:px-6 py-4 border-b border-standard flex items-center justify-between surface-z3 shrink-0">
           <div className="flex items-center gap-3">
             {/* 5-click easter egg on KeyRound icon for developer bypass */}
             <button
               type="button"
               onClick={handleSecretIconClick}
-              className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-600 flex items-center justify-center text-black font-black shadow-lg shadow-amber-500/20 active:scale-90 motion-reduce:transform-none transition-transform cursor-pointer focus:outline-none shrink-0"
+              className="w-10 h-10 radius-component bg-amber flex items-center justify-center text-black font-black shadow-subtle active:scale-90 motion-reduce:transform-none transition-transform cursor-pointer focus-ring-tactical shrink-0"
               title="ورود سامورایی"
             >
               <Smartphone className="w-5 h-5 text-black" />
             </button>
             <div className="min-w-0">
-              <h2 id="auth-title" className="text-sm sm:text-base font-black text-white truncate">
+              <h2 id="auth-title" className="text-sm sm:text-base font-black text-role-primary truncate">
                 {currentUser?.id ? 'پروفایل و حساب کاربری' : 'مرام‌نامه رزمندگان بوشیدو'}
               </h2>
-              <p id="auth-description" className="text-[11px] sm:text-xs text-zinc-400 truncate">
+              <p id="auth-description" className="text-[11px] sm:text-xs text-role-secondary truncate">
                 احراز هویت پیامکی امن، ورود با شماره موبایل و رمز عبور
               </p>
             </div>
@@ -517,7 +517,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-zinc-800/80 hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition cursor-pointer shrink-0 touch-manipulation"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-standard flex items-center justify-center transition cursor-pointer shrink-0 touch-manipulation focus-ring-tactical"
             aria-label="بستن"
           >
             <X className="w-5 h-5" />
@@ -526,7 +526,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Navigation Tabs (Only when not logged in) */}
         {!currentUser?.id && (
-          <div role="tablist" aria-label="شیوه‌های احراز هویت" className="px-5 sm:px-6 pt-4 pb-2 bg-[#18181b]/70 border-b border-zinc-800/50 flex gap-2">
+          <div role="tablist" aria-label="شیوه‌های احراز هویت" className="px-5 sm:px-6 pt-4 pb-2 surface-z2/70 border-b border-standard flex gap-2">
             <button
               id="auth-tab-login"
               type="button"
@@ -536,10 +536,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               tabIndex={activeTab === 'login' ? 0 : -1}
               onKeyDown={handleTabKeyDown}
               onClick={() => switchTab('login')}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              className={`flex-1 py-2 radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical ${
                 activeTab === 'login'
-                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                  : 'bg-zinc-800/60 text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-amber text-black shadow-subtle'
+                  : 'surface-z1 text-role-secondary hover:text-role-primary border-standard'
               }`}
             >
               <LogIn className="w-3.5 h-3.5" />
@@ -555,10 +555,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               tabIndex={activeTab === 'register' ? 0 : -1}
               onKeyDown={handleTabKeyDown}
               onClick={() => switchTab('register')}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              className={`flex-1 py-2 radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical ${
                 activeTab === 'register'
-                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                  : 'bg-zinc-800/60 text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-amber text-black shadow-subtle'
+                  : 'surface-z1 text-role-secondary hover:text-role-primary border-standard'
               }`}
             >
               <UserPlus className="w-3.5 h-3.5" />
@@ -574,10 +574,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               tabIndex={activeTab === 'forgot' ? 0 : -1}
               onKeyDown={handleTabKeyDown}
               onClick={() => switchTab('forgot')}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              className={`flex-1 py-2 radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical ${
                 activeTab === 'forgot'
-                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                  : 'bg-zinc-800/60 text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-amber text-black shadow-subtle'
+                  : 'surface-z1 text-role-secondary hover:text-role-primary border-standard'
               }`}
             >
               <RotateCcw className="w-3.5 h-3.5" />

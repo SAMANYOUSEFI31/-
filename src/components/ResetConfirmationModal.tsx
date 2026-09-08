@@ -37,7 +37,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]"
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto max-h-[100dvh]"
       dir="rtl"
     >
       <div
@@ -47,17 +47,17 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
         aria-labelledby="reset-confirmation-title"
         aria-describedby="reset-confirmation-description"
         tabIndex={-1}
-        className="bg-[#1c1c21] border border-red-500/40 rounded-3xl w-full max-w-md p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 motion-reduce:animate-none duration-150 my-auto focus:outline-none"
+        className="surface-z3 border border-debt-subtle radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast my-auto focus:outline-none"
       >
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shrink-0">
+          <div className="w-12 h-12 radius-component bg-debt-subtle border border-debt flex items-center justify-center text-debt shrink-0">
             <RotateCcw className="w-6 h-6" />
           </div>
           <div>
-            <h3 id="reset-confirmation-title" className="font-bold text-base text-zinc-100">
+            <h3 id="reset-confirmation-title" className="font-bold text-base text-role-primary">
               بازنشانی داده‌های سامانه
             </h3>
-            <p className="text-xs text-red-400 mt-0.5 flex items-center gap-1">
+            <p className="text-xs text-debt mt-0.5 flex items-center gap-1">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
               <span>بازگشت به مقادیر اولیه سیستم بوشیدو</span>
             </p>
@@ -66,7 +66,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
 
         <p
           id="reset-confirmation-description"
-          className="text-xs text-zinc-300 leading-relaxed bg-[#18181b] border border-zinc-800 rounded-2xl p-4 text-right"
+          className="text-xs text-role-secondary leading-relaxed surface-z2 border-standard radius-card p-4 text-right"
         >
           آیا از بازنشانی کلیه داده‌ها، لاگ‌ها و چرخه‌ها به اطلاعات نمونه اولیه سیستم بوشیدو اطمینان دارید؟ تمام تغییرات ثبت‌شده محلی پاک خواهند شد.
         </p>
@@ -76,14 +76,14 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             ref={cancelButtonRef}
             type="button"
             onClick={onClose}
-            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer focus-visible:outline-2 focus-visible:outline-zinc-300"
+            className="surface-z1 hover:bg-[var(--color-border-subtle)] text-role-secondary hover:text-role-primary border-standard px-4 py-2.5 radius-component text-xs font-bold transition cursor-pointer focus-ring-tactical"
           >
             انصراف
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="bg-red-600 hover:bg-red-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-red-600/30 transition cursor-pointer active:scale-95 focus-visible:outline-2 focus-visible:outline-red-400"
+            className="bg-debt hover:bg-red-600 text-white font-bold px-5 py-2.5 radius-component text-xs flex items-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-95 focus-ring-tactical"
           >
             <RotateCcw className="w-4 h-4" />
             <span>بله، بازنشانی داده‌ها</span>

@@ -193,7 +193,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-2.5 sm:p-4 pt-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.5rem))] pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] overflow-y-auto" 
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-2.5 sm:p-4 pt-safe pb-safe overflow-y-auto" 
       dir="rtl"
     >
       <div 
@@ -226,22 +226,22 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
         exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 15 }}
         transition={{ duration: shouldReduceMotion ? 0.01 : 0.2, ease: 'easeOut' }}
-        className="relative z-10 bg-[#1c1c21] border border-zinc-800 rounded-2xl sm:rounded-3xl w-full max-w-2xl text-zinc-100 shadow-2xl overflow-hidden flex flex-col max-h-[92dvh] my-auto focus:outline-none"
+        className="relative z-10 surface-z3 border-standard radius-modal w-full max-w-2xl text-role-primary shadow-subtle overflow-hidden flex flex-col max-h-[92dvh] my-auto focus:outline-none"
       >
         {/* STEP 1: PLANS SELECTION */}
         {step === 'plans' && (
           <div className="flex flex-col flex-1 overflow-hidden min-h-0">
             {/* Header */}
-            <div className="p-4 sm:p-6 bg-gradient-to-r from-amber-950/60 via-[#1c1c21] to-[#18181b] border-b border-zinc-800 flex items-center justify-between shrink-0">
+            <div className="p-4 sm:p-6 surface-z2 border-b border-standard flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5 sm:gap-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shadow-lg shrink-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 radius-component bg-amber-subtle text-amber border border-amber-subtle flex items-center justify-center shadow-subtle shrink-0">
                   <Crown className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
                 <div>
-                  <h2 id="payment-modal-title" className="text-sm sm:text-lg md:text-xl font-black text-zinc-100 flex items-center gap-2">
+                  <h2 id="payment-modal-title" className="text-sm sm:text-lg md:text-xl font-black text-role-primary flex items-center gap-2">
                     ارتقا به اشتراک «سامورایی ویژه VIP»
                   </h2>
-                  <p id="payment-modal-desc" className="text-[10px] sm:text-xs text-zinc-400 mt-0.5">
+                  <p id="payment-modal-desc" className="text-[10px] sm:text-xs text-role-secondary mt-0.5">
                     فعال‌سازی تمامی ابزارهای مهندسی دیسیپلین، آنالیز و صدور گواهینامه
                   </p>
                 </div>
@@ -250,7 +250,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 type="button"
                 onClick={onClose}
                 disabled={isLoading}
-                className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition cursor-pointer shrink-0 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-amber-400"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-role-secondary hover:text-role-primary radius-component hover:bg-[var(--color-border-subtle)] transition cursor-pointer shrink-0 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
                 aria-label="بستن"
               >
                 <X className="w-5 h-5" />

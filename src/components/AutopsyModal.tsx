@@ -188,7 +188,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]"
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto max-h-[100dvh]"
     >
       <motion.div 
         ref={containerRef}
@@ -202,20 +202,20 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
         animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
         exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 15 }}
         transition={{ duration: shouldReduceMotion ? 0.05 : 0.2, ease: 'easeOut' }}
-        className="my-auto max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.5rem))] w-full max-w-2xl bg-[#1c1c21] border border-zinc-800 rounded-2xl sm:rounded-3xl text-zinc-100 shadow-2xl flex flex-col overflow-hidden focus:outline-none"
+        className="my-auto max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.5rem))] w-full max-w-2xl surface-z3 border-standard radius-modal text-role-primary shadow-subtle flex flex-col overflow-hidden focus:outline-none"
         dir="rtl"
       >
         {/* Sticky Modal Header */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#1c1c21]/95 border-b border-zinc-800 flex items-center justify-between shrink-0 sticky top-0 z-20 backdrop-blur-md">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 surface-z3/95 border-b border-standard flex items-center justify-between shrink-0 sticky top-0 z-20 backdrop-blur-md">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 ${isPersonalFrozen ? 'bg-blue-500/20 text-blue-400' : 'bg-red-500/20 text-red-400'}`}>
+            <div className={`w-9 h-9 sm:w-10 sm:h-10 radius-component flex items-center justify-center shrink-0 ${isPersonalFrozen ? 'bg-blue-subtle text-blue border border-blue-subtle' : 'bg-debt-subtle text-debt border border-debt-subtle'}`}>
               {isPersonalFrozen ? <Snowflake className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
             </div>
             <div className="min-w-0">
-              <h2 id="autopsy-title" className="font-bold text-sm sm:text-base md:text-lg text-zinc-100 flex items-center gap-1.5 truncate">
+              <h2 id="autopsy-title" className="font-bold text-sm sm:text-base md:text-lg text-role-primary flex items-center gap-1.5 truncate">
                 کالبدشکافی {formatPersianDate(log.date, { withWeekday: true })}
               </h2>
-              <p id="autopsy-description" className="text-[11px] sm:text-xs text-zinc-400 truncate">
+              <p id="autopsy-description" className="text-[11px] sm:text-xs text-role-secondary truncate">
                 ثبت علت و پادزهر رفتاری جهت تسویه بدهی و باز شدن قفل اجرا
               </p>
             </div>
@@ -223,7 +223,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition cursor-pointer shrink-0 touch-manipulation"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-role-secondary hover:text-role-primary radius-component hover:bg-[var(--color-border-subtle)] transition cursor-pointer shrink-0 touch-manipulation focus-ring-tactical"
             aria-label="بستن"
           >
             <X className="w-5 h-5" />
@@ -232,9 +232,9 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
 
         {/* Debt Day Switcher Carousel (If user has multiple unresolved debts) */}
         {hasMultipleDebts && (
-          <div className="bg-red-950/40 border-b border-red-900/40 px-4 py-2 flex items-center justify-between gap-2 text-xs" role="region" aria-label="انتخاب روزهای بدهی">
-            <div className="flex items-center gap-1.5 text-red-300 font-bold">
-              <ListOrdered className="w-4 h-4 text-red-400" />
+          <div className="bg-debt-subtle border-b border-debt-subtle px-4 py-2 flex items-center justify-between gap-2 text-xs" role="region" aria-label="انتخاب روزهای بدهی">
+            <div className="flex items-center gap-1.5 text-debt font-bold">
+              <ListOrdered className="w-4 h-4 text-debt" />
               <span>بدهی {toPersianDigits(currentIndex + 1)} از {toPersianDigits(totalDebts)}:</span>
             </div>
 
@@ -247,10 +247,10 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                     type="button"
                     onClick={() => onSelectLog(item)}
                     aria-current={isSelected ? 'true' : undefined}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap cursor-pointer ${
+                    className={`px-2.5 py-1 radius-control text-[11px] font-bold transition whitespace-nowrap cursor-pointer focus-ring-tactical ${
                       isSelected
-                        ? 'bg-red-600 text-white shadow-sm'
-                        : 'bg-[#18181b] text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+                        ? 'bg-debt text-white shadow-subtle'
+                        : 'surface-z1 text-role-secondary hover:text-role-primary border-standard'
                     }`}
                   >
                     {formatPersianDate(item.date, { short: true })}

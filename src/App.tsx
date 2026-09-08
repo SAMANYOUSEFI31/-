@@ -1517,31 +1517,31 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col w-full max-w-full selection:bg-amber-500 selection:text-black">
+      <div className="min-h-screen surface-z0 text-role-primary flex flex-col w-full max-w-full selection:bg-amber selection:text-black">
         {/* Skip Link for direct keyboard navigation to main content */}
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:right-3 focus:z-[100] focus:px-4 focus:py-2.5 focus:bg-amber-500 focus:text-zinc-950 focus:font-black focus:text-xs focus:rounded-xl focus:shadow-2xl focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-zinc-900 transition-none"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:right-3 focus:z-[100] focus:px-4 focus:py-2.5 focus:bg-amber focus:text-zinc-950 focus:font-black focus:text-xs focus:radius-component focus:shadow-subtle focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-zinc-900 transition-none"
         >
           پرش به محتوای اصلی
         </a>
 
         {/* Top Banner when Admin is Impersonating a User */}
         {impersonatingUser && (
-          <div className="bg-sky-950 border-b border-sky-500/50 py-2.5 px-4 sticky top-0 z-50 shadow-2xl backdrop-blur-md">
+          <div className="bg-blue-subtle border-b border-blue py-2.5 px-4 sticky top-0 z-50 shadow-subtle backdrop-blur-md">
             <div className="max-w-7xl w-full mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
-              <div className="flex items-center gap-2 text-sky-200 font-bold">
-                <Eye className="w-4 h-4 text-sky-400 animate-pulse motion-reduce:animate-none shrink-0" />
+              <div className="flex items-center gap-2 text-blue font-bold">
+                <Eye className="w-4 h-4 text-blue animate-pulse motion-reduce:animate-none shrink-0" />
                 <span>
                   حالت شبیه‌سازی کاربر: در حال بررسی سامانه از دید «{impersonatingUser.name}»
                 </span>
-                <span className="text-[10px] bg-sky-900/80 text-sky-300 border border-sky-500/40 px-2 py-0.5 rounded-md font-mono hidden md:inline-block">
+                <span className="text-[10px] surface-z1 text-blue border border-blue-subtle px-2 py-0.5 radius-badge font-mono hidden md:inline-block">
                   {impersonatingUser.id}
                 </span>
               </div>
               <button
                 onClick={handleExitImpersonation}
-                className="bg-sky-500 hover:bg-sky-400 text-zinc-950 font-black text-xs px-3.5 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shrink-0 active:scale-95"
+                className="bg-blue hover:bg-blue-400 text-zinc-950 font-black text-xs px-3.5 py-1.5 radius-component transition cursor-pointer flex items-center gap-1.5 shadow-subtle shrink-0 active:scale-95 focus-ring-tactical"
               >
                 <ShieldCheck className="w-4 h-4 text-zinc-950" />
                 <span>بازگشت به حساب مدیریت</span>
