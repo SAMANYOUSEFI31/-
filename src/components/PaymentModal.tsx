@@ -274,39 +274,39 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       aria-checked={isSelected}
                       onClick={() => setSelectedPlan(plan)}
                       onKeyDown={(e) => handlePlanKeyDown(e, index)}
-                      className={`text-right w-full rounded-2xl p-4 sm:p-5 border-2 transition-all cursor-pointer relative flex flex-col justify-between focus-visible:outline-2 focus-visible:outline-amber-400 ${
+                      className={`text-right w-full radius-card p-4 sm:p-5 border-2 transition-all cursor-pointer relative flex flex-col justify-between focus-ring-tactical ${
                         isSelected
-                          ? 'bg-amber-950/30 border-amber-500 shadow-xl shadow-amber-500/10'
-                          : 'bg-[#18181b] border-zinc-800 hover:border-zinc-700'
+                          ? 'bg-amber-subtle border-amber shadow-subtle'
+                          : 'surface-z2 border-standard hover:border-interactive-hover'
                       }`}
                     >
                       {plan.isPopular && (
-                        <div className="absolute -top-3 left-4 bg-amber-500 text-black text-[10px] font-black px-2.5 py-0.5 rounded-full shadow">
+                        <div className="absolute -top-3 left-4 bg-amber text-black text-[10px] font-black px-2.5 py-0.5 radius-badge shadow-subtle">
                           {plan.badgeFa}
                         </div>
                       )}
 
                       <div className="space-y-2.5 sm:space-y-3 w-full">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs sm:text-sm text-zinc-100">{plan.title}</span>
+                          <span className="font-bold text-xs sm:text-sm text-role-primary">{plan.title}</span>
                           <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            isSelected ? 'border-amber-400 bg-amber-400 text-black' : 'border-zinc-600'
+                            isSelected ? 'border-amber bg-amber text-black' : 'border-standard'
                           }`}>
                             {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                           </div>
                         </div>
 
                         <div className="flex items-baseline gap-1">
-                          <span className="text-xl sm:text-3xl font-black font-mono text-amber-400">
+                          <span className="text-xl sm:text-3xl font-black font-mono text-amber">
                             {plan.formattedPrice}
                           </span>
-                          <span className="text-xs text-zinc-400">تومان</span>
+                          <span className="text-xs text-role-secondary">تومان</span>
                         </div>
 
-                        <ul className="space-y-1.5 sm:space-y-2 pt-2 border-t border-zinc-800/80 text-[11px] sm:text-xs text-zinc-300">
+                        <ul className="space-y-1.5 sm:space-y-2 pt-2 border-t border-standard text-[11px] sm:text-xs text-role-secondary">
                           {plan.features.map((feat, i) => (
                             <li key={i} className="flex items-start gap-1.5 sm:gap-2">
-                              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                              <Check className="w-3.5 h-3.5 text-emerald shrink-0 mt-0.5" />
                               <span>{feat}</span>
                             </li>
                           ))}
@@ -318,12 +318,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
 
               {/* Secure Payment Note */}
-              <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-3 sm:p-4 flex items-center justify-between text-xs text-zinc-400">
+              <div className="surface-z2 border-standard radius-card p-3 sm:p-4 flex items-center justify-between text-xs text-role-secondary">
                 <div className="flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-emerald-400 shrink-0" aria-hidden="true" />
+                  <Lock className="w-4 h-4 text-emerald shrink-0" aria-hidden="true" />
                   <span className="text-[11px] sm:text-xs">پرداخت امن از طریق درگاه رسمی بانکی</span>
                 </div>
-                <span className="text-[10px] sm:text-[11px] text-zinc-500 shrink-0">
+                <span className="text-[10px] sm:text-[11px] text-role-muted shrink-0">
                   تضمین اصالت دیوان
                 </span>
               </div>
@@ -332,9 +332,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <div 
                   role="alert" 
                   aria-live="assertive"
-                  className="bg-red-950/60 border border-red-500/40 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2"
+                  className="bg-debt-subtle border border-debt-subtle radius-component p-3 text-xs text-debt flex items-center gap-2"
                 >
-                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" aria-hidden="true" />
+                  <AlertCircle className="w-4 h-4 text-debt shrink-0" aria-hidden="true" />
                   <span>{paymentError}</span>
                 </div>
               )}
@@ -345,7 +345,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={onClose}
                   disabled={isLoading}
-                  className="px-4 py-2.5 sm:px-5 sm:py-2.5 min-h-[44px] rounded-xl text-zinc-400 hover:text-white text-xs font-semibold cursor-pointer touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-zinc-400"
+                  className="px-4 py-2.5 sm:px-5 sm:py-2.5 min-h-[44px] radius-component text-role-secondary hover:text-role-primary text-xs font-semibold cursor-pointer touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
                 >
                   انصراف
                 </button>
@@ -354,7 +354,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={handleStartPayment}
                   disabled={isLoading}
-                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs sm:text-sm px-5 py-2.5 sm:px-6 sm:py-3 rounded-2xl flex items-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-amber-400"
+                  className="bg-amber hover:brightness-110 text-black font-black text-xs sm:text-sm px-5 py-2.5 sm:px-6 sm:py-3 radius-card flex items-center gap-2 shadow-subtle transition cursor-pointer disabled:opacity-75 focus-ring-tactical"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2" aria-live="polite">
@@ -377,21 +377,21 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         {step === 'simulator' && (
           <div className="flex flex-col flex-1 overflow-hidden min-h-0">
             {/* Simulator Header */}
-            <div className="p-4 sm:p-5 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between shrink-0">
+            <div className="p-4 sm:p-5 surface-z2 border-b border-standard flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 radius-component bg-amber-subtle text-amber border border-amber-subtle flex items-center justify-center shrink-0">
                   <FlaskConical className="w-5 h-5" aria-hidden="true" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 id="payment-simulator-title" className="text-sm sm:text-base font-bold text-zinc-100">
+                    <h3 id="payment-simulator-title" className="text-sm sm:text-base font-bold text-role-primary">
                       شبیه‌ساز پرداخت (محیط توسعه)
                     </h3>
-                    <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">
+                    <span className="text-[10px] bg-amber-subtle text-amber border border-amber-subtle px-2 py-0.5 radius-badge font-mono">
                       DEV ONLY
                     </span>
                   </div>
-                  <p id="payment-simulator-desc" className="text-[11px] text-zinc-400 mt-0.5">
+                  <p id="payment-simulator-desc" className="text-[11px] text-role-secondary mt-0.5">
                     تست فنی تایید تراکنش و صدور اشتراک، بدون ورود داده‌های حساس بانکی
                   </p>
                 </div>
@@ -400,7 +400,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 type="button"
                 onClick={() => setStep('plans')}
                 disabled={isLoading}
-                className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-amber-400"
+                className="w-10 h-10 flex items-center justify-center text-role-secondary hover:text-role-primary radius-component hover:bg-[var(--color-border-subtle)] transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
                 aria-label="بازگشت به پلن‌ها"
               >
                 <X className="w-5 h-5" />
@@ -409,22 +409,22 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
             {/* Simulator Content */}
             <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1 min-h-0">
-              <div className="bg-[#121215] border border-zinc-800 rounded-2xl p-4 sm:p-5 space-y-3">
-                <div className="flex items-center justify-between text-xs border-b border-zinc-800/80 pb-2.5">
-                  <span className="text-zinc-400">بسته انتخابی:</span>
-                  <span className="font-bold text-zinc-200">{selectedPlan.title}</span>
+              <div className="surface-z2 border-standard radius-card p-4 sm:p-5 space-y-3">
+                <div className="flex items-center justify-between text-xs border-b border-standard pb-2.5">
+                  <span className="text-role-secondary">بسته انتخابی:</span>
+                  <span className="font-bold text-role-primary">{selectedPlan.title}</span>
                 </div>
-                <div className="flex items-center justify-between text-xs border-b border-zinc-800/80 pb-2.5">
-                  <span className="text-zinc-400">مبلغ قابل تایید:</span>
-                  <span className="font-bold font-mono text-emerald-400 text-sm">{selectedPlan.formattedPrice} تومان</span>
+                <div className="flex items-center justify-between text-xs border-b border-standard pb-2.5">
+                  <span className="text-role-secondary">مبلغ قابل تایید:</span>
+                  <span className="font-bold font-mono text-emerald text-sm">{selectedPlan.formattedPrice} تومان</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">شناسه تراکنش دیوان:</span>
-                  <span dir="ltr" className="font-mono text-amber-400 text-[11px] break-all">{authority}</span>
+                  <span className="text-role-secondary">شناسه تراکنش دیوان:</span>
+                  <span dir="ltr" className="font-mono text-amber text-[11px] break-all">{authority}</span>
                 </div>
               </div>
 
-              <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 text-xs text-zinc-400 leading-relaxed">
+              <div className="surface-z2/60 border-standard radius-component p-3.5 text-xs text-role-secondary leading-relaxed">
                 <p>
                   این شبیه‌ساز تنها در محیط توسعه فعال است و هیچ‌گونه شماره کارت، رمز دوم یا کد اعتبارسنجی بانکی دریافت نمی‌کند. برای تکمیل چرخه و ارسال درخواست تایید به سرور، دکمه زیر را کلیک نمایید.
                 </p>
@@ -434,9 +434,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <div 
                   role="alert" 
                   aria-live="assertive"
-                  className="bg-red-950/60 border border-red-500/40 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2"
+                  className="bg-debt-subtle border border-debt-subtle radius-component p-3 text-xs text-debt flex items-center gap-2"
                 >
-                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" aria-hidden="true" />
+                  <AlertCircle className="w-4 h-4 text-debt shrink-0" aria-hidden="true" />
                   <span>{paymentError}</span>
                 </div>
               )}
@@ -447,7 +447,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={() => setStep('plans')}
                   disabled={isLoading}
-                  className="px-4 py-2.5 min-h-[44px] rounded-xl text-zinc-400 hover:text-white text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-zinc-400"
+                  className="px-4 py-2.5 min-h-[44px] radius-component text-role-secondary hover:text-role-primary text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
                 >
                   انصراف و بازگشت
                 </button>
@@ -456,7 +456,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={handleVerifyPayment}
                   disabled={isLoading}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm px-6 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-950 transition cursor-pointer active:scale-[0.98] disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-emerald-400"
+                  className="bg-emerald hover:brightness-110 text-black font-bold text-xs sm:text-sm px-6 py-2.5 radius-component flex items-center gap-2 shadow-subtle transition cursor-pointer active:scale-[0.98] disabled:opacity-75 focus-ring-tactical"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2" aria-live="polite">
@@ -482,44 +482,44 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             aria-live="polite" 
             className="p-6 sm:p-8 text-center space-y-5 sm:space-y-6 overflow-y-auto flex-1"
           >
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto shadow-xl shadow-emerald-950">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 radius-card bg-emerald-subtle text-emerald border border-emerald-subtle flex items-center justify-center mx-auto shadow-subtle">
               <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" aria-hidden="true" />
             </div>
 
             <div className="space-y-2">
-              <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full font-bold font-mono">
+              <span className="text-xs bg-amber-subtle text-amber border border-amber-subtle px-3 py-1 radius-badge font-bold font-mono">
                 👑 سامورایی ویژه (VIP Samurai) فعال شد
               </span>
-              <h2 id="payment-success-title" className="text-xl sm:text-2xl font-black text-zinc-100">
+              <h2 id="payment-success-title" className="text-xl sm:text-2xl font-black text-role-primary">
                 پرداخت با موفقیت انجام شد!
               </h2>
-              <p id="payment-success-desc" className="text-xs sm:text-sm text-zinc-300 max-w-md mx-auto leading-relaxed">
+              <p id="payment-success-desc" className="text-xs sm:text-sm text-role-secondary max-w-md mx-auto leading-relaxed">
                 دیوان عالی بوشیدو ارتقای سطح شما را به رسمیت شناخته و دسترسی نامحدود به تمامی امکانات فعال گردید.
               </p>
             </div>
 
             {/* Official Digital Receipt */}
-            <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-4 sm:p-5 max-w-md mx-auto text-xs space-y-3 font-mono text-zinc-300">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <span className="text-zinc-400 font-sans">شماره پیگیری تراکنش (RefID):</span>
-                <span dir="ltr" className="text-amber-400 font-bold">{receiptData.refId}</span>
+            <div className="surface-z2 border-standard radius-card p-4 sm:p-5 max-w-md mx-auto text-xs space-y-3 font-mono text-role-secondary">
+              <div className="flex items-center justify-between border-b border-standard pb-2">
+                <span className="text-role-muted font-sans">شماره پیگیری تراکنش (RefID):</span>
+                <span dir="ltr" className="text-amber font-bold">{receiptData.refId}</span>
               </div>
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <span className="text-zinc-400 font-sans">طرح اشتراک:</span>
-                <span className="text-zinc-100 font-sans font-bold">{selectedPlan.title}</span>
+              <div className="flex items-center justify-between border-b border-standard pb-2">
+                <span className="text-role-muted font-sans">طرح اشتراک:</span>
+                <span className="text-role-primary font-sans font-bold">{selectedPlan.title}</span>
               </div>
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <span className="text-zinc-400 font-sans">مبلغ پرداخت شده:</span>
-                <span className="text-emerald-400 font-bold">{selectedPlan.formattedPrice} تومان</span>
+              <div className="flex items-center justify-between border-b border-standard pb-2">
+                <span className="text-role-muted font-sans">مبلغ پرداخت شده:</span>
+                <span className="text-emerald font-bold">{selectedPlan.formattedPrice} تومان</span>
               </div>
               {receiptData.cardPan && (
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                  <span className="text-zinc-400 font-sans">شماره کارت:</span>
+                <div className="flex items-center justify-between border-b border-standard pb-2">
+                  <span className="text-role-muted font-sans">شماره کارت:</span>
                   <span dir="ltr">{receiptData.cardPan}</span>
                 </div>
               )}
               <div className="flex items-center justify-between">
-                <span className="text-zinc-400 font-sans">زمان ثبت:</span>
+                <span className="text-role-muted font-sans">زمان ثبت:</span>
                 <span dir="ltr">{receiptData.date}</span>
               </div>
             </div>
@@ -527,7 +527,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="bg-amber-500 hover:bg-amber-400 text-black font-black text-sm px-8 py-3 rounded-2xl transition shadow-lg shadow-amber-500/20 cursor-pointer focus-visible:outline-2 focus-visible:outline-amber-400"
+              className="bg-amber hover:brightness-110 text-black font-black text-sm px-8 py-3 radius-card transition shadow-subtle cursor-pointer focus-ring-tactical"
             >
               ورود به میدان نبرد با اشتراک ویژه
             </button>

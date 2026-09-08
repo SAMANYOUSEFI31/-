@@ -21,13 +21,13 @@ export const BUSHIDO_CRIMSON_THEME: ThemeConfig = {
   nameEn: 'Bushido Crimson',
   descriptionFa: 'نماد غیرت، شجاعت و تمرکز پولادین',
   colorHex: '#E11D48',
-  badgeBg: 'bg-[#E11D48]',
+  badgeBg: 'bg-rose',
   glowColor: 'rgba(225, 29, 72, 0.35)',
-  primaryClass: 'bg-[#E11D48] hover:bg-[#BE123C] text-white',
-  hoverClass: 'hover:bg-[#E11D48]/20 hover:text-[#FB7185]',
-  borderClass: 'border-[#E11D48]/40',
-  textClass: 'text-[#FB7185]',
-  bgSubtle: 'bg-[#E11D48]/15'
+  primaryClass: 'bg-rose hover:brightness-110 text-white',
+  hoverClass: 'hover:bg-rose-subtle hover:text-rose',
+  borderClass: 'border-rose-subtle',
+  textClass: 'text-rose',
+  bgSubtle: 'bg-rose-subtle'
 };
 
 export const THEME_PALETTES: Record<AccentTheme, ThemeConfig> = {

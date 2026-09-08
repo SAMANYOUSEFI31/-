@@ -33,39 +33,39 @@ export const Toast: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
               transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-              className={`pointer-events-auto w-full p-3.5 rounded-2xl border backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3 text-xs sm:text-sm font-bold ${
+              className={`pointer-events-auto w-full p-3.5 radius-card border backdrop-blur-xl shadow-subtle flex items-center justify-between gap-3 text-xs sm:text-sm font-bold ${
                 type === 'error'
-                  ? 'bg-red-950/90 border-red-500/60 text-red-100 shadow-red-950/50'
+                  ? 'bg-debt-subtle border-debt-subtle text-role-primary'
                   : type === 'warning'
-                  ? 'bg-amber-950/90 border-amber-500/60 text-amber-100 shadow-amber-950/50'
+                  ? 'bg-amber-subtle border-amber-subtle text-role-primary'
                   : type === 'info'
-                  ? 'bg-blue-950/90 border-blue-500/60 text-blue-100 shadow-blue-950/50'
-                  : 'bg-[#121215]/95 border-emerald-500/50 text-zinc-100 shadow-black/80'
+                  ? 'bg-blue-subtle border-blue-subtle text-role-primary'
+                  : 'surface-z1/95 border-emerald-subtle text-role-primary'
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 {type === 'error' && (
-                  <div className="w-7 h-7 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center shrink-0 text-red-400">
+                  <div className="w-7 h-7 radius-component bg-debt-subtle border border-debt-subtle flex items-center justify-center shrink-0 text-debt">
                     <AlertOctagon className="w-4 h-4" />
                   </div>
                 )}
                 {type === 'warning' && (
-                  <div className="w-7 h-7 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-400">
+                  <div className="w-7 h-7 radius-component bg-amber-subtle border border-amber-subtle flex items-center justify-center shrink-0 text-amber">
                     <AlertTriangle className="w-4 h-4" />
                   </div>
                 )}
                 {type === 'info' && (
-                  <div className="w-7 h-7 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center shrink-0 text-blue-400">
+                  <div className="w-7 h-7 radius-component bg-blue-subtle border border-blue-subtle flex items-center justify-center shrink-0 text-blue">
                     <Info className="w-4 h-4" />
                   </div>
                 )}
                 {type === 'success' && (
-                  <div className="w-7 h-7 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0 text-emerald-400">
+                  <div className="w-7 h-7 radius-component bg-emerald-subtle border border-emerald-subtle flex items-center justify-center shrink-0 text-emerald">
                     <CheckCircle2 className="w-4 h-4" />
                   </div>
                 )}
                 
-                <span className="leading-snug break-words text-zinc-100">
+                <span className="leading-snug break-words text-role-primary">
                   {toast.message}
                 </span>
               </div>
@@ -73,7 +73,7 @@ export const Toast: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
               <button
                 type="button"
                 onClick={() => onDismiss(toast.id)}
-                className="w-8 h-8 sm:w-11 sm:h-11 min-w-[36px] min-h-[36px] rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 flex items-center justify-center shrink-0 transition cursor-pointer touch-manipulation"
+                className="w-8 h-8 sm:w-11 sm:h-11 min-w-[36px] min-h-[36px] radius-control surface-z2 hover:surface-z3 text-role-secondary hover:text-role-primary flex items-center justify-center shrink-0 transition cursor-pointer touch-manipulation focus-ring-tactical"
                 title="بستن اعلان"
                 aria-label="بستن اعلان"
               >

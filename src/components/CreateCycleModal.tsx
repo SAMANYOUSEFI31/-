@@ -229,7 +229,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
             </button>
             <button
               type="submit"
-              className="bg-amber hover:bg-amber-400 active:bg-amber-600 text-black px-6 py-2.5 min-h-[44px] radius-component text-xs font-black shadow-subtle transition cursor-pointer active:scale-95 motion-reduce:transform-none flex items-center gap-1.5 touch-manipulation focus-ring-tactical"
+              className="bg-amber hover:brightness-110 active:brightness-90 text-black px-6 py-2.5 min-h-[44px] radius-component text-xs font-black shadow-subtle transition cursor-pointer active:scale-95 motion-reduce:transform-none flex items-center gap-1.5 touch-manipulation focus-ring-tactical"
             >
               <Sparkles className="w-4 h-4" />
               <span>آغاز چرخه نبرد</span>

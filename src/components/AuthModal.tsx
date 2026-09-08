@@ -591,43 +591,43 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {currentUser?.id ? (
             /* Logged in state */
             <div className="space-y-5">
-              <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-4 space-y-3">
+              <div className="surface-z2 border-standard radius-card p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-amber-400 font-bold">
+                    <div className="w-10 h-10 radius-component surface-z1 flex items-center justify-center text-amber font-bold">
                       <User className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="font-bold text-sm text-zinc-100">{currentUser.name}</div>
-                      <div className="text-xs text-zinc-400 font-mono" dir="ltr">
+                      <div className="font-bold text-sm text-role-primary">{currentUser.name}</div>
+                      <div className="text-xs text-role-secondary font-mono" dir="ltr">
                         {currentUser.phoneNumber ? toPersianDigits(currentUser.phoneNumber) : (currentUser.email || `شناسه: ${toPersianDigits(currentUser.id.slice(0, 8))}`)}
                       </div>
                     </div>
                   </div>
 
                   {currentUser.isVip ? (
-                    <span className="bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 text-amber-300 text-[11px] font-black px-2.5 py-1 rounded-xl flex items-center gap-1">
-                      <Crown className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="bg-amber-subtle border border-amber-subtle text-amber text-[11px] font-black px-2.5 py-1 radius-component flex items-center gap-1">
+                      <Crown className="w-3.5 h-3.5 text-amber" />
                       VIP
                     </span>
                   ) : (
-                    <span className="bg-zinc-800 text-zinc-400 text-[11px] px-2 py-0.5 rounded-lg">
+                    <span className="surface-z1 text-role-secondary text-[11px] px-2 py-0.5 radius-control">
                       رایگان
                     </span>
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-zinc-800/60 grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-[#121215] rounded-xl p-2.5 text-center border border-zinc-800/50">
-                    <span className="text-[10px] text-zinc-400 block mb-0.5">وضعیت پایگاه داده</span>
-                    <span className="text-emerald-400 font-bold flex items-center justify-center gap-1">
-                      <Database className="w-3.5 h-3.5" />
+                <div className="pt-2 border-t border-standard grid grid-cols-2 gap-2 text-xs">
+                  <div className="surface-z1 radius-component p-2.5 text-center border-standard">
+                    <span className="text-[10px] text-role-muted block mb-0.5">وضعیت پایگاه داده</span>
+                    <span className="text-emerald font-bold flex items-center justify-center gap-1">
+                      <Database className="w-3.5 h-3.5 text-emerald" />
                       دیتابیس ابری
                     </span>
                   </div>
-                  <div className="bg-[#121215] rounded-xl p-2.5 text-center border border-zinc-800/50">
-                    <span className="text-[10px] text-zinc-400 block mb-0.5">سطح دسترسی</span>
-                    <span className="text-amber-400 font-bold">
+                  <div className="surface-z1 radius-component p-2.5 text-center border-standard">
+                    <span className="text-[10px] text-role-muted block mb-0.5">سطح دسترسی</span>
+                    <span className="text-amber font-bold">
                       {currentUser.isAdmin ? 'فرمانده ارشد (مدیر)' : (currentUser.isVip ? 'سامورایی ویژه VIP' : 'کاربر عادی')}
                     </span>
                   </div>
@@ -638,9 +638,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   onClick={onLogout}
-                  className="w-full min-h-[44px] bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-800/40 font-bold text-sm py-3 rounded-2xl flex items-center justify-center gap-2 transition cursor-pointer whitespace-nowrap"
+                  className="w-full min-h-[44px] bg-debt-subtle hover:bg-debt/20 text-role-primary border border-debt-subtle font-bold text-sm py-3 radius-card flex items-center justify-center gap-2 transition cursor-pointer whitespace-nowrap focus-ring-tactical"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-4 h-4 text-debt" />
                   خروج از حساب کاربری
                 </button>
               </div>
@@ -653,7 +653,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div role="tabpanel" id="auth-panel-login" aria-labelledby="auth-tab-login">
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div>
-                      <label htmlFor="auth-login-phone" className="block text-xs font-bold text-zinc-300 mb-1.5">
+                      <label htmlFor="auth-login-phone" className="block text-xs font-bold text-role-secondary mb-1.5">
                         شماره موبایل
                       </label>
                       <div className="relative">
@@ -665,7 +665,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           placeholder="۰۹۱۲۳۴۵۶۷۸۹"
                           aria-invalid={errorField === 'phone'}
                           aria-describedby={errorMessage ? "auth-login-error" : undefined}
-                          className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition tracking-wider text-left font-mono"
+                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition tracking-wider text-left font-mono"
                           dir="ltr"
                           autoFocus
                         />
@@ -674,7 +674,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label htmlFor="auth-login-password" className="block text-xs font-bold text-zinc-300">
+                        <label htmlFor="auth-login-password" className="block text-xs font-bold text-role-secondary">
                           رمز عبور
                         </label>
                         <button
@@ -683,7 +683,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             switchTab('forgot');
                             setForgotStep('request');
                           }}
-                          className="text-[11px] text-amber-400/90 hover:text-amber-300 hover:underline cursor-pointer whitespace-nowrap"
+                          className="text-[11px] text-amber hover:underline cursor-pointer whitespace-nowrap"
                         >
                           فراموشی رمز عبور؟
                         </button>
@@ -697,7 +697,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           placeholder="رمز عبور خود را وارد نمایید"
                           aria-invalid={errorField === 'password'}
                           aria-describedby={errorMessage ? "auth-login-error" : undefined}
-                          className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
+                          className="w-full surface-z2 border-standard radius-card pl-11 pr-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition"
                           dir="ltr"
                         />
                         <button
@@ -706,7 +706,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           aria-label={showPassword ? 'پنهان کردن رمز عبور' : 'نمایش رمز عبور'}
                           title={showPassword ? 'پنهان کردن رمز عبور' : 'نمایش رمز عبور'}
                           aria-pressed={showPassword}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition p-1"
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-role-muted hover:text-role-primary transition p-1"
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -714,8 +714,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     </div>
 
                     {errorMessage && (
-                      <div id="auth-login-error" role="alert" aria-live="assertive" className="bg-red-950/60 border border-red-800/50 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                      <div id="auth-login-error" role="alert" aria-live="assertive" className="bg-debt-subtle border border-debt-subtle radius-component p-3 text-xs text-role-primary flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-debt" />
                         <span>{errorMessage}</span>
                       </div>
                     )}
@@ -723,7 +723,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full min-h-[44px] bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm py-3.5 rounded-2xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none"
+                      className="w-full min-h-[44px] bg-amber hover:brightness-110 text-black font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
                     >
                       {isLoading ? (
                         <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin motion-reduce:animate-none"></span>
@@ -742,9 +742,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           switchTab('register');
                           setRegisterStep('request');
                         }}
-                        className="text-xs text-zinc-400 hover:text-amber-400 transition cursor-pointer"
+                        className="text-xs text-role-secondary hover:text-amber transition cursor-pointer"
                       >
-                        حساب کاربری ندارید؟ <span className="font-bold text-amber-400 underline">ثبت‌نام پیامکی کنید</span>
+                        حساب کاربری ندارید؟ <span className="font-bold text-amber underline">ثبت‌نام پیامکی کنید</span>
                       </button>
                     </div>
                   </form>
@@ -757,7 +757,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   {registerStep === 'request' ? (
                     <form onSubmit={handleRegisterRequestOtp} className="space-y-4">
                       <div>
-                        <label htmlFor="auth-register-phone" className="block text-xs font-bold text-zinc-300 mb-1.5">
+                        <label htmlFor="auth-register-phone" className="block text-xs font-bold text-role-secondary mb-1.5">
                           شماره موبایل (جهت دریافت کد تایید)
                         </label>
                         <input
@@ -768,17 +768,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           placeholder="۰۹۱۲۳۴۵۶۷۸۹"
                           aria-invalid={errorField === 'phone'}
                           aria-describedby={errorMessage ? "auth-register-error" : undefined}
-                          className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition tracking-wider text-left font-mono"
+                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition tracking-wider text-left font-mono"
                           dir="ltr"
                           autoFocus
                         />
-                        <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+                        <p className="text-[11px] text-role-muted mt-1 leading-relaxed">
                           مالکیت شماره از طریق کد پیامکی ۵ رقمی راستی‌آزمایی خواهد شد.
                         </p>
                       </div>
 
                       <div>
-                        <label htmlFor="auth-register-name" className="block text-xs font-bold text-zinc-300 mb-1.5">
+                        <label htmlFor="auth-register-name" className="block text-xs font-bold text-role-secondary mb-1.5">
                           نام یا لقب سامورایی (اختیاری)
                         </label>
                         <input
@@ -787,13 +787,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           value={name}
                           onChange={e => setName(e.target.value)}
                           placeholder="مثال: سهراب یا نام شما"
-                          className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
+                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition"
                         />
                       </div>
 
                       {errorMessage && (
-                        <div id="auth-register-error" role="alert" aria-live="assertive" className="bg-red-950/60 border border-red-800/50 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                        <div id="auth-register-error" role="alert" aria-live="assertive" className="bg-debt-subtle border border-debt-subtle radius-component p-3 text-xs text-role-primary flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0 text-debt" />
                           <span>{errorMessage}</span>
                         </div>
                       )}
@@ -801,7 +801,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full min-h-[44px] bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm py-3.5 rounded-2xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none"
+                        className="w-full min-h-[44px] bg-amber hover:brightness-110 text-black font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
                       >
                         {isLoading ? (
                           <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin motion-reduce:animate-none"></span>
@@ -819,18 +819,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           onClick={() => {
                             switchTab('login');
                           }}
-                          className="text-xs text-zinc-400 hover:text-amber-400 transition cursor-pointer"
+                          className="text-xs text-role-secondary hover:text-amber transition cursor-pointer"
                         >
-                          قبلاً ثبت‌نام کرده‌اید؟ <span className="font-bold text-amber-400 underline">وارد شوید</span>
+                          قبلاً ثبت‌نام کرده‌اید؟ <span className="font-bold text-amber underline">وارد شوید</span>
                         </button>
                       </div>
                     </form>
                   ) : (
                     <form onSubmit={handleRegisterVerifyOtp} className="space-y-4">
-                      <div role="status" aria-live="polite" className="bg-amber-950/30 border border-amber-500/30 rounded-2xl p-3.5 text-xs text-amber-200">
+                      <div role="status" aria-live="polite" className="bg-amber-subtle border border-amber-subtle radius-card p-3.5 text-xs text-amber">
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-1.5">
-                            <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+                            <CheckCircle2 className="w-4 h-4 text-amber shrink-0" />
                             <span className="font-bold">ارسال کد تایید به شماره:</span>
                           </div>
                           <button
@@ -840,18 +840,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                               setErrorMessage('');
                               setErrorField(null);
                             }}
-                            className="text-[11px] text-amber-400 underline hover:text-amber-300 cursor-pointer whitespace-nowrap"
+                            className="text-[11px] text-amber underline hover:brightness-110 cursor-pointer whitespace-nowrap"
                           >
                             تغییر شماره
                           </button>
                         </div>
-                        <span className="font-mono text-amber-300 block text-left" dir="ltr">
+                        <span className="font-mono text-amber block text-left" dir="ltr">
                           {toPersianDigits(phoneNumber)}
                         </span>
                         {debugOtp && (
-                          <div className="mt-2 pt-2 border-t border-amber-500/20 flex items-center justify-between text-[11px]">
-                            <span className="text-amber-400/80">کد تایید پیامکی (محیط آزمایشی):</span>
-                            <span className="font-mono font-black text-amber-300 bg-amber-900/60 px-2 py-0.5 rounded-md">
+                          <div className="mt-2 pt-2 border-t border-amber-subtle flex items-center justify-between text-[11px]">
+                            <span className="text-amber/80">کد تایید پیامکی (محیط آزمایشی):</span>
+                            <span className="font-mono font-black text-amber surface-z2 px-2 py-0.5 radius-badge">
                               {toPersianDigits(debugOtp)}
                             </span>
                           </div>
@@ -860,11 +860,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <label htmlFor="auth-register-otp" className="block text-xs font-bold text-zinc-300">
+                          <label htmlFor="auth-register-otp" className="block text-xs font-bold text-role-secondary">
                             کد تایید ۵ رقمی
                           </label>
                           {resendCooldown > 0 ? (
-                            <span role="status" aria-live="polite" className="text-[11px] text-zinc-400 font-mono">
+                            <span role="status" aria-live="polite" className="text-[11px] text-role-muted font-mono">
                               ارسال مجدد تا {toPersianDigits(resendCooldown)} ثانیه
                             </span>
                           ) : (
@@ -872,7 +872,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                               type="button"
                               onClick={() => handleRegisterRequestOtp()}
                               disabled={isLoading}
-                              className="text-[11px] text-amber-400 hover:text-amber-300 underline cursor-pointer whitespace-nowrap"
+                              className="text-[11px] text-amber hover:underline cursor-pointer whitespace-nowrap"
                             >
                               ارسال مجدد کد
                             </button>
@@ -887,14 +887,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           placeholder="_____ "
                           aria-invalid={errorField === 'otp'}
                           aria-describedby={errorMessage ? "auth-register-verify-error" : undefined}
-                          className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-center text-lg tracking-[0.4em] font-mono text-amber-400 placeholder:text-zinc-700 focus:outline-none focus:border-amber-500 transition"
+                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-center text-lg tracking-[0.4em] font-mono text-amber placeholder:text-role-muted focus:outline-none focus:border-amber transition"
                           dir="ltr"
                           autoFocus
                         />
                       </div>
 
                       <div>
-                        <label htmlFor="auth-register-password" className="block text-xs font-bold text-zinc-300 mb-1.5">
+                        <label htmlFor="auth-register-password" className="block text-xs font-bold text-role-secondary mb-1.5">
                           تعیین رمز عبور (حداقل ۸ نویسه)
                         </label>
                         <div className="relative">
@@ -906,7 +906,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             placeholder="رمز عبور دلخواه خود را تعیین کنید"
                             aria-invalid={errorField === 'password'}
                             aria-describedby={errorMessage ? "auth-register-verify-error" : undefined}
-                            className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
+                            className="w-full surface-z2 border-standard radius-card pl-11 pr-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition"
                             dir="ltr"
                           />
                           <button
@@ -915,7 +915,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             aria-label={showPassword ? 'پنهان کردن رمز عبور' : 'نمایش رمز عبور'}
                             title={showPassword ? 'پنهان کردن رمز عبور' : 'نمایش رمز عبور'}
                             aria-pressed={showPassword}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition p-1"
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-role-muted hover:text-role-primary transition p-1"
                           >
                             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
@@ -923,8 +923,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       </div>
 
                       {errorMessage && (
-                        <div id="auth-register-verify-error" role="alert" aria-live="assertive" className="bg-red-950/60 border border-red-800/50 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                        <div id="auth-register-verify-error" role="alert" aria-live="assertive" className="bg-debt-subtle border border-debt-subtle radius-component p-3 text-xs text-role-primary flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0 text-debt" />
                           <span>{errorMessage}</span>
                         </div>
                       )}
@@ -937,14 +937,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             setErrorField(null);
                             setErrorMessage('');
                           }}
-                          className="w-1/3 min-h-[44px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold py-3.5 rounded-2xl transition cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none"
+                          className="w-1/3 min-h-[44px] surface-z2 hover:surface-z3 border-standard text-role-secondary text-xs font-bold py-3.5 radius-card transition cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
                         >
                           تغییر شماره
                         </button>
                         <button
                           type="submit"
                           disabled={isLoading}
-                          className="w-2/3 min-h-[44px] bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm py-3.5 rounded-2xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none"
+                          className="w-2/3 min-h-[44px] bg-amber hover:brightness-110 text-black font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
                         >
                           {isLoading ? (
                             <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin motion-reduce:animate-none"></span>
@@ -963,12 +963,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div role="tabpanel" id="auth-panel-forgot" aria-labelledby="auth-tab-forgot">
                   {forgotStep === 'request' ? (
                     <form onSubmit={handleForgotRequestOtp} className="space-y-4">
-                      <p className="text-xs text-zinc-400 leading-relaxed">
+                      <p className="text-xs text-role-secondary leading-relaxed">
                         جهت بازیابی رمز عبور، شماره موبایل ثبت‌نام‌شده در سامانه را وارد کنید تا کد تایید امن برای شما پیامک شود.
                       </p>
 
                       <div>
-                        <label htmlFor="auth-forgot-phone" className="block text-xs font-bold text-zinc-300 mb-1.5">
+                        <label htmlFor="auth-forgot-phone" className="block text-xs font-bold text-role-secondary mb-1.5">
                           شماره موبایل
                         </label>
                         <input
@@ -979,15 +979,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           placeholder="۰۹۱۲۳۴۵۶۷۸۹"
                           aria-invalid={errorField === 'phone'}
                           aria-describedby={errorMessage ? "auth-forgot-error" : undefined}
-                          className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition tracking-wider text-left font-mono"
+                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition tracking-wider text-left font-mono"
                           dir="ltr"
                           autoFocus
                         />
                       </div>
 
                       {errorMessage && (
-                        <div id="auth-forgot-error" role="alert" aria-live="assertive" className="bg-red-950/60 border border-red-800/50 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                        <div id="auth-forgot-error" role="alert" aria-live="assertive" className="bg-debt-subtle border border-debt-subtle radius-component p-3 text-xs text-role-primary flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0 text-debt" />
                           <span>{errorMessage}</span>
                         </div>
                       )}
@@ -995,7 +995,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full min-h-[44px] bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm py-3.5 rounded-2xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none"
+                        className="w-full min-h-[44px] bg-amber hover:brightness-110 text-black font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
                       >
                         {isLoading ? (
                           <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin motion-reduce:animate-none"></span>
@@ -1013,18 +1013,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           onClick={() => {
                             switchTab('login');
                           }}
-                          className="text-xs text-zinc-400 hover:text-zinc-200 transition cursor-pointer"
+                          className="text-xs text-role-secondary hover:text-role-primary transition cursor-pointer"
                         >
-                          بازگشت به <span className="font-bold text-amber-400 underline">صفحه ورود</span>
+                          بازگشت به <span className="font-bold text-amber underline">صفحه ورود</span>
                         </button>
                       </div>
                     </form>
                   ) : (
                     <form onSubmit={handleResetPassword} className="space-y-4">
-                      <div role="status" aria-live="polite" className="bg-amber-950/30 border border-amber-500/30 rounded-2xl p-3.5 text-xs text-amber-200">
+                      <div role="status" aria-live="polite" className="bg-amber-subtle border border-amber-subtle radius-card p-3.5 text-xs text-amber">
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-1.5">
-                            <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+                            <CheckCircle2 className="w-4 h-4 text-amber shrink-0" />
                             <span className="font-bold">کد بازیابی ارسال شد به:</span>
                           </div>
                           <button
@@ -1034,18 +1034,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                               setErrorField(null);
                               setErrorMessage('');
                             }}
-                            className="text-[11px] text-amber-400 underline hover:text-amber-300 cursor-pointer whitespace-nowrap"
+                            className="text-[11px] text-amber underline hover:brightness-110 cursor-pointer whitespace-nowrap"
                           >
                             تغییر شماره
                           </button>
                         </div>
-                        <span className="font-mono text-amber-300 block text-left" dir="ltr">
+                        <span className="font-mono text-amber block text-left" dir="ltr">
                           {toPersianDigits(phoneNumber)}
                         </span>
                         {debugOtp && (
-                          <div className="mt-2 pt-2 border-t border-amber-500/20 flex items-center justify-between text-[11px]">
-                            <span className="text-amber-400/80">کد تایید آزمایشی:</span>
-                            <span className="font-mono font-black text-amber-300 bg-amber-900/60 px-2 py-0.5 rounded-md">
+                          <div className="mt-2 pt-2 border-t border-amber-subtle flex items-center justify-between text-[11px]">
+                            <span className="text-amber/80">کد تایید آزمایشی:</span>
+                            <span className="font-mono font-black text-amber surface-z2 px-2 py-0.5 radius-badge">
                               {toPersianDigits(debugOtp)}
                             </span>
                           </div>
@@ -1054,11 +1054,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <label htmlFor="auth-forgot-otp" className="block text-xs font-bold text-zinc-300">
+                          <label htmlFor="auth-forgot-otp" className="block text-xs font-bold text-role-secondary">
                             کد تایید ۵ رقمی
                           </label>
                           {resendCooldown > 0 ? (
-                            <span role="status" aria-live="polite" className="text-[11px] text-zinc-400 font-mono">
+                            <span role="status" aria-live="polite" className="text-[11px] text-role-muted font-mono">
                               ارسال مجدد تا {toPersianDigits(resendCooldown)} ثانیه
                             </span>
                           ) : (
@@ -1066,7 +1066,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                               type="button"
                               onClick={() => handleForgotRequestOtp()}
                               disabled={isLoading}
-                              className="text-[11px] text-amber-400 hover:text-amber-300 underline cursor-pointer whitespace-nowrap"
+                              className="text-[11px] text-amber hover:underline cursor-pointer whitespace-nowrap"
                             >
                               ارسال مجدد کد
                             </button>
@@ -1081,14 +1081,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           placeholder="_____ "
                           aria-invalid={errorField === 'otp'}
                           aria-describedby={errorMessage ? "auth-forgot-reset-error" : undefined}
-                          className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-3 text-center text-lg tracking-[0.4em] font-mono text-amber-400 placeholder:text-zinc-700 focus:outline-none focus:border-amber-500 transition"
+                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-center text-lg tracking-[0.4em] font-mono text-amber placeholder:text-role-muted focus:outline-none focus:border-amber transition"
                           dir="ltr"
                           autoFocus
                         />
                       </div>
 
                       <div>
-                        <label htmlFor="auth-forgot-new-password" className="block text-xs font-bold text-zinc-300 mb-1.5">
+                        <label htmlFor="auth-forgot-new-password" className="block text-xs font-bold text-role-secondary mb-1.5">
                           رمز عبور جدید (حداقل ۸ نویسه)
                         </label>
                         <div className="relative">
@@ -1100,7 +1100,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             placeholder="رمز عبور جدید را وارد کنید"
                             aria-invalid={errorField === 'newPassword'}
                             aria-describedby={errorMessage ? "auth-forgot-reset-error" : undefined}
-                            className="w-full bg-[#18181b] border border-zinc-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition"
+                            className="w-full surface-z2 border-standard radius-card pl-11 pr-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition"
                             dir="ltr"
                           />
                           <button
@@ -1109,7 +1109,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             aria-label={showNewPassword ? 'پنهان کردن رمز عبور' : 'نمایش رمز عبور'}
                             title={showNewPassword ? 'پنهان کردن رمز عبور' : 'نمایش رمز عبور'}
                             aria-pressed={showNewPassword}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition p-1"
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-role-muted hover:text-role-primary transition p-1"
                           >
                             {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
@@ -1117,8 +1117,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       </div>
 
                       {errorMessage && (
-                        <div id="auth-forgot-reset-error" role="alert" aria-live="assertive" className="bg-red-950/60 border border-red-800/50 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                        <div id="auth-forgot-reset-error" role="alert" aria-live="assertive" className="bg-debt-subtle border border-debt-subtle radius-component p-3 text-xs text-role-primary flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0 text-debt" />
                           <span>{errorMessage}</span>
                         </div>
                       )}
@@ -1127,14 +1127,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setForgotStep('request')}
-                          className="w-1/3 min-h-[44px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold py-3.5 rounded-2xl transition cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none"
+                          className="w-1/3 min-h-[44px] surface-z2 hover:surface-z3 border-standard text-role-secondary text-xs font-bold py-3.5 radius-card transition cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
                         >
                           تغییر شماره
                         </button>
                         <button
                           type="submit"
                           disabled={isLoading}
-                          className="w-2/3 min-h-[44px] bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm py-3.5 rounded-2xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none"
+                          className="w-2/3 min-h-[44px] bg-amber hover:brightness-110 text-black font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
                         >
                           {isLoading ? (
                             <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin motion-reduce:animate-none"></span>
@@ -1150,10 +1150,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               {/* Secret Admin/Dev Mode: Only visible if unlocked via 5-click easter egg & passcode */}
               {showSecretDev && (
-                <div className="pt-4 border-t border-amber-500/30 space-y-3 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="text-[11px] text-amber-300 font-bold flex items-center justify-between">
+                <div className="pt-4 border-t border-amber-subtle space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="text-[11px] text-amber font-bold flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5 text-amber-400" />
+                      <Lock className="w-3.5 h-3.5 text-amber" />
                       دسترسی مدیریت و توسعه:
                     </span>
                     <button
@@ -1164,7 +1164,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           localStorage.setItem('bushido_secret_dev_mode', 'false');
                         } catch {}
                       }}
-                      className="text-[10px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 px-2 py-0.5 rounded cursor-pointer whitespace-nowrap"
+                      className="text-[10px] text-role-secondary hover:text-role-primary surface-z2 px-2 py-0.5 radius-badge border-standard cursor-pointer whitespace-nowrap"
                     >
                       مخفی‌سازی
                     </button>
@@ -1175,26 +1175,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type="button"
                       onClick={() => handleQuickLogin('admin')}
                       disabled={isLoading}
-                      className="bg-red-950/40 hover:bg-red-900/60 border border-red-500/40 hover:border-red-500/60 text-red-300 rounded-xl p-2.5 text-right transition cursor-pointer text-xs"
+                      className="bg-debt-subtle hover:bg-debt/20 border border-debt-subtle text-role-primary radius-component p-2.5 text-right transition cursor-pointer text-xs focus-ring-tactical"
                     >
-                      <div className="flex items-center gap-1.5 font-bold text-red-300">
-                        <ShieldCheck className="w-3.5 h-3.5 text-red-400" />
+                      <div className="flex items-center gap-1.5 font-bold text-debt">
+                        <ShieldCheck className="w-3.5 h-3.5 text-debt" />
                         <span>ورود به عنوان مدیر</span>
                       </div>
-                      <span className="text-[10px] text-zinc-400 block mt-0.5">فرمانده ارشد (09375454050)</span>
+                      <span className="text-[10px] text-role-muted block mt-0.5">فرمانده ارشد (09375454050)</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleQuickLogin('test_user')}
                       disabled={isLoading}
-                      className="bg-zinc-800/80 hover:bg-zinc-750 border border-zinc-700 text-zinc-200 rounded-xl p-2.5 text-right transition cursor-pointer text-xs"
+                      className="surface-z2 hover:surface-z3 border-standard text-role-primary radius-component p-2.5 text-right transition cursor-pointer text-xs focus-ring-tactical"
                     >
-                      <div className="flex items-center gap-1.5 font-bold text-zinc-200">
-                        <User className="w-3.5 h-3.5 text-amber-400" />
+                      <div className="flex items-center gap-1.5 font-bold text-role-primary">
+                        <User className="w-3.5 h-3.5 text-amber" />
                         <span>ورود کاربر تستی</span>
                       </div>
-                      <span className="text-[10px] text-zinc-400 block mt-0.5">مشاهده از دید کاربر</span>
+                      <span className="text-[10px] text-role-muted block mt-0.5">مشاهده از دید کاربر</span>
                     </button>
                   </div>
                 </div>

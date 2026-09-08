@@ -118,22 +118,22 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
   if (!currentCycle || !metrics) {
     return (
       <div className="space-y-6 animate-in fade-in duration-200" dir="rtl">
-        <div className="bg-[#121215] border border-zinc-800 rounded-3xl p-8 sm:p-12 text-center space-y-5 max-w-xl mx-auto shadow-2xl">
-          <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400 shadow-inner">
+        <div className="surface-z1 border-standard radius-modal p-8 sm:p-12 text-center space-y-5 max-w-xl mx-auto shadow-subtle">
+          <div className="w-16 h-16 radius-card bg-amber-subtle border border-amber-subtle flex items-center justify-center mx-auto text-amber">
             <Archive className="w-8 h-8" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-lg sm:text-xl font-black text-zinc-100">
+            <h2 className="text-lg sm:text-xl font-black text-role-primary">
               هیچ چرخه نبردی در سیستم تعریف نشده است
             </h2>
-            <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed max-w-md mx-auto">
+            <p className="text-xs sm:text-sm text-role-secondary leading-relaxed max-w-md mx-auto">
               جهت ورود به کارزار، ردیابی ۹۰ روزه ارکان دیسیپلین و صدور احکام دادگاه بوشیدو، نخستین چرخه نبرد خود را آغاز کنید.
             </p>
           </div>
           <button
             type="button"
             onClick={handleOpenNewCycleModal}
-            className="bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-black font-black text-sm px-6 py-3 rounded-2xl inline-flex items-center justify-center gap-2 mx-auto shadow-lg shadow-amber-500/25 transition cursor-pointer active:scale-95 whitespace-nowrap"
+            className="bg-amber hover:brightness-105 text-black font-black text-sm px-6 py-3 radius-card inline-flex items-center justify-center gap-2 mx-auto shadow-subtle transition cursor-pointer active:scale-95 whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             <span>تعریف چرخه نبرد ۹۰ روزه</span>
@@ -143,63 +143,63 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
         {/* New Cycle Modal when empty */}
         {showNewCycleModal && (
           <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]">
-            <div className="bg-[#1c1c21] border border-zinc-800 rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 my-auto">
-              <h3 className="font-bold text-base sm:text-lg text-zinc-100 flex items-center gap-2">
-                <Layers className="w-5 h-5 text-zinc-300" />
+            <div className="surface-z2 border-standard radius-modal w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150 my-auto">
+              <h3 className="font-bold text-base sm:text-lg text-role-primary flex items-center gap-2">
+                <Layers className="w-5 h-5 text-role-secondary" />
                 <span>تعریف چرخه ۹۰ روزه جدید</span>
               </h3>
 
               {modalOverlapError && (
-                <div className="bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl p-3 text-xs font-medium flex items-start gap-2.5">
-                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <div className="bg-debt-subtle border border-debt-subtle text-debt radius-component p-3 text-xs font-medium flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-debt shrink-0 mt-0.5" />
                   <span className="leading-relaxed">{modalOverlapError}</span>
                 </div>
               )}
 
               <form onSubmit={handleCreateCycleSubmit} className="space-y-3.5">
                 <div>
-                  <label className="text-xs text-zinc-300 block mb-1">عنوان چرخه:</label>
+                  <label className="text-xs text-role-secondary block mb-1">عنوان چرخه:</label>
                   <input
                     type="text"
                     value={newTitle}
                     onChange={e => setNewTitle(e.target.value)}
                     required
-                    className="w-full bg-[#18181b] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500/60 transition"
+                    className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary focus:outline-none focus:border-amber transition"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-zinc-300 block mb-1">تاریخ شروع (YYYY-MM-DD):</label>
+                  <label className="text-xs text-role-secondary block mb-1">تاریخ شروع (YYYY-MM-DD):</label>
                   <input
                     type="date"
                     value={newStartDate}
                     onChange={e => setNewStartDate(e.target.value)}
                     required
-                    className="w-full bg-[#18181b] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-500/60 transition"
+                    className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary font-mono focus:outline-none focus:border-amber transition"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-zinc-300 block mb-1">میثاق و تم اصلی چرخه:</label>
+                  <label className="text-xs text-role-secondary block mb-1">میثاق و تم اصلی چرخه:</label>
                   <textarea
                     value={newTheme}
                     onChange={e => setNewTheme(e.target.value)}
                     rows={2}
-                    className="w-full bg-[#18181b] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500/60 transition resize-none"
+                    className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary focus:outline-none focus:border-amber transition resize-none"
                   />
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-standard">
                   <button
                     type="button"
                     onClick={() => setShowNewCycleModal(false)}
-                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="surface-z1 hover:surface-z2 border-standard text-role-secondary px-4 py-2 radius-component text-xs font-bold transition cursor-pointer"
                   >
                     انصراف
                   </button>
                   <button
                     type="submit"
-                    className="bg-amber-500 hover:bg-amber-400 text-black font-black px-5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition cursor-pointer active:scale-95"
+                    className="bg-amber hover:brightness-105 text-black font-black px-5 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-95"
                   >
                     <Plus className="w-4 h-4" />
                     <span>ایجاد چرخه نبرد</span>
@@ -480,34 +480,34 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
     <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-200 touch-pan-y w-full max-w-5xl mx-auto select-none" dir="rtl">
       
       {/* 1. Top Section: Bushido Court & Verdict with Progressive Disclosure */}
-      <div className="w-full max-w-full bg-[#121215] border border-zinc-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-xl relative overflow-hidden space-y-3.5 sm:space-y-5">
+      <div className="w-full max-w-full surface-z1 border-standard radius-modal p-3.5 sm:p-6 shadow-subtle relative overflow-hidden space-y-3.5 sm:space-y-5">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 border-b border-zinc-800/80 pb-3.5 sm:pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 border-b border-standard pb-3.5 sm:pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-200 shadow-md shrink-0">
-              <Gavel className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-200" />
+            <div className="w-10 h-10 sm:w-11 sm:h-11 radius-card surface-z2 border-standard flex items-center justify-center text-role-secondary shadow-subtle shrink-0">
+              <Gavel className="w-5 h-5 sm:w-6 sm:h-6 text-role-secondary" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm sm:text-base font-black text-zinc-100 truncate">
+                <h2 className="text-sm sm:text-base font-black text-role-primary truncate">
                   دادگاه بوشیدو و کارنامه چرخه
                 </h2>
                 {currentCycle.isArchived ? (
-                  <span className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-[10px] px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 select-none pointer-events-none cursor-default shrink-0">
-                    <Lock className="w-3 h-3 text-zinc-400" />
+                  <span className="surface-z2 border-standard text-role-secondary text-[10px] px-2.5 py-0.5 radius-badge font-bold flex items-center gap-1 select-none pointer-events-none cursor-default shrink-0">
+                    <Lock className="w-3 h-3 text-role-muted" />
                     بایگانی‌شده
                   </span>
                 ) : verdict ? (
-                  <span className="bg-emerald-950/90 border border-emerald-500/50 text-emerald-300 text-[10px] px-2.5 py-0.5 rounded-full font-bold select-none pointer-events-none cursor-default shrink-0">
+                  <span className="bg-emerald-subtle border border-emerald-subtle text-emerald text-[10px] px-2.5 py-0.5 radius-badge font-bold select-none pointer-events-none cursor-default shrink-0">
                     حکم صادر شده
                   </span>
                 ) : (
-                  <span className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-[10px] px-2.5 py-0.5 rounded-full font-bold select-none pointer-events-none cursor-default shrink-0">
+                  <span className="surface-z2 border-standard text-role-secondary text-[10px] px-2.5 py-0.5 radius-badge font-bold select-none pointer-events-none cursor-default shrink-0">
                     در جریان ارزیابی
                   </span>
                 )}
               </div>
-              <p className="text-[11px] sm:text-xs text-zinc-400 mt-0.5 leading-relaxed">
+              <p className="text-[11px] sm:text-xs text-role-secondary mt-0.5 leading-relaxed">
                 ارزیابی عملکرد ۹۰ روزه بر مبنای انضباط و ثبات تعهد
               </p>
             </div>
@@ -518,7 +518,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               type="button"
               onClick={handleGenerateVerdict}
               disabled={isGeneratingVerdict || currentCycle.isArchived}
-              className="flex-1 sm:flex-initial bg-amber-500 hover:bg-amber-400 active:bg-amber-600 disabled:opacity-40 text-black font-black text-xs px-3.5 py-2 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer active:scale-[0.98] whitespace-nowrap"
+              className="flex-1 sm:flex-initial bg-amber hover:brightness-105 active:brightness-95 disabled:opacity-40 text-black font-black text-xs px-3.5 py-2 radius-component flex items-center justify-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-[0.98] whitespace-nowrap"
             >
               <Sparkles className="w-3.5 h-3.5 text-black shrink-0" />
               <span>{verdict ? 'ارزیابی مجدد حکم' : 'صدور حکم دادگاه'}</span>
@@ -527,21 +527,21 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
             <button
               type="button"
               onClick={handleOpenNewCycleModal}
-              className="bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-800 text-zinc-100 text-xs font-bold px-3 py-2 rounded-xl border border-zinc-700 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-[0.98] whitespace-nowrap shadow-xs"
+              className="surface-z2 hover:surface-z3 active:surface-z2 text-role-primary text-xs font-bold px-3 py-2 radius-component border-standard flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-[0.98] whitespace-nowrap shadow-subtle"
               title="تعریف چرخه ۹۰ روزه جدید"
             >
-              <Plus className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <Plus className="w-3.5 h-3.5 text-amber shrink-0" />
               <span>تعریف چرخه جدید</span>
             </button>
           </div>
         </div>
 
         {/* Compact Cycle Management Bar */}
-        <div className="w-full bg-[#18181b] border border-zinc-800 rounded-xl sm:rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs shadow-inner">
-          <div className="flex items-center gap-2 text-zinc-300 min-w-0">
-            <PackageCheck className="w-4 h-4 text-zinc-400 shrink-0" />
+        <div className="w-full surface-z0 border-standard radius-card p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs shadow-inner">
+          <div className="flex items-center gap-2 text-role-secondary min-w-0">
+            <PackageCheck className="w-4 h-4 text-role-muted shrink-0" />
             <div className="space-y-0.5 min-w-0">
-              <p className="text-[11px] text-zinc-300 truncate">
+              <p className="text-[11px] text-role-secondary truncate">
                 {currentCycle.isArchived 
                   ? 'این چرخه در بایگانی رسمی قفل شده است.' 
                   : is90DaysFinished 
@@ -557,17 +557,17 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                 onClick={handleOpenArchiveModal}
                 disabled={!canArchive}
                 title={!canArchive ? 'شرایط بایگانی: اتمام ۹۰ روز، تسویه بدهی‌ها و صدور حکم دادگاه' : 'بایگانی و قفل رسمی این چرخه'}
-                className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 border border-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-[0.98] text-[11px] whitespace-nowrap"
+                className="surface-z2 hover:surface-z3 disabled:opacity-40 border-standard text-role-secondary px-3 py-1.5 radius-control font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-[0.98] text-[11px] whitespace-nowrap"
               >
-                <Archive className="w-3.5 h-3.5 text-zinc-400" />
+                <Archive className="w-3.5 h-3.5 text-role-muted" />
                 <span>بایگانی چرخه</span>
               </button>
             ) : (
               <button
                 onClick={handleOpenUnarchiveModal}
-                className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-[0.98] text-[11px] whitespace-nowrap shadow-md"
+                className="surface-z2 hover:surface-z3 border-standard text-role-primary px-3 py-1.5 radius-control font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-[0.98] text-[11px] whitespace-nowrap shadow-subtle"
               >
-                <Unlock className="w-3.5 h-3.5 text-zinc-300" />
+                <Unlock className="w-3.5 h-3.5 text-role-secondary" />
                 <span>خروج از بایگانی</span>
               </button>
             )}
@@ -575,7 +575,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
             {onDeleteCycle && (
               <button
                 onClick={handleDeleteCurrentCycle}
-                className="bg-red-950/30 hover:bg-red-900/50 border border-red-500/30 text-red-400 hover:text-red-300 px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1 transition cursor-pointer active:scale-[0.98] text-[11px] whitespace-nowrap"
+                className="bg-debt-subtle hover:brightness-110 border border-debt-subtle text-debt px-2.5 py-1.5 radius-control font-bold flex items-center gap-1 transition cursor-pointer active:scale-[0.98] text-[11px] whitespace-nowrap"
                 title="حذف این چرخه"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -587,8 +587,8 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
 
         {/* Feedback notice if any */}
         {archiveNotice && (
-          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl p-2.5 text-xs font-medium flex items-center gap-2 animate-in fade-in">
-            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+          <div className="bg-amber-subtle border border-amber-subtle text-amber radius-component p-2.5 text-xs font-medium flex items-center gap-2 animate-in fade-in">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber" />
             <span>{archiveNotice}</span>
           </div>
         )}
@@ -597,23 +597,23 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
         {verdict ? (
           <div className="space-y-3">
             {/* Executive Compact Verdict Strip */}
-            <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-sm">
+            <div className="surface-z0 border-standard radius-card p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-subtle">
               <div className="flex items-start sm:items-center gap-3 min-w-0">
-                <div className="w-12 h-12 rounded-xl border-2 border-amber-500/60 bg-amber-500/10 flex items-center justify-center shadow-md shadow-amber-500/10 shrink-0 mt-0.5 sm:mt-0">
-                  <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono tracking-tighter">
+                <div className="w-12 h-12 radius-component border border-amber-subtle bg-amber-subtle flex items-center justify-center shadow-subtle shrink-0 mt-0.5 sm:mt-0">
+                  <span className="text-xl sm:text-2xl font-black text-amber font-mono tracking-tighter">
                     {verdict.grade}
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h4 className="text-xs sm:text-sm font-black text-zinc-100 leading-snug">
+                    <h4 className="text-xs sm:text-sm font-black text-role-primary leading-snug">
                       {verdict.verdict}
                     </h4>
-                    <span className="text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded font-mono shrink-0 whitespace-nowrap">
+                    <span className="text-[10px] bg-amber-subtle text-amber border border-amber-subtle px-2 py-0.5 radius-control font-mono shrink-0 whitespace-nowrap">
                       مهر دادگاه بوشیدو
                     </span>
                   </div>
-                  <p className="text-[11px] sm:text-xs text-zinc-400 leading-relaxed">
+                  <p className="text-[11px] sm:text-xs text-role-secondary leading-relaxed">
                     {verdict.senseiNotes}
                   </p>
                 </div>
@@ -623,10 +623,10 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCourtDetailsOpen(!isCourtDetailsOpen)}
-                className="w-full sm:w-auto h-9 px-3.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 text-zinc-100 border border-zinc-700 text-xs font-bold inline-flex items-center justify-center gap-2 shrink-0 transition cursor-pointer active:scale-98 whitespace-nowrap shadow-xs"
+                className="w-full sm:w-auto h-9 px-3.5 radius-component surface-z2 hover:surface-z3 active:surface-z2 text-role-primary border-standard text-xs font-bold inline-flex items-center justify-center gap-2 shrink-0 transition cursor-pointer active:scale-98 whitespace-nowrap shadow-subtle"
               >
                 <span>{isCourtDetailsOpen ? 'بستن تحلیل' : 'مشاهده گزارش کامل'}</span>
-                {isCourtDetailsOpen ? <ChevronUp className="w-4 h-4 text-zinc-400" /> : <ChevronDown className="w-4 h-4 text-zinc-400" />}
+                {isCourtDetailsOpen ? <ChevronUp className="w-4 h-4 text-role-muted" /> : <ChevronDown className="w-4 h-4 text-role-muted" />}
               </button>
             </div>
 
@@ -640,27 +640,27 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                   transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                   className="overflow-hidden space-y-3 pt-1"
                 >
-                  <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-3.5 space-y-2">
-                    <h4 className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                  <div className="surface-z0 border-standard radius-card p-3.5 space-y-2">
+                    <h4 className="text-xs font-bold text-amber flex items-center gap-1.5">
                       <Scroll className="w-3.5 h-3.5" />
                       <span>تحلیل سنسی بوشیدو:</span>
                     </h4>
-                    <p className="text-xs text-zinc-300 leading-relaxed">
+                    <p className="text-xs text-role-secondary leading-relaxed">
                       {verdict.senseiNotes}
                     </p>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* Strengths */}
-                    <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-2xl p-3.5">
-                      <h5 className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 mb-2">
+                    <div className="bg-emerald-subtle border border-emerald-subtle radius-card p-3.5">
+                      <h5 className="text-xs font-bold text-emerald flex items-center gap-1.5 mb-2">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>نقاط قوت و پیروزی‌ها</span>
                       </h5>
                       <ul className="space-y-1.5">
                         {verdict.strengths.map((s, idx) => (
-                          <li key={idx} className="text-[11px] text-zinc-300 flex items-start gap-1.5">
-                            <span className="text-emerald-400 font-bold">•</span>
+                          <li key={idx} className="text-[11px] text-role-secondary flex items-start gap-1.5">
+                            <span className="text-emerald font-bold">•</span>
                             <span>{s}</span>
                           </li>
                         ))}
@@ -668,15 +668,15 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                     </div>
 
                     {/* Weaknesses */}
-                    <div className="bg-red-950/20 border border-red-500/30 rounded-2xl p-3.5">
-                      <h5 className="text-xs font-bold text-red-400 flex items-center gap-1.5 mb-2">
+                    <div className="bg-debt-subtle border border-debt-subtle radius-card p-3.5">
+                      <h5 className="text-xs font-bold text-debt flex items-center gap-1.5 mb-2">
                         <AlertTriangle className="w-3.5 h-3.5" />
                         <span>آسیب‌پذیری‌ها و نقاط شکست</span>
                       </h5>
                       <ul className="space-y-1.5">
                         {verdict.weaknesses.map((w, idx) => (
-                          <li key={idx} className="text-[11px] text-zinc-300 flex items-start gap-1.5">
-                            <span className="text-red-400 font-bold">•</span>
+                          <li key={idx} className="text-[11px] text-role-secondary flex items-start gap-1.5">
+                            <span className="text-debt font-bold">•</span>
                             <span>{w}</span>
                           </li>
                         ))}
@@ -685,13 +685,13 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                   </div>
 
                   {verdict.tacticalPlanForNextCycle && (
-                    <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-3.5 flex items-start gap-2.5">
-                      <ShieldCheck className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
+                    <div className="surface-z0 border-standard radius-card p-3.5 flex items-start gap-2.5">
+                      <ShieldCheck className="w-4 h-4 text-role-muted shrink-0 mt-0.5" />
                       <div>
-                        <span className="text-xs font-bold text-zinc-200 block mb-0.5">
+                        <span className="text-xs font-bold text-role-primary block mb-0.5">
                           استراتژی پیشنهادی برای چرخه بعدی:
                         </span>
-                        <p className="text-[11px] text-zinc-300 leading-relaxed">
+                        <p className="text-[11px] text-role-secondary leading-relaxed">
                           {verdict.tacticalPlanForNextCycle}
                         </p>
                       </div>
@@ -702,12 +702,12 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
             </AnimatePresence>
           </div>
         ) : (
-          <div className="bg-[#18181b]/60 border border-dashed border-zinc-800 rounded-2xl p-4 sm:p-5 text-center space-y-1.5">
-            <Award className="w-8 h-8 text-zinc-600 mx-auto" />
-            <h4 className="text-xs sm:text-sm font-bold text-zinc-200">
+          <div className="surface-z0 border border-dashed border-standard radius-card p-4 sm:p-5 text-center space-y-1.5">
+            <Award className="w-8 h-8 text-role-muted mx-auto" />
+            <h4 className="text-xs sm:text-sm font-bold text-role-primary">
               هنوز حکمی برای این چرخه صادر نشده است
             </h4>
-            <p className="text-[11px] text-zinc-400 max-w-sm mx-auto">
+            <p className="text-[11px] text-role-secondary max-w-sm mx-auto">
               با کلیک روی «صدور حکم دادگاه»، کارنامه رسمی و تحلیل نقاط قوت/ضعف چرخه صادر می‌شود.
             </p>
           </div>
@@ -717,22 +717,22 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
       {/* 2. Archives Table & Mobile Card View */}
       <div className="space-y-3 sm:space-y-4">
         {/* Controls: Search & Filter Tabs */}
-        <div className="bg-[#121215]/90 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col md:flex-row items-center justify-between gap-2.5 sm:gap-3 shadow-md">
+        <div className="surface-z1 border-standard radius-card p-3 sm:p-4 flex flex-col md:flex-row items-center justify-between gap-2.5 sm:gap-3 shadow-subtle">
           {/* Search Box with Clear Button */}
           <div className="relative w-full md:w-96">
-            <Search className="w-4 h-4 text-zinc-400 absolute right-3 top-2.5 pointer-events-none" />
+            <Search className="w-4 h-4 text-role-muted absolute right-3 top-2.5 pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="جستجو در روز، تاریخ، امتیاز، وضعیت، عادات، علت شکست..."
-              className="w-full bg-[#18181b] border border-zinc-800 rounded-xl pr-9 pl-8 py-2 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition"
+              className="w-full surface-z0 border-standard radius-component pr-9 pl-8 py-2 text-xs text-role-primary placeholder:text-role-muted focus:outline-none focus:border-standard-hover transition"
             />
             {search.length > 0 && (
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="absolute left-2.5 top-2.5 text-zinc-500 hover:text-zinc-300 transition cursor-pointer p-0.5"
+                className="absolute left-2.5 top-2.5 text-role-muted hover:text-role-primary transition cursor-pointer p-0.5"
                 title="پاک کردن جستجو"
               >
                 <X className="w-3.5 h-3.5" />
@@ -757,10 +757,10 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                     soundFX.playCheck();
                     setStatusFilter(f.id);
                   }}
-                  className={`text-xs px-2.5 sm:px-3 py-1.5 rounded-xl border whitespace-nowrap transition cursor-pointer active:scale-[0.98] leading-none ${
+                  className={`text-xs px-2.5 sm:px-3 py-1.5 radius-component border whitespace-nowrap transition cursor-pointer active:scale-[0.98] leading-none ${
                     isActive
-                      ? 'bg-zinc-800 border-zinc-600 text-zinc-100 font-bold shadow-sm'
-                      : 'bg-[#09090b]/60 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                      ? 'surface-z2 border-standard text-role-primary font-bold shadow-subtle'
+                      : 'surface-z0 border-standard text-role-secondary hover:text-role-primary hover:border-standard-hover'
                   }`}
                 >
                   {f.label}
@@ -771,7 +771,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
         </div>
 
         {/* Count summary & 7-Day View Notice */}
-        <div className="px-1 text-[11px] text-zinc-400 flex items-center justify-between">
+        <div className="px-1 text-[11px] text-role-secondary flex items-center justify-between">
           <span>
             {search.trim() || statusFilter !== 'all' || showAllLogs || filteredLogs.length <= 7
               ? `نمایش ${toPersianDigits(filteredLogs.length)} رکورد در این چرخه`
@@ -784,7 +784,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                 soundFX.playCheck();
                 setShowAllLogs(true);
               }}
-              className="text-amber-400 hover:text-amber-300 font-bold inline-flex items-center gap-1 cursor-pointer transition text-[11px]"
+              className="text-amber hover:brightness-110 font-bold inline-flex items-center gap-1 cursor-pointer transition text-[11px]"
             >
               <span>نمایش همه ({toPersianDigits(filteredLogs.length)})</span>
               <ChevronDown className="w-3.5 h-3.5" />
@@ -795,7 +795,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
         {/* 1. Mobile Card View (< md) */}
         <div className="block md:hidden space-y-2.5 w-full max-w-full">
           {filteredLogs.length === 0 ? (
-            <div className="bg-[#121215] border border-zinc-800 rounded-2xl p-6 text-center text-zinc-500 text-xs">
+            <div className="surface-z1 border-standard radius-card p-6 text-center text-role-muted text-xs">
               هیچ رکوردی مطابق جستجو و فیلتر جاری یافت نشد.
             </div>
           ) : (
@@ -807,53 +807,53 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                 return (
                   <div
                     key={l.id}
-                    className={`bg-[#121215] border rounded-2xl p-3 sm:p-3.5 space-y-2.5 shadow-md transition ${
+                    className={`surface-z1 border radius-card p-3 sm:p-3.5 space-y-2.5 shadow-subtle transition ${
                       isToday 
-                        ? 'border-rose-500/40 bg-rose-500/5' 
-                        : 'border-zinc-800'
+                        ? 'border-rose-subtle bg-rose-subtle' 
+                        : 'border-standard'
                     }`}
                   >
                     {/* Top row: Date & Score & Status */}
                     <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
                       <button
                         onClick={() => onSelectDate(l.date)}
-                        className="flex items-center gap-1.5 font-bold text-xs text-zinc-100 hover:text-amber-400 cursor-pointer text-right transition shrink-0"
+                        className="flex items-center gap-1.5 font-bold text-xs text-role-primary hover:text-amber cursor-pointer text-right transition shrink-0"
                       >
-                        <Calendar className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                        <Calendar className="w-3.5 h-3.5 text-role-muted shrink-0" />
                         <span className="whitespace-nowrap sm:hidden">{formatPersianDate(l.date, { short: true })}</span>
                         <span className="whitespace-nowrap hidden sm:inline">{formatPersianDate(l.date, { withWeekday: true })}</span>
                         {isToday && (
-                          <span className="bg-rose-500/20 text-rose-300 text-[10px] px-1.5 py-0.5 rounded font-bold whitespace-nowrap">
+                          <span className="bg-rose-subtle text-rose text-[10px] px-1.5 py-0.5 radius-badge font-bold whitespace-nowrap">
                             امروز
                           </span>
                         )}
                       </button>
 
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span className={`font-bold text-[11px] font-mono bg-[#18181b] px-2 py-0.5 rounded-lg border border-zinc-800 shrink-0 whitespace-nowrap ${
+                        <span className={`font-bold text-[11px] font-mono surface-z0 px-2 py-0.5 radius-control border-standard shrink-0 whitespace-nowrap ${
                           computed.score === 10
-                            ? 'text-amber-400 font-black'
+                            ? 'text-amber font-black'
                             : computed.isStandard
-                            ? 'text-emerald-400'
+                            ? 'text-emerald font-bold'
                             : computed.statusType === 'personal_frozen'
-                            ? 'text-blue-300'
-                            : 'text-zinc-300'
+                            ? 'text-blue'
+                            : 'text-role-secondary'
                         }`}>
                           {toPersianDigits(computed.score)} / ۱۰
                         </span>
 
-                        <span className={`h-6 px-2 rounded-lg text-[10px] font-bold border inline-flex items-center gap-1 shadow-sm select-none pointer-events-none cursor-default shrink-0 whitespace-nowrap ${
+                        <span className={`h-6 px-2 radius-control text-[10px] font-bold border inline-flex items-center gap-1 shadow-subtle select-none pointer-events-none cursor-default shrink-0 whitespace-nowrap ${
                           computed.statusType === 'standard'
-                            ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-300'
+                            ? 'bg-emerald-subtle border-emerald-subtle text-emerald'
                             : computed.statusType === 'personal_frozen'
-                            ? 'bg-blue-950/90 border-blue-500/50 text-blue-300'
+                            ? 'bg-blue-subtle border-blue-subtle text-blue'
                             : computed.statusType === 'burned_resolved'
-                            ? 'bg-zinc-800 border-zinc-700 text-zinc-300'
-                            : 'bg-red-950/90 border-red-500/50 text-red-300 animate-pulse'
+                            ? 'surface-z2 border-standard text-role-secondary'
+                            : 'bg-debt-subtle border-debt-subtle text-debt animate-pulse'
                         }`}>
                           {computed.statusType === 'standard' && <CheckCircle2 className="w-3 h-3" />}
                           {computed.statusType === 'personal_frozen' && <Snowflake className="w-3 h-3" />}
-                          {computed.statusType === 'burned_resolved' && <FileBadge className="w-3 h-3 text-zinc-400" />}
+                          {computed.statusType === 'burned_resolved' && <FileBadge className="w-3 h-3 text-role-muted" />}
                           {computed.statusType === 'burned_unresolved' && <AlertTriangle className="w-3 h-3" />}
                           <span>
                             {computed.statusType === 'standard' && 'تعهد کامل'}
@@ -866,8 +866,8 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                     </div>
 
                     {/* Habits & Special Mission Row */}
-                    <div className="bg-[#18181b] p-2 rounded-xl border border-zinc-800 flex items-center justify-between flex-wrap gap-2">
-                      <span className="text-[10px] text-zinc-400 font-bold">۵ پایه و ماموریت:</span>
+                    <div className="surface-z0 p-2 radius-component border-standard flex items-center justify-between flex-wrap gap-2">
+                      <span className="text-[10px] text-role-secondary font-bold">۵ پایه و ماموریت:</span>
                       <div className="flex items-center gap-1">
                         {[
                           { k: 'wakeUp', title: 'سحرخیزی', done: l.wakeUp },
@@ -878,10 +878,10 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                         ].map(h => (
                           <div
                             key={h.k}
-                            className={`w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold ${
+                            className={`w-5 h-5 radius-control flex items-center justify-center text-[9px] font-bold ${
                               h.done
-                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                                : 'bg-zinc-800 text-zinc-600 border border-zinc-700'
+                                ? 'bg-emerald-subtle text-emerald border border-emerald-subtle'
+                                : 'surface-z2 text-role-muted border-standard'
                             }`}
                             title={`${h.title}: ${h.done ? 'انجام شد' : 'انجام نشد'}`}
                           >
@@ -889,36 +889,36 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                           </div>
                         ))}
 
-                        <span className="w-[1px] h-3.5 bg-zinc-700 mx-0.5"></span>
+                        <span className="w-[1px] h-3.5 surface-z3 mx-0.5"></span>
 
                         <div
-                          className={`w-6 h-5 rounded flex items-center justify-center text-[9px] font-bold ${
+                          className={`w-6 h-5 radius-control flex items-center justify-center text-[9px] font-bold ${
                             l.specialMission
-                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                              : 'bg-zinc-800 text-zinc-600 border border-zinc-700'
+                              ? 'bg-amber-subtle text-amber border border-amber-subtle shadow-subtle'
+                              : 'surface-z2 text-role-muted border-standard'
                           }`}
                           title={`ماموریت ویژه: ${l.specialMission ? 'انجام شد (+۲ امتیاز)' : 'انجام نشد'}`}
                         >
-                          {l.specialMission ? <Check className="w-3 h-3 text-amber-400 stroke-[2.5]" /> : '×'}
+                          {l.specialMission ? <Check className="w-3 h-3 text-amber stroke-[2.5]" /> : '×'}
                         </div>
                       </div>
                     </div>
 
                     {/* Failure / Autopsy details (Strict Ghost Elements Cleanse) */}
                     {((l.failureReason && l.failureReason.trim() !== '') || (l.countermeasure && l.countermeasure.trim() !== '') || (l.autopsyNotes && l.autopsyNotes.trim() !== '')) && (
-                      <div className="bg-[#18181b] p-2 rounded-xl border border-zinc-800 space-y-1 text-[11px]">
+                      <div className="surface-z0 p-2 radius-component border-standard space-y-1 text-[11px]">
                         {l.failureReason && l.failureReason.trim() !== '' && (
-                          <div className="text-red-300">
-                            <span className="font-bold text-zinc-400">ریشه شکست: </span>
+                          <div className="text-debt">
+                            <span className="font-bold text-role-secondary">ریشه شکست: </span>
                             <span>{l.failureReason.trim()}</span>
                             {l.failureTime && l.failureTime.trim() !== '' && (
-                              <span className="text-zinc-500 mr-1">({toPersianDigits(l.failureTime.trim())})</span>
+                              <span className="text-role-muted mr-1">({toPersianDigits(l.failureTime.trim())})</span>
                             )}
                           </div>
                         )}
                         {((l.countermeasure && l.countermeasure.trim() !== '') || (l.autopsyNotes && l.autopsyNotes.trim() !== '')) && (
-                          <div className="text-zinc-200">
-                            <span className="font-bold text-zinc-400">پادزهر: </span>
+                          <div className="text-role-primary">
+                            <span className="font-bold text-role-secondary">پادزهر: </span>
                             <span>{(l.countermeasure && l.countermeasure.trim() !== '') ? l.countermeasure.trim() : l.autopsyNotes?.trim()}</span>
                           </div>
                         )}
@@ -929,7 +929,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                     <div className="flex items-center justify-start gap-1.5 pt-0.5 flex-wrap">
                       <button
                         onClick={() => onSelectDate(l.date)}
-                        className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs px-2.5 py-1 rounded-lg border border-zinc-700 flex items-center gap-1 cursor-pointer active:scale-95 whitespace-nowrap transition"
+                        className="surface-z2 hover:surface-z3 text-role-secondary text-xs px-2.5 py-1 radius-control border-standard flex items-center gap-1 cursor-pointer active:scale-95 whitespace-nowrap transition"
                       >
                         <span>میدان نبرد</span>
                         <ChevronLeft className="w-3 h-3" />
@@ -938,7 +938,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                       {(computed.needsAutopsy || l.failureReason) && (
                         <button
                           onClick={() => onOpenAutopsy(l)}
-                          className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold px-2.5 py-1 rounded-lg border border-zinc-700 cursor-pointer active:scale-95 whitespace-nowrap transition"
+                          className="surface-z2 hover:surface-z3 text-role-primary text-xs font-bold px-2.5 py-1 radius-control border-standard cursor-pointer active:scale-95 whitespace-nowrap transition"
                         >
                           کالبدشکافی
                         </button>
@@ -956,10 +956,10 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                     soundFX.playCheck();
                     setShowAllLogs(true);
                   }}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-[#121215] hover:bg-zinc-800 border border-amber-500/40 hover:border-amber-500/60 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-[0.98] transition"
+                  className="w-full py-3.5 px-4 radius-card surface-z1 hover:surface-z2 border border-amber-subtle hover:border-amber text-amber font-bold text-xs flex items-center justify-center gap-2 shadow-subtle cursor-pointer active:scale-[0.98] transition"
                 >
                   <span>نمایش کامل سوابق ({toPersianDigits(filteredLogs.length - 7)} روز دیگر)</span>
-                  <ChevronDown className="w-4 h-4 text-amber-400" />
+                  <ChevronDown className="w-4 h-4 text-amber" />
                 </button>
               )}
 
@@ -970,7 +970,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                     soundFX.playCheck();
                     setShowAllLogs(false);
                   }}
-                  className="w-full py-2.5 px-4 rounded-2xl bg-[#121215]/60 hover:bg-[#121215] border border-zinc-800 text-zinc-400 hover:text-zinc-200 font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition"
+                  className="w-full py-2.5 px-4 radius-card surface-z0 hover:surface-z1 border-standard text-role-secondary hover:text-role-primary font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition"
                 >
                   <span>بستن و نمایش ۷ روز اخیر</span>
                   <ChevronUp className="w-3.5 h-3.5" />
@@ -981,10 +981,10 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
         </div>
 
         {/* 2. Desktop Table View (>= md) */}
-        <div className="hidden md:block bg-[#121215]/90 border border-zinc-800 rounded-3xl overflow-hidden shadow-xl">
+        <div className="hidden md:block surface-z1 border-standard radius-modal overflow-hidden shadow-subtle">
           <div className="overflow-x-auto">
             <table className="w-full text-right text-xs">
-              <thead className="bg-[#09090b] border-b border-zinc-800 text-zinc-400 font-semibold select-none">
+              <thead className="surface-z0 border-b border-standard text-role-secondary font-semibold select-none">
                 <tr>
                   <th className="p-3.5 whitespace-nowrap min-w-[110px] text-center">تاریخ روز</th>
                   <th className="p-3.5 whitespace-nowrap min-w-[130px] text-center">۵ پایه تعهد</th>
@@ -996,10 +996,10 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                   <th className="p-3.5 whitespace-nowrap min-w-[90px] text-center">اقدام</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60 text-zinc-200">
+              <tbody className="divide-y divide-standard text-role-primary">
                 {filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-zinc-500">
+                    <td colSpan={8} className="p-8 text-center text-role-muted">
                       هیچ رکوردی مطابق جستجو و فیلتر جاری یافت نشد.
                     </td>
                   </tr>
@@ -1009,16 +1009,16 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                     const isToday = l.date === logicalToday;
 
                     return (
-                      <tr key={l.id} className={`hover:bg-zinc-800/40 transition ${isToday ? 'bg-rose-500/5 hover:bg-rose-500/10' : ''}`}>
+                      <tr key={l.id} className={`hover:surface-z2 transition ${isToday ? 'bg-rose-subtle hover:bg-rose-subtle' : ''}`}>
                         <td className="p-3.5 font-mono whitespace-nowrap align-middle text-center">
                           <button
                             onClick={() => onSelectDate(l.date)}
-                            className="hover:text-amber-400 font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer text-zinc-100 mx-auto"
+                            className="hover:text-amber font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer text-role-primary mx-auto"
                           >
-                            <Calendar className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                            <Calendar className="w-3.5 h-3.5 text-role-muted shrink-0" />
                             <span>{formatPersianDate(l.date, { short: true })}</span>
                             {isToday && (
-                              <span className="text-[10px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded font-sans">
+                              <span className="text-[10px] bg-rose-subtle text-rose px-1.5 py-0.5 radius-badge font-sans">
                                 امروز
                               </span>
                             )}
@@ -1038,10 +1038,10 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                               <span
                                 key={h.k}
                                 title={`${h.title}: ${h.done ? 'انجام شد' : 'انجام نشد'}`}
-                                className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ${
+                                className={`w-5 h-5 radius-control flex items-center justify-center text-[10px] font-bold ${
                                   h.done 
-                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' 
-                                    : 'bg-zinc-800 text-zinc-600 border border-zinc-700'
+                                    ? 'bg-emerald-subtle text-emerald border border-emerald-subtle' 
+                                    : 'surface-z2 text-role-muted border-standard'
                                 }`}
                               >
                                 {h.done ? '✓' : '×'}
@@ -1055,14 +1055,14 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                           {l.specialMission ? (
                             <span 
                               title="ماموریت ویژه: انجام شد (+۲ امتیاز اضافه)"
-                              className="w-5 h-5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 inline-flex items-center justify-center font-bold text-[10px] shadow-sm mx-auto"
+                              className="w-5 h-5 radius-control bg-amber-subtle text-amber border border-amber-subtle inline-flex items-center justify-center font-bold text-[10px] shadow-subtle mx-auto"
                             >
                               ✓
                             </span>
                           ) : (
                             <span 
                               title="ماموریت ویژه: انجام نشد"
-                              className="w-5 h-5 rounded-md bg-zinc-800/80 text-zinc-600 border border-zinc-700 inline-flex items-center justify-center text-[10px] font-bold mx-auto"
+                              className="w-5 h-5 radius-control surface-z2 text-role-muted border-standard inline-flex items-center justify-center text-[10px] font-bold mx-auto"
                             >
                               ×
                             </span>
@@ -1072,12 +1072,12 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                         {/* Score Column */}
                         <td className={`p-3.5 whitespace-nowrap font-mono align-middle text-center ${
                           computed.score === 10
-                            ? 'text-amber-400 font-black'
+                            ? 'text-amber font-black'
                             : computed.isStandard
-                            ? 'text-emerald-400 font-bold'
+                            ? 'text-emerald font-bold'
                             : computed.statusType === 'personal_frozen'
-                            ? 'text-blue-300 font-medium'
-                            : 'text-zinc-300 font-medium'
+                            ? 'text-blue font-medium'
+                            : 'text-role-secondary font-medium'
                         }`}>
                           {toPersianDigits(computed.score)} / ۱۰
                         </td>
@@ -1085,18 +1085,18 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                         {/* Status Badge */}
                         <td className="p-3.5 whitespace-nowrap align-middle text-center">
                           <div className="flex items-center justify-center">
-                            <span className={`w-28 h-7 justify-center px-2 py-0.5 rounded-lg text-[11px] font-bold border inline-flex items-center gap-1.5 shadow-sm text-center select-none pointer-events-none cursor-default ${
+                            <span className={`w-28 h-7 justify-center px-2 py-0.5 radius-control text-[11px] font-bold border inline-flex items-center gap-1.5 shadow-subtle text-center select-none pointer-events-none cursor-default ${
                               computed.statusType === 'standard'
-                                ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300'
+                                ? 'bg-emerald-subtle border-emerald-subtle text-emerald'
                                 : computed.statusType === 'personal_frozen'
-                                ? 'bg-blue-950/80 border-blue-500/40 text-blue-300'
+                                ? 'bg-blue-subtle border-blue-subtle text-blue'
                                 : computed.statusType === 'burned_resolved'
-                                ? 'bg-zinc-800 border-zinc-700 text-zinc-300'
-                                : 'bg-red-950/80 border-red-500/40 text-red-300 animate-pulse'
+                                ? 'surface-z2 border-standard text-role-secondary'
+                                : 'bg-debt-subtle border-debt-subtle text-debt animate-pulse'
                             }`}>
                               {computed.statusType === 'standard' && <CheckCircle2 className="w-3.5 h-3.5" />}
                               {computed.statusType === 'personal_frozen' && <Snowflake className="w-3.5 h-3.5" />}
-                              {computed.statusType === 'burned_resolved' && <FileBadge className="w-3.5 h-3.5 text-zinc-400" />}
+                              {computed.statusType === 'burned_resolved' && <FileBadge className="w-3.5 h-3.5 text-role-muted" />}
                               {computed.statusType === 'burned_unresolved' && <AlertTriangle className="w-3.5 h-3.5" />}
                               <span>
                                 {computed.statusType === 'standard' && 'تعهد کامل'}
@@ -1109,32 +1109,32 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                         </td>
 
                         {/* Failure Reason and Time */}
-                        <td className="p-3.5 text-xs text-zinc-300 align-middle text-right max-w-[240px]">
+                        <td className="p-3.5 text-xs text-role-secondary align-middle text-right max-w-[240px]">
                           {l.failureReason && l.failureReason.trim() !== '' ? (
-                            <div className="space-y-1 bg-[#18181b] p-2 rounded-xl border border-zinc-800">
-                              <p className="font-semibold text-zinc-200 leading-snug break-words">
+                            <div className="space-y-1 surface-z0 p-2 radius-component border-standard">
+                              <p className="font-semibold text-role-primary leading-snug break-words">
                                 {l.failureReason.trim()}
                               </p>
                               {l.failureTime && l.failureTime.trim() !== '' && (
-                                <div className="inline-flex items-center gap-1 text-[10px] bg-[#121215] px-2 py-0.5 rounded border border-zinc-800 text-zinc-400 font-mono">
-                                  <Clock className="w-3 h-3 text-zinc-500" />
+                                <div className="inline-flex items-center gap-1 text-[10px] surface-z1 px-2 py-0.5 radius-badge border-standard text-role-muted font-mono">
+                                  <Clock className="w-3 h-3 text-role-muted" />
                                   <span>زمان: {toPersianDigits(l.failureTime.trim())}</span>
                                 </div>
                               )}
                             </div>
                           ) : (
-                            <span className="text-zinc-600 block text-right select-none">—</span>
+                            <span className="text-role-muted block text-right select-none">—</span>
                           )}
                         </td>
 
                         {/* Countermeasure / Strategy */}
-                        <td className="p-3.5 text-xs text-zinc-300 align-middle text-right max-w-[240px]">
+                        <td className="p-3.5 text-xs text-role-secondary align-middle text-right max-w-[240px]">
                           {(l.countermeasure && l.countermeasure.trim() !== '') || (l.autopsyNotes && l.autopsyNotes.trim() !== '') ? (
-                            <p className="leading-snug text-zinc-300 break-words line-clamp-3 hover:line-clamp-none transition-all">
+                            <p className="leading-snug text-role-secondary break-words line-clamp-3 hover:line-clamp-none transition-all">
                               {(l.countermeasure && l.countermeasure.trim() !== '') ? l.countermeasure.trim() : l.autopsyNotes?.trim()}
                             </p>
                           ) : (
-                            <span className="text-zinc-600 block text-right select-none">—</span>
+                            <span className="text-role-muted block text-right select-none">—</span>
                           )}
                         </td>
 
@@ -1142,7 +1142,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                         <td className="p-3.5 whitespace-nowrap text-center align-middle">
                           <button
                             onClick={() => onOpenAutopsy(l)}
-                            className="text-xs bg-zinc-800 hover:bg-zinc-700 hover:border-zinc-600 text-zinc-200 px-2.5 py-1 rounded-lg border border-zinc-700 transition cursor-pointer active:scale-[0.98]"
+                            className="text-xs surface-z2 hover:surface-z3 text-role-primary px-2.5 py-1 radius-control border-standard transition cursor-pointer active:scale-[0.98]"
                           >
                             کالبدشکافی
                           </button>
@@ -1157,30 +1157,30 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
 
           {/* 1-Click Expand Button on Desktop (>= md) */}
           {!showAllLogs && !search.trim() && statusFilter === 'all' && filteredLogs.length > 14 && (
-            <div className="p-3 bg-[#121215] border-t border-zinc-800 text-center">
+            <div className="p-3 surface-z0 border-t border-standard text-center">
               <button
                 type="button"
                 onClick={() => {
                   soundFX.playCheck();
                   setShowAllLogs(true);
                 }}
-                className="py-2 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-amber-500/40 text-amber-300 font-bold text-xs inline-flex items-center gap-2 cursor-pointer active:scale-[0.98] transition"
+                className="py-2 px-4 radius-component surface-z1 hover:surface-z2 border border-amber-subtle text-amber font-bold text-xs inline-flex items-center gap-2 cursor-pointer active:scale-[0.98] transition"
               >
                 <span>نمایش کامل همه سوابق جدول ({toPersianDigits(filteredLogs.length)} روز)</span>
-                <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
+                <ChevronDown className="w-3.5 h-3.5 text-amber" />
               </button>
             </div>
           )}
 
           {showAllLogs && !search.trim() && statusFilter === 'all' && filteredLogs.length > 14 && (
-            <div className="p-2.5 bg-[#121215] border-t border-zinc-800 text-center">
+            <div className="p-2.5 surface-z0 border-t border-standard text-center">
               <button
                 type="button"
                 onClick={() => {
                   soundFX.playCheck();
                   setShowAllLogs(false);
                 }}
-                className="py-1.5 px-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 text-xs inline-flex items-center gap-1 cursor-pointer active:scale-[0.98] transition"
+                className="py-1.5 px-3 radius-component surface-z1 hover:surface-z2 border-standard text-role-secondary text-xs inline-flex items-center gap-1 cursor-pointer active:scale-[0.98] transition"
               >
                 <span>محدود کردن به ۱۴ روز اخیر</span>
                 <ChevronUp className="w-3.5 h-3.5" />
@@ -1193,63 +1193,63 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
       {/* New Cycle Creation Modal */}
       {showNewCycleModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1c1c21] border border-zinc-800 rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <h3 className="font-bold text-base sm:text-lg text-zinc-100 flex items-center gap-2">
-              <Layers className="w-5 h-5 text-zinc-300" />
+          <div className="surface-z1 border-standard radius-modal w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
+            <h3 className="font-bold text-base sm:text-lg text-role-primary flex items-center gap-2">
+              <Layers className="w-5 h-5 text-role-secondary" />
               <span>تعریف چرخه ۹۰ روزه جدید</span>
             </h3>
 
             {modalOverlapError && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl p-3 text-xs font-medium flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <div className="bg-debt-subtle border border-debt-subtle text-debt radius-component p-3 text-xs font-medium flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-debt shrink-0 mt-0.5" />
                 <span className="leading-relaxed">{modalOverlapError}</span>
               </div>
             )}
 
             <form onSubmit={handleCreateCycleSubmit} className="space-y-3.5">
               <div>
-                <label className="text-xs text-zinc-300 block mb-1">عنوان چرخه:</label>
+                <label className="text-xs text-role-secondary block mb-1">عنوان چرخه:</label>
                 <input
                   type="text"
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
                   required
-                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500/60 transition"
+                  className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary focus:outline-none focus:border-amber transition"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-zinc-300 block mb-1">تاریخ شروع (YYYY-MM-DD):</label>
+                <label className="text-xs text-role-secondary block mb-1">تاریخ شروع (YYYY-MM-DD):</label>
                 <input
                   type="date"
                   value={newStartDate}
                   onChange={e => setNewStartDate(e.target.value)}
                   required
-                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-500/60 transition"
+                  className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary font-mono focus:outline-none focus:border-amber transition"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-zinc-300 block mb-1">میثاق و تم اصلی چرخه:</label>
+                <label className="text-xs text-role-secondary block mb-1">میثاق و تم اصلی چرخه:</label>
                 <textarea
                   value={newTheme}
                   onChange={e => setNewTheme(e.target.value)}
                   rows={2}
-                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500/60 transition resize-none"
+                  className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary focus:outline-none focus:border-amber transition resize-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-standard">
                 <button
                   type="button"
                   onClick={() => setShowNewCycleModal(false)}
-                  className="bg-zinc-800 hover:bg-zinc-700 hover:border-zinc-600 border border-zinc-700 text-zinc-300 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer active:scale-[0.98]"
+                  className="surface-z2 hover:surface-z3 border-standard text-role-secondary px-4 py-2 radius-component text-xs font-bold transition cursor-pointer active:scale-[0.98]"
                 >
                   انصراف
                 </button>
                 <button
                   type="submit"
-                  className="bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-black px-5 py-2 rounded-xl text-xs font-black shadow-md shadow-amber-500/20 transition cursor-pointer active:scale-[0.98]"
+                  className="bg-amber hover:brightness-105 active:brightness-95 text-black px-5 py-2 radius-component text-xs font-black shadow-subtle transition cursor-pointer active:scale-[0.98]"
                 >
                   ایجاد و شروع چرخه
                 </button>
@@ -1262,39 +1262,39 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
       {/* Archive Cycle Confirmation Modal */}
       {showArchiveConfirmModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1c1c21] border border-zinc-800 rounded-3xl w-full max-w-md p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+          <div className="surface-z1 border-standard radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-200 shrink-0">
+              <div className="w-11 h-11 radius-card surface-z2 border-standard flex items-center justify-center text-role-secondary shrink-0">
                 <Archive className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-sm sm:text-base text-zinc-100">
+                <h3 className="font-bold text-sm sm:text-base text-role-primary">
                   تأیید بایگانی نهایی چرخه
                 </h3>
-                <p className="text-xs text-zinc-400 mt-0.5">
+                <p className="text-xs text-role-muted mt-0.5">
                   قفل سوابق تاریخی در بایگانی بوشیدو
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-zinc-300 leading-relaxed bg-[#18181b] border border-zinc-800 rounded-2xl p-3.5">
-              آیا از انتقال چرخه <strong className="text-amber-300">«{currentCycle.title}»</strong> به بایگانی رسمی اطمینان دارید؟
+            <p className="text-xs text-role-secondary leading-relaxed surface-z0 border-standard radius-card p-3.5">
+              آیا از انتقال چرخه <strong className="text-amber">«{currentCycle.title}»</strong> به بایگانی رسمی اطمینان دارید؟
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowArchiveConfirmModal(false)}
-                className="bg-zinc-800 hover:bg-zinc-700 hover:border-zinc-600 border border-zinc-700 text-zinc-300 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer active:scale-[0.98]"
+                className="surface-z2 hover:surface-z3 border-standard text-role-secondary px-3.5 py-2 radius-component text-xs font-bold transition cursor-pointer active:scale-[0.98]"
               >
                 انصراف
               </button>
               <button
                 type="button"
                 onClick={handleConfirmArchive}
-                className="bg-zinc-750 hover:bg-zinc-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-lg border border-zinc-600 transition cursor-pointer active:scale-[0.98]"
+                className="surface-z3 hover:surface-z2 text-role-primary font-bold px-4 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle border-standard transition cursor-pointer active:scale-[0.98]"
               >
-                <Archive className="w-3.5 h-3.5" />
+                <Archive className="w-3.5 h-3.5 text-role-muted" />
                 <span>تأیید بایگانی</span>
               </button>
             </div>
@@ -1305,39 +1305,39 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
       {/* Unarchive Cycle Confirmation Modal */}
       {showUnarchiveConfirmModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1c1c21] border border-zinc-800 rounded-3xl w-full max-w-md p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+          <div className="surface-z1 border-standard radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-200 shrink-0">
+              <div className="w-11 h-11 radius-card surface-z2 border-standard flex items-center justify-center text-role-secondary shrink-0">
                 <Unlock className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-sm sm:text-base text-zinc-100">
+                <h3 className="font-bold text-sm sm:text-base text-role-primary">
                   خروج چرخه از بایگانی
                 </h3>
-                <p className="text-xs text-zinc-400 mt-0.5">
+                <p className="text-xs text-role-muted mt-0.5">
                   بازگرداندن به حالت فعال
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-zinc-300 leading-relaxed bg-[#18181b] border border-zinc-800 rounded-2xl p-3.5">
-              آیا مایلید چرخه <strong className="text-amber-300">«{currentCycle.title}»</strong> را از حالت بایگانی خارج کنید تا بتوانید مجدداً روزها را ثبت یا ویرایش نمایید؟
+            <p className="text-xs text-role-secondary leading-relaxed surface-z0 border-standard radius-card p-3.5">
+              آیا مایلید چرخه <strong className="text-amber">«{currentCycle.title}»</strong> را از حالت بایگانی خارج کنید تا بتوانید مجدداً روزها را ثبت یا ویرایش نمایید؟
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowUnarchiveConfirmModal(false)}
-                className="bg-zinc-800 hover:bg-zinc-700 hover:border-zinc-600 border border-zinc-700 text-zinc-300 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer active:scale-[0.98]"
+                className="surface-z2 hover:surface-z3 border-standard text-role-secondary px-3.5 py-2 radius-component text-xs font-bold transition cursor-pointer active:scale-[0.98]"
               >
                 انصراف
               </button>
               <button
                 type="button"
                 onClick={handleConfirmUnarchive}
-                className="bg-zinc-750 hover:bg-zinc-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-lg border border-zinc-600 transition cursor-pointer active:scale-[0.98]"
+                className="surface-z3 hover:surface-z2 text-role-primary font-bold px-4 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle border-standard transition cursor-pointer active:scale-[0.98]"
               >
-                <Unlock className="w-3.5 h-3.5" />
+                <Unlock className="w-3.5 h-3.5 text-role-muted" />
                 <span>تأیید خروج</span>
               </button>
             </div>
@@ -1348,37 +1348,37 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
       {/* Delete Cycle Confirmation Modal */}
       {showDeleteConfirmModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1c1c21] border border-red-500/40 rounded-3xl w-full max-w-md p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+          <div className="surface-z1 border border-debt-subtle radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shrink-0">
+              <div className="w-11 h-11 radius-card bg-debt-subtle border border-debt-subtle flex items-center justify-center text-debt shrink-0">
                 <Trash2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-sm sm:text-base text-zinc-100">
+                <h3 className="font-bold text-sm sm:text-base text-role-primary">
                   تأیید حذف دائمی چرخه
                 </h3>
-                <p className="text-xs text-red-400 mt-0.5">
+                <p className="text-xs text-debt mt-0.5">
                   غیرقابل بازگشت
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-zinc-300 leading-relaxed bg-[#18181b] border border-zinc-800 rounded-2xl p-3.5">
-              آیا از حذف کامل <strong className="text-amber-300">«{currentCycle.title}»</strong> و تمام لاگ‌ها و سوابق آن اطمینان دارید؟
+            <p className="text-xs text-role-secondary leading-relaxed surface-z0 border-standard radius-card p-3.5">
+              آیا از حذف کامل <strong className="text-amber">«{currentCycle.title}»</strong> و تمام لاگ‌ها و سوابق آن اطمینان دارید؟
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirmModal(false)}
-                className="bg-zinc-800 hover:bg-zinc-700 hover:border-zinc-600 border border-zinc-700 text-zinc-300 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer active:scale-[0.98]"
+                className="surface-z2 hover:surface-z3 border-standard text-role-secondary px-3.5 py-2 radius-component text-xs font-bold transition cursor-pointer active:scale-[0.98]"
               >
                 انصراف
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                className="bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-red-600/30 transition cursor-pointer active:scale-[0.98]"
+                className="bg-debt hover:brightness-110 active:brightness-95 text-white font-bold px-4 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-[0.98]"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>حذف قطعی</span>

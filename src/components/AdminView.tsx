@@ -73,21 +73,21 @@ export const AdminView: React.FC<AdminViewProps> = ({
       label: `مدیریت کاربران (${toPersianDigits(users.length)})`,
       shortLabel: `کاربران (${toPersianDigits(users.length)})`,
       icon: Users,
-      activeColor: 'text-amber-400'
+      activeColor: 'text-amber'
     },
     {
       id: 'subscriptions',
       label: `تراکنش‌ها (${toPersianDigits(subscriptions.length)})`,
       shortLabel: `تراکنش (${toPersianDigits(subscriptions.length)})`,
       icon: CreditCard,
-      activeColor: 'text-emerald-400'
+      activeColor: 'text-emerald'
     },
     {
       id: 'gateway',
       label: 'تنظیمات زرین‌پال و دیتابیس',
       shortLabel: 'درگاه و سرور',
       icon: Zap,
-      activeColor: 'text-rose-400'
+      activeColor: 'text-rose'
     }
   ];
 
@@ -255,22 +255,22 @@ export const AdminView: React.FC<AdminViewProps> = ({
     <div className="space-y-6 animate-in fade-in duration-200 w-full max-w-5xl mx-auto" dir="rtl">
       
       {/* Top Header Card */}
-      <div className="bg-[#121215]/90 border border-zinc-800 rounded-3xl p-5 sm:p-7 shadow-xl">
+      <div className="surface-z1 border-standard radius-modal p-5 sm:p-7 shadow-subtle">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-zinc-800/90 border border-zinc-700/80 flex items-center justify-center text-zinc-200 shadow-md">
-              <ShieldCheck className="w-6 h-6 text-zinc-200" />
+            <div className="w-12 h-12 radius-component surface-z2 border-standard flex items-center justify-center text-role-primary shadow-subtle">
+              <ShieldCheck className="w-6 h-6 text-role-primary" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black text-zinc-100 tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-black text-role-primary tracking-tight">
                   قرارگاه فرماندهی و مدیریت سامورایی‌ها
                 </h1>
-                <span className="bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                <span className="surface-z2 text-role-secondary border-standard text-[10px] font-bold px-2 py-0.5 radius-badge">
                   پنل ادمین
                 </span>
               </div>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <p className="text-xs text-role-secondary mt-0.5">
                 نظارت بر حساب‌ها، چرخه‌ها، مدیریت اشتراک‌های VIP و درگاه پرداخت زرین‌پال
               </p>
             </div>
@@ -280,21 +280,21 @@ export const AdminView: React.FC<AdminViewProps> = ({
             {onBack && (
               <button
                 onClick={onBack}
-                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer border border-zinc-700"
+                className="surface-z2 hover:surface-z3 text-role-secondary hover:text-role-primary px-3.5 py-1.5 radius-component text-xs font-bold flex items-center gap-1.5 transition cursor-pointer border-standard focus-ring-tactical"
               >
                 <span>بازگشت به تنظیمات</span>
               </button>
             )}
-            <div className="bg-zinc-950 border border-zinc-800 px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 text-zinc-300">
-              <Server className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-[11px] font-mono text-emerald-400">
+            <div className="surface-z0 border-standard px-3 py-1.5 radius-component text-xs flex items-center gap-2 text-role-secondary">
+              <Server className="w-3.5 h-3.5 text-emerald" />
+              <span className="text-[11px] font-mono text-emerald">
                 {stats?.databaseMode || 'PostgreSQL'}
               </span>
             </div>
             <button
               onClick={fetchAdminData}
               disabled={isLoading}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer border border-zinc-700"
+              className="surface-z2 hover:surface-z3 text-role-secondary hover:text-role-primary px-3.5 py-1.5 radius-component text-xs font-bold flex items-center gap-1.5 transition cursor-pointer border-standard focus-ring-tactical"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
               <span>به‌روزرسانی</span>
@@ -305,14 +305,14 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
       {/* Action Notification Message */}
       {actionMessage && (
-        <div className="bg-amber-950/60 border border-amber-500/40 text-amber-300 px-4 py-3 rounded-2xl text-xs flex items-center justify-between animate-in fade-in">
+        <div className="bg-amber-subtle border border-amber-subtle text-amber px-4 py-3 radius-card text-xs flex items-center justify-between animate-in fade-in">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-amber shrink-0" />
             <span>{actionMessage}</span>
           </div>
           <button 
             onClick={() => setActionMessage(null)}
-            className="text-amber-400/80 hover:text-amber-300 font-bold"
+            className="text-amber/80 hover:text-amber font-bold cursor-pointer"
           >
             ✕
           </button>
@@ -322,61 +322,61 @@ export const AdminView: React.FC<AdminViewProps> = ({
       {/* Overview Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Users */}
-        <div className="bg-[#121215]/80 border border-zinc-800/90 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-zinc-400 text-xs">
+        <div className="surface-z1 border-standard radius-card p-4 sm:p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-role-secondary text-xs">
             <span>کل جنگجویان ثبت‌شده</span>
-            <Users className="w-4 h-4 text-zinc-400" />
+            <Users className="w-4 h-4 text-role-muted" />
           </div>
           <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-black text-zinc-100 font-mono">
+            <span className="text-2xl sm:text-3xl font-black text-role-primary font-mono">
               {toPersianDigits(stats?.totalUsers || users.length || 1)}
             </span>
-            <span className="text-xs text-zinc-400 mr-1.5">کاربر</span>
+            <span className="text-xs text-role-muted mr-1.5">کاربر</span>
           </div>
         </div>
 
         {/* Total VIPs */}
-        <div className="bg-[#121215]/80 border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-zinc-300 text-xs font-bold">
+        <div className="surface-z1 border-standard radius-card p-4 sm:p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-role-primary text-xs font-bold">
             <span>اشتراک‌های فعال VIP</span>
-            <Crown className="w-4 h-4 text-amber-400" />
+            <Crown className="w-4 h-4 text-amber" />
           </div>
           <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono">
+            <span className="text-2xl sm:text-3xl font-black text-amber font-mono">
               {toPersianDigits(stats?.totalVipUsers || users.filter(u => u.isVip).length || 0)}
             </span>
-            <span className="text-xs text-amber-300/80 mr-1.5">سامورایی VIP</span>
+            <span className="text-xs text-amber mr-1.5">سامورایی VIP</span>
           </div>
         </div>
 
         {/* Revenue */}
-        <div className="bg-[#121215]/80 border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-zinc-300 text-xs font-bold">
+        <div className="surface-z1 border-standard radius-card p-4 sm:p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-role-primary text-xs font-bold">
             <span>درآمد کل اشتراک‌ها</span>
-            <CreditCard className="w-4 h-4 text-emerald-400" />
+            <CreditCard className="w-4 h-4 text-emerald" />
           </div>
           <div className="mt-3">
-            <span className="text-xl sm:text-2xl font-black text-emerald-300 font-mono">
+            <span className="text-xl sm:text-2xl font-black text-emerald font-mono">
               {formatPersianToman(stats?.totalRevenueToman || 0)}
             </span>
           </div>
         </div>
 
         {/* Cycles & Logs */}
-        <div className="bg-[#121215]/80 border border-zinc-800/90 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-zinc-400 text-xs">
+        <div className="surface-z1 border-standard radius-card p-4 sm:p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-role-secondary text-xs">
             <span>چرخه‌ها و روزهای ثبت‌شده</span>
-            <Database className="w-4 h-4 text-zinc-400" />
+            <Database className="w-4 h-4 text-role-muted" />
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-xl sm:text-2xl font-black text-zinc-100 font-mono">
+            <span className="text-xl sm:text-2xl font-black text-role-primary font-mono">
               {toPersianDigits(stats?.totalCycles || 1)}
             </span>
-            <span className="text-xs text-zinc-400">چرخه /</span>
-            <span className="text-lg font-bold text-zinc-300 font-mono">
+            <span className="text-xs text-role-muted">چرخه /</span>
+            <span className="text-lg font-bold text-role-secondary font-mono">
               {toPersianDigits(stats?.totalDailyLogs || 25)}
             </span>
-            <span className="text-[11px] text-zinc-400">روز نبرد</span>
+            <span className="text-[11px] text-role-muted">روز نبرد</span>
           </div>
         </div>
       </div>
@@ -393,14 +393,14 @@ export const AdminView: React.FC<AdminViewProps> = ({
       {activeSubTab === 'users' && (
         <div className="space-y-4">
           {/* Create Test User Header Button & Collapsible Form */}
-          <div className="bg-[#121215]/90 border border-zinc-800 rounded-2xl p-4 shadow-lg">
+          <div className="surface-z1 border-standard radius-card p-4 shadow-subtle">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
-                <h3 className="font-bold text-sm text-zinc-100 flex items-center gap-2">
-                  <UserPlus className="w-4 h-4 text-amber-400" />
+                <h3 className="font-bold text-sm text-role-primary flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-amber" />
                   <span>ایجاد حساب کاربری آزمایشی و تست چندکاربره</span>
                 </h3>
-                <p className="text-xs text-zinc-400 mt-0.5">
+                <p className="text-xs text-role-secondary mt-0.5">
                   می‌توانید برای شبیه‌سازی کاربران مختلف (عادی، VIP یا مدیر) حساب جدید ایجاد نمایید و سامانه را از دید آنها بررسی کنید.
                 </p>
               </div>
@@ -408,7 +408,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCreateUserOpen(!isCreateUserOpen)}
-                className="bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer flex items-center gap-2 shrink-0 shadow-md shadow-amber-500/20"
+                className="bg-amber hover:brightness-110 text-black font-bold text-xs px-4 py-2 radius-component transition cursor-pointer flex items-center gap-2 shrink-0 shadow-subtle focus-ring-tactical"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>{isCreateUserOpen ? 'بستن فرم ایجاد' : 'ایجاد حساب کاربری تست جدید'}</span>
@@ -416,36 +416,36 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </div>
 
             {isCreateUserOpen && (
-              <form onSubmit={handleCreateTestUser} className="mt-4 pt-4 border-t border-zinc-800 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <form onSubmit={handleCreateTestUser} className="mt-4 pt-4 border-t border-standard grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-zinc-300 mb-1">نام جنگجو / کاربر</label>
+                  <label className="block text-[11px] font-bold text-role-primary mb-1">نام جنگجو / کاربر</label>
                   <input
                     type="text"
                     required
                     placeholder="مثال: رستم جنگجو"
                     value={newUserName}
                     onChange={e => setNewUserName(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-hidden focus:border-amber-500"
+                    className="w-full surface-z0 border-standard radius-component px-3 py-2 text-xs text-role-primary focus:outline-hidden focus:border-amber"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-zinc-300 mb-1">ایمیل یا شماره موبایل</label>
+                  <label className="block text-[11px] font-bold text-role-primary mb-1">ایمیل یا شماره موبایل</label>
                   <input
                     type="text"
                     placeholder="0912... یا test@user.com"
                     value={newUserContact}
                     onChange={e => setNewUserContact(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-hidden focus:border-amber-500"
+                    className="w-full surface-z0 border-standard radius-component px-3 py-2 text-xs text-role-primary focus:outline-hidden focus:border-amber"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-zinc-300 mb-1">نوع اشتراک اولیه</label>
+                  <label className="block text-[11px] font-bold text-role-primary mb-1">نوع اشتراک اولیه</label>
                   <select
                     value={newUserTier}
                     onChange={e => setNewUserTier(e.target.value as any)}
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-hidden focus:border-amber-500 cursor-pointer"
+                    className="w-full surface-z0 border-standard radius-component px-3 py-2 text-xs text-role-primary focus:outline-hidden focus:border-amber cursor-pointer"
                   >
                     <option value="free">رونین عادی (رایگان)</option>
                     <option value="vip_samurai">سامورایی ویژه (VIP)</option>
@@ -453,12 +453,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 </div>
 
                 <div className="flex items-end gap-2">
-                  <label className="flex items-center gap-2 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-300 cursor-pointer h-[38px] flex-1">
+                  <label className="flex items-center gap-2 surface-z0 border-standard radius-component px-3 py-2 text-xs text-role-secondary cursor-pointer h-[38px] flex-1">
                     <input
                       type="checkbox"
                       checked={newUserIsAdmin}
                       onChange={e => setNewUserIsAdmin(e.target.checked)}
-                      className="accent-amber-500 rounded"
+                      className="accent-amber rounded"
                     />
                     <span className="text-[11px] font-bold">دسترسی مدیر (Admin)</span>
                   </label>
@@ -466,7 +466,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   <button
                     type="submit"
                     disabled={isCreatingUser}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer h-[38px] flex items-center justify-center shrink-0 disabled:opacity-50"
+                    className="bg-emerald hover:brightness-110 text-black font-bold text-xs px-4 py-2 radius-component transition cursor-pointer h-[38px] flex items-center justify-center shrink-0 disabled:opacity-50 focus-ring-tactical"
                   >
                     {isCreatingUser ? 'در حال ثبت...' : 'ثبت کاربر'}
                   </button>
@@ -476,40 +476,40 @@ export const AdminView: React.FC<AdminViewProps> = ({
           </div>
 
           {/* Filter and Search Bar */}
-          <div className="bg-[#121215]/80 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="surface-z1 border-standard radius-card p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="relative w-full sm:w-80">
               <input
                 type="text"
                 placeholder="جستجو با نام، شماره یا ایمیل..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-9 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-hidden focus:border-amber-500"
+                className="w-full surface-z0 border-standard radius-component px-9 py-2 text-xs text-role-primary placeholder:text-role-muted focus:outline-hidden focus:border-amber"
               />
-              <Search className="w-4 h-4 text-zinc-400 absolute right-3 top-2.5" />
+              <Search className="w-4 h-4 text-role-muted absolute right-3 top-2.5" />
             </div>
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={() => setFilterTier('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  filterTier === 'all' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:text-zinc-200'
+                className={`px-3 py-1.5 radius-control text-xs font-bold transition cursor-pointer ${
+                  filterTier === 'all' ? 'surface-z2 text-role-primary' : 'text-role-muted hover:text-role-primary'
                 }`}
               >
                 همه ({toPersianDigits(users.length)})
               </button>
               <button
                 onClick={() => setFilterTier('vip')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
-                  filterTier === 'vip' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-zinc-400 hover:text-zinc-200'
+                className={`px-3 py-1.5 radius-control text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                  filterTier === 'vip' ? 'bg-amber-subtle text-amber border border-amber-subtle' : 'text-role-muted hover:text-role-primary'
                 }`}
               >
-                <Crown className="w-3.5 h-3.5 text-amber-400" />
+                <Crown className="w-3.5 h-3.5 text-amber" />
                 <span>ویژه VIP ({toPersianDigits(users.filter(u => u.isVip).length)})</span>
               </button>
               <button
                 onClick={() => setFilterTier('free')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  filterTier === 'free' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:text-zinc-200'
+                className={`px-3 py-1.5 radius-control text-xs font-bold transition cursor-pointer ${
+                  filterTier === 'free' ? 'surface-z2 text-role-primary' : 'text-role-muted hover:text-role-primary'
                 }`}
               >
                 رایگان ({toPersianDigits(users.filter(u => !u.isVip).length)})
@@ -518,11 +518,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
           </div>
 
           {/* Users Table / Cards */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+          <div className="surface-z1 border-standard radius-card overflow-hidden shadow-subtle">
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
                 <thead>
-                  <tr className="bg-[#09090b]/80 text-zinc-400 border-b border-zinc-800 font-bold">
+                  <tr className="surface-z0/80 text-role-muted border-b border-standard font-bold">
                     <th className="py-3 px-4">کاربر</th>
                     <th className="py-3 px-4">اطلاعات تماس</th>
                     <th className="py-3 px-4">وضعیت اشتراک</th>
@@ -531,10 +531,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     <th className="py-3 px-4 text-center">اقدام مدیریتی / سوییچ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60">
+                <tbody className="divide-y divide-[var(--color-border-subtle)]">
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-zinc-500">
+                      <td colSpan={6} className="py-8 text-center text-role-muted">
                         هیچ کاربری با این مشخصات یافت نشد.
                       </td>
                     </tr>
@@ -544,28 +544,28 @@ export const AdminView: React.FC<AdminViewProps> = ({
                       const isVip = user.isVip;
 
                       return (
-                        <tr key={user.id} className="hover:bg-zinc-800/40 transition-colors">
+                        <tr key={user.id} className="hover:surface-z2/40 transition-colors">
                           {/* User Name & ID */}
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-zinc-300">
+                              <div className="w-8 h-8 radius-control surface-z2 border-standard flex items-center justify-center font-bold text-role-secondary">
                                 {user.name ? user.name.slice(0, 1) : '武'}
                               </div>
                               <div>
-                                <div className="font-bold text-zinc-200 flex items-center gap-1.5">
+                                <div className="font-bold text-role-primary flex items-center gap-1.5">
                                   <span>{user.name}</span>
                                   {isCurrentUser && (
-                                    <span className="text-[9px] bg-sky-500/20 text-sky-400 px-1.5 py-0.2 rounded font-mono">
+                                    <span className="text-[9px] bg-blue-subtle text-blue px-1.5 py-0.2 radius-badge font-mono">
                                       شما
                                     </span>
                                   )}
                                   {user.isAdmin && (
-                                    <span className="text-[9px] bg-red-500/20 text-red-400 border border-red-500/30 px-1.5 py-0.2 rounded font-bold">
+                                    <span className="text-[9px] bg-debt-subtle text-debt border border-debt-subtle px-1.5 py-0.2 radius-badge font-bold">
                                       مدیر
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-[10px] text-zinc-500 font-mono">
+                                <span className="text-[10px] text-role-muted font-mono">
                                   {user.id}
                                 </span>
                               </div>
@@ -573,39 +573,39 @@ export const AdminView: React.FC<AdminViewProps> = ({
                           </td>
 
                           {/* Contact Info */}
-                          <td className="py-3.5 px-4 font-mono text-zinc-300 text-[11px]">
+                          <td className="py-3.5 px-4 font-mono text-role-secondary text-[11px]">
                             {user.phoneNumber || user.email || 'حساب مهمان'}
                           </td>
 
                           {/* Tier Badge */}
                           <td className="py-3.5 px-4">
                             {isVip ? (
-                              <span className="inline-flex items-center gap-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow-xs">
-                                <Crown className="w-3 h-3 text-amber-400" />
+                              <span className="inline-flex items-center gap-1 bg-amber-subtle text-amber border border-amber-subtle px-2.5 py-0.5 radius-badge text-[11px] font-bold">
+                                <Crown className="w-3 h-3 text-amber" />
                                 <span>سامورایی VIP</span>
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full text-[11px]">
+                              <span className="inline-flex items-center gap-1 surface-z2 text-role-muted px-2 py-0.5 radius-badge text-[11px]">
                                 <span>رونین (رایگان)</span>
                               </span>
                             )}
                           </td>
 
                           {/* Cycles & Logs */}
-                          <td className="py-3.5 px-4 text-zinc-300 font-mono text-[11px]">
+                          <td className="py-3.5 px-4 text-role-secondary font-mono text-[11px]">
                             <span>{toPersianDigits(user.cyclesCount || 0)} چرخه</span>
-                            <span className="text-zinc-500 mx-1">/</span>
+                            <span className="text-role-muted mx-1">/</span>
                             <span>{toPersianDigits(user.logsCount || 0)} روز</span>
                           </td>
 
                           {/* VIP Expiry */}
-                          <td className="py-3.5 px-4 text-zinc-400 text-[11px]">
+                          <td className="py-3.5 px-4 text-role-muted text-[11px]">
                             {user.vipExpiresAt ? (
-                              <span className="text-emerald-400 font-mono">
+                              <span className="text-emerald font-mono">
                                 {new Date(user.vipExpiresAt).toLocaleDateString('fa-IR')}
                               </span>
                             ) : (
-                              <span className="text-zinc-600">—</span>
+                              <span className="text-role-muted">—</span>
                             )}
                           </td>
 
@@ -618,14 +618,14 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                   type="button"
                                   onClick={() => handleToggleAdminStatus(user.id, !!user.isAdmin)}
                                   disabled={isUpdatingUser === user.id}
-                                  className={`px-2 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center gap-1 border ${
+                                  className={`px-2 py-1 radius-control text-[11px] font-bold transition cursor-pointer flex items-center gap-1 border ${
                                     user.isAdmin 
-                                      ? 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border-purple-500/40' 
-                                      : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 border-zinc-700 hover:text-zinc-200'
+                                      ? 'bg-autopsy-subtle hover:brightness-110 text-autopsy border-autopsy-subtle' 
+                                      : 'surface-z2 hover:surface-z3 text-role-muted border-standard hover:text-role-primary'
                                   }`}
                                   title={user.isAdmin ? 'عزل از مدیریت سامانه' : 'ارتقا به مدیر سامانه'}
                                 >
-                                  <ShieldCheck className={`w-3.5 h-3.5 ${user.isAdmin ? 'text-purple-400' : 'text-zinc-500'}`} />
+                                  <ShieldCheck className={`w-3.5 h-3.5 ${user.isAdmin ? 'text-autopsy' : 'text-role-muted'}`} />
                                   <span>{user.isAdmin ? 'عزل ادمین' : 'ارتقا ادمین'}</span>
                                 </button>
                               )}
@@ -635,10 +635,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => onImpersonateUser(user)}
-                                  className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center gap-1"
+                                  className="bg-blue-subtle hover:brightness-110 text-blue border border-blue-subtle px-2.5 py-1 radius-control text-[11px] font-bold transition cursor-pointer flex items-center gap-1 focus-ring-tactical"
                                   title="مشاهده سامانه از دید این کاربر"
                                 >
-                                  <Eye className="w-3.5 h-3.5 text-sky-400" />
+                                  <Eye className="w-3.5 h-3.5 text-blue" />
                                   <span>دید کاربر</span>
                                 </button>
                               )}
@@ -648,7 +648,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                   <button
                                     onClick={() => handleUpdateUserTier(user.id, 'vip_samurai', 90)}
                                     disabled={isUpdatingUser === user.id}
-                                    className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer"
+                                    className="bg-amber-subtle hover:brightness-110 text-amber border border-amber-subtle px-2.5 py-1 radius-control text-[11px] font-bold transition cursor-pointer"
                                     title="تمدید ۹۰ روزه اشتراک"
                                   >
                                     +۹۰ روز
@@ -656,7 +656,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                   <button
                                     onClick={() => handleUpdateUserTier(user.id, 'ronin_free')}
                                     disabled={isUpdatingUser === user.id}
-                                    className="bg-zinc-800 hover:bg-red-950/60 hover:text-red-300 hover:border-red-500/40 text-zinc-400 border border-zinc-700 px-2 py-1 rounded-lg text-[11px] transition cursor-pointer"
+                                    className="surface-z2 hover:bg-debt-subtle hover:text-debt hover:border-debt-subtle text-role-muted border-standard px-2 py-1 radius-control text-[11px] transition cursor-pointer"
                                     title="تنزل به حساب رایگان"
                                   >
                                     تنزل
@@ -666,7 +666,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                 <button
                                   onClick={() => handleUpdateUserTier(user.id, 'vip_samurai', 90)}
                                   disabled={isUpdatingUser === user.id}
-                                  className="bg-amber-500 hover:bg-amber-400 text-black font-black px-3 py-1 rounded-lg text-[11px] transition cursor-pointer shadow-sm flex items-center gap-1"
+                                  className="bg-amber hover:brightness-110 text-black font-black px-3 py-1 radius-control text-[11px] transition cursor-pointer shadow-subtle flex items-center gap-1 focus-ring-tactical"
                                 >
                                   <Crown className="w-3 h-3" />
                                   <span>ارتقا VIP</span>
@@ -688,12 +688,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
       {/* SUB-TAB 2: SUBSCRIPTIONS & TRANSACTIONS AUDIT */}
       {activeSubTab === 'subscriptions' && (
         <div className="space-y-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
-            <div className="p-4 bg-[#09090b]/80 border-b border-zinc-800 flex items-center justify-between">
-              <span className="font-bold text-xs text-zinc-200">
+          <div className="surface-z1 border-standard radius-card overflow-hidden shadow-subtle">
+            <div className="p-4 surface-z0/80 border-b border-standard flex items-center justify-between">
+              <span className="font-bold text-xs text-role-primary">
                 گزارش تراکنش‌های درگاه پرداخت (زرین‌پال / شاپرک)
               </span>
-              <span className="text-[11px] text-zinc-400 font-mono">
+              <span className="text-[11px] text-role-muted font-mono">
                 {toPersianDigits(subscriptions.length)} تراکنش ثبت‌شده
               </span>
             </div>
@@ -701,7 +701,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
                 <thead>
-                  <tr className="bg-zinc-950 text-zinc-400 border-b border-zinc-800 font-bold">
+                  <tr className="surface-z0 text-role-muted border-b border-standard font-bold">
                     <th className="py-3 px-4">شناسه تراکنش (Authority)</th>
                     <th className="py-3 px-4">کد پیگیری بانکی (RefId)</th>
                     <th className="py-3 px-4">مبلغ (تومان)</th>
@@ -711,50 +711,50 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     <th className="py-3 px-4">تاریخ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60 font-mono">
+                <tbody className="divide-y divide-[var(--color-border-subtle)] font-mono">
                   {subscriptions.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-zinc-500 font-sans">
+                      <td colSpan={7} className="py-8 text-center text-role-muted font-sans">
                         هنوز تراکنشی در سیستم ثبت نشده است. با خرید اشتراک در سامانه، گزارش تراکنش در اینجا درج می‌شود.
                       </td>
                     </tr>
                   ) : (
                     subscriptions.map(sub => (
-                      <tr key={sub.id} className="hover:bg-zinc-800/40 transition-colors">
-                        <td className="py-3.5 px-4 text-amber-400 font-bold text-[11px]">
+                      <tr key={sub.id} className="hover:surface-z2/40 transition-colors">
+                        <td className="py-3.5 px-4 text-amber font-bold text-[11px]">
                           {sub.authority}
                         </td>
-                        <td className="py-3.5 px-4 text-zinc-300 text-[11px]">
+                        <td className="py-3.5 px-4 text-role-secondary text-[11px]">
                           {sub.refId || '—'}
                         </td>
-                        <td className="py-3.5 px-4 text-emerald-400 font-bold text-[11px]">
+                        <td className="py-3.5 px-4 text-emerald font-bold text-[11px]">
                           {toPersianDigits(sub.amount.toLocaleString())} تومان
                         </td>
-                        <td className="py-3.5 px-4 text-zinc-300 font-sans text-[11px]">
+                        <td className="py-3.5 px-4 text-role-secondary font-sans text-[11px]">
                           {sub.planId === 'samurai_annual' ? 'سالانه دلاوران' : 'فصل ۹۰ روزه VIP'}
                         </td>
-                        <td className="py-3.5 px-4 text-zinc-400 text-[11px]">
+                        <td className="py-3.5 px-4 text-role-muted text-[11px]">
                           {sub.cardPan || '—'}
                         </td>
                         <td className="py-3.5 px-4">
                           {sub.status === 'SUCCESS' ? (
-                            <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-sans font-bold">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                            <span className="inline-flex items-center gap-1 bg-emerald-subtle text-emerald border border-emerald-subtle px-2 py-0.5 radius-badge text-[10px] font-sans font-bold">
+                              <CheckCircle2 className="w-3 h-3 text-emerald" />
                               موفق
                             </span>
                           ) : sub.status === 'FAILED' ? (
-                            <span className="inline-flex items-center gap-1 bg-red-500/20 text-red-300 border border-red-500/30 px-2 py-0.5 rounded-full text-[10px] font-sans font-bold">
-                              <AlertCircle className="w-3 h-3 text-red-400" />
+                            <span className="inline-flex items-center gap-1 bg-debt-subtle text-debt border border-debt-subtle px-2 py-0.5 radius-badge text-[10px] font-sans font-bold">
+                              <AlertCircle className="w-3 h-3 text-debt" />
                               ناموفق
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full text-[10px] font-sans font-bold">
-                              <Clock className="w-3 h-3 text-amber-400" />
+                            <span className="inline-flex items-center gap-1 bg-amber-subtle text-amber border border-amber-subtle px-2 py-0.5 radius-badge text-[10px] font-sans font-bold">
+                              <Clock className="w-3 h-3 text-amber" />
                               در انتظار تایید
                             </span>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 text-zinc-400 text-[11px] font-sans">
+                        <td className="py-3.5 px-4 text-role-muted text-[11px] font-sans">
                           {new Date(sub.createdAt).toLocaleDateString('fa-IR')}
                         </td>
                       </tr>
@@ -771,69 +771,69 @@ export const AdminView: React.FC<AdminViewProps> = ({
       {activeSubTab === 'gateway' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Zarinpal Config Card */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
-              <Zap className="w-5 h-5 text-amber-400" />
+          <div className="surface-z1 border-standard radius-card p-5 shadow-subtle space-y-4">
+            <div className="flex items-center gap-2 text-amber font-bold text-sm">
+              <Zap className="w-5 h-5 text-amber" />
               <h2>پیکربندی درگاه پرداخت زرین‌پال (Zarinpal)</h2>
             </div>
             
-            <p className="text-xs text-zinc-400 leading-relaxed">
+            <p className="text-xs text-role-secondary leading-relaxed">
               سیستم دیسیپلین بوشیدو مجهز به ماژول یکپارچه اتصال به شاپرک و درگاه زرین‌پال است. در حالت توسعه و تست محلی، شبیه‌ساز امن شاپرک به صورت داخلی و بدون نیاز به اینترنت فعال است.
             </p>
 
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2 text-xs">
+            <div className="surface-z0 border-standard radius-component p-4 space-y-2 text-xs">
               <div className="flex justify-between items-center">
-                <span className="text-zinc-400">وضعیت درگاه:</span>
-                <span className="text-emerald-400 font-bold flex items-center gap-1">
+                <span className="text-role-secondary">وضعیت درگاه:</span>
+                <span className="text-emerald font-bold flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   آماده پذیرش تراکنش
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-zinc-400">حالت فعال:</span>
-                <span className="text-amber-300 font-mono">Mock Gateway Simulator / Sandbox</span>
+                <span className="text-role-secondary">حالت فعال:</span>
+                <span className="text-amber font-mono">Mock Gateway Simulator / Sandbox</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-zinc-400">فعال‌سازی درگاه واقعی:</span>
-                <span className="text-zinc-300 font-mono text-[11px]">ZARINPAL_MERCHANT_ID در .env</span>
+                <span className="text-role-secondary">فعال‌سازی درگاه واقعی:</span>
+                <span className="text-role-primary font-mono text-[11px]">ZARINPAL_MERCHANT_ID در .env</span>
               </div>
             </div>
 
-            <div className="text-[11px] text-zinc-500 leading-relaxed bg-[#09090b]/40 p-3 rounded-xl border border-zinc-800/60">
-              💡 برای اتصال به درگاه واقعی پذیرنده زرین‌پال، کافیست شناسه مرچنت کد ۳۶ رقمی خود را در فایل <code className="text-amber-400">.env</code> در متغیر <code className="text-amber-400">ZARINPAL_MERCHANT_ID</code> قرار دهید.
+            <div className="text-[11px] text-role-muted leading-relaxed surface-z0/40 p-3 radius-component border-subtle">
+              💡 برای اتصال به درگاه واقعی پذیرنده زرین‌پال، کافیست شناسه مرچنت کد ۳۶ رقمی خود را در فایل <code className="text-amber">.env</code> در متغیر <code className="text-amber">ZARINPAL_MERCHANT_ID</code> قرار دهید.
             </div>
           </div>
 
           {/* Database & Architecture Card */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center gap-2 text-sky-400 font-bold text-sm">
-              <Database className="w-5 h-5 text-sky-400" />
+          <div className="surface-z1 border-standard radius-card p-5 shadow-subtle space-y-4">
+            <div className="flex items-center gap-2 text-blue font-bold text-sm">
+              <Database className="w-5 h-5 text-blue" />
               <h2>پایگاه داده و معماری ذخیره‌سازی (PostgreSQL + Prisma)</h2>
             </div>
             
-            <p className="text-xs text-zinc-400 leading-relaxed">
+            <p className="text-xs text-role-secondary leading-relaxed">
               لایه‌ی ذخیره‌سازی بوشیدو از معماری Dual-Engine بهره می‌برد؛ اتصال همزمان به PostgreSQL از طریق Prisma ORM و مکانیزم خودکار Fallback به ذخیره‌ساز ماندگار فایل محلی JSON.
             </p>
 
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2 text-xs">
+            <div className="surface-z0 border-standard radius-component p-4 space-y-2 text-xs">
               <div className="flex justify-between items-center">
-                <span className="text-zinc-400">موتور فعال پایگاه داده:</span>
-                <span className="text-sky-300 font-mono font-bold">
+                <span className="text-role-secondary">موتور فعال پایگاه داده:</span>
+                <span className="text-blue font-mono font-bold">
                   {stats?.databaseMode || 'PostgreSQL (Prisma ORM)'}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-zinc-400">احراز هویت:</span>
-                <span className="text-purple-300 font-mono">JSON Web Tokens (JWT) + OTP</span>
+                <span className="text-role-secondary">احراز هویت:</span>
+                <span className="text-autopsy font-mono">JSON Web Tokens (JWT) + OTP</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-zinc-400">سقف چرخه‌ها:</span>
-                <span className="text-zinc-300">رایگان (۱ چرخه) | ویژه VIP (نامحدود)</span>
+                <span className="text-role-secondary">سقف چرخه‌ها:</span>
+                <span className="text-role-primary">رایگان (۱ چرخه) | ویژه VIP (نامحدود)</span>
               </div>
             </div>
 
-            <div className="text-[11px] text-zinc-500 leading-relaxed bg-[#09090b]/40 p-3 rounded-xl border border-zinc-800/60">
-              ⚡ در صورت اجرای پروژه در VS Code، با دستور <code className="text-sky-400">npx prisma db push</code> جداول روی دیتابیس PostgreSQL شما همگام‌سازی می‌شوند.
+            <div className="text-[11px] text-role-muted leading-relaxed surface-z0/40 p-3 radius-component border-subtle">
+              ⚡ در صورت اجرای پروژه در VS Code، با دستور <code className="text-blue">npx prisma db push</code> جداول روی دیتابیس PostgreSQL شما همگام‌سازی می‌شوند.
             </div>
           </div>
         </div>

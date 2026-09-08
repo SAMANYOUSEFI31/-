@@ -52,21 +52,21 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div 
-          className="min-h-screen bg-[#09090b] text-zinc-100 flex items-center justify-center p-4 font-sans selection:bg-rose-500/30"
+          className="min-h-screen surface-z0 text-role-primary flex items-center justify-center p-4 font-sans selection:bg-rose-subtle"
           dir="rtl"
         >
-          <div className="w-full max-w-lg bg-[#121215] border border-zinc-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl shadow-black/80">
+          <div className="w-full max-w-lg surface-z1 border-standard radius-modal p-6 sm:p-8 space-y-6 shadow-subtle">
             
             {/* Header Icon & Title */}
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0 shadow-lg">
+              <div className="w-12 h-12 radius-component bg-rose-subtle border border-rose-subtle flex items-center justify-center text-rose shrink-0 shadow-subtle">
                 <ShieldAlert className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <h1 className="text-lg sm:text-xl font-black text-zinc-100 tracking-tight">
+                <h1 className="text-lg sm:text-xl font-black text-role-primary tracking-tight">
                   مهار خطای غیرمنتظره سامانه
                 </h1>
-                <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                <p className="text-xs sm:text-sm text-role-secondary leading-relaxed">
                   سیستم محافظت بوشیدو خطای رندرینگ را کنترل کرده تا یکپارچگی داده‌های شما حفظ شود.
                 </p>
               </div>
@@ -74,26 +74,26 @@ export class ErrorBoundary extends Component<Props, State> {
 
             {/* Error detail banner */}
             {import.meta.env.DEV ? (
-              <div className="bg-[#09090b] border border-red-500/30 rounded-2xl p-4 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-red-300">
-                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+              <div className="surface-z0 border border-debt-subtle radius-card p-4 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-debt">
+                  <AlertTriangle className="w-4 h-4 text-debt shrink-0" />
                   <span>پیام خطا (محیط توسعه):</span>
                 </div>
-                <p className="text-xs font-mono text-zinc-300 break-words leading-relaxed">
+                <p className="text-xs font-mono text-role-primary break-words leading-relaxed">
                   {this.state.error?.message || 'یک خطای نامشخص در رابط کاربری رخ داده است.'}
                 </p>
                 {this.state.errorInfo?.componentStack && (
-                  <details className="mt-2 text-[11px] text-zinc-400 font-mono">
-                    <summary className="cursor-pointer text-zinc-300 hover:text-white">نمایش ردپای کامپوننت‌ها</summary>
-                    <pre className="mt-2 p-2 bg-zinc-950 rounded-lg overflow-x-auto text-[10px] text-zinc-400 text-left whitespace-pre-wrap" dir="ltr">
+                  <details className="mt-2 text-[11px] text-role-muted font-mono">
+                    <summary className="cursor-pointer text-role-secondary hover:text-role-primary">نمایش ردپای کامپوننت‌ها</summary>
+                    <pre className="mt-2 p-2 surface-z2 border-standard radius-control overflow-x-auto text-[10px] text-role-secondary text-left whitespace-pre-wrap" dir="ltr">
                       {this.state.errorInfo.componentStack}
                     </pre>
                   </details>
                 )}
               </div>
             ) : (
-              <div className="bg-[#09090b] border border-zinc-800 rounded-2xl p-4 text-center space-y-1.5">
-                <p className="text-xs text-zinc-300 leading-relaxed">
+              <div className="surface-z0 border-standard radius-card p-4 text-center space-y-1.5">
+                <p className="text-xs text-role-secondary leading-relaxed">
                   اطلاعات و رکوردهای شما در حافظه محلی ذخیره شده‌اند. با کلیک روی دکمه زیر، سامانه به‌صورت خودکار بازیابی می‌شود.
                 </p>
               </div>
@@ -104,7 +104,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer active:scale-[0.98] touch-manipulation"
+                className="w-full sm:flex-1 py-3 px-4 radius-component bg-amber hover:brightness-110 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-subtle transition cursor-pointer active:scale-[0.98] touch-manipulation focus-ring-tactical"
                 title="بارگذاری مجدد بدون دستکاری و حذف داده‌های ثبت‌شده"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -114,7 +114,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleResetLocal}
-                className="w-full sm:w-auto py-3 px-4 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] touch-manipulation"
+                className="w-full sm:w-auto py-3 px-4 radius-component surface-z2 hover:surface-z3 border-standard text-role-secondary hover:text-role-primary font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] touch-manipulation focus-ring-tactical"
                 title="پاکسازی کش محلی مرورگر و بازنشانی وضعیت اولیه"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -123,7 +123,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             {/* Footer notice */}
-            <p className="text-[11px] text-zinc-400 text-center leading-relaxed border-t border-zinc-800/80 pt-4">
+            <p className="text-[11px] text-role-muted text-center leading-relaxed border-t border-standard pt-4">
               داده‌های ثبت‌شده و گزارش‌های روزانه شما کاملاً امن هستند؛ دکمه «بارگذاری مجدد» صفحه را بدون پاکسازی داده‌ها بازیابی می‌کند.
             </p>
           </div>

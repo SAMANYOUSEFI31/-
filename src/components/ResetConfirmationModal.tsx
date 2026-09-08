@@ -83,7 +83,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
           <button
             type="button"
             onClick={onConfirm}
-            className="bg-debt hover:bg-red-600 text-white font-bold px-5 py-2.5 radius-component text-xs flex items-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-95 focus-ring-tactical"
+            className="bg-debt hover:brightness-110 text-white font-bold px-5 py-2.5 radius-component text-xs flex items-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-95 focus-ring-tactical"
           >
             <RotateCcw className="w-4 h-4" />
             <span>بله، بازنشانی داده‌ها</span>

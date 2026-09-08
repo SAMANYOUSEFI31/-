@@ -380,7 +380,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                                   onClick={(e) => handleDeleteCycleClick(e, c.id)}
                                   className={`p-2 min-h-[38px] min-w-[38px] radius-control text-xs transition shrink-0 cursor-pointer flex items-center justify-center touch-manipulation focus-ring-tactical ${
                                     isConfirming 
-                                      ? 'bg-debt hover:bg-red-600 text-white font-black px-2 py-1 shadow-subtle animate-pulse motion-reduce:animate-none' 
+                                      ? 'bg-debt hover:brightness-110 text-white font-black px-2 py-1 shadow-subtle animate-pulse motion-reduce:animate-none' 
                                       : 'text-role-muted hover:text-debt hover:bg-debt-subtle'
                                   }`}
                                   aria-label={isConfirming ? `تایید حذف قطعی چرخه ${c.title}` : `حذف چرخه ${c.title}`}
@@ -408,7 +408,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                             setConfirmDeleteCycleId(null);
                             onOpenNewCycleModal();
                           }}
-                          className="w-full py-2.5 min-h-[44px] px-3 bg-amber hover:bg-amber-400 text-zinc-950 radius-component text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-subtle active:scale-[0.98] touch-manipulation focus-ring-tactical"
+                          className="w-full py-2.5 min-h-[44px] px-3 bg-amber hover:brightness-110 text-black radius-component text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-subtle active:scale-[0.98] touch-manipulation focus-ring-tactical"
                         >
                           <Plus className="w-4 h-4" />
                           <span>+ تعریف چرخه جدید ۹۰ روزه</span>
@@ -523,7 +523,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={onOpenPaymentModal}
-                  className="h-8 sm:h-9 min-w-[44px] bg-amber-subtle hover:bg-amber-500/20 border border-amber-subtle hover:border-amber text-amber px-2 sm:px-2.5 radius-component text-[11px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shadow-subtle shrink-0 transition active:scale-95 touch-manipulation focus-ring-tactical"
+                  className="h-8 sm:h-9 min-w-[44px] bg-amber-subtle hover:bg-amber/20 border border-amber-subtle hover:border-amber text-amber px-2 sm:px-2.5 radius-component text-[11px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shadow-subtle shrink-0 transition active:scale-95 touch-manipulation focus-ring-tactical"
                   title="حساب سامورایی ویژه فعال است - کلیک برای مدیریت"
                 >
                   <Crown className="w-3.5 h-3.5 text-amber shrink-0" />

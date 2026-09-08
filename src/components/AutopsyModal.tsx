@@ -266,11 +266,11 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
           <div className="overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5 flex-1 overscroll-contain">
             {/* Missed Habits Summary */}
             {missedHabits.length > 0 && (
-              <div className="bg-[#18181b] border border-red-500/20 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span className="text-xs text-zinc-400 font-medium shrink-0">پایه‌های اجرا نشده در این روز:</span>
+              <div className="surface-z2 border border-debt-subtle radius-component p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-xs text-role-muted font-medium shrink-0">پایه‌های اجرا نشده در این روز:</span>
                 <div className="flex flex-wrap gap-1.5">
                   {missedHabits.map(h => (
-                    <span key={h} className="text-xs bg-red-950/60 text-red-300 border border-red-800/40 px-2.5 py-0.5 rounded-md font-medium">
+                    <span key={h} className="text-xs bg-debt-subtle text-role-primary border border-debt-subtle px-2.5 py-0.5 radius-badge font-medium">
                       {h}
                     </span>
                   ))}
@@ -280,7 +280,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
 
             {/* 1. Failure Reason Selection */}
             <div role="group" aria-labelledby="autopsy-reason-group-label">
-              <span id="autopsy-reason-group-label" className="block text-xs sm:text-sm font-semibold text-zinc-200 mb-2">
+              <span id="autopsy-reason-group-label" className="block text-xs sm:text-sm font-semibold text-role-primary mb-2">
                 {toPersianDigits(1)}. دلیل اصلی عدم اجرای فونداسیون (دلیل شکست):
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -293,23 +293,23 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                       key={r}
                       onClick={() => setReason(r)}
                       aria-pressed={selected}
-                      className={`min-h-[44px] p-3 rounded-xl text-right text-xs sm:text-sm font-medium border transition-all flex items-center justify-between gap-2 cursor-pointer active:scale-[0.98] motion-reduce:transform-none ${
+                      className={`min-h-[44px] p-3 radius-component text-right text-xs sm:text-sm font-medium border transition-all flex items-center justify-between gap-2 cursor-pointer active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical ${
                         selected
                           ? (isFrozenOpt 
-                              ? 'bg-blue-950/60 border-blue-500 text-blue-200 ring-1 ring-blue-500 shadow-sm' 
-                              : 'bg-amber-950/50 border-amber-500 text-amber-200 ring-1 ring-amber-500 shadow-sm')
-                          : 'bg-[#18181b] border-zinc-800 hover:bg-zinc-800/80 text-zinc-300'
+                              ? 'bg-blue-subtle border-blue text-blue shadow-subtle' 
+                              : 'bg-amber-subtle border-amber text-amber shadow-subtle')
+                          : 'surface-z2 border-standard hover:surface-z1 text-role-secondary hover:text-role-primary'
                       }`}
                     >
                       <span className="leading-relaxed">{r}</span>
-                      {selected && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+                      {selected && <CheckCircle2 className="w-4 h-4 text-emerald shrink-0" />}
                     </button>
                   );
                 })}
               </div>
               {isPersonalFrozen && (
-                <p className="mt-2 text-xs text-blue-300/90 bg-blue-950/40 p-2.5 rounded-lg border border-blue-800/40 flex items-center gap-2 leading-relaxed">
-                  <Snowflake className="w-4 h-4 shrink-0 text-blue-400" />
+                <p className="mt-2 text-xs text-blue bg-blue-subtle p-2.5 radius-control border border-blue-subtle flex items-center gap-2 leading-relaxed">
+                  <Snowflake className="w-4 h-4 shrink-0 text-blue" />
                   <span>با انتخاب «دلایل شخصی»، روز به عنوان توقف اضطراری (فریز) ثبت شده و زنجیره بدون جریمه حفظ می‌شود.</span>
                 </p>
               )}
@@ -318,7 +318,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
             {/* 2. Failure Time Selection */}
             {!isPersonalFrozen && (
               <div role="group" aria-labelledby="autopsy-time-group-label">
-                <span id="autopsy-time-group-label" className="block text-xs sm:text-sm font-semibold text-zinc-200 mb-2">
+                <span id="autopsy-time-group-label" className="block text-xs sm:text-sm font-semibold text-role-primary mb-2">
                   {toPersianDigits(2)}. زمان شروع اصطکاک و شکستن دیسیپلین:
                 </span>
                 <div className="grid grid-cols-3 gap-2">
@@ -330,10 +330,10 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                         key={t}
                         onClick={() => setTime(t)}
                         aria-pressed={selected}
-                        className={`min-h-[44px] p-2.5 rounded-xl text-center text-xs sm:text-sm font-medium border transition-all cursor-pointer active:scale-[0.98] motion-reduce:transform-none flex flex-col items-center justify-center ${
+                        className={`min-h-[44px] p-2.5 radius-component text-center text-xs sm:text-sm font-medium border transition-all cursor-pointer active:scale-[0.98] motion-reduce:transform-none flex flex-col items-center justify-center focus-ring-tactical ${
                           selected
-                            ? 'bg-red-950/50 border-red-500 text-red-200 ring-1 ring-red-500'
-                            : 'bg-[#18181b] border-zinc-800 hover:bg-zinc-800/80 text-zinc-300'
+                            ? 'bg-debt-subtle border-debt text-debt'
+                            : 'surface-z2 border-standard hover:surface-z1 text-role-secondary hover:text-role-primary'
                         }`}
                       >
                         <Clock className="w-3.5 h-3.5 mx-auto mb-1 opacity-70 shrink-0" />
@@ -346,18 +346,18 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
             )}
 
             {/* AI Autopsy Trigger */}
-            <div className="bg-gradient-to-r from-amber-950/30 to-indigo-950/30 border border-amber-500/20 rounded-2xl p-3.5 sm:p-4 space-y-2">
+            <div className="bg-amber-subtle border border-amber-subtle radius-card p-3.5 sm:p-4 space-y-2">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                 <div className="flex items-center gap-2">
-                  <Brain className="w-5 h-5 text-amber-400 shrink-0" />
-                  <span className="font-semibold text-xs sm:text-sm text-zinc-200">تحلیل هوشمند سنسی بوشیدو</span>
+                  <Brain className="w-5 h-5 text-amber shrink-0" />
+                  <span className="font-semibold text-xs sm:text-sm text-role-primary">تحلیل هوشمند سنسی بوشیدو</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleAiAutopsy}
                   disabled={isLoadingAi || !reason}
                   aria-busy={isLoadingAi}
-                  className="min-h-[44px] w-full sm:w-auto bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-amber-500/10 cursor-pointer active:scale-[0.98] motion-reduce:transform-none whitespace-nowrap"
+                  className="min-h-[44px] w-full sm:w-auto bg-amber hover:brightness-110 disabled:opacity-50 text-black font-bold text-xs px-3.5 py-2.5 radius-component flex items-center justify-center gap-1.5 transition-all shadow-subtle cursor-pointer active:scale-[0.98] motion-reduce:transform-none whitespace-nowrap focus-ring-tactical"
                 >
                   {isLoadingAi ? (
                     <>
@@ -379,12 +379,12 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
               </div>
 
               {aiFeedback ? (
-                <div className="mt-2 text-xs text-zinc-300 leading-relaxed bg-[#18181b] p-3 rounded-xl border border-zinc-800 break-words">
-                  <p className="font-semibold text-amber-400 mb-1">تشخیص روانی سنسی:</p>
+                <div className="mt-2 text-xs text-role-secondary leading-relaxed surface-z2 p-3 radius-component border-standard break-words">
+                  <p className="font-semibold text-amber mb-1">تشخیص روانی سنسی:</p>
                   {aiFeedback}
                 </div>
               ) : (
-                <p className="text-[11px] sm:text-xs text-zinc-400 leading-relaxed">
+                <p className="text-[11px] sm:text-xs text-role-muted leading-relaxed">
                   برای کشف تله‌های رفتاری پنهان و تدوین خودکار قانون مقابله، دکمه بالا را بزنید.
                 </p>
               )}
@@ -392,7 +392,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
 
             {/* 3. Notes / Psychological Root Cause */}
             <div>
-              <label htmlFor="autopsy-notes-input" className="block text-xs sm:text-sm font-semibold text-zinc-200 mb-1">
+              <label htmlFor="autopsy-notes-input" className="block text-xs sm:text-sm font-semibold text-role-primary mb-1">
                 {toPersianDigits(3)}. یادداشت ریشه‌یابی و اتفاقات روز:
               </label>
               <textarea
@@ -401,14 +401,14 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                 onChange={e => setNotes(e.target.value)}
                 placeholder="چه محرک‌ها یا توجیه‌های ذهنی باعث رها شدن کار شد؟"
                 rows={2}
-                className="w-full bg-[#18181b] border border-zinc-800 rounded-xl p-3 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500/30 leading-relaxed"
+                className="w-full surface-z2 border-standard radius-component p-3 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-rose transition leading-relaxed focus-ring-tactical"
               />
             </div>
 
             {/* 4. Countermeasure / Rule for Tomorrow */}
             <div>
-              <label htmlFor="autopsy-countermeasure-input" className="block text-xs sm:text-sm font-semibold text-zinc-200 mb-1 flex items-center gap-1.5">
-                <Target className="w-4 h-4 text-emerald-400 shrink-0" />
+              <label htmlFor="autopsy-countermeasure-input" className="block text-xs sm:text-sm font-semibold text-role-primary mb-1 flex items-center gap-1.5">
+                <Target className="w-4 h-4 text-emerald shrink-0" />
                 <span>{toPersianDigits(4)}. قانون مقابله و استراتژی ضدضربه (Countermeasure):</span>
               </label>
               <input
@@ -417,24 +417,24 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                 value={countermeasure}
                 onChange={e => setCountermeasure(e.target.value)}
                 placeholder="مثلا: بستن کامل نوتیفیکیشن‌ها تا ساعت ۱۲ ظهر"
-                className="w-full min-h-[44px] bg-[#18181b] border border-zinc-800 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                className="w-full min-h-[44px] surface-z2 border-standard radius-component px-3 py-2.5 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-emerald transition focus-ring-tactical"
               />
             </div>
           </div>
 
           {/* Sticky Modal Footer Actions */}
-          <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#1c1c21]/95 border-t border-zinc-800 flex items-center justify-end gap-2 sm:gap-3 shrink-0 sticky bottom-0 z-20 backdrop-blur-md">
+          <div className="px-4 sm:px-6 py-3.5 sm:py-4 surface-z3/95 border-t border-standard flex items-center justify-end gap-2 sm:gap-3 shrink-0 sticky bottom-0 z-20 backdrop-blur-md">
             <button
               type="button"
               onClick={onClose}
-              className="min-h-[44px] px-4 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs sm:text-sm font-medium transition cursor-pointer whitespace-nowrap inline-flex items-center justify-center active:scale-[0.98] motion-reduce:transform-none"
+              className="min-h-[44px] px-4 py-2.5 radius-component text-role-secondary hover:text-role-primary hover:surface-z1 text-xs sm:text-sm font-medium transition cursor-pointer whitespace-nowrap inline-flex items-center justify-center active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
             >
               انصراف
             </button>
             <button
               type="submit"
               disabled={!reason || (!isPersonalFrozen && !time)}
-              className="min-h-[44px] bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 rounded-xl flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-600/20 cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none"
+              className="min-h-[44px] bg-emerald hover:brightness-110 disabled:opacity-50 text-black font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 radius-component flex items-center justify-center gap-2 transition shadow-subtle cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
             >
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span className="whitespace-nowrap">ثبت کالبدشکافی و تسویه بدهی</span>
