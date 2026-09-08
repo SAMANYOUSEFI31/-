@@ -55,17 +55,17 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
       const ratePct = totalLogs > 0 ? Math.round((successCount / base) * 100) : 0;
       
       let tierLabel = 'آهنین و پایدار';
-      let tierColor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
-      let barColor = 'bg-emerald-500';
+      let tierColor = 'text-emerald bg-emerald-subtle border-emerald-subtle';
+      let barColor = 'bg-emerald';
 
       if (ratePct < 70) {
         tierLabel = 'آسیب‌پذیر (اصطکاک)';
-        tierColor = 'text-red-400 bg-red-500/10 border-red-500/20';
-        barColor = 'bg-red-500';
+        tierColor = 'text-debt bg-debt-subtle border-debt-subtle';
+        barColor = 'bg-debt';
       } else if (ratePct < 85) {
         tierLabel = 'استاندارد و مطلوب';
-        tierColor = 'text-amber-400 bg-amber-500/10 border-amber-500/20';
-        barColor = 'bg-amber-400';
+        tierColor = 'text-amber bg-amber-subtle border-amber-subtle';
+        barColor = 'bg-amber';
       }
 
       return {
@@ -105,36 +105,36 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
   };
 
   return (
-    <div className="bg-[#121215]/90 border border-zinc-800 rounded-3xl p-5 sm:p-7 shadow-xl space-y-6" dir="rtl">
+    <div className="surface-z1 border-standard radius-card sm:radius-modal p-5 sm:p-7 shadow-subtle space-y-6" dir="rtl">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-standard pb-5">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-zinc-800/90 border border-zinc-700/80 flex items-center justify-center text-zinc-200 shadow-md shrink-0">
-            <Layers className="w-6 h-6 text-zinc-200" />
+          <div className="w-12 h-12 radius-component surface-z2 border-standard flex items-center justify-center text-role-primary shadow-subtle shrink-0">
+            <Layers className="w-6 h-6 text-role-primary" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base sm:text-lg font-black text-zinc-100">
+              <h2 className="text-base sm:text-lg font-black text-role-primary">
                 ماتریس وفاداری به ارکان دیسیپلین (Fidelity Matrix)
               </h2>
-              <span className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-[10px] px-2.5 py-0.5 rounded-full font-bold select-none pointer-events-none cursor-default font-mono">
+              <span className="surface-z2 border-standard text-role-secondary text-[10px] px-2.5 py-0.5 rounded-full font-bold select-none pointer-events-none cursor-default font-mono">
                 ارزیابی {toPersianDigits(activeBase)} روز فعال
               </span>
             </div>
-            <p className="text-xs text-zinc-400 mt-1">
+            <p className="text-xs text-role-secondary mt-1">
               تحلیل تفکیکی نرخ وفاداری و پایداری هر یک از ۵ پایه شکست‌ناپذیر در طول چرخه ۹۰ روزه
             </p>
           </div>
         </div>
 
         {/* Aggregate Pillar Strength Badge */}
-        <div className="bg-[#18181b] border border-zinc-800 rounded-2xl px-4 py-2.5 flex items-center gap-3 self-start sm:self-auto shadow-xs">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
-            <ShieldCheck className="w-5 h-5 text-emerald-400" />
+        <div className="surface-z2 border-standard radius-card px-4 py-2.5 flex items-center gap-3 self-start sm:self-auto shadow-subtle">
+          <div className="w-10 h-10 radius-component bg-emerald-subtle border border-emerald-subtle flex items-center justify-center text-emerald shrink-0">
+            <ShieldCheck className="w-5 h-5 text-emerald" />
           </div>
           <div className="text-right">
-            <span className="text-[10px] text-zinc-400 block font-medium">وفاداری میانگین ارکان</span>
-            <span className="text-base font-black text-zinc-100 font-mono leading-tight">
+            <span className="text-[10px] text-role-secondary block font-medium">وفاداری میانگین ارکان</span>
+            <span className="text-base font-black text-role-primary font-mono leading-tight">
               {toPersianDigits(averageFidelity)}٪
             </span>
           </div>
@@ -146,19 +146,19 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
         {habitStats.map(habit => (
           <div 
             key={habit.key}
-            className="bg-[#18181b] border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4.5 space-y-3.5 transition-all shadow-xs"
+            className="surface-z2 border-standard hover:border-[var(--color-border-hover)] radius-card p-4.5 space-y-3.5 transition-all shadow-subtle"
           >
             {/* Title Row */}
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-zinc-800/90 border border-zinc-700/80 flex items-center justify-center shrink-0">
-                  {getIcon(habit.iconName, 'text-zinc-200')}
+                <div className="w-10 h-10 radius-component surface-z3 border-standard flex items-center justify-center shrink-0">
+                  {getIcon(habit.iconName, 'text-role-primary')}
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-zinc-100 leading-tight">
+                  <h4 className="text-sm font-bold text-role-primary leading-tight">
                     {habit.titleFa}
                   </h4>
-                  <p className="text-[11px] text-zinc-400 mt-0.5 leading-normal">
+                  <p className="text-[11px] text-role-secondary mt-0.5 leading-normal">
                     {habit.subtitleFa}
                   </p>
                 </div>
@@ -166,7 +166,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
 
               {/* Rate percentage badge */}
               <div className="text-left shrink-0">
-                <span className="text-lg font-black font-mono text-zinc-100">
+                <span className="text-lg font-black font-mono text-role-primary">
                   {toPersianDigits(habit.ratePct)}٪
                 </span>
               </div>
@@ -174,15 +174,15 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
 
             {/* Progress Bar */}
             <div className="space-y-1.5">
-              <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden border border-zinc-800">
+              <div className="w-full surface-z0 h-2 rounded-full overflow-hidden border-standard">
                 <div 
                   className={`${habit.barColor} h-full rounded-full transition-all duration-500`}
                   style={{ width: `${habit.ratePct}%` }}
                 />
               </div>
-              <div className="flex items-center justify-between text-[11px] text-zinc-400">
+              <div className="flex items-center justify-between text-[11px] text-role-secondary">
                 <span>{toPersianDigits(habit.successCount)} روز اجرا</span>
-                <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold ${habit.tierColor}`}>
+                <span className={`px-2 py-0.5 radius-control border text-[10px] font-bold ${habit.tierColor}`}>
                   {habit.tierLabel}
                 </span>
               </div>
@@ -191,39 +191,39 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
         ))}
 
         {/* Special Mission Bonus Card (6th Card to complete the layout) */}
-        <div className="bg-[#18181b] border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4.5 space-y-3.5 transition-all shadow-xs">
+        <div className="surface-z2 border-standard hover:border-[var(--color-border-hover)] radius-card p-4.5 space-y-3.5 transition-all shadow-subtle">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-                <Rocket className="w-5 h-5 text-amber-400" />
+              <div className="w-10 h-10 radius-component bg-amber-subtle border border-amber-subtle flex items-center justify-center shrink-0">
+                <Rocket className="w-5 h-5 text-amber" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-amber-300 leading-tight">
+                <h4 className="text-sm font-bold text-amber leading-tight">
                   ماموریت شتاب‌دهنده ویژه
                 </h4>
-                <p className="text-[11px] text-zinc-400 mt-0.5 leading-normal">
+                <p className="text-[11px] text-role-secondary mt-0.5 leading-normal">
                   ارتقای امتیاز روز از ۸ به ۱۰ (Mastery)
                 </p>
               </div>
             </div>
 
             <div className="text-left shrink-0">
-              <span className="text-lg font-black font-mono text-amber-400">
+              <span className="text-lg font-black font-mono text-amber">
                 {toPersianDigits(specialMissionRate)}٪
               </span>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden border border-zinc-800">
+            <div className="w-full surface-z0 h-2 rounded-full overflow-hidden border-standard">
               <div 
-                className="bg-amber-400 h-full rounded-full transition-all duration-500"
+                className="bg-amber h-full rounded-full transition-all duration-500"
                 style={{ width: `${specialMissionRate}%` }}
               />
             </div>
-            <div className="flex items-center justify-between text-[11px] text-zinc-400">
+            <div className="flex items-center justify-between text-[11px] text-role-secondary">
               <span>{toPersianDigits(specialMissionCount)} بار اجرای ماموریت ویژه</span>
-              <span className="px-2 py-0.5 rounded-md border text-[10px] font-bold text-amber-300 bg-amber-500/10 border-amber-500/20">
+              <span className="px-2 py-0.5 radius-control border text-[10px] font-bold text-amber bg-amber-subtle border-amber-subtle">
                 ارزش افزوده (+۲)
               </span>
             </div>

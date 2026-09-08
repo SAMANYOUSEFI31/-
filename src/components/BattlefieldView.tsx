@@ -441,19 +441,19 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
     >
       {/* 0. Demo Scenario Clarification Notice */}
       {isDemoCycle && !hasDismissedDemoBanner && (
-        <div className="w-full bg-[#121215] border border-amber-500/30 rounded-2xl p-3 sm:p-4 text-xs shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+        <div className="w-full surface-z1 border border-amber-subtle radius-card p-3 sm:p-4 text-xs shadow-subtle flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
           <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4" />
+            <div className="w-8 h-8 radius-control bg-amber-subtle border border-amber-subtle text-amber flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4 text-amber" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-zinc-100">پیش‌نمایش داده‌های شبیه‌سازی‌شده (Demo Seed)</span>
-                <span className="text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">
+                <span className="font-bold text-role-primary">پیش‌نمایش داده‌های شبیه‌سازی‌شده (Demo Seed)</span>
+                <span className="text-[10px] bg-amber-subtle text-amber border border-amber-subtle px-2 py-0.5 radius-micro font-mono">
                   ۲۴ روز نمونه
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
+              <p className="text-[11px] text-role-secondary mt-0.5 leading-relaxed">
                 شما در حال بررسی سناریوی نمایشی بوشیدو هستید. جهت شروع پیشرفت واقعی، می‌توانید چرخه اختصاصی جدیدی آغاز کنید.
               </p>
             </div>
@@ -464,7 +464,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               <button
                 type="button"
                 onClick={onOpenCreateCycle}
-                className="bg-amber-500 hover:bg-amber-400 text-black font-black text-xs px-3.5 py-1.5 rounded-xl transition cursor-pointer active:scale-95 shadow-xs whitespace-nowrap"
+                className="bg-amber hover:brightness-110 text-black font-black text-xs px-3.5 py-1.5 radius-control transition cursor-pointer active:scale-95 shadow-subtle whitespace-nowrap focus-ring-tactical"
               >
                 شروع چرخه واقعی
               </button>
@@ -472,7 +472,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
             <button
               type="button"
               onClick={dismissDemoBanner}
-              className="text-zinc-400 hover:text-white p-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-800 transition cursor-pointer"
+              className="text-role-secondary hover:text-role-primary p-1.5 radius-control border-standard surface-z1 hover:surface-z2 transition cursor-pointer focus-ring-tactical"
               title="بستن اعلان"
             >
               <X className="w-3.5 h-3.5" />
@@ -482,28 +482,28 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
       )}
 
       {/* 1. Fully Responsive Ergonomic Date Navigator Bar */}
-      <div className="w-full bg-[#121215] border border-zinc-800 rounded-2xl p-2.5 sm:p-4 shadow-lg select-none space-y-2 sm:space-y-3">
+      <div className="w-full surface-z1 border-standard radius-card p-2.5 sm:p-4 shadow-subtle select-none space-y-2 sm:space-y-3">
         {/* Main Navigation Row: Prev Day + Center Date Display + Next Day */}
         <div className="flex items-center justify-between gap-1.5 sm:gap-3 w-full">
           {/* Previous Day Button */}
           <button
             type="button"
             onClick={() => navigateDate(addDaysToDate(selectedDate, -1), -1)}
-            className="h-9 sm:h-10 px-2.5 sm:px-3.5 bg-[#18181b] hover:bg-zinc-800 active:bg-zinc-700 text-zinc-200 hover:text-white rounded-xl transition cursor-pointer inline-flex items-center justify-center gap-1 text-xs font-bold whitespace-nowrap shrink-0 border border-zinc-700/70 shadow-xs active:scale-95"
+            className="h-9 sm:h-10 px-2.5 sm:px-3.5 surface-z2 hover:surface-z3 active:surface-z3 text-role-primary radius-component transition cursor-pointer inline-flex items-center justify-center gap-1 text-xs font-bold whitespace-nowrap shrink-0 border-standard shadow-subtle active:scale-95 focus-ring-tactical"
             title="رفتن به روز قبل"
             aria-label="روز قبل"
           >
-            <ChevronRight className="w-4 h-4 shrink-0 text-zinc-400" />
+            <ChevronRight className="w-4 h-4 shrink-0 text-role-muted" />
             <span className="hidden sm:inline whitespace-nowrap leading-none">روز قبل</span>
           </button>
 
           {/* Center Date Text (Clean Minimalist Typography, Neutral APCA-Compliant) */}
           <div className="flex-1 min-w-0 text-center px-1 flex flex-col items-center justify-center">
-            <div className="text-[11px] sm:text-xs text-zinc-400 font-semibold inline-flex items-center justify-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+            <div className="text-[11px] sm:text-xs text-role-secondary font-semibold inline-flex items-center justify-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-role-muted shrink-0" />
               <span className="whitespace-nowrap">{getRelativeDateLabel(selectedDate, logicalToday)}</span>
             </div>
-            <h2 className="text-xs sm:text-sm md:text-base font-black text-zinc-100 mt-0.5 tracking-tight font-mono whitespace-nowrap">
+            <h2 className="text-xs sm:text-sm md:text-base font-black text-role-primary mt-0.5 tracking-tight font-mono whitespace-nowrap">
               {formatPersianDate(selectedDate, { withWeekday: true })}
             </h2>
           </div>
@@ -512,19 +512,19 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           <button
             type="button"
             onClick={() => navigateDate(addDaysToDate(selectedDate, 1), 1)}
-            className="h-9 sm:h-10 px-2.5 sm:px-3.5 bg-[#18181b] hover:bg-zinc-800 active:bg-zinc-700 text-zinc-200 hover:text-white rounded-xl transition cursor-pointer inline-flex items-center justify-center gap-1 text-xs font-bold whitespace-nowrap shrink-0 border border-zinc-700/70 shadow-xs active:scale-95"
+            className="h-9 sm:h-10 px-2.5 sm:px-3.5 surface-z2 hover:surface-z3 active:surface-z3 text-role-primary radius-component transition cursor-pointer inline-flex items-center justify-center gap-1 text-xs font-bold whitespace-nowrap shrink-0 border-standard shadow-subtle active:scale-95 focus-ring-tactical"
             title="رفتن به روز بعد"
             aria-label="روز بعد"
           >
             <span className="hidden sm:inline whitespace-nowrap leading-none">روز بعد</span>
-            <ChevronLeft className="w-4 h-4 shrink-0 text-zinc-400" />
+            <ChevronLeft className="w-4 h-4 shrink-0 text-role-muted" />
           </button>
         </div>
 
         {/* Auxiliary Row: Night Owl Cutoff Badge (Centered & Stable) */}
-        <div className="flex items-center justify-center pt-2 border-t border-zinc-800/80">
-          <div className="h-8 bg-[#18181b] px-3.5 rounded-xl border border-zinc-800 text-[11px] sm:text-xs text-zinc-400 inline-flex items-center justify-center gap-2 whitespace-nowrap shadow-xs">
-            <Clock className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+        <div className="flex items-center justify-center pt-2 border-t border-standard">
+          <div className="h-8 surface-z2 px-3.5 radius-component border-standard text-[11px] sm:text-xs text-role-secondary inline-flex items-center justify-center gap-2 whitespace-nowrap shadow-subtle">
+            <Clock className="w-3.5 h-3.5 text-role-muted shrink-0" />
             <span className="leading-none">کات‌آف شبانه: {toPersianDigits(nightOwlCutoffHour)}:۰۰ بامداد</span>
           </div>
         </div>
@@ -532,15 +532,15 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
 
       {/* Swipe navigation hint on mobile (Shown ONLY once for new users) */}
       {!hasSeenSwipeHint && (
-        <div className="flex items-center justify-between gap-2 px-3 py-1.5 bg-[#121215] border border-zinc-800 rounded-xl text-[10px] text-zinc-400 select-none sm:hidden -my-1 animate-in fade-in slide-in-from-top-1">
+        <div className="flex items-center justify-between gap-2 px-3 py-1.5 surface-z1 border-standard radius-component text-[10px] text-role-secondary select-none sm:hidden -my-1 animate-in fade-in slide-in-from-top-1">
           <div className="flex items-center gap-1.5">
-            <span className="text-zinc-400 font-mono">‹ ›</span>
+            <span className="text-role-muted font-mono">‹ ›</span>
             <span>برای تغییر سریع روزها، صفحه را به چپ یا راست بکشید (Swipe)</span>
           </div>
           <button
             type="button"
             onClick={dismissSwipeHint}
-            className="text-zinc-400 hover:text-white p-0.5 rounded cursor-pointer shrink-0"
+            className="text-role-secondary hover:text-role-primary p-0.5 radius-micro cursor-pointer shrink-0 focus-ring-tactical"
             title="بستن راهنما"
           >
             <X className="w-3.5 h-3.5" />
@@ -561,22 +561,22 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           >
           {/* 2. Lock & Information Banners with Contextual Jump Action */}
           {isFuture ? (
-            <div className="bg-[#121215]/80 border border-zinc-800 rounded-2xl p-3.5 sm:p-4 text-zinc-100 shadow-xl backdrop-blur-md">
+            <div className="surface-z1/80 border-standard radius-card p-3.5 sm:p-4 text-role-primary shadow-subtle backdrop-blur-md">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center shrink-0 shadow-inner">
-                    <Compass className="w-4 h-4 text-zinc-300" />
+                  <div className="w-9 h-9 radius-component surface-z2 border-standard text-role-secondary flex items-center justify-center shrink-0 shadow-inner">
+                    <Compass className="w-4 h-4 text-role-secondary" />
                   </div>
                   <div className="space-y-0.5 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-xs sm:text-sm font-bold text-zinc-100">
+                      <h3 className="text-xs sm:text-sm font-bold text-role-primary">
                         {getRelativeDateLabel(selectedDate, logicalToday)}
                       </h3>
-                      <span className="text-[10px] sm:text-[11px] bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded-lg font-mono font-medium">
+                      <span className="text-[10px] sm:text-[11px] surface-z2 text-role-secondary border-standard px-2 py-0.5 radius-control font-mono font-medium">
                         {formatPersianDate(selectedDate, { short: true })}
                       </span>
                     </div>
-                    <p className="text-[11px] sm:text-xs text-zinc-400 leading-relaxed">
+                    <p className="text-[11px] sm:text-xs text-role-secondary leading-relaxed">
                       ثبت عملکردها صرفاً در روز موعود فعال خواهد شد. تمرکز دیسیپلین بر فتح روز جاری است.
                     </p>
                   </div>
@@ -585,26 +585,26 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onSelectDate(logicalToday)}
-                  className="w-full sm:w-auto h-9 bg-rose-500/15 hover:bg-rose-500/25 active:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold text-xs px-3.5 rounded-xl inline-flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98]"
+                  className="w-full sm:w-auto h-9 bg-rose-subtle hover:brightness-125 text-rose border-rose-subtle font-bold text-xs px-3.5 radius-component inline-flex items-center justify-center gap-1.5 transition cursor-pointer shadow-subtle shrink-0 whitespace-nowrap active:scale-[0.98] focus-ring-tactical"
                 >
-                  <Zap className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                  <Zap className="w-3.5 h-3.5 text-rose shrink-0" />
                   <span className="leading-none">پرش به روز جاری</span>
                 </button>
               </div>
             </div>
           ) : isPast && !isCycleArchived ? (
-            <div className="bg-[#121215]/80 border border-zinc-800/90 rounded-2xl p-3 sm:p-3.5 text-zinc-100 shadow-md">
+            <div className="surface-z1/80 border-standard radius-card p-3 sm:p-3.5 text-role-primary shadow-subtle">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-4">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700/80 text-zinc-400 flex items-center justify-center shrink-0 shadow-inner">
-                    <Calendar className="w-4 h-4 text-zinc-400" />
+                  <div className="w-8 h-8 radius-component surface-z2 border-standard text-role-muted flex items-center justify-center shrink-0 shadow-inner">
+                    <Calendar className="w-4 h-4 text-role-muted" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-zinc-200">
+                      <span className="text-xs font-bold text-role-primary">
                         مشاهده تاریخچه ({getRelativeDateLabel(selectedDate, logicalToday)})
                       </span>
-                      <span className="text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700 px-2 py-0.5 rounded-md font-mono">
+                      <span className="text-[10px] surface-z2 text-role-secondary border-standard px-2 py-0.5 radius-control font-mono">
                         {formatPersianDate(selectedDate, { short: true })}
                       </span>
                     </div>
@@ -614,52 +614,52 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onSelectDate(logicalToday)}
-                  className="w-full sm:w-auto h-8 bg-rose-500/15 hover:bg-rose-500/25 active:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold text-xs px-3 rounded-xl inline-flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs shrink-0 whitespace-nowrap active:scale-[0.98]"
+                  className="w-full sm:w-auto h-8 bg-rose-subtle hover:brightness-125 text-rose border-rose-subtle font-bold text-xs px-3 radius-component inline-flex items-center justify-center gap-1.5 transition cursor-pointer shadow-subtle shrink-0 whitespace-nowrap active:scale-[0.98] focus-ring-tactical"
                 >
-                  <Zap className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                  <Zap className="w-3.5 h-3.5 text-rose shrink-0" />
                   <span className="leading-none">پرش به روز جاری</span>
                 </button>
               </div>
             </div>
           ) : isCycleArchived ? (
-            <div className="bg-purple-950/60 border-2 border-purple-500/60 rounded-2xl p-4 text-zinc-100 shadow-xl shadow-purple-950/40">
+            <div className="bg-purple-subtle border border-purple-subtle radius-card p-4 text-role-primary shadow-subtle">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 radius-component bg-purple-subtle text-purple flex items-center justify-center shrink-0 border border-purple-subtle">
                   <Lock className="w-4 h-4" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between flex-wrap gap-2">
-                    <h3 className="text-xs sm:text-sm font-bold text-purple-200 flex items-center gap-1.5">
-                      <Lock className="w-4 h-4 text-purple-400" />
+                    <h3 className="text-xs sm:text-sm font-bold text-purple flex items-center gap-1.5">
+                      <Lock className="w-4 h-4 text-purple" />
                       <span>این چرخه بایگانی شده است (فقط‌خواندنی)</span>
                     </h3>
-                    <span className="text-[10px] bg-purple-900/60 border border-purple-700 text-purple-200 px-2 py-0.5 rounded-md font-bold">
+                    <span className="text-[10px] bg-purple-subtle border border-purple-subtle text-purple px-2 py-0.5 radius-control font-bold">
                       سوابق قفل‌شده
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-300 mt-1 leading-relaxed">
+                  <p className="text-xs text-role-secondary mt-1 leading-relaxed">
                     تمام ۹۰ روز این چرخه در دادگاه بوشیدو ارزیابی و بایگانی شده است.
                   </p>
                 </div>
               </div>
             </div>
           ) : (unresolvedPastLogs.length > 0 && isToday) ? (
-            <div className="bg-red-950/60 border-2 border-red-500/60 rounded-2xl p-4 text-zinc-100 shadow-xl shadow-red-950/40 animate-pulse">
+            <div className="bg-debt-subtle border-2 border-debt-subtle radius-card p-4 text-role-primary shadow-subtle animate-pulse">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 radius-component bg-debt-subtle text-debt flex items-center justify-center shrink-0 border border-debt-subtle">
                   <Lock className="w-4 h-4" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between flex-wrap gap-2">
-                    <h3 className="text-xs sm:text-sm font-bold text-red-300 flex items-center gap-1.5">
-                      <ShieldAlert className="w-4 h-4 text-red-400" />
+                    <h3 className="text-xs sm:text-sm font-bold text-debt flex items-center gap-1.5">
+                      <ShieldAlert className="w-4 h-4 text-debt" />
                       <span>قفل اجرا فعال است (Behavior Lock)</span>
                     </h3>
-                    <span className="text-[10px] bg-red-900/60 border border-red-700 text-red-200 px-2 py-0.5 rounded-md font-bold">
+                    <span className="text-[10px] bg-debt-subtle border border-debt-subtle text-debt px-2 py-0.5 radius-control font-bold">
                       {toPersianDigits(unresolvedPastLogs.length)} روز بدهی باز
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-300 mt-1 leading-relaxed">
+                  <p className="text-xs text-role-secondary mt-1 leading-relaxed">
                     پیش از ثبت روز جاری، باید روزهای سوخته گذشته کالبدشکافی شده و علت شکست ثبت گردد.
                   </p>
                   
@@ -668,7 +668,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       <button
                         key={ul.id}
                         onClick={() => onOpenAutopsy(ul)}
-                        className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
+                        className="bg-debt hover:brightness-110 text-white text-xs font-bold px-2.5 py-1 radius-control flex items-center gap-1.5 transition cursor-pointer shadow-subtle active:scale-95 focus-ring-tactical"
                       >
                         <AlertTriangle className="w-3.5 h-3.5" />
                         <span>کالبدشکافی {formatPersianDate(ul.date, { short: true })}</span>
@@ -681,27 +681,27 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           ) : null}
 
           {/* 3. Daily Status & Score Header Card (Ergonomic, Balanced & Harmonious Layout) */}
-          <div className="w-full max-w-full bg-[#121215] border border-zinc-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 relative overflow-hidden shadow-lg">
+          <div className="w-full max-w-full surface-z1 border-standard radius-card sm:radius-modal p-3.5 sm:p-5 relative overflow-hidden shadow-subtle">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
               <div className="space-y-2.5 flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   {/* Status Pill */}
-                  <span className={`px-2.5 py-1 rounded-xl text-[11px] sm:text-xs font-bold border inline-flex items-center gap-1.5 shrink-0 ${
+                  <span className={`px-2.5 py-1 radius-component text-[11px] sm:text-xs font-bold border inline-flex items-center gap-1.5 shrink-0 ${
                     computed.statusType === 'standard'
-                      ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-300'
+                      ? 'bg-emerald-subtle border-emerald-subtle text-emerald'
                       : computed.statusType === 'personal_frozen'
-                      ? 'bg-blue-950/90 border-blue-500/50 text-blue-300'
+                      ? 'bg-blue-subtle border-blue-subtle text-blue'
                       : computed.statusType === 'burned_resolved'
-                      ? 'bg-zinc-800 border-zinc-700 text-zinc-300'
+                      ? 'surface-z2 border-standard text-role-primary'
                       : (isToday 
-                          ? 'bg-zinc-800 border-zinc-700 text-zinc-300' 
-                          : 'bg-red-950/90 border-red-500/60 text-red-300')
+                          ? 'surface-z2 border-standard text-role-primary' 
+                          : 'bg-debt-subtle border-debt-subtle text-debt')
                   }`}>
                     {computed.statusType === 'standard' && <CheckCircle2 className="w-3.5 h-3.5" />}
                     {computed.statusType === 'personal_frozen' && <Snowflake className="w-3.5 h-3.5" />}
                     {computed.statusType === 'burned_resolved' && <FileText className="w-3.5 h-3.5" />}
                     {computed.statusType === 'burned_unresolved' && (
-                      isToday ? <Clock className="w-3.5 h-3.5 text-zinc-400" /> : <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                      isToday ? <Clock className="w-3.5 h-3.5 text-role-muted" /> : <AlertTriangle className="w-3.5 h-3.5 text-debt" />
                     )}
                     <span>
                       {computed.statusType === 'standard' && 'تعهد کامل (Standard)'}
@@ -712,22 +712,22 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   </span>
 
                   {/* Habit Count Badge */}
-                  <span className="text-[11px] sm:text-xs text-zinc-300 bg-[#18181b] px-2.5 py-1 rounded-xl border border-zinc-800 font-medium shrink-0">
+                  <span className="text-[11px] sm:text-xs text-role-secondary surface-z2 px-2.5 py-1 radius-component border-standard font-medium shrink-0">
                     {toPersianDigits(computed.habitsCount)} از {toPersianDigits(5)} پایه
                   </span>
 
                   {/* Streak Impact Badge */}
-                  <span className={`text-[11px] sm:text-xs px-2.5 py-1 rounded-xl border inline-flex items-center gap-1.5 font-medium shrink-0 ${
+                  <span className={`text-[11px] sm:text-xs px-2.5 py-1 radius-component border inline-flex items-center gap-1.5 font-medium shrink-0 ${
                     computed.isStandard
-                      ? 'bg-rose-500/15 border-rose-500/30 text-rose-300'
+                      ? 'bg-rose-subtle border-rose-subtle text-rose'
                       : computed.statusType === 'personal_frozen'
-                      ? 'bg-blue-500/15 border-blue-500/30 text-blue-300'
+                      ? 'bg-blue-subtle border-blue-subtle text-blue'
                       : isToday
-                      ? 'bg-[#18181b] border border-zinc-800 text-zinc-400'
-                      : 'bg-red-500/15 border-red-500/30 text-red-300'
+                      ? 'surface-z2 border-standard text-role-muted'
+                      : 'bg-debt-subtle border-debt-subtle text-debt'
                   }`}>
                     <Flame className={`w-3.5 h-3.5 ${
-                      computed.isStandard ? 'text-rose-400 fill-current' : 'text-zinc-500'
+                      computed.isStandard ? 'text-rose fill-current' : 'text-role-muted'
                     }`} />
                     <span>
                       {computed.isStandard
@@ -741,60 +741,60 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   </span>
                 </div>
 
-                <p className="text-xs sm:text-sm text-zinc-300 font-medium leading-relaxed min-h-[1.5rem]">
+                <p className="text-xs sm:text-sm text-role-secondary font-medium leading-relaxed min-h-[1.5rem]">
                   {computed.coachStatusLabel}
                 </p>
               </div>
 
               {/* Score & Gauge Box (Centered, Symmetrical & Dignified Proportions with Golden Ratio micro-focusing) */}
-              <div className={`border rounded-2xl p-3.5 sm:p-5 text-center w-full max-w-[260px] mx-auto md:mx-0 md:w-[230px] md:max-w-none shrink-0 transition-all flex flex-col items-center justify-center gap-2.5 ${
+              <div className={`border radius-card p-3.5 sm:p-5 text-center w-full max-w-[260px] mx-auto md:mx-0 md:w-[230px] md:max-w-none shrink-0 transition-all flex flex-col items-center justify-center gap-2.5 ${
                 computed.score === 10
-                  ? 'bg-amber-950/40 border-amber-500/60 shadow-md shadow-amber-950/40 ring-1 ring-amber-500/40'
+                  ? 'bg-amber-subtle border-amber-subtle shadow-subtle ring-1 ring-amber-subtle'
                   : computed.isStandard
-                  ? 'bg-emerald-950/40 border-emerald-500/60 shadow-md shadow-emerald-950/40 ring-1 ring-emerald-500/40'
-                  : 'bg-[#18181b] border-zinc-800'
+                  ? 'bg-emerald-subtle border-emerald-subtle shadow-subtle ring-1 ring-emerald-subtle'
+                  : 'surface-z2 border-standard'
               }`}>
                 {/* Score Header Label */}
-                <div className="text-[11px] sm:text-xs text-zinc-400 font-medium flex items-center justify-center gap-1.5">
+                <div className="text-[11px] sm:text-xs text-role-secondary font-medium flex items-center justify-center gap-1.5">
                   <span>امتیاز ارزش روز</span>
-                  {computed.score === 10 && <Swords className="w-3.5 h-3.5 text-amber-400" />}
-                  {computed.isStandard && computed.score < 10 && <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />}
+                  {computed.score === 10 && <Swords className="w-3.5 h-3.5 text-amber" />}
+                  {computed.isStandard && computed.score < 10 && <ShieldCheck className="w-3.5 h-3.5 text-emerald" />}
                 </div>
                 
                 {/* Big Score Number */}
                 <div className={`text-3xl sm:text-4xl font-black flex items-baseline justify-center gap-1.5 ${
                   computed.score === 10 
-                    ? 'text-amber-300' 
+                    ? 'text-amber' 
                     : computed.isStandard 
-                    ? 'text-emerald-400' 
-                    : 'text-zinc-100'
+                    ? 'text-emerald' 
+                    : 'text-role-primary'
                 }`}>
                   <span className="leading-none">{toPersianDigits(computed.score)}</span>
-                  <span className="text-xs font-semibold text-zinc-400">از {toPersianDigits(10)}</span>
+                  <span className="text-xs font-semibold text-role-muted">از {toPersianDigits(10)}</span>
                 </div>
 
                 {/* Centered Status Ribbon with fixed height to prevent vertical jitter */}
                 <div className="flex items-center justify-center h-7">
                   {computed.score === 10 ? (
-                    <div className="inline-flex items-center gap-1.5 text-[11px] font-black text-amber-300 bg-amber-500/20 py-1 px-3 rounded-xl border border-amber-500/40 shadow-xs">
-                      <Swords className="w-3.5 h-3.5" />
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-black text-amber bg-amber-subtle py-1 px-3 radius-component border-amber-subtle shadow-subtle">
+                      <Swords className="w-3.5 h-3.5 text-amber" />
                       <span>کمال تعهد</span>
                     </div>
                   ) : computed.isStandard ? (
-                    <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-300 bg-emerald-500/20 py-1 px-3 rounded-xl border border-emerald-500/40 shadow-xs">
-                      <ShieldCheck className="w-3.5 h-3.5" />
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald bg-emerald-subtle py-1 px-3 radius-component border-emerald-subtle shadow-subtle">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald" />
                       <span>روز استاندارد</span>
                     </div>
                   ) : (
-                    <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-zinc-300 bg-zinc-800/80 px-3 py-1 rounded-xl border border-zinc-700/60 shadow-2xs">
-                      <Clock className="w-3.5 h-3.5 text-zinc-400" />
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-role-secondary surface-z3 px-3 py-1 radius-component border-standard shadow-subtle">
+                      <Clock className="w-3.5 h-3.5 text-role-muted" />
                       <span>در انتظار ۵ پایه</span>
                     </div>
                   )}
                 </div>
 
                 {/* Precision 10-Segment Discipline Gauge */}
-                <div className="w-full pt-2 border-t border-zinc-800">
+                <div className="w-full pt-2 border-t border-standard">
                   <div className="flex items-center gap-1 w-full justify-center">
                     {Array.from({ length: 10 }).map((_, idx) => {
                       const segmentIndex = idx + 1;
@@ -805,13 +805,13 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                           className={`h-1.5 sm:h-2 flex-1 rounded-full transition-all duration-300 ${
                             isFilled
                               ? computed.score === 10
-                                ? 'bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.6)]'
+                                ? 'bg-amber shadow-[0_0_8px_rgba(251,191,36,0.6)]'
                                 : computed.isStandard
-                                ? 'bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)]'
+                                ? 'bg-emerald shadow-[0_0_6px_rgba(52,211,153,0.5)]'
                                 : computed.statusType === 'personal_frozen'
-                                ? 'bg-blue-400'
-                                : 'bg-zinc-300'
-                              : 'bg-zinc-800'
+                                ? 'bg-blue'
+                                : 'bg-[var(--color-text-secondary)]'
+                              : 'surface-z1 border-standard'
                           }`}
                           title={`قطعه ${toPersianDigits(segmentIndex)} از ۱۰`}
                         />
@@ -826,11 +826,11 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           {/* 4. Section A: The 5 Foundation Habits (Responsive Touch-First Grid) */}
           <div className="space-y-2.5 sm:space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-              <h3 className="font-bold text-xs sm:text-sm text-zinc-200 flex items-center gap-2">
-                <Swords className="w-4 h-4 text-zinc-300 shrink-0" />
+              <h3 className="font-bold text-xs sm:text-sm text-role-primary flex items-center gap-2">
+                <Swords className="w-4 h-4 text-role-secondary shrink-0" />
                 <span>۵ رکن تعهد فونداسیون</span>
               </h3>
-              <span className="text-[11px] sm:text-xs text-zinc-300 font-mono whitespace-nowrap bg-[#18181b] px-2 py-0.5 rounded-lg border border-zinc-800">
+              <span className="text-[11px] sm:text-xs text-role-secondary font-mono whitespace-nowrap surface-z2 px-2 py-0.5 radius-control border-standard">
                 شرط روز استاندارد (۸ از ۱۰)
               </span>
             </div>
@@ -844,34 +844,34 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                     key={h.key}
                     disabled={isLocked}
                     onClick={() => toggleHabit(h.key)}
-                    className={`p-3 sm:p-3.5 rounded-2xl border text-right transition-all flex items-center justify-between gap-3 group cursor-pointer active:scale-[0.98] ${
+                    className={`p-3 sm:p-3.5 radius-card border text-right transition-all flex items-center justify-between gap-3 group cursor-pointer active:scale-[0.98] focus-ring-tactical ${
                       isChecked
-                        ? 'bg-[#121215] border-emerald-500/50 text-zinc-100 shadow-md shadow-emerald-950/20'
-                        : 'bg-[#121215] border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                        ? 'surface-z1 border-emerald-subtle text-role-primary shadow-subtle'
+                        : 'surface-z1 border-standard text-role-secondary hover:border-[var(--color-border-hover)]'
                     } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                      <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                      <div className={`w-9 h-9 sm:w-10 sm:h-10 radius-component flex items-center justify-center shrink-0 transition-all ${
                         isChecked
-                          ? 'bg-emerald-500/20 text-emerald-400 ring-2 ring-emerald-500/30'
-                          : 'bg-zinc-800 text-zinc-400 group-hover:text-zinc-200'
+                          ? 'bg-emerald-subtle text-emerald ring-2 ring-emerald-subtle'
+                          : 'surface-z2 text-role-muted group-hover:text-role-primary'
                       }`}>
                         {HABIT_ICONS[h.key]}
                       </div>
                       <div className="min-w-0 flex-1 space-y-0.5">
-                        <div className="font-bold text-xs sm:text-sm text-zinc-100 flex items-center gap-1.5 leading-snug">
+                        <div className="font-bold text-xs sm:text-sm text-role-primary flex items-center gap-1.5 leading-snug">
                           <span className="truncate">{h.titleFa}</span>
                         </div>
-                        <p className="text-[11px] text-zinc-400 leading-relaxed text-right">
+                        <p className="text-[11px] text-role-secondary leading-relaxed text-right">
                           {h.subtitleFa}
                         </p>
                       </div>
                     </div>
 
-                    <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
+                    <div className={`w-6 h-6 sm:w-7 sm:h-7 radius-component border flex items-center justify-center transition-all shrink-0 ${
                       isChecked
-                        ? 'bg-emerald-500 border-emerald-400 text-black shadow-md shadow-emerald-500/30 scale-105'
-                        : 'border-zinc-700 bg-[#18181b] text-transparent group-hover:border-zinc-600'
+                        ? 'bg-emerald border-emerald text-black shadow-subtle scale-105'
+                        : 'border-standard surface-z2 text-transparent group-hover:border-[var(--color-border-hover)]'
                     }`}>
                       <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </div>
@@ -884,11 +884,11 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           {/* 4. Section B: Special Mission Accelerator */}
           <div className="space-y-2.5 sm:space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-              <h4 className="font-bold text-xs sm:text-sm text-zinc-200 flex items-center gap-2">
-                <Rocket className="w-4 h-4 text-amber-400 shrink-0" />
+              <h4 className="font-bold text-xs sm:text-sm text-role-primary flex items-center gap-2">
+                <Rocket className="w-4 h-4 text-amber shrink-0" />
                 <span>ماموریت شتاب‌دهنده روز</span>
               </h4>
-              <span className="text-[11px] sm:text-xs text-amber-400 font-mono whitespace-nowrap bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">
+              <span className="text-[11px] sm:text-xs text-amber font-mono whitespace-nowrap bg-amber-subtle px-2 py-0.5 radius-control border border-amber-subtle">
                 کمال تعهد (۱۰ از ۱۰)
               </span>
             </div>
@@ -897,41 +897,41 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               type="button"
               disabled={isLocked}
               onClick={toggleSpecialMission}
-              className={`w-full p-3 sm:p-3.5 rounded-2xl border text-right transition-all flex items-center justify-between gap-3 group cursor-pointer active:scale-[0.98] ${
+              className={`w-full p-3 sm:p-3.5 radius-card border text-right transition-all flex items-center justify-between gap-3 group cursor-pointer active:scale-[0.98] focus-ring-tactical ${
                 activeLog?.specialMission
-                  ? 'bg-gradient-to-r from-amber-950/40 via-[#121215] to-[#121215] border-amber-500/50 shadow-md shadow-amber-950/20'
-                  : 'bg-[#121215] border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                  ? 'surface-z1 border-amber-subtle shadow-subtle'
+                  : 'surface-z1 border-standard text-role-secondary hover:border-[var(--color-border-hover)]'
               } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 radius-component flex items-center justify-center shrink-0 transition-all ${
                   activeLog?.specialMission
-                    ? 'bg-amber-500/20 text-amber-400 ring-2 ring-amber-500/30'
-                    : 'bg-zinc-800 text-zinc-400 group-hover:text-zinc-200'
+                    ? 'bg-amber-subtle text-amber ring-2 ring-amber-subtle'
+                    : 'surface-z2 text-role-muted group-hover:text-role-primary'
                 }`}>
-                  <Target className={`w-5 h-5 ${activeLog?.specialMission ? 'text-amber-400' : 'text-zinc-400 group-hover:text-zinc-200'}`} />
+                  <Target className={`w-5 h-5 ${activeLog?.specialMission ? 'text-amber' : 'text-role-muted group-hover:text-role-primary'}`} />
                 </div>
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <div className="font-bold text-xs sm:text-sm text-zinc-100 flex items-center gap-2 leading-snug">
+                  <div className="font-bold text-xs sm:text-sm text-role-primary flex items-center gap-2 leading-snug">
                     <span className="truncate">ماموریت ویژه روز</span>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold font-mono border shrink-0 ${
                       activeLog?.specialMission
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                        : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                        ? 'bg-amber-subtle text-amber border-amber-subtle'
+                        : 'surface-z2 text-role-secondary border-standard'
                     }`}>
                       +{toPersianDigits(2)} امتیاز
                     </span>
                   </div>
-                  <p className="text-[11px] text-zinc-400 leading-relaxed text-right line-clamp-2 sm:line-clamp-none">
+                  <p className="text-[11px] text-role-secondary leading-relaxed text-right line-clamp-2 sm:line-clamp-none">
                     ثبت ماموریت کلیدی امروز در کنار ۵ رکن فونداسیون برای کسب امتیاز کامل ۱۰ از ۱۰.
                   </p>
                 </div>
               </div>
 
-              <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
+              <div className={`w-6 h-6 sm:w-7 sm:h-7 radius-component border flex items-center justify-center transition-all shrink-0 ${
                 activeLog?.specialMission
-                  ? 'bg-amber-500 border-amber-400 text-black shadow-md shadow-amber-500/30 scale-105'
-                  : 'border-zinc-700 bg-[#18181b] text-transparent group-hover:border-zinc-600'
+                  ? 'bg-amber border-amber text-black shadow-subtle scale-105'
+                  : 'border-standard surface-z2 text-transparent group-hover:border-[var(--color-border-hover)]'
               }`}>
                 <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
@@ -946,36 +946,36 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
             const cleanCountermeasure = hasCountermeasure ? activeLog.countermeasure.trim() : '';
 
             return (
-              <div className={`border rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 transition-all ${
+              <div className={`border radius-card p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 transition-all ${
                 cleanFailureReason === 'دلایل شخصی'
-                  ? 'bg-blue-950/30 border-blue-500/30'
+                  ? 'bg-blue-subtle border-blue-subtle'
                   : hasFailureReason
-                  ? 'bg-[#121215]/80 border-zinc-800'
-                  : (isToday ? 'bg-[#121215]/80 border-zinc-800' : 'bg-red-950/30 border-red-500/40')
+                  ? 'surface-z1/80 border-standard'
+                  : (isToday ? 'surface-z1/80 border-standard' : 'bg-debt-subtle border-debt-subtle')
               }`}>
                 <div className="flex items-start sm:items-center gap-3">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  <div className={`w-9 h-9 radius-component flex items-center justify-center shrink-0 ${
                     cleanFailureReason === 'دلایل شخصی' 
-                      ? 'bg-blue-500/20 text-blue-400' 
+                      ? 'bg-blue-subtle text-blue border border-blue-subtle' 
                       : hasFailureReason 
-                      ? 'bg-zinc-800 text-zinc-300' 
-                      : (isToday ? 'bg-zinc-800 text-zinc-300' : 'bg-red-500/20 text-red-400')
+                      ? 'surface-z2 text-role-primary border-standard' 
+                      : (isToday ? 'surface-z2 text-role-primary border-standard' : 'bg-debt-subtle text-debt border border-debt-subtle')
                   }`}>
                     {cleanFailureReason === 'دلایل شخصی' ? (
-                      <Snowflake className="w-4 h-4" />
+                      <Snowflake className="w-4 h-4 text-blue" />
                     ) : hasFailureReason ? (
-                      <FileText className="w-4 h-4" />
+                      <FileText className="w-4 h-4 text-role-primary" />
                     ) : (
-                      <AlertTriangle className="w-4 h-4" />
+                      <AlertTriangle className="w-4 h-4 text-debt" />
                     )}
                   </div>
                   <div>
-                    <h4 className="font-bold text-xs sm:text-sm text-zinc-200">
+                    <h4 className="font-bold text-xs sm:text-sm text-role-primary">
                       {hasFailureReason 
                         ? `علت ثبت شده: ${cleanFailureReason}` 
                         : (isToday ? 'ثبت کالبدشکافی یا توقف شخصی (اختیاری)' : 'کالبدشکافی و تسویه بدهی رفتاری')}
                     </h4>
-                    <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
+                    <p className="text-[11px] text-role-secondary mt-0.5 leading-relaxed">
                       {hasFailureReason
                         ? (hasCountermeasure ? `پادزهر: ${cleanCountermeasure}` : 'پرونده این روز تحلیل و ثبت شده است.')
                         : (isToday 
@@ -988,15 +988,15 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenAutopsy(activeLog!)}
-                  className={`w-full sm:w-auto font-bold text-xs px-3.5 py-2 rounded-xl inline-flex items-center justify-center gap-2 transition cursor-pointer border shrink-0 whitespace-nowrap active:scale-[0.98] ${
+                  className={`w-full sm:w-auto font-bold text-xs px-3.5 py-2 radius-component inline-flex items-center justify-center gap-2 transition cursor-pointer border shrink-0 whitespace-nowrap active:scale-[0.98] focus-ring-tactical ${
                     hasFailureReason
-                      ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700'
+                      ? 'surface-z2 hover:surface-z3 text-role-primary border-standard'
                       : (isToday 
-                          ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700' 
-                          : 'bg-red-950/60 hover:bg-red-900/80 text-red-200 border-red-500/50 shadow-md shadow-red-950/40')
+                          ? 'surface-z2 hover:surface-z3 text-role-primary border-standard' 
+                          : 'bg-debt hover:brightness-110 text-white border-debt shadow-subtle')
                   }`}
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-zinc-300" />
+                  <Sparkles className="w-3.5 h-3.5 text-role-secondary" />
                   <span>{hasFailureReason ? 'ویرایش کالبدشکافی' : (isToday ? 'ثبت کالبدشکافی امروز' : 'کالبدشکافی این روز')}</span>
                 </button>
               </div>
@@ -1004,25 +1004,25 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           })()}
 
           {/* 6. Daily Reflection & Strategy Notes */}
-          <div className="bg-[#121215]/80 border border-zinc-800 rounded-2xl p-3.5 sm:p-4 space-y-2.5">
+          <div className="surface-z1/80 border-standard radius-card p-3.5 sm:p-4 space-y-2.5">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <label className="text-xs font-bold text-zinc-200 inline-flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-zinc-400" />
+              <label className="text-xs font-bold text-role-primary inline-flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-role-muted" />
                 <span>یادداشت و مشاهدات میدان نبرد</span>
               </label>
               <div className="flex items-center gap-2 text-[11px]">
                 {isFuture ? (
-                  <span className="text-zinc-500 bg-[#18181b] px-2 py-0.5 rounded-md border border-zinc-800">
+                  <span className="text-role-muted surface-z2 px-2 py-0.5 radius-control border-standard">
                     در روز موعود فعال می‌شود
                   </span>
                 ) : isCycleArchived ? (
-                  <span className="text-purple-400 bg-purple-950/40 px-2 py-0.5 rounded-md border border-purple-800/50">
+                  <span className="text-purple bg-purple-subtle px-2 py-0.5 radius-control border border-purple-subtle">
                     بایگانی (فقط‌خواندنی)
                   </span>
                 ) : (
                   <>
                     <span className={`inline-flex items-center gap-1 font-medium transition-colors ${
-                      isSaved ? 'text-emerald-400/80' : 'text-amber-400/80'
+                      isSaved ? 'text-emerald' : 'text-amber'
                     }`}>
                       {isSaved ? (
                         <>
@@ -1033,8 +1033,8 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                         <span>در حال ذخیره...</span>
                       )}
                     </span>
-                    <span className="text-zinc-600">|</span>
-                    <span className="text-zinc-500 font-mono">
+                    <span className="text-role-muted">|</span>
+                    <span className="text-role-muted font-mono">
                       {notesValue ? `${toPersianDigits(notesValue.length)} کاراکتر` : 'اختیاری'}
                     </span>
                   </>
@@ -1056,10 +1056,10 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   : "ثبت دستاوردها، درس‌آموخته‌ها، چالش‌ها و بینش‌های استراتژیک امروز..."
               }
               rows={2}
-              className={`w-full rounded-xl p-3 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none transition-all leading-relaxed font-sans resize-none overflow-hidden ${
+              className={`w-full radius-component p-3 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none transition-all leading-relaxed font-sans resize-none overflow-hidden ${
                 isFuture || isCycleArchived
-                  ? 'bg-[#18181b]/50 border border-zinc-800 opacity-60 cursor-not-allowed'
-                  : 'bg-[#18181b] border border-zinc-800 hover:border-zinc-700 focus:border-rose-500/60 focus:ring-1 focus:ring-rose-500/30'
+                  ? 'surface-z2/50 border-standard opacity-60 cursor-not-allowed'
+                  : 'surface-z2 border-standard hover:border-[var(--color-border-hover)] focus:border-crimson focus:ring-1 focus:ring-crimson/30'
               }`}
             />
           </div>
