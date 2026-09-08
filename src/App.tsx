@@ -1521,7 +1521,7 @@ export default function App() {
         {/* Skip Link for direct keyboard navigation to main content */}
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:right-3 focus:z-[100] focus:px-4 focus:py-2.5 focus:bg-amber focus:text-black focus:font-black focus:text-xs focus:radius-component focus:shadow-subtle focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black transition-none"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:right-3 focus:z-[100] focus:px-4 focus:py-2.5 focus:bg-amber focus:text-black focus:font-black focus:text-xs focus:radius-component focus:shadow-subtle focus-ring-tactical transition-none"
         >
           پرش به محتوای اصلی
         </a>

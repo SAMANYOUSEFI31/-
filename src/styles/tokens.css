@@ -208,6 +208,23 @@
   background-color: var(--color-card-floating) !important;
 }
 
+/* Surface Pseudo-Class State Utilities (Technical Gap Fix) */
+.hover\:surface-z1:hover {
+  background-color: var(--color-card-elevated) !important;
+}
+
+.hover\:surface-z2:hover {
+  background-color: var(--color-card-inner) !important;
+}
+
+.hover\:surface-z3:hover {
+  background-color: var(--color-card-floating) !important;
+}
+
+.active\:surface-z3:active {
+  background-color: var(--color-card-floating) !important;
+}
+
 /* Standard Border Utilities */
 .border-standard {
   border: 1px solid var(--color-border-subtle) !important;

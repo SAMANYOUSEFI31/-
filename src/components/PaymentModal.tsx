@@ -277,7 +277,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       className={`text-right w-full radius-card p-4 sm:p-5 border-2 transition-all cursor-pointer relative flex flex-col justify-between focus-ring-tactical ${
                         isSelected
                           ? 'bg-amber-subtle border-amber shadow-subtle'
-                          : 'surface-z2 border-standard hover:border-interactive-hover'
+                          : 'surface-z2 border-standard hover:border-[var(--color-border-hover)]'
                       }`}
                     >
                       {plan.isPopular && (

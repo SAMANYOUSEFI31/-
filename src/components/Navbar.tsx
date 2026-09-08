@@ -537,7 +537,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                   type="button"
                   onClick={() => onSelectTab('admin')}
                   className={`h-8 sm:h-9 min-w-[44px] bg-debt-subtle border border-debt hover:bg-[var(--color-accent-red-bg)] text-debt px-2 sm:px-2.5 radius-component text-[10px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer transition shrink-0 touch-manipulation focus-ring-tactical ${
-                    activeTab === 'admin' ? 'ring-2 ring-[var(--color-accent-red)] bg-debt text-white' : ''
+                    activeTab === 'admin' ? 'bg-debt text-white border-debt shadow-subtle' : ''
                   }`}
                   title="ورود به پنل مدیریت"
                 >

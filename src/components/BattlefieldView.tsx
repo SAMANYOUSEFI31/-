@@ -746,14 +746,8 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 </p>
               </div>
 
-              {/* Score & Gauge Box (Centered, Symmetrical & Dignified Proportions with Golden Ratio micro-focusing) */}
-              <div className={`border radius-card p-3.5 sm:p-5 text-center w-full max-w-[260px] mx-auto md:mx-0 md:w-[230px] md:max-w-none shrink-0 transition-colors duration-200 flex flex-col items-center justify-center gap-2.5 ${
-                computed.score === 10
-                  ? 'bg-amber-subtle border-amber-subtle shadow-subtle'
-                  : computed.isStandard
-                  ? 'bg-emerald-subtle border-emerald-subtle shadow-subtle'
-                  : 'surface-z2 border-standard shadow-subtle'
-              }`}>
+              {/* Score & Gauge Block (Integrated into single parent surface with subtle divider) */}
+              <div className="w-full max-w-[260px] mx-auto md:mx-0 md:w-[220px] shrink-0 flex flex-col items-center justify-center gap-2 text-center transition-colors duration-200 border-t border-standard pt-3.5 md:border-t-0 md:pt-0 md:border-r md:border-standard md:pr-6">
                 {/* Score Header Label */}
                 <div className="text-[11px] sm:text-xs text-role-secondary font-medium flex items-center justify-center gap-1.5">
                   <span>امتیاز ارزش روز</span>
@@ -776,17 +770,17 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 {/* Centered Status Ribbon with fixed height to prevent vertical jitter */}
                 <div className="flex items-center justify-center h-7">
                   {computed.score === 10 ? (
-                    <div className="inline-flex items-center gap-1.5 text-[11px] font-black text-amber bg-amber-subtle py-1 px-3 radius-component border-amber-subtle shadow-subtle">
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-black text-amber bg-amber-subtle py-1 px-3 radius-component border border-amber-subtle shadow-subtle">
                       <Swords className="w-3.5 h-3.5 text-amber" />
                       <span>کمال تعهد</span>
                     </div>
                   ) : computed.isStandard ? (
-                    <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald bg-emerald-subtle py-1 px-3 radius-component border-emerald-subtle shadow-subtle">
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald bg-emerald-subtle py-1 px-3 radius-component border border-emerald-subtle shadow-subtle">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald" />
                       <span>روز استاندارد</span>
                     </div>
                   ) : (
-                    <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-role-secondary surface-z3 px-3 py-1 radius-component border-standard shadow-subtle">
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-role-muted">
                       <Clock className="w-3.5 h-3.5 text-role-muted" />
                       <span>در انتظار ۵ پایه</span>
                     </div>
@@ -794,7 +788,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 </div>
 
                 {/* Precision 10-Segment Discipline Gauge */}
-                <div className="w-full pt-2 border-t border-standard">
+                <div className="w-full pt-1.5 border-t border-standard">
                   <div className="flex items-center gap-1 w-full justify-center">
                     {Array.from({ length: 10 }).map((_, idx) => {
                       const segmentIndex = idx + 1;
@@ -830,8 +824,8 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <Swords className="w-4 h-4 text-role-secondary shrink-0" />
                 <span>۵ رکن تعهد فونداسیون</span>
               </h3>
-              <span className="text-[11px] sm:text-xs text-role-secondary font-mono whitespace-nowrap surface-z2 px-2 py-0.5 radius-control border-standard">
-                شرط روز استاندارد (۸ از ۱۰)
+              <span className="text-[11px] sm:text-xs text-role-muted font-medium whitespace-nowrap">
+                شرط روز استاندارد: ۸ از ۱۰
               </span>
             </div>
 
@@ -888,8 +882,8 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <Rocket className="w-4 h-4 text-amber shrink-0" />
                 <span>ماموریت شتاب‌دهنده روز</span>
               </h4>
-              <span className="text-[11px] sm:text-xs text-amber font-mono whitespace-nowrap bg-amber-subtle px-2 py-0.5 radius-control border border-amber-subtle">
-                کمال تعهد (۱۰ از ۱۰)
+              <span className="text-[11px] sm:text-xs text-amber font-medium whitespace-nowrap">
+                کمال تعهد: ۱۰ از ۱۰
               </span>
             </div>
 
@@ -1003,10 +997,10 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
             );
           })()}
 
-          {/* 6. Daily Reflection & Strategy Notes */}
-          <div className="surface-z0 border-standard radius-card p-3.5 sm:p-4 space-y-2.5">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <label className="text-xs font-bold text-role-primary inline-flex items-center gap-1.5">
+          {/* 6. Daily Reflection & Strategy Notes (Clean Input Grouping) */}
+          <div className="space-y-2 px-0.5">
+            <div className="flex items-center justify-between flex-wrap gap-2 px-0.5">
+              <label htmlFor="battlefield-daily-notes" className="text-xs font-bold text-role-primary inline-flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-role-muted" />
                 <span>یادداشت و مشاهدات میدان نبرد</span>
               </label>
@@ -1043,6 +1037,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
             </div>
             
             <textarea
+              id="battlefield-daily-notes"
               ref={textareaRef}
               value={notesValue}
               onChange={e => handleNotesChange(e.target.value)}
@@ -1056,10 +1051,10 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   : "ثبت دستاوردها، درس‌آموخته‌ها، چالش‌ها و بینش‌های استراتژیک امروز..."
               }
               rows={2}
-              className={`w-full radius-component p-3 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none transition-all leading-relaxed font-sans resize-none overflow-hidden ${
+              className={`w-full radius-card p-3 sm:p-3.5 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none transition-colors leading-relaxed font-sans resize-none overflow-hidden ${
                 isFuture || isCycleArchived
                   ? 'surface-z2 border-standard opacity-60 cursor-not-allowed'
-                  : 'surface-z2 border-standard hover:border-[var(--color-border-hover)] focus:border-crimson focus:ring-1 focus:ring-crimson/30'
+                  : 'surface-z2 border-standard hover:border-[var(--color-border-hover)] focus:border-[var(--color-border-active)] focus-ring-tactical'
               }`}
             />
           </div>

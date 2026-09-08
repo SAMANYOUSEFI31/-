@@ -312,7 +312,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
             {/* Key Metrics Bento Grid (معیارهای پویای چرخه فعلی با نسبت طلایی و ارتفاع هماهنگ) */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
               {/* Streak Card (Fiery Rose) */}
-              <div className="surface-z1 border-standard hover:border-standard-hover radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
+              <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
                 <div className="flex items-center justify-between text-rose">
                   <span className="text-xs text-role-secondary">زنجیره فعال</span>
                   <div className="w-7 h-7 radius-component bg-rose-subtle flex items-center justify-center shrink-0">
@@ -328,7 +328,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
               </div>
 
               {/* Standard Days (Emerald) */}
-              <div className="surface-z1 border-standard hover:border-standard-hover radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
+              <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
                 <div className="flex items-center justify-between text-emerald">
                   <span className="text-xs text-role-secondary">روزهای استاندارد</span>
                   <div className="w-7 h-7 radius-component bg-emerald-subtle flex items-center justify-center shrink-0">
@@ -344,7 +344,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
               </div>
 
               {/* Total Score (Amber) */}
-              <div className="surface-z1 border-standard hover:border-standard-hover radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
+              <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
                 <div className="flex items-center justify-between text-amber">
                   <span className="text-xs text-role-secondary">مجموع امتیاز</span>
                   <div className="w-7 h-7 radius-component bg-amber-subtle flex items-center justify-center shrink-0">
@@ -363,7 +363,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
               <div className={`border radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all ${
                 metrics.unresolvedDebtCount > 0 
                   ? 'bg-debt-subtle border-debt-subtle text-debt shadow-xs' 
-                  : 'surface-z1 border-standard hover:border-standard-hover'
+                  : 'surface-z1 border-standard hover:border-[var(--color-border-hover)]'
               }`}>
                 <div className="flex items-center justify-between text-debt">
                   <span className="text-xs text-role-secondary">بدهی کالبدشکافی</span>
@@ -380,7 +380,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
               </div>
 
               {/* Resolved Debt (Purple) */}
-              <div className="surface-z1 border-standard hover:border-standard-hover radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
+              <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
                 <div className="flex items-center justify-between text-purple">
                   <span className="text-xs text-role-secondary">کالبدشکافی شده</span>
                   <div className="w-7 h-7 radius-component bg-purple-subtle flex items-center justify-center shrink-0">
@@ -396,7 +396,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
               </div>
 
               {/* Frozen Days (Blue) */}
-              <div className="surface-z1 border-standard hover:border-standard-hover radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
+              <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
                 <div className="flex items-center justify-between text-blue">
                   <span className="text-xs text-role-secondary">توقف اضطراری</span>
                   <div className="w-7 h-7 radius-component bg-blue-subtle flex items-center justify-center shrink-0">
@@ -429,7 +429,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-1">
                 {/* Record 1: All-Time Longest Streak (Fiery Rose/Flame) */}
-                <div className="surface-z0 border-standard hover:border-standard-hover radius-card p-4 space-y-2.5 transition-all">
+                <div className="surface-z0 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 space-y-2.5 transition-all">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-role-secondary font-medium">طولانی‌ترین زنجیره تاریخ</span>
                     <div className="w-8 h-8 radius-component bg-rose-subtle border border-rose-subtle flex items-center justify-center shrink-0">
@@ -449,7 +449,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                 </div>
 
                 {/* Record 2: Max Standard Days (Vitality Emerald) */}
-                <div className="surface-z0 border-standard hover:border-standard-hover radius-card p-4 space-y-2.5 transition-all">
+                <div className="surface-z0 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 space-y-2.5 transition-all">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-role-secondary font-medium">بیشترین روزهای استاندارد</span>
                     <div className="w-8 h-8 radius-component bg-emerald-subtle border border-emerald-subtle flex items-center justify-center shrink-0">
@@ -469,7 +469,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                 </div>
 
                 {/* Record 3: Highest Score Accumulated (Imperial Amber) */}
-                <div className="surface-z0 border-standard hover:border-standard-hover radius-card p-4 space-y-2.5 transition-all">
+                <div className="surface-z0 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 space-y-2.5 transition-all">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-role-secondary font-medium">بالاترین امتیاز کسب‌شده</span>
                     <div className="w-8 h-8 radius-component bg-amber-subtle border border-amber-subtle flex items-center justify-center shrink-0">
