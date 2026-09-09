@@ -498,7 +498,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   id="battlefield-demo-dismiss-mobile"
                   type="button"
                   onClick={dismissDemoBanner}
-                  className="sm:hidden text-role-secondary hover:text-role-primary p-1.5 radius-control border-standard surface-z1 hover:surface-z2 transition cursor-pointer shrink-0 focus-ring-tactical -mt-1 -ml-1 inline-flex items-center justify-center"
+                  className="sm:hidden text-role-secondary hover:text-role-primary hover:surface-z2 p-1.5 radius-control transition cursor-pointer shrink-0 focus-ring-tactical -mt-1 -ml-1 inline-flex items-center justify-center"
                   title="بستن اعلان"
                   aria-label="بستن اعلان"
                 >
@@ -518,13 +518,13 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           </div>
 
           {/* Actions Cluster: Start Real Cycle CTA + Desktop Dismiss Button */}
-          <div id="battlefield-demo-actions-cluster" className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--color-border-subtle)]">
+          <div id="battlefield-demo-actions-cluster" className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end pt-2 sm:pt-0">
             {onOpenCreateCycle && (
               <button
                 id="battlefield-demo-create-cycle-btn"
                 type="button"
                 onClick={onOpenCreateCycle}
-                className="w-full sm:w-auto bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-xs px-4 py-2 radius-control transition cursor-pointer active:scale-95 shadow-subtle whitespace-nowrap focus-ring-tactical text-center inline-flex items-center justify-center gap-1.5"
+                className="w-full sm:w-auto bg-amber hover:brightness-110 text-canvas-root font-black text-xs px-4 py-2 radius-control transition cursor-pointer active:scale-95 shadow-subtle whitespace-nowrap focus-ring-tactical text-center inline-flex items-center justify-center gap-1.5"
               >
                 <span id="battlefield-demo-create-cycle-icon-wrap" className="inline-flex items-center justify-center">
                   <Sparkles className="w-3.5 h-3.5" />
@@ -538,7 +538,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               id="battlefield-demo-dismiss-desktop"
               type="button"
               onClick={dismissDemoBanner}
-              className="hidden sm:inline-flex text-role-secondary hover:text-role-primary p-2 radius-control border-standard surface-z1 hover:surface-z2 transition cursor-pointer focus-ring-tactical items-center justify-center"
+              className="hidden sm:inline-flex text-role-secondary hover:text-role-primary hover:surface-z2 p-2 radius-control transition cursor-pointer focus-ring-tactical items-center justify-center"
               title="بستن اعلان"
               aria-label="بستن اعلان"
             >
@@ -612,8 +612,8 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           </button>
         </div>
 
-        {/* Dedicated Cutoff Sub-Bar (Centered with clean hairline divider & telemetry entity badge) */}
-        <div id="battlefield-cutoff-sub-bar" className="pt-2 sm:pt-2.5 border-t border-[var(--color-border-subtle)] flex items-center justify-center text-[10px] sm:text-[11px]">
+        {/* Dedicated Cutoff Sub-Bar (Centered with seamless layout & telemetry entity badge) */}
+        <div id="battlefield-cutoff-sub-bar" className="pt-1 sm:pt-1.5 flex items-center justify-center text-[10px] sm:text-[11px]">
           {/* Centered Nightly Cutoff Box with Standard Telemetry Badge Entity */}
           <div 
             id="battlefield-cutoff-badge"
@@ -634,7 +634,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
       {!hasSeenSwipeHint && (
         <div 
           id="battlefield-swipe-hint"
-          className="flex items-center justify-between gap-2 px-3 py-1.5 surface-z1 border-standard radius-component text-[10px] text-role-secondary select-none sm:hidden -my-1 animate-in fade-in slide-in-from-top-1"
+          className="flex items-center justify-between gap-2 px-3 py-1.5 surface-z1 radius-component text-[10px] text-role-secondary select-none sm:hidden -my-1 animate-in fade-in slide-in-from-top-1"
         >
           <div id="battlefield-swipe-hint-content" className="flex items-center gap-1.5">
             <span id="battlefield-swipe-hint-arrows" className="text-role-muted font-mono">‹ ›</span>
@@ -918,7 +918,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       <span id="battlefield-score-status-label" className="whitespace-nowrap leading-none">پرونده مختومه</span>
                     </div>
                   ) : isFuture ? (
-                    <div id="battlefield-score-status-badge" className="entity-status-badge surface-z3 text-role-secondary border border-standard inline-flex items-center gap-1.5">
+                    <div id="battlefield-score-status-badge" className="entity-status-badge surface-z3 text-role-secondary inline-flex items-center gap-1.5">
                       <span id="battlefield-score-status-icon-wrap" className="inline-flex items-center justify-center shrink-0">
                         <Compass className="w-3.5 h-3.5 text-role-muted" />
                       </span>
@@ -941,10 +941,10 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   )}
                 </div>
 
-                {/* Precision 10-Segment Discipline Gauge Track */}
+                {/* Precision 10-Segment Discipline Gauge (Discrete Perforated Slots) */}
                 <div 
                   id="battlefield-score-gauge"
-                  className="entity-gauge-track w-full flex items-center gap-1 justify-center select-none pointer-events-none"
+                  className="entity-gauge-track select-none pointer-events-none"
                 >
                   {Array.from({ length: 10 }).map((_, idx) => {
                     const segmentIndex = idx + 1;
@@ -956,13 +956,13 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                         className={`h-2 flex-1 radius-capsule transition-all duration-200 ${
                           isFilled
                             ? computed.score === 10
-                              ? 'bg-amber shadow-[0_0_6px_rgba(251,191,36,0.3)]'
+                              ? 'bg-amber border border-amber/40 shadow-[0_0_6px_rgba(251,191,36,0.35)]'
                               : computed.isStandard
-                              ? 'bg-emerald shadow-[0_0_6px_rgba(52,211,153,0.3)]'
+                              ? 'bg-emerald border border-emerald/40 shadow-[0_0_6px_rgba(52,211,153,0.35)]'
                               : computed.statusType === 'personal_frozen'
-                              ? 'bg-blue'
-                              : 'bg-zinc-400'
-                            : 'bg-zinc-800/50'
+                              ? 'bg-blue border border-blue/40'
+                              : 'bg-zinc-300 border border-zinc-200/30'
+                            : 'surface-z0 border border-zinc-800/80 shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]'
                         }`}
                         title={`قطعه ${toPersianDigits(segmentIndex)} از ۱۰`}
                       />

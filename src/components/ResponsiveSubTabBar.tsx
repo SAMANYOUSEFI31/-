@@ -82,7 +82,7 @@ export function ResponsiveSubTabBar<T extends string = string>({
               {/* Optional badge */}
               {tab.badge && (
                 <span
-                  className={`hidden md:inline-block text-[10px] font-mono px-1.5 py-0.5 radius-control border transition-colors duration-150 shrink-0 ${
+                  className={`hidden md:inline-block text-[10px] font-mono px-1.5 py-0.5 radius-capsule border transition-colors duration-150 shrink-0 ${
                     isActive
                       ? 'surface-z2 text-role-primary border-hover'
                       : 'surface-z2 text-role-secondary border-standard'

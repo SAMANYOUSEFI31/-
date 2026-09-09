@@ -133,7 +133,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
           <button
             type="button"
             onClick={handleOpenNewCycleModal}
-            className="bg-amber hover:brightness-105 text-[var(--color-canvas-root)] font-black text-sm px-6 py-3 radius-card inline-flex items-center justify-center gap-2 mx-auto shadow-subtle transition cursor-pointer active:scale-95 whitespace-nowrap"
+            className="bg-amber hover:brightness-105 text-canvas-root font-black text-sm px-6 py-3 radius-card inline-flex items-center justify-center gap-2 mx-auto shadow-subtle transition cursor-pointer active:scale-95 whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             <span>تعریف چرخه نبرد ۹۰ روزه</span>

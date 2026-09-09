@@ -114,7 +114,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
   return (
     <div className="entity-hero-panel p-5 sm:p-7 space-y-6" dir="rtl">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--color-border-subtle)] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-subtle pb-5">
         <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 radius-component surface-z2 border-standard flex items-center justify-center text-role-secondary shadow-subtle shrink-0">
             <Layers className="w-6 h-6 text-role-secondary" />
@@ -138,7 +138,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
         <div className="entity-metric-card-nested px-4 py-2.5 flex items-center gap-3 self-start sm:self-auto shadow-subtle select-none pointer-events-none cursor-default">
           <div className={`w-10 h-10 radius-component flex items-center justify-center shrink-0 ${
             totalLogs === 0
-              ? 'surface-z3 border-standard text-role-secondary'
+              ? 'surface-z3 text-role-secondary'
               : 'bg-emerald-subtle border border-emerald-subtle text-emerald'
           }`}>
             <ShieldCheck className={`w-5 h-5 ${totalLogs === 0 ? 'text-role-secondary' : 'text-emerald'}`} />
@@ -162,7 +162,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
             {/* Title Row */}
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 radius-component surface-z3 border-standard flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 radius-component surface-z3 flex items-center justify-center shrink-0">
                   {getIcon(habit.iconName, 'text-role-primary')}
                 </div>
                 <div>
@@ -185,7 +185,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
 
             {/* Progress Bar */}
             <div className="space-y-1.5">
-              <div className="w-full surface-z3 h-2 radius-capsule overflow-hidden border-standard">
+              <div className="w-full surface-z0 h-2 radius-capsule overflow-hidden border-standard">
                 <div 
                   className={`${habit.barColor} h-full radius-capsule transition-all duration-500`}
                   style={{ width: `${habit.ratePct}%` }}
@@ -193,7 +193,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
               </div>
               <div className="flex items-center justify-between text-[11px] text-role-secondary">
                 <span>{totalLogs === 0 ? 'در انتظار ثبت در میدان نبرد' : `${toPersianDigits(habit.successCount)} روز اجرا`}</span>
-                <span className={`px-2 py-0.5 radius-control border text-[10px] font-bold select-none pointer-events-none cursor-default ${habit.tierColor}`}>
+                <span className={`px-2.5 py-0.5 radius-capsule border text-[10px] font-bold select-none pointer-events-none cursor-default ${habit.tierColor}`}>
                   {habit.tierLabel}
                 </span>
               </div>
@@ -207,7 +207,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 radius-component flex items-center justify-center shrink-0 ${
                 totalLogs === 0
-                  ? 'surface-z3 border-standard text-role-secondary'
+                  ? 'surface-z3 text-role-secondary'
                   : 'bg-amber-subtle border border-amber-subtle text-amber'
               }`}>
                 <Rocket className={`w-5 h-5 ${totalLogs === 0 ? 'text-role-secondary' : 'text-amber'}`} />
@@ -230,7 +230,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
           </div>
 
           <div className="space-y-1.5">
-            <div className="w-full surface-z3 h-2 radius-capsule overflow-hidden border-standard">
+            <div className="w-full surface-z0 h-2 radius-capsule overflow-hidden border-standard">
               <div 
                 className={`${totalLogs === 0 ? 'surface-z1' : 'bg-amber'} h-full radius-capsule transition-all duration-500`}
                 style={{ width: `${specialMissionRate}%` }}
@@ -238,7 +238,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
             </div>
             <div className="flex items-center justify-between text-[11px] text-role-secondary">
               <span>{totalLogs === 0 ? 'در انتظار ثبت در میدان نبرد' : `${toPersianDigits(specialMissionCount)} بار اجرای ماموریت ویژه`}</span>
-              <span className={`px-2 py-0.5 radius-control border text-[10px] font-bold select-none pointer-events-none cursor-default ${
+              <span className={`px-2.5 py-0.5 radius-capsule border text-[10px] font-bold select-none pointer-events-none cursor-default ${
                 totalLogs === 0 
                   ? 'surface-z1 border-standard text-role-secondary' 
                   : 'text-amber bg-amber-subtle border-amber-subtle'

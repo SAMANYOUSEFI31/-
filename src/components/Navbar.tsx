@@ -269,9 +269,9 @@ const NavbarComponent: React.FC<NavbarProps> = ({
         />
       )}
 
-      {/* Top Hub Bar Header with Dynamic Island & PWA Safe-Area Support */}
+      {/* Top Hub Bar Header with Frosted Glass Chrome & Universal Status-Bar Flow */}
       <header 
-        className="sticky top-0 z-40 surface-shell backdrop-blur-md border-b border-standard pt-safe shadow-subtle" 
+        className="sticky top-0 z-40 surface-shell border-b border-subtle border-t-0 pt-safe select-none" 
         dir="rtl"
       >
         <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 relative">
@@ -304,7 +304,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                   aria-expanded={isCycleDropdownOpen}
                   aria-haspopup="true"
                   aria-label={`انتخاب چرخه، چرخه فعلی: ${currentCycle ? currentCycle.title : 'تعریف نشده'}`}
-                  className="h-8 sm:h-9 min-w-[44px] surface-z1 hover:surface-z2 active:surface-z3 border-standard radius-component px-2 sm:px-2.5 text-xs text-role-primary inline-flex items-center justify-center gap-1 sm:gap-1.5 transition cursor-pointer shrink-0 touch-manipulation relative z-50 focus-ring-tactical"
+                  className="h-8 sm:h-9 min-w-[44px] surface-z1 hover:surface-z2 active:surface-z3 border-subtle radius-component px-2 sm:px-2.5 text-xs text-role-primary inline-flex items-center justify-center gap-1 sm:gap-1.5 transition cursor-pointer shrink-0 touch-manipulation relative z-50 focus-ring-tactical"
                 >
                   <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 radius-capsule shrink-0 ${currentCycle ? 'bg-emerald' : 'bg-amber'}`}></span>
                   <span className="font-bold whitespace-nowrap text-[11px] sm:text-xs">
@@ -318,9 +318,9 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                     ref={cycleDropdownPanelRef}
                     role="region"
                     aria-label="انتخاب و مدیریت چرخه‌ها"
-                    className="absolute right-0 mt-2 w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] surface-z3 border-standard radius-modal shadow-dropdown overflow-hidden z-50 animate-in fade-in zoom-in-95 motion-reduce:animate-none duration-150"
+                    className="absolute right-0 mt-2 w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] surface-z3 border-subtle radius-modal shadow-dropdown overflow-hidden z-50 animate-in fade-in zoom-in-95 motion-reduce:animate-none duration-150"
                   >
-                    <div className="px-3.5 py-2.5 text-[10px] text-role-secondary font-bold border-b border-standard flex items-center justify-between surface-z2">
+                    <div className="px-3.5 py-2.5 text-[10px] text-role-secondary font-bold border-b border-subtle flex items-center justify-between surface-z2">
                       <span>انتخاب و مدیریت چرخه‌های ۹۰ روزه:</span>
                       <span className="text-role-muted font-mono">{toPersianDigits(cycles.length)} چرخه</span>
                     </div>
@@ -359,7 +359,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                                 <span className={`w-1.5 h-1.5 radius-capsule shrink-0 ${isCurrent ? 'bg-emerald' : 'bg-text-muted'}`} />
                                 <span className="truncate flex-1">{c.title}</span>
                                 {c.isArchived && (
-                                  <span className="text-[9px] surface-z1 text-role-muted px-1.5 py-0.5 radius-badge shrink-0 border-standard">
+                                  <span className="text-[9px] surface-z1 text-role-muted px-1.5 py-0.5 radius-badge shrink-0">
                                     بایگانی
                                   </span>
                                 )}
@@ -394,7 +394,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       )}
                     </div>
                     
-                    <div className="p-2.5 border-t border-standard space-y-2 surface-z2">
+                    <div className="p-2.5 border-t border-subtle space-y-2 surface-z2">
                       {onOpenNewCycleModal && (
                         <button
                           type="button"
@@ -416,7 +416,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                           setConfirmDeleteCycleId(null);
                           onSelectTab('archives');
                         }}
-                        className="w-full py-2.5 min-h-[44px] px-3 surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-standard radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation focus-ring-tactical"
+                        className="w-full py-2.5 min-h-[44px] px-3 surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-subtle radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation focus-ring-tactical"
                       >
                         <Archive className="w-3.5 h-3.5 text-role-muted" />
                         <span>کارنامه و بایگانی چرخه‌ها</span>
@@ -427,7 +427,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
               </div>
             </div>
 
-            {/* Desktop Navigation Tabs */}
+            {/* Desktop Navigation Tabs - Calm Elevated Indicator with Brand Crimson Accent */}
             <LayoutGroup id="desktopNavGroup">
               <nav className="hidden lg:flex items-center gap-1 xl:gap-2 h-10" aria-label="ناوبری اصلی">
                 {mainTabs.map(tab => {
@@ -443,7 +443,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       aria-current={isActive ? 'page' : undefined}
                       className={`h-9 px-3.5 radius-component text-xs xl:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer relative z-10 select-none touch-manipulation focus-ring-tactical ${
                         isActive
-                          ? 'text-role-primary font-bold'
+                          ? 'text-crimson font-bold'
                           : 'text-role-secondary hover:text-role-primary'
                       }`}
                     >
@@ -451,7 +451,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                         <motion.div
                           layoutId={shouldReduceMotion ? undefined : "desktopActiveTabIndicator"}
                           layout={shouldReduceMotion ? false : "position"}
-                          className="absolute inset-0 radius-component -z-10 shadow-subtle border pointer-events-none bg-crimson-subtle border-crimson-subtle"
+                          className="absolute inset-0 radius-component -z-10 surface-z2 border-none shadow-xs pointer-events-none"
                           transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 450, damping: 35 }}
                         />
                       )}
@@ -501,7 +501,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
 
               {/* Pure Streak Flame */}
               <div 
-                className="h-8 sm:h-9 bg-rose-subtle border border-rose-subtle text-rose px-2 sm:px-2.5 radius-component inline-flex items-center justify-center gap-1 text-[11px] sm:text-xs font-bold shrink-0 cursor-default select-none pointer-events-none"
+                className="h-8 sm:h-9 bg-rose-subtle text-rose px-2.5 sm:px-3 radius-component inline-flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold shrink-0 cursor-default select-none pointer-events-none"
                 title="تعداد روزهای زنجیره خالص متوالی بدون شکست"
               >
                 <Flame className="w-3.5 h-3.5 shrink-0 fill-current text-rose" />
@@ -513,7 +513,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={onOpenPaymentModal}
-                  className="h-8 sm:h-9 min-w-[44px] bg-amber-subtle hover:bg-amber-subtle border border-amber-subtle hover:border-amber text-amber px-2 sm:px-2.5 radius-component text-[11px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shadow-subtle shrink-0 transition active:scale-95 touch-manipulation focus-ring-tactical"
+                  className="h-8 sm:h-9 min-w-[44px] bg-amber-subtle hover:bg-amber-subtle text-amber px-2.5 sm:px-3 radius-component text-[11px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shadow-subtle shrink-0 transition active:scale-95 touch-manipulation focus-ring-tactical"
                   title="حساب سامورایی ویژه فعال است - کلیک برای مدیریت"
                 >
                   <Crown className="w-3.5 h-3.5 text-amber shrink-0" />
@@ -541,82 +541,87 @@ const NavbarComponent: React.FC<NavbarProps> = ({
         </div>
       </header>
 
-      {/* Mobile Bottom Navigation Bar (3 Clean Canonical Tabs with Swipe Support) */}
+      {/* Mobile Floating Frosted Glass Capsule Navigation Bar */}
       <LayoutGroup id="mobileBottomNavGroup">
-        <nav 
-          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 surface-shell backdrop-blur-md border-t border-standard px-2 py-1 pb-safe select-none touch-pan-x shadow-subtle"
+        <div 
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-none flex justify-center px-3 sm:px-4 pb-safe mb-2.5 sm:mb-3 select-none"
           dir="rtl"
-          aria-label="ناوبری اصلی همراه"
-          onTouchStart={handleBottomNavTouchStart}
-          onTouchEnd={handleBottomNavTouchEnd}
         >
-          <div className="grid grid-cols-3 max-w-md mx-auto relative h-14 items-center">
-            {mainTabs.map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              const hasDebtAlert = tab.id === 'battlefield' && displayedDebtCount > 0;
-              const hasMilestoneAlert = tab.id === 'profile' && !userProfile.isVip && (metrics.elapsedDays >= 30 || metrics.pureStreak >= 7);
+          <nav 
+            className="pointer-events-auto w-full max-w-sm sm:max-w-md surface-shell border border-white/[0.08] shadow-dropdown radius-capsule p-1.5 touch-pan-x"
+            aria-label="ناوبری اصلی همراه"
+            onTouchStart={handleBottomNavTouchStart}
+            onTouchEnd={handleBottomNavTouchEnd}
+          >
+            <div className="grid grid-cols-3 relative h-12 items-center gap-1">
+              {mainTabs.map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                const hasDebtAlert = tab.id === 'battlefield' && displayedDebtCount > 0;
+                const hasMilestoneAlert = tab.id === 'profile' && !userProfile.isVip && (metrics.elapsedDays >= 30 || metrics.pureStreak >= 7);
 
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => handleTabClick(tab.id)}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`h-full min-h-[44px] min-w-[44px] w-full flex flex-col items-center justify-center relative cursor-pointer z-10 transition-colors touch-manipulation focus-ring-tactical ${
-                    isActive
-                      ? 'font-bold text-role-primary'
-                      : 'text-role-secondary hover:text-role-primary'
-                  }`}
-                >
-                  <div className="relative w-12 h-7 flex items-center justify-center">
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => handleTabClick(tab.id)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`h-full min-h-[44px] min-w-[44px] w-full flex flex-col items-center justify-center relative cursor-pointer z-10 transition-colors touch-manipulation radius-capsule focus-ring-tactical ${
+                      isActive
+                        ? 'font-bold text-crimson'
+                        : 'text-role-secondary hover:text-role-primary active:scale-95'
+                    }`}
+                  >
                     {isActive && (
                       <motion.div
                         layoutId={shouldReduceMotion ? undefined : "activeTabIndicator"}
                         layout={shouldReduceMotion ? false : "position"}
-                        className="absolute inset-0 radius-component border pointer-events-none bg-crimson-subtle border-crimson-subtle"
+                        className="absolute inset-0 radius-capsule surface-z2 border-none pointer-events-none shadow-xs"
                         transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 450, damping: 35, mass: 0.7 }}
                       />
                     )}
-                    <Icon 
-                      className={`w-5 h-5 relative z-10 transition-colors motion-fast ${isActive ? 'text-crimson' : 'text-role-secondary'}`} 
-                    />
 
-                    {hasDebtAlert && !isActive && (
-                      <>
-                        <span 
-                          className="w-2 h-2 radius-capsule bg-debt animate-ping motion-reduce:animate-none absolute top-0.5 right-1 z-20" 
-                          aria-hidden="true" 
-                        />
-                        <span className="sr-only">
-                          ({toPersianDigits(displayedDebtCount)} بدهی باز)
-                        </span>
-                      </>
-                    )}
+                    <div className="relative flex items-center justify-center">
+                      <Icon 
+                        className={`w-5 h-5 relative z-10 transition-colors motion-fast ${isActive ? 'text-crimson' : 'text-role-secondary'}`} 
+                      />
 
-                    {hasMilestoneAlert && !isActive && (
-                      <>
-                        <span 
-                          className="w-2 h-2 radius-capsule bg-amber animate-pulse motion-reduce:animate-none absolute top-0.5 right-1 z-20 shadow-subtle" 
-                          aria-hidden="true" 
-                        />
-                        <span className="sr-only">
-                          (نقطه عطف جدید در دسترس است)
-                        </span>
-                      </>
-                    )}
-                  </div>
+                      {hasDebtAlert && !isActive && (
+                        <>
+                          <span 
+                            className="w-2 h-2 radius-capsule bg-debt animate-ping motion-reduce:animate-none absolute -top-0.5 -right-1 z-20" 
+                            aria-hidden="true" 
+                          />
+                          <span className="sr-only">
+                            ({toPersianDigits(displayedDebtCount)} بدهی باز)
+                          </span>
+                        </>
+                      )}
 
-                  <span 
-                    className={`h-3.5 text-[10.5px] tracking-tight mt-0.5 leading-none whitespace-nowrap transition-colors motion-fast flex items-center justify-center ${isActive ? 'text-crimson font-bold' : 'text-role-secondary'}`}
-                  >
-                    {tab.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </nav>
+                      {hasMilestoneAlert && !isActive && (
+                        <>
+                          <span 
+                            className="w-2 h-2 radius-capsule bg-amber animate-pulse motion-reduce:animate-none absolute -top-0.5 -right-1 z-20 shadow-subtle" 
+                            aria-hidden="true" 
+                          />
+                          <span className="sr-only">
+                            (نقطه عطف جدید در دسترس است)
+                          </span>
+                        </>
+                      )}
+                    </div>
+
+                    <span 
+                      className={`h-3.5 text-[10px] sm:text-[10.5px] tracking-tight mt-0.5 leading-none whitespace-nowrap relative z-10 transition-colors motion-fast flex items-center justify-center ${isActive ? 'text-crimson font-black' : 'text-role-secondary'}`}
+                    >
+                      {tab.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        </div>
       </LayoutGroup>
     </>
   );

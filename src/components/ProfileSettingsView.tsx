@@ -196,7 +196,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div 
-              className="w-11 h-11 sm:w-12 sm:h-12 radius-card surface-z2 border-standard flex items-center justify-center text-role-secondary shadow-xs shrink-0 select-none pointer-events-none"
+              className="w-11 h-11 sm:w-12 sm:h-12 radius-card surface-z2 flex items-center justify-center text-role-secondary shadow-xs shrink-0 select-none pointer-events-none"
             >
               <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-role-secondary" />
             </div>
@@ -212,12 +212,12 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
 
           {/* User Status Chip */}
           {userProfile.isVip ? (
-            <span className="bg-amber-subtle border border-amber-subtle text-amber px-3 py-1 radius-component text-xs font-black flex items-center gap-1.5 shadow-xs whitespace-nowrap shrink-0">
+            <span className="bg-amber-subtle border border-amber-subtle text-amber px-3 py-1 radius-capsule text-xs font-black flex items-center gap-1.5 shadow-xs whitespace-nowrap shrink-0">
               <Crown className="w-3.5 h-3.5 text-amber" />
               <span>VIP</span>
             </span>
           ) : (
-            <span className="surface-z2 border-standard text-role-muted px-2.5 py-1 radius-component text-xs font-bold whitespace-nowrap shrink-0">
+            <span className="surface-z2 text-role-muted px-2.5 py-1 radius-capsule text-xs font-bold whitespace-nowrap shrink-0">
               طرح استاندارد
             </span>
           )}
@@ -247,7 +247,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
             <div className="space-y-4">
               <div className="surface-z1 border-standard radius-modal p-5 sm:p-6 shadow-subtle space-y-5">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 radius-card surface-z2 border-standard flex items-center justify-center text-role-secondary shrink-0">
+                  <div className="w-10 h-10 radius-card surface-z2 flex items-center justify-center text-role-secondary shrink-0">
                     <User className="w-5 h-5 text-role-secondary" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -261,7 +261,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                 </div>
 
                 {/* Identity Card */}
-                <div className="surface-z2 border-standard radius-card p-4 space-y-3">
+                <div className="surface-z2 radius-card p-4 space-y-2.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-role-secondary">نام / شناسه کاربری:</span>
                     <span className="font-bold text-role-primary">
@@ -269,14 +269,14 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs pt-2 border-t border-standard">
+                  <div className="flex items-center justify-between text-xs">
                     <span className="text-role-secondary">شماره موبایل / ایمیل:</span>
                     <span className="font-mono text-role-primary font-bold" dir="ltr">
                       {userProfile.phoneNumber || userProfile.email || 'حساب کاربری مهمان (لوکال)'}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs pt-2 border-t border-standard">
+                  <div className="flex items-center justify-between text-xs">
                     <span className="text-role-secondary">سطح دسترسی سامانه:</span>
                     <span className={`font-bold flex items-center gap-1.5 ${
                       userProfile.isVip ? 'text-amber' : 'text-role-muted'
@@ -294,13 +294,13 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
 
                   {userProfile.isVip && (
                     <>
-                      <div className="flex items-center justify-between text-xs pt-2 border-t border-standard">
+                      <div className="flex items-center justify-between text-xs">
                         <span className="text-role-secondary">تاریخ انقضای اشتراک:</span>
                         <span className="font-mono text-role-primary">
                           {userProfile.vipExpiresAt ? formatPersianDate(userProfile.vipExpiresAt.split('T')[0]) : 'نامحدود'}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between text-xs pt-2 border-t border-standard">
+                      <div className="flex items-center justify-between text-xs">
                         <span className="text-role-secondary">اعتبار باقی‌مانده:</span>
                         <span className="font-black text-emerald">
                           {toPersianDigits(vipDaysRemaining)} روز
@@ -310,14 +310,14 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                   )}
 
                   {!userProfile.isVip && (
-                    <p className="text-[11px] text-role-secondary leading-relaxed surface-z3 p-3 radius-component border-standard text-right">
+                    <p className="text-[11px] text-role-secondary leading-relaxed surface-z3 p-3 radius-component text-right mt-2">
                       با فعال‌سازی اشتراک VIP، امکان ایجاد چرخه‌های نامحدود و دسترسی به تحلیل‌های سنتسی فعال می‌شود.
                     </p>
                   )}
                 </div>
 
                 {/* Account Actions & Subscriptions */}
-                <div className="pt-4 border-t border-standard space-y-2.5 relative z-10">
+                <div className="pt-2 space-y-2.5 relative z-10">
                   {/* VIP CTA */}
                   {userProfile.isVip ? (
                     <button
@@ -391,7 +391,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
               <div className="surface-z1 border-standard radius-modal p-5 sm:p-6 shadow-subtle space-y-6">
                 {/* Master Header */}
                 <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 radius-card surface-z2 border-standard flex items-center justify-center text-role-secondary shrink-0">
+                  <div className="w-10 h-10 radius-card surface-z2 flex items-center justify-center text-role-secondary shrink-0">
                     <Settings className="w-5 h-5 text-role-secondary" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -405,9 +405,9 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                 </div>
 
                 {/* Sub-Card 1: Cutoff Hour Configuration */}
-                <div className="surface-z2 border-standard radius-card p-4 sm:p-5 space-y-3.5">
+                <div className="surface-z2 radius-card p-4 sm:p-5 space-y-3.5">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 radius-component surface-z3 border-standard flex items-center justify-center text-role-secondary shrink-0">
+                    <div className="w-8 h-8 radius-component surface-z3 flex items-center justify-center text-role-secondary shrink-0">
                       <Moon className="w-4 h-4 text-role-secondary" />
                     </div>
                     <div>
@@ -447,9 +447,9 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                 </div>
 
                 {/* Sub-Card 2: Data Export & Backup Vault */}
-                <div className="surface-z2 border-standard radius-card p-4 sm:p-5 space-y-3.5">
+                <div className="surface-z2 radius-card p-4 sm:p-5 space-y-3.5">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 radius-component surface-z3 border-standard flex items-center justify-center text-role-secondary shrink-0">
+                    <div className="w-8 h-8 radius-component surface-z3 flex items-center justify-center text-role-secondary shrink-0">
                       <Database className="w-4 h-4 text-role-secondary" />
                     </div>
                     <div>
@@ -474,7 +474,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                       className="surface-z1 hover:surface-z3 border-standard text-role-primary p-3.5 sm:p-4 radius-component flex items-center justify-between gap-3.5 text-right transition cursor-pointer active:scale-[0.98] group min-h-[52px]"
                     >
                       <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                        <div className="w-10 h-10 radius-component surface-z2 border-standard flex items-center justify-center text-role-secondary group-hover:text-role-primary transition shrink-0">
+                        <div className="w-10 h-10 radius-component surface-z2 flex items-center justify-center text-role-secondary group-hover:text-role-primary transition shrink-0">
                           <Download className="w-4.5 h-4.5" />
                         </div>
                         <div className="space-y-0.5 min-w-0 flex-1">
@@ -484,7 +484,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                           </p>
                         </div>
                       </div>
-                      <span className="text-[10px] font-mono surface-z2 border-standard px-2.5 py-1 radius-control text-role-muted group-hover:text-role-secondary transition shrink-0 select-none pointer-events-none">
+                      <span className="text-[10px] font-mono surface-z2 px-2.5 py-1 radius-capsule text-role-muted group-hover:text-role-secondary transition shrink-0 select-none pointer-events-none">
                         JSON
                       </span>
                     </button>
@@ -525,7 +525,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
             <div className="space-y-4">
               <div className="surface-z1 border-standard radius-modal p-5 sm:p-6 shadow-subtle space-y-4">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 radius-card surface-z2 border-standard flex items-center justify-center text-role-secondary shrink-0">
+                  <div className="w-10 h-10 radius-card surface-z2 flex items-center justify-center text-role-secondary shrink-0">
                     <BookMarked className="w-5 h-5 text-role-secondary" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -582,24 +582,24 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                         </button>
 
                         {isExpanded && (
-                          <div className="px-4 pb-4 pt-1 space-y-3 text-xs border-t border-standard">
-                            <div className="surface-z3 p-3 radius-component border-standard space-y-1">
+                          <div className="px-4 pb-4 pt-1 space-y-3 text-xs border-t border-subtle">
+                            <div className="surface-z3 p-3 radius-component space-y-1">
                               <span className="font-bold text-amber text-[11px] block">چرا حیاتی است؟</span>
                               <p className="text-role-secondary leading-relaxed text-right">{item.whyItMatters}</p>
                             </div>
 
-                            <div className="surface-z3 p-3 radius-component border-standard space-y-1">
+                            <div className="surface-z3 p-3 radius-component space-y-1">
                               <span className="font-bold text-emerald text-[11px] block">معیار استاندارد اجرا:</span>
                               <p className="text-role-secondary leading-relaxed text-right">{item.dailyStandard}</p>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                              <div className="surface-z3 p-3 radius-component border-standard space-y-1">
+                              <div className="surface-z3 p-3 radius-component space-y-1">
                                 <span className="font-bold text-rose text-[11px] block">دام‌های رایج:</span>
                                 <p className="text-role-secondary leading-relaxed text-right">{item.commonPitfalls}</p>
                               </div>
 
-                              <div className="surface-z3 p-3 radius-component border-standard space-y-1">
+                              <div className="surface-z3 p-3 radius-component space-y-1">
                                 <span className="font-bold text-blue text-[11px] block">تاکتیک و راهکار:</span>
                                 <p className="text-role-secondary leading-relaxed text-right">{item.tacticalAdvice}</p>
                               </div>
@@ -619,7 +619,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
             <div className="space-y-4">
               <div className="surface-z1 border-standard radius-modal p-5 sm:p-6 shadow-subtle space-y-5">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 radius-card surface-z2 border-standard flex items-center justify-center text-role-secondary shrink-0">
+                  <div className="w-10 h-10 radius-card surface-z2 flex items-center justify-center text-role-secondary shrink-0">
                     <Headphones className="w-5 h-5 text-role-secondary" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -664,7 +664,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                             </h4>
                           </div>
 
-                          <span className="text-[10px] font-mono text-role-muted surface-z3 border-standard px-2 py-0.5 radius-control shrink-0 select-none pointer-events-none">
+                          <span className="text-[10px] font-mono text-role-muted surface-z3 px-2.5 py-0.5 radius-capsule shrink-0 select-none pointer-events-none">
                             {ch.channel}
                           </span>
                         </div>
@@ -674,7 +674,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                         </p>
                       </div>
 
-                      <div className="pt-2 border-t border-standard space-y-2">
+                      <div className="pt-2 border-t border-subtle space-y-2">
                         <div className="text-xs font-mono font-bold text-role-primary text-left" dir="ltr">
                           {ch.value}
                         </div>

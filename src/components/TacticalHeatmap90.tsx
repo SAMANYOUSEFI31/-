@@ -103,9 +103,9 @@ const TacticalHeatmap90Component: React.FC<TacticalHeatmap90Props> = ({
   return (
     <div className="entity-hero-panel w-full max-w-full p-3.5 sm:p-5 md:p-7 space-y-4 sm:space-y-5 overflow-hidden" dir="rtl">
       {/* Header & Unified Summary */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 border-b border-standard pb-3.5 sm:pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 pb-1">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 radius-component surface-z2 border-standard flex items-center justify-center text-role-secondary shadow-subtle shrink-0">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 radius-component surface-z2 flex items-center justify-center text-role-secondary shadow-subtle shrink-0">
             <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-role-secondary" />
           </div>
           <div className="min-w-0">
@@ -113,7 +113,7 @@ const TacticalHeatmap90Component: React.FC<TacticalHeatmap90Props> = ({
               <h2 className="text-sm sm:text-base md:text-lg font-black text-role-primary truncate">
                 ماتریس جامع ۹۰ روزه (Tactical 90-Day Matrix)
               </h2>
-              <span className="surface-z2 border-standard text-role-secondary text-[10px] px-2.5 py-0.5 radius-capsule font-bold select-none pointer-events-none cursor-default font-mono shrink-0">
+              <span className="surface-z2 text-role-secondary text-[10px] px-2.5 py-1 radius-capsule font-bold select-none pointer-events-none cursor-default font-mono shrink-0">
                 روز {toPersianDigits(metrics.elapsedDays)} از ۹۰
               </span>
             </div>
@@ -125,39 +125,39 @@ const TacticalHeatmap90Component: React.FC<TacticalHeatmap90Props> = ({
 
         {/* Legend Badges */}
         <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-role-secondary flex-wrap">
-          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-secondary select-none pointer-events-none whitespace-nowrap">
+          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-capsule text-role-secondary select-none pointer-events-none whitespace-nowrap">
             <span className="w-2.5 h-2.5 radius-capsule bg-amber shadow-subtle shrink-0"></span>
             <span className="whitespace-nowrap leading-none">کمال ۱۰/۱۰</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-secondary select-none pointer-events-none whitespace-nowrap">
+          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-capsule text-role-secondary select-none pointer-events-none whitespace-nowrap">
             <span className="w-2.5 h-2.5 radius-capsule bg-emerald shadow-subtle shrink-0"></span>
             <span className="whitespace-nowrap leading-none">استاندارد ۸/۱۰</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-primary select-none pointer-events-none whitespace-nowrap">
+          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-capsule text-role-primary select-none pointer-events-none whitespace-nowrap">
             <span className="w-2.5 h-2.5 radius-capsule surface-z3 ring-1 ring-amber shrink-0"></span>
             <span className="whitespace-nowrap leading-none">امروز جاری</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-secondary select-none pointer-events-none whitespace-nowrap">
+          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-capsule text-role-secondary select-none pointer-events-none whitespace-nowrap">
             <span className="w-2.5 h-2.5 radius-capsule bg-blue shrink-0"></span>
             <span className="whitespace-nowrap leading-none">فریز اضطراری</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-secondary select-none pointer-events-none whitespace-nowrap">
+          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-capsule text-role-secondary select-none pointer-events-none whitespace-nowrap">
             <span className="w-2.5 h-2.5 radius-capsule bg-debt animate-pulse shrink-0"></span>
             <span className="whitespace-nowrap leading-none">بدهی باز</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-secondary select-none pointer-events-none whitespace-nowrap">
+          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-capsule text-role-secondary select-none pointer-events-none whitespace-nowrap">
             <span className="w-2.5 h-2.5 radius-capsule bg-purple shrink-0"></span>
             <span className="whitespace-nowrap leading-none">کالبدشکافی شده</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control border-standard text-role-muted select-none pointer-events-none whitespace-nowrap">
-            <span className="w-2.5 h-2.5 radius-capsule surface-z1 border-standard shrink-0"></span>
+          <div className="inline-flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-capsule text-role-muted select-none pointer-events-none whitespace-nowrap">
+            <span className="w-2.5 h-2.5 radius-capsule surface-z1 shrink-0"></span>
             <span className="whitespace-nowrap leading-none">روزهای آینده</span>
           </div>
         </div>
       </div>
 
       {/* Unified 90-Cell Tactical Grid */}
-      <div className="w-full max-w-full surface-z2 border-standard radius-card p-2 sm:p-3.5 md:p-5 overflow-hidden touch-pan-y">
+      <div className="w-full max-w-full surface-z2 radius-card p-2 sm:p-3.5 md:p-5 overflow-hidden touch-pan-y">
         <div className="grid grid-cols-6 sm:grid-cols-10 md:grid-cols-[repeat(15,minmax(0,1fr))] lg:grid-cols-[repeat(18,minmax(0,1fr))] gap-1 sm:gap-1.5 md:gap-2 w-full">
           {allDays.map(cell => (
             <button
