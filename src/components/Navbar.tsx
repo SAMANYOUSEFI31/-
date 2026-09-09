@@ -15,7 +15,8 @@ import {
   Crown,
   ShieldCheck,
   Plus,
-  Trash2
+  Trash2,
+  User
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -281,7 +282,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-2 sm:gap-3.5 min-w-0 shrink">
               <div className="flex items-center gap-2 shrink-0">
                 <div
-                  className="h-8 w-8 sm:h-9 sm:w-9 radius-component flex items-center justify-center bg-crimson text-white font-black shadow-subtle text-sm sm:text-base shrink-0 select-none pointer-events-none"
+                  className="h-8 w-8 sm:h-9 sm:w-9 radius-component flex items-center justify-center bg-crimson text-role-primary font-black shadow-subtle text-sm sm:text-base shrink-0 select-none pointer-events-none"
                 >
                   武
                 </div>
@@ -508,8 +509,8 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 <span className="whitespace-nowrap font-mono">{toPersianDigits(metrics.pureStreak)} روز</span>
               </div>
 
-              {/* VIP Status Badge */}
-              {userProfile.isVip && (
+              {/* VIP Status Badge or Upgrade CTA */}
+              {userProfile.isVip ? (
                 <button
                   type="button"
                   onClick={onOpenPaymentModal}
@@ -519,7 +520,33 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                   <Crown className="w-3.5 h-3.5 text-amber shrink-0" />
                   <span className="font-mono">VIP</span>
                 </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onOpenPaymentModal}
+                  className="h-8 sm:h-9 min-w-[44px] bg-amber hover:brightness-105 active:brightness-95 text-canvas-root px-2.5 sm:px-3 radius-component text-[11px] sm:text-xs font-black inline-flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shadow-subtle shrink-0 transition active:scale-95 touch-manipulation focus-ring-tactical"
+                  title="ارتقا به حساب سامورایی ویژه"
+                >
+                  <Crown className="w-3.5 h-3.5 text-canvas-root shrink-0" />
+                  <span className="font-black">VIP</span>
+                </button>
               )}
+
+              {/* User Profile / Auth Action */}
+              <button
+                type="button"
+                onClick={onOpenAuthModal}
+                className="h-8 sm:h-9 min-w-[32px] sm:min-w-[36px] surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-subtle radius-component px-2 sm:px-2.5 inline-flex items-center justify-center gap-1.5 cursor-pointer transition shadow-subtle shrink-0 active:scale-95 touch-manipulation focus-ring-tactical"
+                title="ورود به حساب کاربری یا ویرایش اطلاعات"
+                aria-label="پروفایل و ورود به حساب کاربری"
+              >
+                <User className="w-3.5 h-3.5 shrink-0" />
+                {userProfile.name && userProfile.name !== 'کاربر مهمان' && userProfile.name !== 'سامورایی' && (
+                  <span className="hidden md:inline text-[11px] font-bold max-w-[80px] truncate leading-none">
+                    {userProfile.name}
+                  </span>
+                )}
+              </button>
 
               {/* Admin Panel Quick Access Button */}
               {userProfile.isAdmin && (
@@ -548,7 +575,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
           dir="rtl"
         >
           <nav 
-            className="pointer-events-auto w-full max-w-sm sm:max-w-md surface-shell border border-white/[0.08] shadow-dropdown radius-capsule p-1.5 touch-pan-x"
+            className="pointer-events-auto w-full max-w-sm sm:max-w-md surface-shell border-subtle shadow-dropdown radius-capsule p-1.5 touch-pan-x"
             aria-label="ناوبری اصلی همراه"
             onTouchStart={handleBottomNavTouchStart}
             onTouchEnd={handleBottomNavTouchEnd}

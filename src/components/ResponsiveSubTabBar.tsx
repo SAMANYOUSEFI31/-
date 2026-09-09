@@ -36,7 +36,7 @@ export function ResponsiveSubTabBar<T extends string = string>({
 }: ResponsiveSubTabBarProps<T>) {
   return (
     <div
-      className={`w-full max-w-full surface-z1 border-standard p-1 sm:p-1.5 radius-card flex items-center shadow-subtle select-none relative ${className}`}
+      className={`w-full max-w-full surface-z1 border-subtle p-1 sm:p-1.5 radius-card flex items-center shadow-subtle select-none relative ${className}`}
     >
       <div 
         className="w-full grid gap-1 sm:gap-1.5 min-w-0"
@@ -45,6 +45,7 @@ export function ResponsiveSubTabBar<T extends string = string>({
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
+          const activeColorClass = tab.activeColor || 'text-crimson';
 
           return (
             <button
@@ -53,7 +54,7 @@ export function ResponsiveSubTabBar<T extends string = string>({
               onClick={() => onSelectTab(tab.id)}
               className={`w-full min-h-[44px] h-11 sm:h-12 py-1.5 sm:py-2 px-1 xs:px-1.5 sm:px-3 radius-component font-bold text-[11px] xs:text-xs sm:text-sm transition-colors duration-150 cursor-pointer flex items-center justify-center gap-1 sm:gap-2 whitespace-nowrap leading-none relative z-10 select-none active:scale-[0.98] focus-ring-tactical ${
                 isActive
-                  ? 'text-role-primary font-black'
+                  ? `${activeColorClass} font-black`
                   : 'text-role-secondary hover:text-role-primary'
               }`}
             >
@@ -61,7 +62,7 @@ export function ResponsiveSubTabBar<T extends string = string>({
                 <motion.div
                   layoutId={layoutId}
                   layout="position"
-                  className="absolute inset-0 radius-component surface-z3 border-standard shadow-subtle -z-10 pointer-events-none"
+                  className="absolute inset-0 radius-component surface-z2 border-none shadow-xs -z-10 pointer-events-none"
                   transition={{ type: 'spring', stiffness: 500, damping: 38 }}
                 />
               )}
@@ -69,7 +70,7 @@ export function ResponsiveSubTabBar<T extends string = string>({
               {Icon && (
                 <Icon
                   className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-colors duration-150 ${
-                    isActive ? 'text-role-primary' : 'text-role-secondary group-hover:text-role-primary'
+                    isActive ? activeColorClass : 'text-role-secondary group-hover:text-role-primary'
                   }`}
                 />
               )}
@@ -84,8 +85,8 @@ export function ResponsiveSubTabBar<T extends string = string>({
                 <span
                   className={`hidden md:inline-block text-[10px] font-mono px-1.5 py-0.5 radius-capsule border transition-colors duration-150 shrink-0 ${
                     isActive
-                      ? 'surface-z2 text-role-primary border-hover'
-                      : 'surface-z2 text-role-secondary border-standard'
+                      ? `surface-z1 ${activeColorClass} border-current/30`
+                      : 'surface-z2 text-role-secondary border-subtle'
                   }`}
                 >
                   {tab.badge}

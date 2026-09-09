@@ -961,8 +961,8 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                               ? 'bg-emerald border border-emerald/40 shadow-[0_0_6px_rgba(52,211,153,0.35)]'
                               : computed.statusType === 'personal_frozen'
                               ? 'bg-blue border border-blue/40'
-                              : 'bg-zinc-300 border border-zinc-200/30'
-                            : 'surface-z0 border border-zinc-800/80 shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]'
+                              : 'bg-role-primary border border-subtle'
+                            : 'surface-z0 border border-subtle shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]'
                         }`}
                         title={`قطعه ${toPersianDigits(segmentIndex)} از ۱۰`}
                       />

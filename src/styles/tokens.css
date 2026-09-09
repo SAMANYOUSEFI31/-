@@ -232,6 +232,10 @@
   background-color: var(--color-card-floating) !important;
 }
 
+.active\:surface-z2:active {
+  background-color: var(--color-card-inner) !important;
+}
+
 .active\:surface-z3:active {
   background-color: var(--color-card-floating) !important;
 }
@@ -580,6 +584,14 @@
   transform: scale(0.98);
 }
 
+.btn-contract-primary:disabled,
+.btn-contract-primary.is-disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  transform: none !important;
+}
+
 .btn-contract-mastery {
   background-color: var(--color-accent-amber) !important;
   color: #09090b !important;
@@ -588,8 +600,20 @@
   cursor: pointer;
 }
 
+.btn-contract-mastery:hover {
+  filter: brightness(1.05);
+}
+
 .btn-contract-mastery:active {
   transform: scale(0.98);
+}
+
+.btn-contract-mastery:disabled,
+.btn-contract-mastery.is-disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  transform: none !important;
 }
 
 .btn-contract-secondary {
@@ -610,6 +634,14 @@
   transform: scale(0.98);
 }
 
+.btn-contract-secondary:disabled,
+.btn-contract-secondary.is-disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  transform: none !important;
+}
+
 .btn-contract-ghost {
   background-color: transparent !important;
   color: var(--color-text-secondary) !important;
@@ -625,6 +657,14 @@
 
 .btn-contract-ghost:active {
   transform: scale(0.98);
+}
+
+.btn-contract-ghost:disabled,
+.btn-contract-ghost.is-disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  transform: none !important;
 }
 
 /* Glassmorphism Backdrop Blur */
