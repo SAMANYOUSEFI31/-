@@ -250,7 +250,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 type="button"
                 onClick={onClose}
                 disabled={isLoading}
-                className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-role-secondary hover:text-role-primary radius-component hover:surface-z2 transition cursor-pointer shrink-0 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] radius-capsule surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-standard flex items-center justify-center transition cursor-pointer shrink-0 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
                 aria-label="بستن"
               >
                 <X className="w-5 h-5" />
@@ -274,10 +274,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       aria-checked={isSelected}
                       onClick={() => setSelectedPlan(plan)}
                       onKeyDown={(e) => handlePlanKeyDown(e, index)}
-                      className={`text-right w-full radius-card p-4 sm:p-5 border-2 transition-all cursor-pointer relative flex flex-col justify-between focus-ring-tactical ${
+                      className={`text-right w-full radius-card p-4 sm:p-5 border transition-all cursor-pointer relative flex flex-col justify-between focus-ring-tactical ${
                         isSelected
                           ? 'bg-amber-subtle border-amber shadow-subtle'
-                          : 'surface-z2 border-standard border-hover'
+                          : 'surface-z2 hover:surface-z3 border-standard'
                       }`}
                     >
                       {plan.isPopular && (
@@ -289,8 +289,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       <div className="space-y-2.5 sm:space-y-3 w-full">
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-xs sm:text-sm text-role-primary">{plan.title}</span>
-                          <div className={`w-5 h-5 radius-capsule border-2 flex items-center justify-center ${
-                            isSelected ? 'border-amber bg-amber text-canvas-root' : 'border-standard'
+                          <div className={`w-5 h-5 radius-capsule border flex items-center justify-center ${
+                            isSelected ? 'border-amber bg-amber text-canvas-root' : 'border-standard surface-z3'
                           }`}>
                             {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                           </div>
@@ -345,7 +345,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={onClose}
                   disabled={isLoading}
-                  className="px-4 py-2.5 sm:px-5 sm:py-2.5 min-h-[44px] radius-component text-role-secondary hover:text-role-primary text-xs font-semibold cursor-pointer touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
+                  className="px-4 py-2.5 sm:px-5 sm:py-2.5 min-h-[44px] surface-z2 hover:surface-z3 border-standard radius-card text-role-secondary hover:text-role-primary text-xs font-semibold cursor-pointer touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
                 >
                   انصراف
                 </button>
@@ -400,7 +400,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 type="button"
                 onClick={() => setStep('plans')}
                 disabled={isLoading}
-                className="w-10 h-10 flex items-center justify-center text-role-secondary hover:text-role-primary radius-component hover:surface-z2 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] radius-capsule surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-standard flex items-center justify-center transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
                 aria-label="بازگشت به پلن‌ها"
               >
                 <X className="w-5 h-5" />
@@ -447,7 +447,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={() => setStep('plans')}
                   disabled={isLoading}
-                  className="px-4 py-2.5 min-h-[44px] radius-component text-role-secondary hover:text-role-primary text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
+                  className="px-4 py-2.5 min-h-[44px] surface-z2 hover:surface-z3 border-standard radius-card text-role-secondary hover:text-role-primary text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
                 >
                   انصراف و بازگشت
                 </button>

@@ -64,8 +64,8 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
     return (
       <div className="space-y-6 max-w-lg mx-auto py-12 px-4 animate-in fade-in duration-200" dir="rtl">
         <div className="surface-z1 border-standard radius-modal p-6 sm:p-8 text-center space-y-4 shadow-subtle">
-          <div className="w-16 h-16 radius-card bg-amber-subtle border border-amber-subtle flex items-center justify-center mx-auto text-amber">
-            <LayoutDashboard className="w-8 h-8" />
+          <div className="w-16 h-16 radius-card surface-z2 border-standard flex items-center justify-center mx-auto text-role-secondary">
+            <LayoutDashboard className="w-8 h-8 text-role-secondary" />
           </div>
           <div className="space-y-1.5">
             <h3 className="text-base sm:text-lg font-black text-role-primary">
@@ -133,7 +133,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
       id: 'analytics', 
       label: 'ماتریس عادات', 
       icon: BarChart3, 
-      hasAlert: hasVulnerabilities || hasUnresolvedDebt
+      hasAlert: metrics.logsCount > 0 && (hasVulnerabilities || hasUnresolvedDebt)
     },
   ];
 
@@ -201,25 +201,25 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
       onTouchEnd={handleTouchEnd}
     >
       {/* 1. Cycle Hero Header (Obsidian Design System Alignment) */}
-      <div className="w-full max-w-full surface-z1 border-standard radius-modal p-4 sm:p-6 relative overflow-hidden shadow-subtle">
+      <div className="entity-hero-panel w-full max-w-full p-4 sm:p-6 relative overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           {/* Main Info Column */}
           <div className="lg:col-span-8 flex flex-col justify-between space-y-4">
             <div className="space-y-3">
               {/* Top Row: Temporal Timeline Cluster (روز چند از ۹۰ + بازه تاریخ) followed by Status */}
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="surface-z2 border-standard radius-component px-3 py-1 text-xs font-mono inline-flex items-center gap-2 text-role-primary shadow-subtle leading-none">
+                <div className="entity-metric-card-nested px-3 py-1 text-xs font-mono inline-flex items-center gap-2 text-role-primary shadow-subtle leading-none select-none pointer-events-none cursor-default">
                   <span className="font-bold text-amber">روز {toPersianDigits(metrics.elapsedDays)} از ۹۰</span>
                   <span className="text-role-muted font-normal">|</span>
                   <span className="text-role-secondary">{formatPersianDate(currentCycle.startDate, { short: true })} تا {formatPersianDate(currentCycle.endDate, { short: true })}</span>
                 </div>
 
-                <span className="surface-z0 border border-rose-subtle text-rose px-3 py-1 radius-component text-xs font-bold font-mono inline-flex items-center leading-none">
+                <span className="surface-z2 border border-rose-subtle text-rose px-3 py-1 radius-component text-xs font-bold font-mono inline-flex items-center leading-none select-none pointer-events-none cursor-default">
                   <span>{metrics.statusLabelFa}</span>
                 </span>
 
                 {isDemoCycle && (
-                  <span className="bg-amber-subtle border border-amber-subtle text-amber px-2.5 py-1 radius-component text-[11px] font-bold font-mono inline-flex items-center gap-1 leading-none">
+                  <span className="bg-amber-subtle border border-amber-subtle text-amber px-2.5 py-1 radius-component text-[11px] font-bold font-mono inline-flex items-center gap-1 leading-none select-none pointer-events-none cursor-default">
                     <span>داده‌های شبیه‌سازی (Demo)</span>
                   </span>
                 )}
@@ -240,7 +240,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                   <span>پیشروی تقویمی دوره</span>
                   <span>{toPersianDigits(elapsedPercentage)}٪ سپری شده</span>
                 </div>
-                <div className="w-full surface-z0 h-2 radius-capsule overflow-hidden border-standard">
+                <div className="w-full surface-z2 h-2 radius-capsule overflow-hidden border-standard">
                   <div 
                     className="bg-rose h-full radius-capsule transition-all duration-500" 
                     style={{ width: `${elapsedPercentage}%` }}
@@ -250,9 +250,9 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
             </div>
 
             {/* Coach Voice Banner */}
-            <div className="w-full surface-z0 border-standard radius-card p-3.5 sm:p-4 flex items-start gap-3.5 mt-2 shadow-subtle">
-              <div className="w-10 h-10 radius-component surface-z2 border-standard flex items-center justify-center text-role-secondary shrink-0">
-                <Compass className="w-5 h-5 text-role-primary" />
+            <div className="w-full surface-z2 border-standard radius-card p-3.5 sm:p-4 flex items-start gap-3.5 mt-2 shadow-subtle">
+              <div className="w-10 h-10 radius-component surface-z3 border-standard flex items-center justify-center text-role-secondary shrink-0">
+                <Compass className="w-5 h-5 text-role-secondary" />
               </div>
               <div className="flex-1 min-w-0">
                 <span className="text-[11px] font-bold text-role-secondary block">پیام رفتاری مربی دیسیپلین:</span>
@@ -264,8 +264,8 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
           </div>
 
           {/* Discipline Score Badge Column (Harmonized with Battlefield Daily Score Box) */}
-          <div className="lg:col-span-4 surface-z0 border-standard radius-card p-4 sm:p-5 text-center flex flex-col items-center justify-center space-y-2.5 shadow-subtle transition-all w-full max-w-[280px] mx-auto lg:max-w-none lg:w-full">
-            <span className="text-xs text-role-secondary font-medium inline-flex items-center gap-1.5">
+          <div className="lg:col-span-4 surface-z2 border-standard radius-card p-4 sm:p-5 text-center flex flex-col items-center justify-center space-y-2.5 shadow-subtle transition-all w-full max-w-[280px] mx-auto lg:max-w-none lg:w-full">
+            <span className="text-xs text-role-secondary font-medium inline-flex items-center gap-1.5 select-none pointer-events-none">
               <TrendingUp className="w-4 h-4 text-role-muted" />
               <span>شاخص انضباط سیستم (Discipline Score)</span>
             </span>
@@ -273,17 +273,19 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
               {toPersianDigits(metrics.disciplinePercentage)}<span className="text-xl font-normal text-role-muted">٪</span>
             </div>
             
-            <div className={`w-full max-w-[200px] px-3 py-1.5 radius-component border text-xs font-bold text-center ${
-              metrics.disciplinePercentage >= 80
+            <div className={`w-full max-w-[200px] px-3 py-1.5 radius-component border text-xs font-bold text-center select-none pointer-events-none cursor-default ${
+              metrics.logsCount === 0
+                ? 'surface-z3 border-standard text-role-secondary'
+                : metrics.disciplinePercentage >= 80
                 ? 'bg-emerald-subtle border-emerald-subtle text-emerald'
                 : metrics.disciplinePercentage < 70
                 ? 'bg-debt-subtle border-debt-subtle text-debt'
-                : 'surface-z2 border-standard text-role-primary'
+                : 'surface-z3 border-standard text-role-primary'
             }`}>
-              {metrics.disciplineLevel}
+              {metrics.logsCount === 0 ? 'در انتظار ثبت نخستین روز' : metrics.disciplineLevel}
             </div>
 
-            <p className="text-[10px] text-role-muted text-center leading-normal pt-1">
+            <p className="text-[10px] text-role-muted text-center leading-normal pt-1 select-none pointer-events-none">
               محاسبه پیوسته با مخرج شبح طبق متدولوژی بوشیدو
             </p>
           </div>
@@ -312,7 +314,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
             {/* Key Metrics Bento Grid (معیارهای پویای چرخه فعلی با نسبت طلایی و ارتفاع هماهنگ) */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
               {/* Streak Card (Fiery Rose) */}
-              <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
+              <div className="entity-metric-card p-4 min-h-[112px] flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">زنجیره فعال</span>
                   <div className="w-7 h-7 radius-component bg-rose-subtle flex items-center justify-center shrink-0">
@@ -328,7 +330,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
               </div>
 
               {/* Standard Days (Emerald) */}
-              <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
+              <div className="entity-metric-card p-4 min-h-[112px] flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">روزهای استاندارد</span>
                   <div className="w-7 h-7 radius-component bg-emerald-subtle flex items-center justify-center shrink-0">
@@ -344,7 +346,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
               </div>
 
               {/* Total Score (Amber) */}
-              <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
+              <div className="entity-metric-card p-4 min-h-[112px] flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">مجموع امتیاز</span>
                   <div className="w-7 h-7 radius-component bg-amber-subtle flex items-center justify-center shrink-0">
@@ -360,7 +362,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
               </div>
 
               {/* Unresolved Debt (Neutral Surface with conditional status accent) */}
-              <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
+              <div className="entity-metric-card p-4 min-h-[112px] flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">بدهی کالبدشکافی</span>
                   <div className={`w-7 h-7 radius-component surface-z2 border-standard flex items-center justify-center shrink-0 ${
@@ -380,7 +382,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
               </div>
 
               {/* Resolved Debt (Neutral Surface) */}
-              <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
+              <div className="entity-metric-card p-4 min-h-[112px] flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">کالبدشکافی شده</span>
                   <div className="w-7 h-7 radius-component surface-z2 border-standard flex items-center justify-center shrink-0 text-role-muted">
@@ -396,7 +398,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
               </div>
 
               {/* Frozen Days (Neutral Surface) */}
-              <div className="surface-z1 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 min-h-[112px] flex flex-col justify-between transition-all">
+              <div className="entity-metric-card p-4 min-h-[112px] flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">توقف اضطراری</span>
                   <div className="w-7 h-7 radius-component surface-z2 border-standard flex items-center justify-center shrink-0 text-role-muted">
@@ -413,11 +415,11 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
             </div>
 
             {/* Hall of Records & Benchmark Comparison (تالار رکوردها و معیارهای کلان) */}
-            <div className="surface-z1 border-standard radius-modal p-5 sm:p-6 space-y-4">
+            <div className="entity-hero-panel p-5 sm:p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 radius-card surface-z2 border-standard flex items-center justify-center text-role-primary shrink-0">
-                    <Trophy className="w-5 h-5 text-role-primary" />
+                  <div className="w-10 h-10 radius-card surface-z2 border-standard flex items-center justify-center text-role-secondary shrink-0">
+                    <Trophy className="w-5 h-5 text-role-secondary" />
                   </div>
                   <div>
                     <h3 className="text-sm sm:text-base font-bold text-role-primary">
@@ -429,7 +431,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-1">
                 {/* Record 1: All-Time Longest Streak (Fiery Rose/Flame) */}
-                <div className="surface-z0 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 space-y-2.5 transition-all">
+                <div className="entity-metric-card-nested p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-role-secondary font-medium">طولانی‌ترین زنجیره تاریخ</span>
                     <div className="w-8 h-8 radius-component bg-rose-subtle border border-rose-subtle flex items-center justify-center shrink-0">
@@ -449,7 +451,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                 </div>
 
                 {/* Record 2: Max Standard Days (Vitality Emerald) */}
-                <div className="surface-z0 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 space-y-2.5 transition-all">
+                <div className="entity-metric-card-nested p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-role-secondary font-medium">بیشترین روزهای استاندارد</span>
                     <div className="w-8 h-8 radius-component bg-emerald-subtle border border-emerald-subtle flex items-center justify-center shrink-0">
@@ -469,7 +471,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                 </div>
 
                 {/* Record 3: Highest Score Accumulated (Imperial Amber) */}
-                <div className="surface-z0 border-standard hover:border-[var(--color-border-hover)] radius-card p-4 space-y-2.5 transition-all">
+                <div className="entity-metric-card-nested p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-role-secondary font-medium">بالاترین امتیاز کسب‌شده</span>
                     <div className="w-8 h-8 radius-component bg-amber-subtle border border-amber-subtle flex items-center justify-center shrink-0">
@@ -546,7 +548,19 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                     </div>
                   </div>
 
-                  {metrics.vulnerableHabits.length === 0 ? (
+                  {metrics.logsCount === 0 ? (
+                    <div className="surface-z2 border-standard radius-card p-6 text-center flex-1 flex flex-col items-center justify-center my-auto min-h-[140px]">
+                      <div className="w-10 h-10 radius-component surface-z3 border-standard flex items-center justify-center mx-auto text-role-secondary mb-2.5">
+                        <BarChart3 className="w-5 h-5 text-role-secondary" />
+                      </div>
+                      <p className="text-sm font-bold text-role-primary">
+                        داده ناکافی جهت ارزیابی آسیب‌پذیری
+                      </p>
+                      <p className="text-xs text-role-secondary mt-1 max-w-sm text-center leading-relaxed">
+                        هنوز روزی در این چرخه ثبت نشده است. با ثبت مداوم عادات در میدان نبرد، نقاط اصطکاک و آسیب‌پذیری شناسایی می‌شوند.
+                      </p>
+                    </div>
+                  ) : metrics.vulnerableHabits.length === 0 ? (
                     <div className="bg-emerald-subtle border border-emerald-subtle radius-card p-6 text-center flex-1 flex flex-col items-center justify-center my-auto min-h-[140px]">
                       <CheckCircle2 className="w-8 h-8 text-emerald mb-2" />
                       <p className="text-sm font-bold text-emerald">
@@ -559,7 +573,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                   ) : (
                     <div className="space-y-2.5">
                       {metrics.vulnerableHabits.map(v => (
-                        <div key={v.key} className="surface-z0 border-standard radius-card p-3.5 flex items-center justify-between gap-3">
+                        <div key={v.key} className="surface-z2 border-standard radius-card p-3.5 flex items-center justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="font-bold text-sm text-role-primary flex items-center gap-2 flex-wrap">
                               <span>{v.titleFa}</span>
@@ -600,19 +614,19 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                   </div>
 
                   <div className="space-y-3 flex-1 flex flex-col justify-center">
-                    <div className="surface-z0 border-standard radius-card p-4">
+                    <div className="surface-z2 border-standard radius-card p-4">
                       <div className="text-xs text-role-secondary">غالب‌ترین دلیل شکست در این چرخه:</div>
                       <div className="text-base font-semibold text-role-primary mt-1 flex items-center gap-2">
                         <AlertOctagon className="w-4 h-4 text-role-muted shrink-0" />
-                        <span>{metrics.dominantFailureReason}</span>
+                        <span>{metrics.logsCount === 0 ? 'در انتظار ثبت در میدان نبرد' : metrics.dominantFailureReason}</span>
                       </div>
                     </div>
 
-                    <div className="surface-z0 border-standard radius-card p-4">
+                    <div className="surface-z2 border-standard radius-card p-4">
                       <div className="text-xs text-role-secondary">بحرانی‌ترین زمان افت دیسیپلین:</div>
                       <div className="text-base font-semibold text-role-primary mt-1 flex items-center gap-2">
                         <Clock className="w-4 h-4 text-role-muted shrink-0" />
-                        <span>{metrics.dominantFailureTime}</span>
+                        <span>{metrics.logsCount === 0 ? 'در انتظار ثبت در میدان نبرد' : metrics.dominantFailureTime}</span>
                       </div>
                     </div>
                   </div>

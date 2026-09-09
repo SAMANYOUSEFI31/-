@@ -101,12 +101,12 @@ const TacticalHeatmap90Component: React.FC<TacticalHeatmap90Props> = ({
   }, [currentCycle.startDate, logsByDate, logs, logicalToday]);
 
   return (
-    <div className="w-full max-w-full surface-z1 border-standard radius-card sm:radius-modal p-3.5 sm:p-5 md:p-7 shadow-subtle space-y-4 sm:space-y-5 overflow-hidden" dir="rtl">
+    <div className="entity-hero-panel w-full max-w-full p-3.5 sm:p-5 md:p-7 space-y-4 sm:space-y-5 overflow-hidden" dir="rtl">
       {/* Header & Unified Summary */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 border-b border-standard pb-3.5 sm:pb-5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 radius-component surface-z2 border-standard flex items-center justify-center text-role-primary shadow-subtle shrink-0">
-            <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-role-primary" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 radius-component surface-z2 border-standard flex items-center justify-center text-role-secondary shadow-subtle shrink-0">
+            <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-role-secondary" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">

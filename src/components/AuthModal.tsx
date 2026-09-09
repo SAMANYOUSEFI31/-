@@ -536,10 +536,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               tabIndex={activeTab === 'login' ? 0 : -1}
               onKeyDown={handleTabKeyDown}
               onClick={() => switchTab('login')}
-              className={`flex-1 py-2 radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical ${
+              className={`flex-1 min-h-[44px] py-2 radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical ${
                 activeTab === 'login'
-                  ? 'bg-amber text-[var(--color-canvas-root)] shadow-subtle'
-                  : 'surface-z1 text-role-secondary hover:text-role-primary border-standard'
+                  ? 'bg-amber text-canvas-root shadow-subtle'
+                  : 'surface-z1 hover:surface-z3 text-role-secondary hover:text-role-primary border-standard'
               }`}
             >
               <LogIn className="w-3.5 h-3.5" />
@@ -555,10 +555,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               tabIndex={activeTab === 'register' ? 0 : -1}
               onKeyDown={handleTabKeyDown}
               onClick={() => switchTab('register')}
-              className={`flex-1 py-2 radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical ${
+              className={`flex-1 min-h-[44px] py-2 radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical ${
                 activeTab === 'register'
-                  ? 'bg-amber text-[var(--color-canvas-root)] shadow-subtle'
-                  : 'surface-z1 text-role-secondary hover:text-role-primary border-standard'
+                  ? 'bg-amber text-canvas-root shadow-subtle'
+                  : 'surface-z1 hover:surface-z3 text-role-secondary hover:text-role-primary border-standard'
               }`}
             >
               <UserPlus className="w-3.5 h-3.5" />
@@ -574,10 +574,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               tabIndex={activeTab === 'forgot' ? 0 : -1}
               onKeyDown={handleTabKeyDown}
               onClick={() => switchTab('forgot')}
-              className={`flex-1 py-2 radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical ${
+              className={`flex-1 min-h-[44px] py-2 radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical ${
                 activeTab === 'forgot'
-                  ? 'bg-amber text-[var(--color-canvas-root)] shadow-subtle'
-                  : 'surface-z1 text-role-secondary hover:text-role-primary border-standard'
+                  ? 'bg-amber text-canvas-root shadow-subtle'
+                  : 'surface-z1 hover:surface-z3 text-role-secondary hover:text-role-primary border-standard'
               }`}
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -594,7 +594,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="surface-z2 border-standard radius-card p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 radius-component surface-z1 flex items-center justify-center text-amber font-bold">
+                    <div className="w-10 h-10 radius-component surface-z3 border-standard flex items-center justify-center text-amber font-bold">
                       <User className="w-5 h-5" />
                     </div>
                     <div>
@@ -611,21 +611,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       VIP
                     </span>
                   ) : (
-                    <span className="surface-z1 text-role-secondary text-[11px] px-2 py-0.5 radius-control">
+                    <span className="surface-z3 border-standard text-role-secondary text-[11px] px-2 py-0.5 radius-control">
                       رایگان
                     </span>
                   )}
                 </div>
 
                 <div className="pt-2 border-t border-standard grid grid-cols-2 gap-2 text-xs">
-                  <div className="surface-z1 radius-component p-2.5 text-center border-standard">
+                  <div className="surface-z3 radius-component p-2.5 text-center border-standard">
                     <span className="text-[10px] text-role-muted block mb-0.5">وضعیت پایگاه داده</span>
                     <span className="text-emerald font-bold flex items-center justify-center gap-1">
                       <Database className="w-3.5 h-3.5 text-emerald" />
                       دیتابیس ابری
                     </span>
                   </div>
-                  <div className="surface-z1 radius-component p-2.5 text-center border-standard">
+                  <div className="surface-z3 radius-component p-2.5 text-center border-standard">
                     <span className="text-[10px] text-role-muted block mb-0.5">سطح دسترسی</span>
                     <span className="text-amber font-bold">
                       {currentUser.isAdmin ? 'فرمانده ارشد (مدیر)' : (currentUser.isVip ? 'سامورایی ویژه VIP' : 'کاربر عادی')}

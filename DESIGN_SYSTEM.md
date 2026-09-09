@@ -311,27 +311,50 @@ $$\text{Disabled} > \text{Loading} > \text{Active} > \text{Focus Visible} > \tex
    - بدهی باز / روز سوخته: سرخ بحران (`#F87171`).
    - فریز شخصی: آبی ملایم (`#60A5FA`).
    - کالبدشکافی ثبت‌شده: بنفش خرد (`#C084FC`).
-7. **نوار قطعات امتیاز میدان نبرد (Discipline Score Gauge Segments):**
-   - **قطعات پرشده (Filled):** تاکید انحصاری با پس‌زمینه سمانتیک (`bg-emerald`، `bg-amber`، `bg-blue`) و کادر شفاف (`border-transparent`) جهت حذف حلقه مضاعف و حفظ آرامش بصری.
-   - **قطعات خالی (Unfilled):** پس‌زمینه خنثی `surface-z1` همراه با کادر استاندارد ۱ پیکسلی (`border-standard`).
-   - **ثبات مدل جعبه (Stable Box Model):** حفظ ضخامت بردر ۱px در هر دو وضعیت بدون تغییر ابعاد و پرش چیدمان حین تیک زدن.
-8. **کنترل‌های ثبت عادات در میدان نبرد (Habit Completion States):**
-   - **حالت ثبت‌نشده (Unchecked):** آیکون مات (`text-role-muted`)، سطح آرام (`surface-z1`) و کادر استاندارد (`border-standard`).
-   - **حالت ثبت‌شده تک‌سیگنال (Checked - Single Signal):** به‌روزرسانی هم‌زمان آیکون + کادر + پرکننده زمینه سمانتیک (`text-emerald`، `border-emerald-subtle`، `bg-emerald-subtle` برای فونداسیون؛ کهربایی برای ماموریت ویژه).
-   - **آرام‌سازی استامپ تایید (Quiet Stamp):** استامپ تایید با کادر شفاف (`border-transparent`) و بدون سایه مازاد آرام شده تا از ایجاد حلقه رنگی مضاعف و تضاد با کادر کارت جلوگیری شود.
-   - **حداقل مساحت لمسی (Touch Target):** پایبندی به ارتفاع حداقلی ۴۴ پیکسل (`min-h-[44px]`).
-9. **پوسته ناوبری بالا و پایین (Unified Shell Chrome Contract):**
+7. **سلسله‌مراتب سطح و حوضچه امتیاز روزانه (Daily Score Surface Hierarchy & Gauge Well Contract):**
+   - **تفکیک عمق از بوم (Z2 Inner Well):** کانتینر امتیاز روزانه منحصراً روی سطح فرورفته/برجسته $Z_2$ (`surface-z2` + `border-standard` + `radius-component`) مستقر است تا از افتادن یا فرونشستن در کف بوم ($Z_0$) جلوگیری کند.
+   - **نوار وضعیت بدون پرش (Zero Jitter Ribbon):** تراشه میانی وضعیت تعهد دارای ارتفاع قطعی (`h-6`) است تا جابجایی بین حالت‌های مختلف («در انتظار ۵ پایه»، «روز استاندارد»، «کمال تعهد») هیچ‌گونه پرش عمودی در کارت ایجاد نکند.
+   - **قطعات گیج ۱۰ مرحله‌ای:** قطعات پرشده دارای پس‌زمینه سمانتیک و کادر شفاف (`border-transparent`)؛ قطعات خالی دارای سطح خنثی آرام (`surface-z1` روی ول `surface-z2`). پایداری مدل جعبه بدون حاشیه‌های مضاعف.
+8. **کنترل‌ها و حالات بصری ثبت عادات (Habit Completion Visual States Contract):**
+   - **پایداری سطح کارت (Neutral Card Invariance):** سطح بدنه کارت در هر دو حالت ثبت‌شده و نشده همواره روی زمینه خنثی (`surface-z1` + `border-standard`) باقی می‌ماند. از پر کردن کل کارت با پس‌زمینه زمردی یا کهربایی اکیداً اجتناب می‌شود.
+   - **تک‌افوردنس شفاف استامپ و آیکون (Stamp & Icon Signal):** ثبت عادت صرفاً از طریق تغییر رنگ استامپ حلقوی (`bg-emerald-subtle border-emerald-subtle text-emerald`) و ظرف آیکون (`bg-emerald-subtle text-emerald`) نمایان می‌شود. ماموریت ویژه از توکن‌های کهربایی (`amber`) به روش یکسان بهره می‌برد.
+   - **ارگونومی لمسی:** مساحت لمسی حداقل ۴۴ پیکسل (`min-h-[44px]`)، فیدبک فشرده‌سازی کنترل‌شده (`active:scale-[0.99]`) و رینگ فوکوس صفحه‌کلید بدون رینگ‌های مزاحم سفید در حالت غیرفوکوس.
+9. **چیدمان پشته‌ای ۵ رکن فونداسیون (Foundation Habit List Layout Contract):**
+   - **پشته تک‌ستونه استاندارد (Single-Column Stack):** ۵ رکن فونداسیون در یک ستون عمودی یکپارچه (`flex flex-col gap-2.5 sm:gap-3`) در محدوده حداکثر عرض محتوای نبرد مستقر می‌شوند؛ با این ساختار، حفره خالی ناشی از رها شدن آیتم پنجم در شبکه‌های ۲ یا ۳ ستونه تبلت/دسکتاپ به کلی حذف می‌شود.
+   - **استقلال ماموریت شتاب‌دهنده:** ماموریت ویژه روز به‌صورت یک ردیف مستقل و تمام‌عرض با تفکیک بصری در زیر ۵ رکن فونداسیون قرار می‌گیرد.
+10. **پوسته ناوبری بالا و پایین (Unified Shell Chrome Contract):**
    - **سطح و مات‌شدگی واحد (Single Surface & Blur):** هدر چسبان بالا و نوار تب پایین همراه از یک توکن زمینه واحد (`surface-shell` معادل `rgba(9, 9, 11, 0.95)`) و کلاس یکسان مات‌شدگی (`backdrop-blur-md`) استفاده می‌کنند.
    - **کادر مرزی استوار (Border Contract):** مرز ۱ پیکسلی استاندارد (`border-standard`، خط پایین برای هدر و خط بالا برای تب‌بار همراه) بدون تزیینات نئونی یا شیشه‌ای سنگین.
    - **حریم امن سخت‌افزاری (Safe-Area Insets):** انطباق هندسی پایدار با `pt-safe` در هدر فوقانی و `pb-safe` در نوار تب تحتانی به منظور جلوگیری از تداخل با بریدگی صفحه، جزیره پویا و نشانگر ناوبری موبایل.
-10. **تفکیک متریک‌های کلان و ثانویه در داشبورد (Dashboard Metrics Anti-Rainbow Contract):**
+11. **تفکیک متریک‌های کلان و ثانویه در داشبورد (Dashboard Metrics Anti-Rainbow Contract):**
    - **ارکان تثلیث دیسیپلین (Primary Trinity):** ۳ شاخص اصلی (زنجیره فعال رز، روزهای استاندارد زمردی، مجموع امتیاز کهربایی) با رنگ سمانتیک روی عدد و ظرف آیکون حفظ می‌شوند.
    - **آمار ثانویه آرام (Neutral Secondary Cards):** کارت‌های بدهی، کالبدشکافی‌شده و فریز از سطح خنثی `surface-z1`، ظرف آیکون `surface-z2` و متن `text-role-primary` بهره می‌برند؛ رنگ سمانتیک فقط برای نشانگر وضعیت ضروری (مانند بدهی معوق) به کار می‌رود نه رنگ‌آمیزی کل بدنه کارت.
    - **آرام‌سازی راهنمای نقشه حرارتی (Quiet Heatmap Legend):** پیل‌های راهنما از کادر و متن خنثی استاندارد (`border-standard`، `text-role-secondary`) استفاده می‌کنند و تنها نقطه راهنمای کوچک رنگ وضعیت را نمایش می‌دهد.
-11. **نقش سطوح و حذف کادرهای تحمیلی (Role-Based Surfaces & Forced Frame Elimination Contract):**
-   - **حذف کادرهای تزیینی مضاعف:** ظروف آیکون و نشان‌های متنی داخل کارت‌ها فاقد بردر تحمیلی بوده و تفکیک آنها صرفاً با کنتراست سطوح نقش‌محور (`surface-z2` روی `surface-z1`) یا زمینه سمانتیک تامین می‌گردد.
-   - **نشانگرهای فرااطلاعاتی آرام (Quiet Meta):** وضعیت‌های منفعل (کات‌آف شبانه و برچسب وضعیت یادداشت) فاقد کادر مستطیلی سیمی بوده و به‌صورت متن خنثی آرام (`text-role-muted`) ارائه می‌شوند.
+12. **فراداده آرام کات‌آف و حذف کادرهای تحمیلی (Quiet Cutoff Meta & Frame Elimination Contract):**
+   - **حذف نوار وایرفریم کات‌آف:** حذف کامل ردیف کادر مستطیلی سیمی یا خطوط جداکننده معلق برای کات‌آف شبانه.
+   - **ادغام درون هدر ناوبری:** کات‌آف شبانه به‌صورت یک تراشه فراداده آرام (`surface-z2` + `border-standard` + `radius-control` + `text-role-muted`) در کنار برچسب روز در هدر تاریخ نبرد ادغام می‌گردد.
    - **سطح نگارش یادداشت‌ها:** فیلد ورود متن روزانه منحصراً روی سطح تعاملی $Z_2$ (`surface-z2`) برای ایجاد کنتراست خوانا و ارگونومی تایپ مستقر است.
+13. **وضعیت‌های صفر-نمونه و داده ناکافی در تحلیل‌ها (Empty Analytics State Contract):**
+   - **پرهیز از اعلام وضعیت بحرانی کاذب (No False Crisis Badges):** در صورتی که هنوز داده‌ای برای ارزیابی ثبت نشده باشد (صفر روز فعال یا صفر لاگ در چرخه)، به هیچ عنوان نشان‌ها و بج‌های سرخ بحران یا «آسیب‌پذیر» نباید نمایش داده شوند.
+   - **نسخه متنی عملیاتی و خنثی (Neutral Operational Copy):** نمایش برچسب داده ناکافی / در انتظار ثبت (`text-role-secondary` روی `surface-z1` / `surface-z2`) همراه با راهنمای اقدام بعدی برای کاربر (شروع ثبت در میدان نبرد). ساختار و ابعاد چیدمان ثابت می‌ماند و صرفاً منطق ارائه وضعیت تغییر می‌کند.
+14. **قانون رنگ‌آمیزی آیکون‌ها: تزیینی در برابر سمانتیک (Icon Coloring Rule: Decorative vs Semantic Contract):**
+   - **آیکون‌های تزیینی و سرتیتر بخش‌ها (Decorative Section Icons):** تمام آیکون‌های مستقر در سرتیتر بخش‌ها، عناوین ماژول‌ها و بنرهای ناوبری (نظیر `Compass`، `Trophy`، `Calendar`، `Layers`، `ShieldAlert`) منحصراً از رنگ خنثی ثانویه (`text-role-secondary`) استفاده می‌کنند.
+   - **آیکون‌های سمانتیک حامل وضعیت (Semantic Status Icons):** رنگ‌های اشباع (رز زنجیره، زمردی پایداری، کهربایی کمال/ماموریت، سرخ بدهی، آبی فریز، بنفش تحلیل) صرفاً و منحصراً به آیکون‌هایی اختصاص دارند که نشانگر یک وضعیت فعال، نتیجه ارزیابی معنادار یا یکی از اضلاع سه‌گانه مقدس انضباط باشند.
+15. **انتخاب‌های بخش‌بندی‌شده و ردیف‌های اقدام در تنظیمات (Settings Segmented Choices & Action Rows Contract):**
+   - **انتخاب ساعت کات‌آف (Cutoff Segmented Choices):** گزینه‌ها روی سطح ول $Z_2$ قرار دارند؛ حالت انتخاب‌نشده با سطح $Z_1$، کادر استاندارد و ارتفاع حداقل ۴۴px از وایرفریم‌های خالی تفکیک می‌شود و حالت فعال منحصراً با توکن برند (`bg-crimson-subtle border-crimson-subtle text-crimson`) و تیک تایید مشخص می‌گردد.
+   - **ردیف عملیاتی پشتیبان‌گیری (Backup Action Row):** آیتم خروجی داده به عنوان یک کنترل ارگونومیک روی سطح $Z_1$ با هاور $Z_3$، آیکون اختصاصی، متن دوخطی و حداقل ارتفاع ۵۲px عمل می‌کند تا از نوارهای توخالی پرهیز شود.
+   - **مهار محدوده خطر (Contained Danger Block):** کادر بازنشانی با سطح $Z_2$ و مرز ملایم بحران (`border-debt-subtle/40`) تفکیک شده و رنگ سرخ صرفاً بر آیکون، عنوان و کلید اقدام نهایی متمرکز است بدون سرخ‌کردن کل بدنه.
+16. **سازگاری سطوح پنجره‌های تعاملی و شیارهای پیشرفت (Modals, Auxiliary Cards & Track Surfaces Contract):**
+   - **سلسله‌مراتب پله‌ای سطوح مودال‌ها (Modal Surface Escalation):** پنجره‌های شناور (`AuthModal` و `PaymentModal`) روی سطح $Z_3$ و کانتینرهای ول محتوایی آن‌ها روی سطح $Z_2$ قرار دارند؛ کارت‌ها و برچسب‌های درونی مستقر در ول‌ها منحصراً از سطح $Z_3$ با کادر استاندارد بهره می‌برند تا از افت روشنایی به $Z_1$ و ایجاد حس گودی/حفره توخالی در زمینه تیره جلوگیری شود.
+   - **انتخاب پلن‌های اشتراک (Subscription Plan Cards):** کارت‌های گزینش‌نشده با سطح $Z_2$، هاور $Z_3$، کادر استاندارد و دکمه‌های رادیویی با پس‌زمینه پرشده $Z_3$ متمایز می‌شوند و از وایرفریم‌ها یا حلقه‌های خالی ۲ پیکسلی پاکسازی شده‌اند.
+   - **پایداری شیار نوارهای پیشرفت (Progress Track Invariance):** مسیر زیرین نوارهای پیشرفت در تمام کارت‌های داشبورد و ماتریس وفاداری به جای سطح خام بوم ($Z_0$) منحصراً از سطح محفظه‌ای $Z_2$ یا $Z_3$ با کادر استاندارد استفاده می‌کند تا ترنچ‌های تاریک سوراخ‌مانند در دارک‌مود محو شوند.
+17. **ماتریس ارگونومی لمسی موبایل، تفکیک دکمه‌ها از بج‌ها و حاکمیت کپی‌رایتینگ استویک (Mobile-First Touch Ergonomics, Affordance & Copywriting Governance Contract):**
+   - **تضمین هدف لمسی حداقل ۴۴ پیکسل برای ۹۹٪ کاربران موبایل:** تمام المان‌های قابل تعامل و تپ (دکمه‌های عادات، ماموریت ویژه، سوئیچ تاریخ نبرد، دکمه‌های کالبدشکافی و منوها) دارای ارتفاع قطعی `min-h-[44px]` یا `min-h-[52px]`، نشانگر دست `cursor-pointer`، فیدبک فشرده‌سازی ملموس (`active:scale-[0.98]` یا `active:scale-[0.99]`) و حریم تعاملی امن هستند.
+   - **تفکیک قطعی دکمه‌های تعاملی از نشان‌های اطلاعاتی (Badges vs Buttons Affordance):**
+     - *بج‌ها و پیل‌های وضعیت (Status Pills & Counter Badges):* صرفاً برای اعلام وضعیت، سنجه‌های مقداری و تله‌متری هستند و دارای استایل `cursor-default select-none pointer-events-none`، مرزهای ظریف و فاقد فیدبک کلیک می‌باشند تا کاربر موبایل هرگز آن‌ها را با دکمه اشتباه نگیرد.
+     - *دکمه‌های اقدام و تعامل (Action Buttons):* دارای هویت بصری فعال، مرز تعاملی، فیدبک هاور/اکتیو و رینگ فوکوس تاکتیکی هستند.
+   - **پویایی و تغییر استیت زنده نشانگر زنجیره (Dynamic Streak Vitality Badge):** نشانگر زنجیره با تغییر ثبت ۵ رکن فونداسیون بلافاصله از حالت آرام «حفظ زنجیره با ۵ پایه» به حالت برافروخته رز «زنجیره حفظ شد» تغییر استیت داده و همبستگی پاداش و فیدبک بصری را آشکار می‌سازد.
+   - **انطباق ۱۰۰٪ با کاتالوگ کپی‌رایتینگ استویک بوشیدو:** کاربرد متون دقیقاً بر پایه واژگان اصیل و مصوب بوشیدو («کمال تعهد (۱۰ از ۱۰)»، «روز استاندارد (۸ از ۱۰)»، «توقف اضطراری (فریز)»، «پرونده مختومه (کالبدشکافی‌شده)»، «در جریان اجرای روز»، «نیازمند کالبدشکافی»، «حفظ زنجیره با ۵ پایه»، «زنجیره حفظ شد») اعمال می‌گردد و از هرگونه متن‌پردازی سلیقه‌ای یا تفننی پرهیز می‌شود.
 
 ---
 
@@ -435,3 +458,104 @@ $$\text{Disabled} > \text{Loading} > \text{Active} > \text{Focus Visible} > \tex
 | **موشن سریع** | `--duration-fast` | `150ms` | `.motion-fast` | `duration-150` |
 | **موشن استاندارد** | `--duration-regular` | `200ms` | `.motion-regular` | `duration-200` |
 | **موشن آرام** | `--duration-deliberate` | `300ms` | `.motion-deliberate` | `duration-300` |
+
+---
+
+## ۲۲. حاکمیت موجودیت‌های سمانتیک، سطوح عمق Z در کارت‌های عادات و کادر یادداشت (Semantic Entity Governance & Z-Surface Hierarchy)
+
+برای تضمین این که کاربر موبایل بدون هیچ‌گونه بار شناختی ماهیت هر المان را درک کند و سیستم بدون نیاز به دستکاری‌های مکرر و پراکنده به صورت یکپارچه از یک منبع واحد مدیریت شود:
+
+1. **تفکیک هندسی و نوری کارت‌های عادات از کادر یادداشت (Z-Level Optical Differentiation):**
+   - **کارت‌های عادات ($Z_1$ - `.entity-card-habit`):** کارت‌های ۵ رکن فونداسیون و ماموریت ویژه، موجودیت‌های اقدام‌محور اصلی هستند که بر روی بستر خام نبرد ($Z_0$) قرار دارند و از سطح برجسته $Z_1$ (`#121215`) با مرز ۱ پیکسلی استاندارد استفاده می‌کنند. این تفکیک مانع از یک‌دست شدن صفحه و افت پویایی بصری می‌شود.
+   - **استامپ دایره‌ای تیک درون عادت ($Z_2 \to \text{Accent}$ - `.entity-stamp-target`):** در حالت انجام‌نشده، درون کارت از سطح $Z_2$ (`#18181b`) استفاده می‌کند تا یک حفره یا فرورفتگی تاکتیکی لمسی (Tactile Inset Well) برای ترغیب انگشت شست کاربر موبایل به تپ ایجاد کند. در صورت انجام شدن، با رنگ سمانتیک سبز زمردین یا طلای کهربایی برافروخته می‌شود.
+   - **کادر یادداشت و مشاهدات نبرد ($Z_2$ - `.entity-input-well`):** به عنوان یک فیلد ورودی و دریافت متن (Form Input Well)، درون کانتینر اصلی روی سطح فرورفته $Z_2$ قرار می‌گیرد تا کاربر به وضوح حس یک بستر تایپ‌پذیر و پذیرای یادداشت را بدون اشتباه گرفتن آن با دکمه‌های فشردنی درک کند.
+
+2. **کلاس‌های موجودیت سمانتیک در `tokens.css` (The Master Semantic Entities):**
+   - `.entity-hero-panel`: کانتینرهای هدر، خلاصه و پنل‌های سطح اول ($Z_1$, `radius-modal`, `shadow-subtle`).
+   - `.entity-card-habit`: کارت‌های عادات تعاملی با تضمین `min-h-[44px]`، استیت‌های `is-checked-standard` و `is-checked-mastery` و فیدبک `active:scale-[0.99]`.
+   - `.entity-stamp-target`: استامپ دایره‌ای تیک با گردی کپسولی کامل و افکت ترنزیشن دقیق.
+   - `.entity-input-well`: کادرهای ورودی و تکست‌آریا با استیت‌های فوکوس تاکتیکی و هویت بدون لرزش.
+   - `.entity-metric-card` و `.entity-metric-card-nested`: کارت‌های بنتو گرید تله‌متری و رکوردها در اتاق فرمان و داشبوردها.
+   - `.entity-status-badge`: نشان‌ها و پیل‌های وضعیت سمانتیک (ارتفاع ثابت ۲۶ پیکسل، `radius-control` ۸ پیکسل، کاملاً غیرقابل کلیک `cursor-default select-none pointer-events-none`).
+   - `.entity-telemetry-badge`: نشانگرهای سنجش کمی نظیر «X از ۵ پایه» با پس‌زمینه خنثی و تراز نوری دقیق با پیل‌های وضعیت همجوار.
+   - `.entity-gauge-track`: شیار مهندسی‌شده کپسولی برای گیج‌های ده تکه پیشرفت و امتیاز روزانه.
+   - `.entity-action-btn`: دکمه‌های تعاملی با هدف لمسی استاندارد (حداقل ۴۴ پیکسل برای موبایل)، افوردانس لمسی و فیدبک فشرده‌سازی (`active:scale-[0.98]`).
+
+3. **ارگونومی نوار ناوبری تاریخ و کات‌آف شبانه (Temporal Navigator & Cutoff Symmetry):**
+   - **مرکزیت کات‌آف شبانه:** نشانگر کات‌آف در ساب‌بار اختصاصی زیر تاریخ و به صورت کاملاً متقارن در مرکز کادر قرار می‌گیرد (`justify-center`).
+   - **قاعده منع تکرار تاریخ (Zero Date Redundancy Rule):** از آنجا که تاریخ روز جاری در هدر نوار ناوبری با فونت درشت و خوانا درج شده است، در بنرهای زمینه روزهای گذشته یا آینده نباید تاریخ شمسی مجدداً در قالب پیل تکرار شود؛ صرفاً برچسب‌های زمانی معنایی («X روز بعد» یا «مشاهده تاریخچه») کفایت می‌کند.
+
+---
+
+## ۲۳. کالبدشناسی و نقشه مهندسی ۳ کادر فوقانی میدان نبرد (Anatomy & Engineering Specification of Top 3 Battlefield Master Panels)
+
+تمامی المان‌ها، کانتینرها، دکمه‌ها، نشانگرهای تله‌متری و متون در سه پنل فوقانی میدان نبرد به صورت میکروسکوپیک با تفکیک کامل لایه‌های والد-فرزند (`div` / `span` / `button`)، شناسه‌های یکتا (`id`) و توکن‌های سیستم طراحی مهندسی شده‌اند:
+
+### ۱. پنل پیش‌نمایش داده‌های نمونه (`#battlefield-demo-banner`):
+* **کانتینر اصلی:** `id="battlefield-demo-banner"`, کلاس `surface-z1 border-standard radius-card p-3.5 sm:p-4 text-xs shadow-subtle flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 animate-in fade-in slide-in-from-top-2 relative`
+* **خوشه محتوا:** `id="battlefield-demo-content-cluster"`, کلاس `flex items-start gap-3 min-w-0 flex-1 w-full sm:w-auto`
+  * **محفظه آیکون جرقه:** `id="battlefield-demo-icon-container"`, کلاس `w-8 h-8 radius-control bg-amber-subtle border border-amber-subtle text-amber flex items-center justify-center shrink-0`
+    * **پوشش آیکون:** `id="battlefield-demo-icon-wrap"`, کلاس `inline-flex items-center justify-center` حاوی `<Sparkles className="w-4 h-4 text-amber" />`
+  * **ستون متن و متادیتا:** `id="battlefield-demo-text-col"`, کلاس `min-w-0 flex-1 space-y-1`
+    * **ردیف هدر:** `id="battlefield-demo-header-row"`, کلاس `flex items-center justify-between gap-2`
+      * **خوشه عنوان و بج:** `id="battlefield-demo-title-badge-cluster"`, کلاس `flex items-center gap-2 flex-wrap`
+        * **عنوان:** `id="battlefield-demo-title"`, کلاس `font-bold text-role-primary text-xs sm:text-sm` حاوی `id="battlefield-demo-title-text"`
+        * **بج نمونه:** `id="battlefield-demo-badge"`, کلاس `text-[10px] bg-amber-subtle text-amber border border-amber-subtle px-2 py-0.5 radius-micro font-mono font-bold select-none pointer-events-none inline-flex items-center` حاوی `id="battlefield-demo-badge-text"` («۲۴ روز نمونه»)
+      * **دکمه ضربدر بستن در موبایل:** `id="battlefield-demo-dismiss-mobile"`, دکمه `sm:hidden text-role-secondary hover:text-role-primary p-1.5 radius-control border-standard surface-z1 hover:surface-z2 cursor-pointer shrink-0 inline-flex items-center justify-center` حاوی `id="battlefield-demo-dismiss-mobile-icon-wrap"` با `<X className="w-4 h-4" />`
+    * **کانتینر روایت سناریو:** `id="battlefield-demo-narrative-container"` حاوی `id="battlefield-demo-narrative-text"` (`text-[11px] text-role-secondary leading-relaxed`)
+* **خوشه اقدامات و اکشن‌ها:** `id="battlefield-demo-actions-cluster"`, کلاس `flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--color-border-subtle)]`
+  * **دکمه اقدام شروع چرخه واقعی:** `id="battlefield-demo-create-cycle-btn"`, دکمه `w-full sm:w-auto bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-xs px-4 py-2 radius-control cursor-pointer active:scale-95 shadow-subtle inline-flex items-center justify-center gap-1.5` حاوی `id="battlefield-demo-create-cycle-icon-wrap"` (`<Sparkles className="w-3.5 h-3.5" />`) و `id="battlefield-demo-create-cycle-text"` («شروع چرخه واقعی»)
+  * **دکمه ضربدر بستن در دسکتاپ:** `id="battlefield-demo-dismiss-desktop"`, دکمه `hidden sm:inline-flex text-role-secondary hover:text-role-primary p-2 radius-control border-standard surface-z1 hover:surface-z2 cursor-pointer items-center justify-center` حاوی `id="battlefield-demo-dismiss-desktop-icon-wrap"` با `<X className="w-3.5 h-3.5" />`
+
+### ۲. پنل ناوبری تاریخ و کات‌آف شبانه (`#battlefield-date-navigator`):
+* **کانتینر اصلی:** `id="battlefield-date-navigator"`, کلاس `surface-z1 border-standard radius-card p-3 sm:p-4 shadow-subtle select-none space-y-2.5 sm:space-y-3`
+* **ردیف اصلی ناوبری:** `id="battlefield-date-nav-main-row"`, کلاس `flex items-center justify-between gap-2 sm:gap-4 w-full`
+  * **دکمه روز قبل:** `id="battlefield-prev-day-btn"`, دکمه `h-9 sm:h-10 px-2.5 sm:px-3.5 surface-z2 hover:surface-z3 text-role-primary radius-component cursor-pointer border-standard shadow-subtle active:scale-95 inline-flex items-center justify-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0`
+    * **پوشش آیکون:** `id="battlefield-prev-day-icon-wrap"`, حاوی `<ChevronRight className="w-4 h-4 text-role-muted" />`
+    * **متن دکمه:** `id="battlefield-prev-day-label"`, کلاس `hidden sm:inline whitespace-nowrap leading-none` («روز قبل»)
+  * **ستون مرکزی نمایش تاریخ:** `id="battlefield-date-center-col"`, کلاس `flex-1 min-w-0 text-center px-1 flex flex-col items-center justify-center space-y-0.5`
+    * **کپسول برچسب نسبی روز:** `id="battlefield-relative-date-badge"`, کلاس `text-[11px] sm:text-xs text-role-secondary font-semibold inline-flex items-center justify-center gap-1.5`
+      * **پوشش آیکون تقویم:** `id="battlefield-relative-date-icon-wrap"`, حاوی `<Calendar className="w-3.5 h-3.5 text-role-muted" />`
+      * **متن برچسب نسبی:** `id="battlefield-relative-date-label"`, کلاس `whitespace-nowrap` («روز جاری نبرد»، «X روز بعد»، «X روز قبل»)
+    * **کانتینر سرتیتر تاریخ:** `id="battlefield-date-heading-container"`, کلاس `inline-flex items-center justify-center`
+      * **سرتیتر تاریخ رسمی شمسی:** `id="battlefield-date-heading"`, عنوان `text-xs sm:text-sm md:text-base font-black text-role-primary tracking-tight font-mono whitespace-nowrap leading-none`
+  * **دکمه روز بعد:** `id="battlefield-next-day-btn"`, دکمه `h-9 sm:h-10 px-2.5 sm:px-3.5 surface-z2 hover:surface-z3 text-role-primary radius-component cursor-pointer border-standard shadow-subtle active:scale-95 inline-flex items-center justify-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0`
+    * **متن دکمه:** `id="battlefield-next-day-label"`, کلاس `hidden sm:inline whitespace-nowrap leading-none` («روز بعد»)
+    * **پوشش آیکون:** `id="battlefield-next-day-icon-wrap"`, حاوی `<ChevronLeft className="w-4 h-4 text-role-muted" />`
+* **ساب‌بار کات‌آف شبانه:** `id="battlefield-cutoff-sub-bar"`, کلاس `pt-2 sm:pt-2.5 border-t border-[var(--color-border-subtle)] flex items-center justify-center text-[10px] sm:text-[11px]`
+  * **کپسول متقارن و متمرکز کات‌آف:** `id="battlefield-cutoff-badge"`, کلاس `.entity-telemetry-badge inline-flex items-center gap-1.5 font-medium shadow-subtle leading-none`
+    * **پوشش آیکون ساعت:** `id="battlefield-cutoff-icon-wrap"`, حاوی `<Clock className="w-3.5 h-3.5 text-role-muted" />`
+    * **گروه متنی کات‌آف:** `id="battlefield-cutoff-text-group"`, کلاس `inline-flex items-center gap-1`
+      * **برچسب کات‌آف:** `id="battlefield-cutoff-label"`, کلاس `text-role-secondary` («کات‌آف شبانه:»)
+      * **مقدار عددی کات‌آف:** `id="battlefield-cutoff-value"`, کلاس `text-role-primary font-mono font-bold` («۰۴:۰۰ بامداد»)
+
+### ۳. پنل جامع وضعیت، تله‌متری و امتیاز روز نبرد (`#battlefield-hero-panel`):
+* **کانتینر والد پنل نبرد:** `id="battlefield-hero-panel"`, کلاس `.entity-hero-panel w-full max-w-full p-4 sm:p-5 relative overflow-hidden`
+* **چیدمان اصلی فلکس:** `id="battlefield-hero-main-layout"`, کلاس `flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6`
+  * **ستون سمت راست (تله‌متری و روایت مربی):** `id="battlefield-hero-narrative-col"`, کلاس `space-y-3 flex-1 min-w-0`
+    * **خوشه تله‌متری دوگانه:** `id="battlefield-telemetry-cluster"`, کلاس `flex items-center gap-2 flex-wrap`
+      * **نشانگر کمی پایه‌ها:** `id="battlefield-habits-count-badge"`, کلاس `.entity-telemetry-badge font-mono shrink-0 inline-flex items-center gap-1`
+        * `id="battlefield-habits-count-current"`: مقدار عدد جاری (`text-role-primary font-bold`)
+        * `id="battlefield-habits-count-separator"`: جداکننده «از» (`text-role-muted`)
+        * `id="battlefield-habits-count-total"`: کل پایه‌ها «۵» (`text-role-secondary font-bold`)
+        * `id="battlefield-habits-count-unit"`: واحد «پایه» (`text-role-muted text-[10px]`)
+      * **پیل وضعیت زنجیره:** `id="battlefield-streak-vitality-badge"`, کلاس `.entity-status-badge border inline-flex items-center gap-1.5`
+        * `id="battlefield-streak-vitality-icon-wrap"`: پوشش آیکون شعله `<Flame className="w-3.5 h-3.5 shrink-0" />`
+        * `id="battlefield-streak-vitality-label"`: برچسب وضعیت زنجیره (`whitespace-nowrap leading-none`)
+    * **کانتینر روایت و حکمت مربی:** `id="battlefield-coach-commentary-container"`, کلاس `min-h-[1.5rem] pt-0.5`
+      * `id="battlefield-coach-commentary"`: پاراگراف تحلیل مربی دیسیپلین (`text-xs sm:text-sm text-role-secondary font-medium leading-relaxed`)
+  * **کارت امتیاز مستقل ($Z_2$ Nested Well):** `id="battlefield-score-card"`, کلاس `.entity-metric-card-nested w-full md:w-[220px] shrink-0 p-3.5 sm:p-4 flex flex-col items-center justify-center gap-2.5 text-center shadow-subtle`
+    * **هدر امتیاز:** `id="battlefield-score-header"`, کلاس `text-[11px] sm:text-xs text-role-secondary font-medium flex items-center justify-center gap-1.5 whitespace-nowrap select-none pointer-events-none`
+      * `id="battlefield-score-header-label"`: متن «امتیاز ارزش روز»
+      * `id="battlefield-score-header-icon-wrap"`: آیکون داینامیک شمشیر یا شیلد
+    * **ارقام بزرگ امتیاز روز:** `id="battlefield-score-value"`, کلاس `text-3xl sm:text-4xl font-black font-mono flex items-baseline justify-center gap-1.5`
+      * `id="battlefield-score-number"`: عدد امتیاز (`leading-none`)
+      * `id="battlefield-score-max"`: کپسول مخرج کسر (`text-xs font-semibold text-role-muted inline-flex items-center gap-0.5`) شامل `id="battlefield-score-max-sep"` («از») و `id="battlefield-score-max-num"` («۱۰»)
+    * **ریبون تک‌مرجع وضعیت قطعی روز (Single Source of Truth):** `id="battlefield-score-ribbon"`, کانتینر ثابت ۲۴ پیکسلی حاوی:
+      * `id="battlefield-score-status-badge"`: پیل سمانتیک `.entity-status-badge`
+        * `id="battlefield-score-status-icon-wrap"`: پوشش آیکون وضعیت (`<Swords />` / `<ShieldCheck />` / `<Clock />` / `<Compass />` / ...)
+        * `id="battlefield-score-status-label"`: برچسب وضعیت قطعی روز (`whitespace-nowrap leading-none`)
+    * **شیار گیج ۱۰ تکه پیشرفت:** `id="battlefield-score-gauge"`, کلاس `.entity-gauge-track w-full flex items-center gap-1 justify-center select-none pointer-events-none`
+      * ۱۰ کپسول مجزا با شناسه‌های یکتای `id="battlefield-gauge-segment-1"` تا `id="battlefield-gauge-segment-10"` (`h-2 flex-1 radius-capsule transition-all duration-200`)
+
+

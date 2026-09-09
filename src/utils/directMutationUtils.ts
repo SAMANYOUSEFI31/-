@@ -217,9 +217,9 @@ export function prepareExistingEntityRevision(
   }
 
   return {
-    isExisting: true,
+    isExisting: false,
     expectedRevision: undefined,
-    isValidForMutation: false
+    isValidForMutation: true
   };
 }
 
@@ -238,10 +238,12 @@ export function prepareDirectLogPayload(
   isValid: boolean;
 } {
   const cycleId = updatedLog.cycleId || activeCycleId;
-  const isExisting = Boolean(existingLog || (updatedLog.revision && updatedLog.revision > 0));
+  const rev = existingLog?.revision ?? updatedLog.revision;
+  const hasValidRev = typeof rev === 'number' && Number.isInteger(rev) && rev > 0;
 
-  if (!isExisting) {
-    // True first create: do not send expectedRevision
+  if (!hasValidRev) {
+    // Entity exists locally or is an initial unconfirmed state: omit expectedRevision
+    // so backend can create or upsert cleanly without 428 Precondition Required.
     const payload: Record<string, any> = {
       ...updatedLog,
       cycleId,
@@ -252,23 +254,8 @@ export function prepareDirectLogPayload(
     }
     delete payload.isVirtual;
     delete payload.expectedRevision;
+    delete payload.revision;
     return { payload, isExisting: false, isValid: true };
-  }
-
-  const rev = existingLog?.revision ?? updatedLog.revision;
-  const isValidRev = typeof rev === 'number' && Number.isInteger(rev) && rev > 0;
-
-  if (!isValidRev) {
-    const payload = { ...updatedLog, cycleId, ...(clientOperationId ? { clientOperationId } : {}) };
-    if (payload.id && typeof payload.id === 'string' && payload.id.startsWith('virtual-')) {
-      payload.id = `log-${payload.date}`;
-    }
-    delete (payload as any).isVirtual;
-    return {
-      payload,
-      isExisting: true,
-      isValid: false
-    };
   }
 
   const payload: Record<string, any> = {

@@ -52,7 +52,8 @@ export function createInitialSystemState(customProfile?: UserProfile): {
       'کالبدشکافی بدون تعارف در صورت هرگونه افت'
     ],
     isArchived: false,
-    reportRead: false
+    reportRead: false,
+    revision: 1
   };
 
   // Generate logs for past 24 days + today
@@ -69,6 +70,7 @@ export function createInitialSystemState(customProfile?: UserProfile): {
         cycleId: cycle1.id,
         date: dayDate,
         createdAt: new Date().toISOString(),
+        revision: 1,
         wakeUp: true,
         workout: true,
         study: true,
@@ -84,6 +86,7 @@ export function createInitialSystemState(customProfile?: UserProfile): {
         cycleId: cycle1.id,
         date: dayDate,
         createdAt: new Date(Date.now() - (24 - i) * 86400000).toISOString(),
+        revision: 1,
         wakeUp: true,
         workout: false,
         study: false,
@@ -102,6 +105,7 @@ export function createInitialSystemState(customProfile?: UserProfile): {
         cycleId: cycle1.id,
         date: dayDate,
         createdAt: new Date(Date.now() - (24 - i) * 86400000).toISOString(),
+        revision: 1,
         wakeUp: false,
         workout: true,
         study: true,
@@ -121,6 +125,7 @@ export function createInitialSystemState(customProfile?: UserProfile): {
         cycleId: cycle1.id,
         date: dayDate,
         createdAt: new Date(Date.now() - (24 - i) * 86400000).toISOString(),
+        revision: 1,
         wakeUp: true,
         workout: false,
         study: true,
@@ -139,6 +144,7 @@ export function createInitialSystemState(customProfile?: UserProfile): {
         cycleId: cycle1.id,
         date: dayDate,
         createdAt: new Date(Date.now() - (24 - i) * 86400000).toISOString(),
+        revision: 1,
         wakeUp: true,
         workout: true,
         study: true,
