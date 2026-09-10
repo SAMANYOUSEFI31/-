@@ -1192,7 +1192,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
 
       {/* New Cycle Creation Modal */}
       {showNewCycleModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-sm flex items-center justify-center p-4">
           <div className="surface-z1 border-standard radius-modal w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
             <h3 className="font-bold text-base sm:text-lg text-role-primary flex items-center gap-2">
               <Layers className="w-5 h-5 text-role-secondary" />

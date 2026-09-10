@@ -408,7 +408,7 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
 
       {/* New Cycle Creation Modal */}
       {showNewCycleModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]">
+        <div className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] overscroll-contain overflow-y-auto max-h-[100dvh]">
           <div className="surface-z1 border-standard radius-modal w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150 my-auto">
             <h3 className="font-bold text-base sm:text-lg text-role-primary flex items-center gap-2">
               <Layers className="w-5 h-5 text-role-secondary" />
