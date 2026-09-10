@@ -856,7 +856,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               {/* Score & Gauge Block (Single Source of Truth for Daily Verdict) */}
               <div 
                 id="battlefield-score-card"
-                className="entity-metric-card-nested w-full md:w-[220px] shrink-0 p-3.5 sm:p-4 flex flex-col items-center justify-center gap-2.5 text-center shadow-subtle"
+                className="entity-metric-card-nested w-full max-w-[260px] mx-auto md:max-w-none md:w-[220px] aspect-[1.618/1] sm:aspect-auto shrink-0 p-3.5 sm:p-4 flex flex-col items-center justify-center gap-2.5 text-center shadow-subtle"
               >
                 {/* Score Header Label */}
                 <div id="battlefield-score-header" className="text-[11px] sm:text-xs text-role-secondary font-medium flex items-center justify-center gap-1.5 whitespace-nowrap select-none pointer-events-none">
@@ -956,13 +956,13 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                         className={`h-2 flex-1 radius-capsule transition-all duration-200 ${
                           isFilled
                             ? computed.score === 10
-                              ? 'bg-amber border border-amber/40 shadow-[0_0_6px_rgba(251,191,36,0.35)]'
+                              ? 'bg-amber'
                               : computed.isStandard
-                              ? 'bg-emerald border border-emerald/40 shadow-[0_0_6px_rgba(52,211,153,0.35)]'
+                              ? 'bg-emerald'
                               : computed.statusType === 'personal_frozen'
-                              ? 'bg-blue border border-blue/40'
-                              : 'bg-role-primary border border-subtle'
-                            : 'surface-z0 border border-subtle shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]'
+                              ? 'bg-blue'
+                              : 'bg-role-secondary'
+                            : 'surface-z0 border border-subtle'
                         }`}
                         title={`قطعه ${toPersianDigits(segmentIndex)} از ۱۰`}
                       />

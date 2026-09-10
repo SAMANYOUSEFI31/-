@@ -207,3 +207,26 @@ svg {
 .modal-safe-h {
   max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 1.5rem));
 }
+
+@keyframes flame-flicker {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  25% {
+    transform: scale(1.05) rotate(-2deg);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(0.95) rotate(1deg);
+    opacity: 0.95;
+  }
+  75% {
+    transform: scale(1.02) rotate(2deg);
+    opacity: 0.85;
+  }
+}
+
+.animate-flame-flicker {
+  animation: flame-flicker 3s ease-in-out infinite alternate;
+}

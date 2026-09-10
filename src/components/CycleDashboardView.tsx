@@ -270,7 +270,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
           </div>
 
           {/* Discipline Score Badge Column (Harmonized Twin with Battlefield Daily Score Box) */}
-          <div className="lg:col-span-4 entity-metric-card-nested p-3.5 sm:p-4 text-center flex flex-col items-center justify-center gap-2.5 shadow-subtle transition-all w-full max-w-[280px] mx-auto lg:max-w-none lg:w-full">
+          <div className="lg:col-span-4 entity-metric-card-nested p-3.5 sm:p-4 text-center flex flex-col items-center justify-center gap-2.5 shadow-subtle transition-all w-full max-w-[260px] mx-auto lg:max-w-none lg:w-full aspect-[1.618/1] sm:aspect-auto">
             {/* Score Header Label */}
             <div className="text-[11px] sm:text-xs text-role-secondary font-medium flex items-center justify-center gap-1.5 whitespace-nowrap select-none pointer-events-none">
               <span>شاخص انضباط دوره (Discipline Score)</span>

@@ -279,6 +279,8 @@
   color: var(--color-text-primary) !important;
 }
 
+.bg-role-secondary { background-color: var(--color-text-secondary) !important; }
+
 .text-role-secondary {
   color: var(--color-text-secondary) !important;
 }

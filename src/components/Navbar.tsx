@@ -16,7 +16,8 @@ import {
   ShieldCheck,
   Plus,
   Trash2,
-  User
+  User,
+  X
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -56,6 +57,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
   const shouldReduceMotion = useReducedMotion();
   const [isCycleDropdownOpen, setIsCycleDropdownOpen] = useState(false);
   const [confirmDeleteCycleId, setConfirmDeleteCycleId] = useState<string | null>(null);
+  const [showStreakInfo, setShowStreakInfo] = useState(false);
   const cycleDropdownButtonRef = useRef<HTMLButtonElement>(null);
   const cycleDropdownPanelRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -501,26 +503,18 @@ const NavbarComponent: React.FC<NavbarProps> = ({
               )}
 
               {/* Pure Streak Flame */}
-              <div 
-                className="h-8 sm:h-9 bg-rose-subtle text-rose px-2.5 sm:px-3 radius-component inline-flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold shrink-0 cursor-default select-none pointer-events-none"
-                title="تعداد روزهای زنجیره خالص متوالی بدون شکست"
+              <button 
+                type="button"
+                onClick={() => setShowStreakInfo(true)}
+                className="h-8 sm:h-9 bg-rose-subtle border border-rose-subtle hover:bg-rose-subtle/80 text-rose px-2.5 sm:px-3 radius-capsule inline-flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold shrink-0 cursor-pointer shadow-xs transition active:scale-95 touch-manipulation focus-ring-tactical"
+                title="تعداد روزهای زنجیره خالص متوالی بدون شکست - کلیک برای جزئیات"
               >
-                <Flame className="w-3.5 h-3.5 shrink-0 fill-current text-rose" />
-                <span className="whitespace-nowrap font-mono">{toPersianDigits(metrics.pureStreak)} روز</span>
-              </div>
+                <Flame className="w-3.5 h-3.5 shrink-0 fill-current text-rose animate-flame-flicker" />
+                <span className="whitespace-nowrap font-mono">{toPersianDigits(metrics.pureStreak)} <span className="hidden xs:inline">روز</span></span>
+              </button>
 
-              {/* VIP Status Badge or Upgrade CTA */}
-              {userProfile.isVip ? (
-                <button
-                  type="button"
-                  onClick={onOpenPaymentModal}
-                  className="h-8 sm:h-9 min-w-[44px] bg-amber-subtle hover:bg-amber-subtle text-amber px-2.5 sm:px-3 radius-component text-[11px] sm:text-xs font-bold inline-flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shadow-subtle shrink-0 transition active:scale-95 touch-manipulation focus-ring-tactical"
-                  title="حساب سامورایی ویژه فعال است - کلیک برای مدیریت"
-                >
-                  <Crown className="w-3.5 h-3.5 text-amber shrink-0" />
-                  <span className="font-mono">VIP</span>
-                </button>
-              ) : (
+              {/* VIP Upgrade CTA (Only shown to non-VIPs as per rules) */}
+              {!userProfile.isVip && (
                 <button
                   type="button"
                   onClick={onOpenPaymentModal}
@@ -536,16 +530,15 @@ const NavbarComponent: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={onOpenAuthModal}
-                className="h-8 sm:h-9 min-w-[32px] sm:min-w-[36px] surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-subtle radius-component px-2 sm:px-2.5 inline-flex items-center justify-center gap-1.5 cursor-pointer transition shadow-subtle shrink-0 active:scale-95 touch-manipulation focus-ring-tactical"
-                title="ورود به حساب کاربری یا ویرایش اطلاعات"
+                className={`h-8 sm:h-9 min-w-[32px] sm:min-w-[36px] radius-component px-2 sm:px-2.5 inline-flex items-center justify-center relative cursor-pointer transition shadow-subtle shrink-0 active:scale-95 touch-manipulation focus-ring-tactical ${
+                  userProfile.isVip 
+                    ? 'surface-z1 hover:bg-amber-subtle text-amber border-amber-subtle' 
+                    : 'surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-subtle'
+                }`}
+                title={userProfile.isVip ? "حساب سامورایی ویژه - ورود به حساب کاربری یا ویرایش" : "ورود به حساب کاربری یا ویرایش اطلاعات"}
                 aria-label="پروفایل و ورود به حساب کاربری"
               >
-                <User className="w-3.5 h-3.5 shrink-0" />
-                {userProfile.name && userProfile.name !== 'کاربر مهمان' && userProfile.name !== 'سامورایی' && (
-                  <span className="hidden md:inline text-[11px] font-bold max-w-[80px] truncate leading-none">
-                    {userProfile.name}
-                  </span>
-                )}
+                <User className={`w-3.5 h-3.5 shrink-0 ${userProfile.isVip ? 'fill-current' : ''}`} />
               </button>
 
               {/* Admin Panel Quick Access Button */}
@@ -567,6 +560,35 @@ const NavbarComponent: React.FC<NavbarProps> = ({
           </div>
         </div>
       </header>
+
+      {/* Streak Info Modal */}
+      {showStreakInfo && (
+        <div className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="surface-z1 border-standard radius-modal w-full max-w-sm p-5 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150 relative">
+            <button 
+              onClick={() => setShowStreakInfo(false)}
+              className="absolute top-3 right-3 p-1.5 text-role-muted hover:text-role-primary surface-z2 radius-component transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex flex-col items-center justify-center text-center space-y-3 pb-2">
+              <div className="w-12 h-12 radius-capsule bg-rose-subtle flex items-center justify-center border border-rose-subtle shadow-subtle">
+                <Flame className="w-6 h-6 text-rose fill-current animate-flame-flicker" />
+              </div>
+              <h3 className="font-bold text-base text-role-primary">زنجیره خالص (Pure Streak)</h3>
+              <p className="text-sm text-role-secondary leading-relaxed text-right md:text-center px-1">
+                این شاخص نمایانگر روزهای متوالیِ موفق بدون هیچ‌گونه شکست است. تنها با کسب حداقل امتیاز استاندارد (۸ از ۱۰) در هر روز، این زنجیره حفظ می‌شود. توجه داشته باشید فریز شخصی صرفاً مانع از شکست زنجیره می‌شود، اما به تعداد آن نمی‌افزاید.
+              </p>
+            </div>
+            <button 
+              onClick={() => setShowStreakInfo(false)}
+              className="w-full h-10 bg-role-primary text-canvas-root radius-component font-bold text-sm hover:brightness-110 transition active:scale-95 cursor-pointer"
+            >
+              متوجه شدم
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Floating Frosted Glass Capsule Navigation Bar */}
       <LayoutGroup id="mobileBottomNavGroup">
