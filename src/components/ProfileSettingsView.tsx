@@ -162,11 +162,11 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
   }
 
   const cutoffHoursList = [
-    { hour: 2, label: 'تا ۲:۰۰ بامداد' },
-    { hour: 3, label: 'تا ۳:۰۰ بامداد' },
-    { hour: 4, label: 'تا ۴:۰۰ بامداد (پیش‌فرض)' },
-    { hour: 5, label: 'تا ۵:۰۰ بامداد' },
-    { hour: 6, label: 'تا ۶:۰۰ صبح' }
+    { hour: 2, label: `تا ${toPersianDigits(2)}:۰۰ بامداد` },
+    { hour: 3, label: `تا ${toPersianDigits(3)}:۰۰ بامداد` },
+    { hour: 4, label: `تا ${toPersianDigits(4)}:۰۰ بامداد (پیش‌فرض)` },
+    { hour: 5, label: `تا ${toPersianDigits(5)}:۰۰ بامداد` },
+    { hour: 6, label: `تا ${toPersianDigits(6)}:۰۰ صبح` }
   ];
 
   const SECTIONS_CONFIG: SubTabItem<SettingsSection>[] = [
@@ -261,7 +261,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                 </div>
 
                 {/* Identity Card */}
-                <div className="surface-z2 radius-card p-4 space-y-2.5">
+                <div className="surface-z2 border-standard radius-card p-4 space-y-2.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-role-secondary">نام / شناسه کاربری:</span>
                     <span className="font-bold text-role-primary">
@@ -405,7 +405,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                 </div>
 
                 {/* Sub-Card 1: Cutoff Hour Configuration */}
-                <div className="surface-z2 radius-card p-4 sm:p-5 space-y-3.5">
+                <div className="surface-z2 border-standard radius-card p-4 sm:p-5 space-y-3.5">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 radius-component surface-z3 flex items-center justify-center text-role-secondary shrink-0">
                       <Moon className="w-4 h-4 text-role-secondary" />
@@ -428,17 +428,19 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                           key={item.hour}
                           type="button"
                           onClick={() => handleSelectCutoffHour(item.hour)}
-                          className={`px-3.5 py-2.5 min-h-[44px] radius-component text-xs font-bold flex items-center justify-between border transition cursor-pointer active:scale-[0.98] ${
+                          className={`px-3.5 py-2.5 min-h-[44px] radius-component text-xs font-bold flex items-center justify-between border transition-colors cursor-pointer active:scale-[0.98] ${
                             isSelected
-                              ? 'bg-crimson-subtle border-crimson-subtle text-crimson shadow-xs'
+                              ? 'bg-rose-subtle border-rose text-role-primary shadow-xs'
                               : 'surface-z1 hover:surface-z3 border-standard text-role-secondary hover:text-role-primary'
                           }`}
                         >
                           <span className="whitespace-nowrap">{item.label}</span>
                           {isSelected ? (
-                            <Check className="w-3.5 h-3.5 text-crimson shrink-0" />
+                            <span className="w-4 h-4 radius-capsule bg-rose flex items-center justify-center text-white shrink-0">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            </span>
                           ) : (
-                            <span className="w-2.5 h-2.5 radius-capsule surface-z3 border border-standard shrink-0" />
+                            <span className="w-4 h-4 radius-capsule border border-standard surface-z3 shrink-0" />
                           )}
                         </button>
                       );
@@ -447,7 +449,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                 </div>
 
                 {/* Sub-Card 2: Data Export & Backup Vault */}
-                <div className="surface-z2 radius-card p-4 sm:p-5 space-y-3.5">
+                <div className="surface-z2 border-standard radius-card p-4 sm:p-5 space-y-3.5">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 radius-component surface-z3 flex items-center justify-center text-role-secondary shrink-0">
                       <Database className="w-4 h-4 text-role-secondary" />
@@ -471,10 +473,10 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                         onExportData();
                         showNotice('فایل خروجی داده‌های شخصی بوشیدو ذخیره شد.');
                       }}
-                      className="surface-z1 hover:surface-z3 border-standard text-role-primary p-3.5 sm:p-4 radius-component flex items-center justify-between gap-3.5 text-right transition cursor-pointer active:scale-[0.98] group min-h-[52px]"
+                      className="surface-z1 hover:surface-z3 border-standard text-role-primary p-3.5 sm:p-4 radius-component flex items-center justify-between gap-3.5 text-right transition-colors cursor-pointer active:scale-[0.98] group min-h-[52px]"
                     >
                       <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                        <div className="w-10 h-10 radius-component surface-z2 flex items-center justify-center text-role-secondary group-hover:text-role-primary transition shrink-0">
+                        <div className="w-10 h-10 radius-component surface-z2 flex items-center justify-center text-role-secondary group-hover:text-role-primary transition-colors shrink-0">
                           <Download className="w-4.5 h-4.5" />
                         </div>
                         <div className="space-y-0.5 min-w-0 flex-1">
@@ -484,7 +486,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                           </p>
                         </div>
                       </div>
-                      <span className="text-[10px] font-mono surface-z2 px-2.5 py-1 radius-capsule text-role-muted group-hover:text-role-secondary transition shrink-0 select-none pointer-events-none">
+                      <span className="text-[10px] font-mono surface-z2 px-2.5 py-1 radius-capsule text-role-muted group-hover:text-role-secondary transition-colors shrink-0 select-none pointer-events-none">
                         JSON
                       </span>
                     </button>

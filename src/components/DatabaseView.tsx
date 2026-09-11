@@ -176,12 +176,12 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
                 <Crown className={`w-5 h-5 ${userProfile.isVip ? 'text-amber' : 'text-role-muted'}`} />
                 <span className="font-bold text-sm text-role-primary">وضعیت عضویت:</span>
               </div>
-              <span className={`text-[10px] font-bold px-2.5 py-0.5 radius-badge font-mono ${
+              <span className={`text-[10px] font-bold px-2.5 py-0.5 radius-badge ${
                 userProfile.isVip 
                   ? 'bg-amber-subtle text-amber border border-amber-subtle' 
                   : 'surface-z2 text-role-muted border-standard'
               }`}>
-                {userProfile.isVip ? 'VIP SAMURAI' : 'FREE TIER'}
+                {userProfile.isVip ? 'سامورایی ویژه (VIP)' : 'طرح پایه'}
               </span>
             </div>
 
@@ -243,11 +243,11 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
             <Filter className="w-3.5 h-3.5" /> فیلتر وضعیت:
           </span>
           {[
-            { id: 'all', label: 'همه' },
-            { id: 'standard', label: '🟢 Standard' },
-            { id: 'personal_frozen', label: '❄️ فریز' },
+            { id: 'all', label: 'همه وضعیت‌ها' },
+            { id: 'standard', label: '🟢 استاندارد (۸+)' },
+            { id: 'personal_frozen', label: '❄️ فریز موجه' },
             { id: 'burned_unresolved', label: '⚠️ بدهی باز' },
-            { id: 'burned_resolved', label: '🔴 کالبدشکافی شده' }
+            { id: 'burned_resolved', label: '🔴 کالبدشکافی‌شده' }
           ].map(f => (
             <button
               key={f.id}
@@ -359,18 +359,18 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
                       </td>
 
                       <td className="p-3.5 whitespace-nowrap">
-                        <span className={`px-2.5 py-1 radius-badge text-[11px] font-semibold border flex items-center gap-1 w-fit ${
+                        <span className={`px-2.5 py-1 radius-badge text-[11px] font-semibold border flex items-center gap-1 w-fit select-none pointer-events-none ${
                           computed.statusType === 'standard'
                             ? 'bg-emerald-subtle border-emerald-subtle text-emerald'
                             : computed.statusType === 'personal_frozen'
                             ? 'bg-blue-subtle border-blue-subtle text-blue'
                             : computed.statusType === 'burned_resolved'
                             ? 'bg-autopsy-subtle border-autopsy-subtle text-autopsy'
-                            : 'bg-debt-subtle border-debt-subtle text-debt animate-pulse'
+                            : 'bg-debt-subtle border-debt-subtle text-debt'
                         }`}>
-                          {computed.statusType === 'standard' && '🟢 تعهد کامل'}
+                          {computed.statusType === 'standard' && '🟢 استاندارد'}
                           {computed.statusType === 'personal_frozen' && '❄️ فریز'}
-                          {computed.statusType === 'burned_resolved' && '🔴 حل‌شده'}
+                          {computed.statusType === 'burned_resolved' && '🔴 کالبدشکافی‌شده'}
                           {computed.statusType === 'burned_unresolved' && '⚠️ بدهی باز'}
                         </span>
                       </td>

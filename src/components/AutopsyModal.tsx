@@ -293,19 +293,21 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                       key={r.key}
                       onClick={() => setReason(r.key)}
                       aria-pressed={selected}
-                      className={`min-h-[52px] p-3 radius-component text-right text-xs sm:text-sm font-medium border transition-all flex items-start justify-between gap-2 cursor-pointer active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical ${
+                      className={`min-h-[52px] p-3 radius-component text-right text-xs sm:text-sm font-medium border transition-colors flex items-start justify-between gap-2 cursor-pointer active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical ${
                         selected
                           ? (isFrozenOpt 
                               ? 'bg-blue-subtle border-blue text-blue shadow-subtle' 
-                              : 'bg-amber-subtle border-amber text-amber shadow-subtle')
+                              : 'bg-debt-subtle border-debt text-debt shadow-subtle')
                           : 'surface-z2 border-standard hover:surface-z1 text-role-secondary hover:text-role-primary'
                       }`}
                     >
                       <div className="flex flex-col gap-0.5 text-right">
-                        <span className="font-semibold text-role-primary leading-tight">{r.label}</span>
+                        <span className={`font-semibold leading-tight ${selected ? (isFrozenOpt ? 'text-blue' : 'text-debt') : 'text-role-primary'}`}>{r.label}</span>
                         <span className="text-[11px] text-role-muted leading-tight">{r.desc}</span>
                       </div>
-                      {selected && <CheckCircle2 className="w-4 h-4 text-emerald shrink-0 mt-0.5" />}
+                      {selected && (
+                        <CheckCircle2 className={`w-4 h-4 shrink-0 mt-0.5 ${isFrozenOpt ? 'text-blue' : 'text-debt'}`} />
+                      )}
                     </button>
                   );
                 })}
@@ -333,7 +335,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                         key={t.key}
                         onClick={() => setTime(t.key)}
                         aria-pressed={selected}
-                        className={`min-h-[52px] p-2.5 radius-component text-center text-xs font-medium border transition-all cursor-pointer active:scale-[0.98] motion-reduce:transform-none flex flex-col items-center justify-center gap-1 focus-ring-tactical ${
+                        className={`min-h-[52px] p-2.5 radius-component text-center text-xs font-medium border transition-colors cursor-pointer active:scale-[0.98] motion-reduce:transform-none flex flex-col items-center justify-center gap-1 focus-ring-tactical ${
                           selected
                             ? 'bg-debt-subtle border-debt text-debt'
                             : 'surface-z2 border-standard hover:surface-z1 text-role-secondary hover:text-role-primary'
