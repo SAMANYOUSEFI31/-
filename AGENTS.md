@@ -52,3 +52,15 @@
    - Action buttons avoid nested duplicate score/reward pills if the reward is already declared in the header.
 13. **Gauge Segment Geometric Uniformity**:
    - 10-segment score gauge pills MUST share 100% identical dimensions, borders, and `transition-colors` (avoid `transition-all` or adding/removing borders that cause height jumps or white border flashes).
+14. **Optical Borders on Sub-Containers ($Z_2$) & Zero False Hover**:
+   - Secondary nested containers on $Z_1$ (e.g. Identity Cards, Cutoff selector container, Data Export box) must use subtle `border-standard` for clean optical separation without adding false hover borders (`hover:border-*`) or fake interactive pointers to non-clickable containers.
+15. **Radio & Switch Indicator Geometric Stability**:
+   - Selection indicators and radio pills must maintain 100% identical outer dimensions (e.g. `w-4 h-4`) in both active and inactive states to eliminate layout shifts. State transitions must strictly use `transition-colors`.
+16. **Semantic Token Exclusivity in Autopsy & State Overlays**:
+   - Failure reasons and time-of-failure options must NEVER use Amber (reserved for 10/10 Mastery, Coach, & Score) or Emerald (reserved for 8/10 Standard Day). Standard failure reasons use Debt red (`bg-debt-subtle border-debt text-debt`), and excused pauses use Freeze blue (`bg-blue-subtle border-blue text-blue`).
+17. **Danger Zone & Destructive Action Restraint**:
+   - Destructive actions must avoid harsh, loud white borders. Use restrained crimson accents (`border-debt-subtle/40`) with safe initial focus on cancellation.
+18. **Modal Scroll Containment & Keyboard Accessibility**:
+   - All modal overlays must employ `useBodyScrollLock` to prevent background body scroll bleed, support `Escape` key dismissal, and preserve tactile focus hygiene.
+19. **Zero Relic & Dead UI Policy**:
+   - Prune legacy multi-theme remnants, redundant decorative badges, and inactive controls. Every pixel and control must have active functional purpose.

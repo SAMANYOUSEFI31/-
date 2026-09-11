@@ -23,7 +23,9 @@ import {
   Loader2,
   ChevronRight,
   ChevronLeft,
-  ListOrdered
+  ListOrdered,
+  Check,
+  ShieldCheck
 } from 'lucide-react';
 
 interface AutopsyModalProps {
@@ -208,12 +210,12 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
         {/* Sticky Modal Header */}
         <div className="px-4 sm:px-6 py-3.5 sm:py-4 surface-z3 border-b border-standard flex items-center justify-between shrink-0 sticky top-0 z-20 backdrop-blur-md">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className={`w-9 h-9 sm:w-10 sm:h-10 radius-component flex items-center justify-center shrink-0 ${isPersonalFrozen ? 'bg-blue-subtle text-blue border border-blue-subtle' : 'bg-debt-subtle text-debt border border-debt-subtle'}`}>
+            <div className={`w-10 h-10 radius-component flex items-center justify-center shrink-0 ${isPersonalFrozen ? 'bg-blue-subtle text-blue border border-blue-subtle' : 'bg-debt-subtle text-debt border border-debt-subtle'}`}>
               {isPersonalFrozen ? <Snowflake className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
             </div>
             <div className="min-w-0">
               <h2 id="autopsy-title" className="font-bold text-sm sm:text-base md:text-lg text-role-primary flex items-center gap-1.5 truncate">
-                کالبدشکافی ریشه‌ای شکست و افت روزانه ({formatPersianDate(log.date, { withWeekday: true })})
+                کالبدشکافی ریشه‌ای شکست و افت روزانه — {formatPersianDate(log.date, { withWeekday: true })}
               </h2>
               <p id="autopsy-description" className="text-[11px] sm:text-xs text-role-secondary truncate">
                 روزی که گذشت به حد نصاب ۵ پایه نرسید. با حقیقت عریان روبرو شوید و علت را ثبت کنید.
@@ -223,7 +225,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-role-secondary hover:text-role-primary radius-component hover:bg-[var(--color-border-subtle)] transition cursor-pointer shrink-0 touch-manipulation focus-ring-tactical"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-role-secondary hover:text-role-primary radius-component hover:surface-z1 transition-colors cursor-pointer shrink-0 touch-manipulation focus-ring-tactical"
             aria-label="بستن"
           >
             <X className="w-5 h-5" />
@@ -239,7 +241,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
             </div>
 
             <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-[60%]">
-              {allUnresolvedLogs.map((item, idx) => {
+              {allUnresolvedLogs.map((item) => {
                 const isSelected = item.date === log.date;
                 return (
                   <button
@@ -247,7 +249,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                     type="button"
                     onClick={() => onSelectLog(item)}
                     aria-current={isSelected ? 'true' : undefined}
-                    className={`px-2.5 py-1 radius-control text-[11px] font-bold transition whitespace-nowrap cursor-pointer focus-ring-tactical ${
+                    className={`min-h-[36px] px-3 py-1.5 radius-control text-[11px] font-bold transition-colors whitespace-nowrap cursor-pointer inline-flex items-center justify-center focus-ring-tactical ${
                       isSelected
                         ? 'bg-debt text-role-primary shadow-subtle'
                         : 'surface-z1 text-role-secondary hover:text-role-primary border-standard'
@@ -270,7 +272,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                 <span className="text-xs text-role-muted font-medium shrink-0">عادت‌های بر زمین مانده:</span>
                 <div className="flex flex-wrap gap-1.5">
                   {missedHabits.map(h => (
-                    <span key={h} className="text-xs bg-debt-subtle text-role-primary border border-debt-subtle px-2.5 py-0.5 radius-badge font-medium">
+                    <span key={h} className="text-xs bg-debt-subtle text-role-primary border border-debt-subtle px-2.5 py-0.5 radius-badge font-medium select-none pointer-events-none">
                       {h}
                     </span>
                   ))}
@@ -293,7 +295,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                       key={r.key}
                       onClick={() => setReason(r.key)}
                       aria-pressed={selected}
-                      className={`min-h-[52px] p-3 radius-component text-right text-xs sm:text-sm font-medium border transition-colors flex items-start justify-between gap-2 cursor-pointer active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical ${
+                      className={`min-h-[52px] p-3 radius-component text-right text-xs sm:text-sm font-medium border transition-colors flex items-start justify-between gap-2.5 cursor-pointer active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical ${
                         selected
                           ? (isFrozenOpt 
                               ? 'bg-blue-subtle border-blue text-blue shadow-subtle' 
@@ -301,19 +303,23 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                           : 'surface-z2 border-standard hover:surface-z1 text-role-secondary hover:text-role-primary'
                       }`}
                     >
-                      <div className="flex flex-col gap-0.5 text-right">
+                      <div className="flex flex-col gap-0.5 text-right min-w-0 flex-1">
                         <span className={`font-semibold leading-tight ${selected ? (isFrozenOpt ? 'text-blue' : 'text-debt') : 'text-role-primary'}`}>{r.label}</span>
                         <span className="text-[11px] text-role-muted leading-tight">{r.desc}</span>
                       </div>
-                      {selected && (
-                        <CheckCircle2 className={`w-4 h-4 shrink-0 mt-0.5 ${isFrozenOpt ? 'text-blue' : 'text-debt'}`} />
+                      {selected ? (
+                        <span className={`w-4 h-4 radius-capsule flex items-center justify-center shrink-0 mt-0.5 ${isFrozenOpt ? 'bg-blue text-white' : 'bg-debt text-white'}`}>
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </span>
+                      ) : (
+                        <span className="w-4 h-4 radius-capsule border border-standard surface-z3 shrink-0 mt-0.5" />
                       )}
                     </button>
                   );
                 })}
               </div>
               {isPersonalFrozen && (
-                <p className="mt-2 text-xs text-blue bg-blue-subtle p-2.5 radius-control border border-blue-subtle flex items-center gap-2 leading-relaxed">
+                <p className="mt-2 text-xs text-blue bg-blue-subtle p-2.5 radius-control border border-blue-subtle flex items-center gap-2 leading-relaxed select-none pointer-events-none">
                   <Snowflake className="w-4 h-4 shrink-0 text-blue" />
                   <span>با انتخاب «دلایل شخصی»، روز به عنوان توقف اضطراری (فریز) ثبت شده و زنجیره بدون جریمه حفظ می‌شود.</span>
                 </p>
@@ -335,9 +341,9 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                         key={t.key}
                         onClick={() => setTime(t.key)}
                         aria-pressed={selected}
-                        className={`min-h-[52px] p-2.5 radius-component text-center text-xs font-medium border transition-colors cursor-pointer active:scale-[0.98] motion-reduce:transform-none flex flex-col items-center justify-center gap-1 focus-ring-tactical ${
+                        className={`min-h-[56px] p-2.5 radius-component text-center text-xs font-medium border transition-colors cursor-pointer active:scale-[0.98] motion-reduce:transform-none flex flex-col items-center justify-center gap-1 focus-ring-tactical ${
                           selected
-                            ? 'bg-debt-subtle border-debt text-debt'
+                            ? 'bg-debt-subtle border-debt text-debt shadow-subtle'
                             : 'surface-z2 border-standard hover:surface-z1 text-role-secondary hover:text-role-primary'
                         }`}
                       >
@@ -363,7 +369,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                   onClick={handleAiAutopsy}
                   disabled={isLoadingAi || !reason}
                   aria-busy={isLoadingAi}
-                  className="min-h-[44px] w-full sm:w-auto bg-amber hover:brightness-110 disabled:opacity-50 text-[var(--color-canvas-root)] font-bold text-xs px-3.5 py-2.5 radius-component flex items-center justify-center gap-1.5 transition-all shadow-subtle cursor-pointer active:scale-[0.98] motion-reduce:transform-none whitespace-nowrap focus-ring-tactical"
+                  className="min-h-[44px] w-full sm:w-auto bg-amber hover:brightness-110 disabled:opacity-50 text-[var(--color-canvas-root)] font-bold text-xs px-3.5 py-2.5 radius-component flex items-center justify-center gap-1.5 transition-colors shadow-subtle cursor-pointer active:scale-[0.98] motion-reduce:transform-none whitespace-nowrap focus-ring-tactical"
                 >
                   {isLoadingAi ? (
                     <>
@@ -407,7 +413,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                 onChange={e => setNotes(e.target.value)}
                 placeholder="دقیقاً چه حسی یا چه محرکی باعث شد فرمان از دست خارج شود؟ بدون توجیه بنویسید..."
                 rows={2}
-                className="w-full surface-z2 border-standard radius-component p-3 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-rose transition leading-relaxed focus-ring-tactical"
+                className="w-full surface-z2 border-standard radius-component p-3 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-standard focus-ring-tactical transition-colors leading-relaxed"
               />
             </div>
 
@@ -423,7 +429,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                 value={countermeasure}
                 onChange={e => setCountermeasure(e.target.value)}
                 placeholder="برای اینکه این شکست فردا تکرار نشود، چه مانعی را امشب حذف می‌کنید؟"
-                className="w-full min-h-[44px] surface-z2 border-standard radius-component px-3 py-2.5 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-emerald transition focus-ring-tactical"
+                className="w-full min-h-[44px] surface-z2 border-standard radius-component px-3 py-2.5 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-standard focus-ring-tactical transition-colors"
               />
             </div>
           </div>
@@ -433,18 +439,29 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="min-h-[44px] px-4 py-2.5 radius-component text-role-secondary hover:text-role-primary hover:surface-z1 text-xs sm:text-sm font-medium transition cursor-pointer whitespace-nowrap inline-flex items-center justify-center active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
+              className="min-h-[44px] px-4 py-2.5 radius-component text-role-secondary hover:text-role-primary hover:surface-z1 text-xs sm:text-sm font-medium transition-colors cursor-pointer whitespace-nowrap inline-flex items-center justify-center active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
             >
               انصراف
             </button>
-            <button
-              type="submit"
-              disabled={!reason || (!isPersonalFrozen && !time)}
-              className="min-h-[44px] bg-emerald hover:brightness-110 disabled:opacity-50 text-[var(--color-canvas-root)] font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 radius-component flex items-center justify-center gap-2 transition shadow-subtle cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
-            >
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span className="whitespace-nowrap">ممهور کردن کالبدشکافی و رفع قفل نبرد</span>
-            </button>
+            {isPersonalFrozen ? (
+              <button
+                type="submit"
+                disabled={!reason}
+                className="min-h-[44px] bg-blue hover:brightness-110 disabled:opacity-50 text-white font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 radius-component flex items-center justify-center gap-2 transition-colors shadow-subtle cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
+              >
+                <Snowflake className="w-4 h-4 shrink-0 text-white" />
+                <span className="whitespace-nowrap">تأیید توقف اضطراری و حفظ زنجیره</span>
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!reason || !time}
+                className="min-h-[44px] bg-emerald hover:brightness-110 disabled:opacity-50 text-[var(--color-canvas-root)] font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 radius-component flex items-center justify-center gap-2 transition-colors shadow-subtle cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
+              >
+                <ShieldCheck className="w-4 h-4 shrink-0" />
+                <span className="whitespace-nowrap">ممهور کردن کالبدشکافی و رفع قفل نبرد</span>
+              </button>
+            )}
           </div>
         </form>
       </motion.div>

@@ -47,7 +47,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
         aria-labelledby="reset-confirmation-title"
         aria-describedby="reset-confirmation-description"
         tabIndex={-1}
-        className="surface-z3 border border-debt-subtle radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast my-auto focus:outline-none"
+        className="surface-z3 border border-debt-subtle/40 radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast my-auto focus:outline-none"
       >
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 radius-component bg-debt-subtle border border-debt-subtle flex items-center justify-center text-debt shrink-0">
@@ -57,7 +57,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             <h3 id="reset-confirmation-title" className="font-bold text-base text-role-primary">
               بازنشانی داده‌های سامانه
             </h3>
-            <p className="text-xs text-debt mt-0.5 flex items-center gap-1">
+            <p className="text-xs text-debt mt-0.5 flex items-center gap-1 font-medium">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
               <span>بازگشت به مقادیر اولیه سیستم بوشیدو</span>
             </p>
@@ -76,14 +76,14 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             ref={cancelButtonRef}
             type="button"
             onClick={onClose}
-            className="surface-z2 hover:surface-z3 text-role-secondary hover:text-role-primary border-standard px-4 py-2.5 min-h-[44px] radius-card text-xs font-bold transition cursor-pointer focus-ring-tactical"
+            className="surface-z2 hover:surface-z3 text-role-secondary hover:text-role-primary border-standard px-4 py-2.5 min-h-[44px] radius-component text-xs font-bold transition-colors cursor-pointer focus-ring-tactical touch-manipulation"
           >
             انصراف
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="bg-debt hover:brightness-110 text-white font-bold px-5 py-2.5 min-h-[44px] radius-card text-xs flex items-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-95 focus-ring-tactical"
+            className="bg-debt hover:brightness-110 text-white font-bold px-5 py-2.5 min-h-[44px] radius-component text-xs flex items-center gap-1.5 shadow-subtle transition-colors cursor-pointer active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical touch-manipulation"
           >
             <RotateCcw className="w-4 h-4" />
             <span>بله، بازنشانی داده‌ها</span>

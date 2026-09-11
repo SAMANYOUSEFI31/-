@@ -564,26 +564,41 @@ const NavbarComponent: React.FC<NavbarProps> = ({
 
       {/* Streak Info Modal */}
       {showStreakInfo && (
-        <div className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="surface-z1 border-standard radius-modal w-full max-w-sm p-5 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150 relative">
+        <div 
+          className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex items-center justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto"
+          dir="rtl"
+        >
+          <div 
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="streak-info-modal-title"
+            aria-describedby="streak-info-modal-desc"
+            tabIndex={-1}
+            className="surface-z3 border-standard radius-modal w-full max-w-sm p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast relative my-auto focus:outline-none"
+          >
             <button 
+              type="button"
               onClick={() => setShowStreakInfo(false)}
-              className="absolute top-3 right-3 p-1.5 text-role-muted hover:text-role-primary surface-z2 radius-component transition cursor-pointer"
+              className="absolute top-3 left-3 w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-role-secondary hover:text-role-primary surface-z2 hover:surface-z1 border-standard radius-component transition-colors cursor-pointer touch-manipulation focus-ring-tactical"
+              aria-label="بستن"
             >
               <X className="w-4 h-4" />
             </button>
-            <div className="flex flex-col items-center justify-center text-center space-y-3 pb-2">
-              <div className="w-12 h-12 radius-capsule bg-rose-subtle flex items-center justify-center border border-rose-subtle shadow-subtle">
+            <div className="flex flex-col items-center justify-center text-center space-y-3 pb-1">
+              <div className="w-12 h-12 radius-component bg-rose-subtle flex items-center justify-center border border-rose-subtle shadow-subtle">
                 <Flame className="w-6 h-6 text-rose fill-current animate-flame-flicker" />
               </div>
-              <h3 className="font-bold text-base text-role-primary">زنجیره خالص (Pure Streak)</h3>
-              <p className="text-sm text-role-secondary leading-relaxed text-right md:text-center px-1">
-                این شاخص نمایانگر روزهای متوالیِ موفق بدون هیچ‌گونه شکست است. تنها با کسب حداقل امتیاز استاندارد (۸ از ۱۰) در هر روز، این زنجیره حفظ می‌شود. توجه داشته باشید فریز شخصی صرفاً مانع از شکست زنجیره می‌شود، اما به تعداد آن نمی‌افزاید.
+              <h3 id="streak-info-modal-title" className="font-bold text-base text-role-primary">
+                زنجیره خالص (Pure Streak)
+              </h3>
+              <p id="streak-info-modal-desc" className="text-xs text-role-secondary leading-relaxed text-right md:text-center px-1">
+                این شاخص نمایانگر روزهای متوالیِ موفق بدون هیچ‌گونه شکست است. تنها با کسب حداقل امتیاز استاندارد ({toPersianDigits(8)} از {toPersianDigits(10)}) در هر روز، این زنجیره حفظ می‌شود. توجه داشته باشید فریز شخصی صرفاً مانع از شکست زنجیره می‌شود، اما به تعداد آن نمی‌افزاید.
               </p>
             </div>
             <button 
+              type="button"
               onClick={() => setShowStreakInfo(false)}
-              className="w-full h-10 bg-role-primary text-canvas-root radius-component font-bold text-sm hover:brightness-110 transition active:scale-95 cursor-pointer"
+              className="w-full min-h-[44px] bg-role-primary text-canvas-root radius-component font-bold text-xs sm:text-sm hover:brightness-110 transition-colors active:scale-[0.98] motion-reduce:transform-none cursor-pointer focus-ring-tactical touch-manipulation"
             >
               متوجه شدم
             </button>

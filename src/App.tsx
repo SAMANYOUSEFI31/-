@@ -94,6 +94,7 @@ import { AutopsyModal } from './components/AutopsyModal';
 import { PaymentModal } from './components/PaymentModal';
 import { AuthModal } from './components/AuthModal';
 import { CreateCycleModal } from './components/CreateCycleModal';
+import { DisciplineRulesModal } from './components/DisciplineRulesModal';
 import { ResetConfirmationModal } from './components/ResetConfirmationModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useBodyScrollLock } from './utils/useBodyScrollLock';
@@ -140,6 +141,7 @@ export default function App() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isCreateCycleModalOpen, setIsCreateCycleModalOpen] = useState(false);
+  const [isDisciplineRulesOpen, setIsDisciplineRulesOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
@@ -1747,6 +1749,15 @@ export default function App() {
             existingCycles={systemState.cycles}
             onClose={() => setIsCreateCycleModalOpen(false)}
             onCreateCycle={handleCreateNewCycle}
+            onOpenDisciplineRules={() => setIsDisciplineRulesOpen(true)}
+          />
+        )}
+
+        {/* Discipline Rules Modal */}
+        {isDisciplineRulesOpen && (
+          <DisciplineRulesModal
+            isOpen={isDisciplineRulesOpen}
+            onClose={() => setIsDisciplineRulesOpen(false)}
           />
         )}
 
