@@ -5,13 +5,15 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles/tokens.css';
 import './index.css';
 
+export const APP_SW_VERSION = 'v5';
+
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   if (import.meta.env.PROD) {
     // On controllerchange (new SW took over after skipWaiting + clients.claim), reload once safely without loops
     let isRefreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (isRefreshing) return;
-      const reloadedKey = 'bushido_sw_reloaded';
+      const reloadedKey = `bushido_sw_reloaded_${APP_SW_VERSION}`;
       if (sessionStorage.getItem(reloadedKey) === 'true') {
         sessionStorage.removeItem(reloadedKey);
         return;
@@ -39,6 +41,48 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
               });
             }
           });
+
+          // Handshake: Check controller version against expected APP_SW_VERSION
+          const checkControllerVersion = () => {
+            if (!navigator.serviceWorker.controller) return;
+            const channel = new MessageChannel();
+            channel.port1.onmessage = (event) => {
+              if (event.data?.type === 'SW_VERSION_RESPONSE') {
+                const swVer = event.data.version;
+                if (swVer && swVer !== APP_SW_VERSION) {
+                  console.warn(`[PWA] Controller version mismatch: ${swVer} vs expected ${APP_SW_VERSION}. Forcing update...`);
+                  navigator.serviceWorker.controller?.postMessage({ type: 'CLEAR_CACHE' });
+                  registration.update().catch(console.error);
+                }
+              }
+            };
+            navigator.serviceWorker.controller.postMessage({ type: 'CHECK_VERSION' }, [channel.port2]);
+          };
+
+          checkControllerVersion();
+
+          // Periodic update check every 15 minutes
+          setInterval(() => {
+            registration.update().catch(() => {});
+          }, 15 * 60 * 1000);
+
+          // Force-check for updates on tab visibility resume and window focus (throttled to max once every 30s)
+          let lastCheckTime = Date.now();
+          const triggerUpdateCheck = () => {
+            const now = Date.now();
+            if (now - lastCheckTime > 30000) {
+              lastCheckTime = now;
+              registration.update().catch(() => {});
+              checkControllerVersion();
+            }
+          };
+
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+              triggerUpdateCheck();
+            }
+          });
+          window.addEventListener('focus', triggerUpdateCheck);
         })
         .catch((error) => {
           console.warn('[PWA] ServiceWorker registration failed:', error);

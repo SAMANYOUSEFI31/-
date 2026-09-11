@@ -1,6 +1,7 @@
-// Bushido Discipline OS - Service Worker (Offline PWA Cache v4 - Purpose: prevent stale UI after Vercel deploy)
-const STATIC_CACHE_NAME = 'bushido-static-v4';
-const RUNTIME_CACHE_NAME = 'bushido-runtime-v4';
+// Bushido Discipline OS - Service Worker (Offline PWA Cache v5 - Hardened against stale normal-browser tab profile)
+const SW_VERSION = 'v5';
+const STATIC_CACHE_NAME = 'bushido-static-v5';
+const RUNTIME_CACHE_NAME = 'bushido-runtime-v5';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -39,20 +40,33 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys
           .filter((key) => key !== STATIC_CACHE_NAME && key !== RUNTIME_CACHE_NAME)
-          .map((key) => caches.delete(key))
+          .map((key) => {
+            console.log('[PWA] Purging outdated cache:', key);
+            return caches.delete(key);
+          })
       );
     }).then(() => self.clients.claim())
   );
 });
 
-// Listen for messages from the page (e.g. SKIP_WAITING or CLEAR_CACHE)
+// Listen for messages from the page (e.g. SKIP_WAITING, CLEAR_CACHE, or CHECK_VERSION)
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  if (!event.data) return;
+
+  if (event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  if (event.data && event.data.type === 'CLEAR_CACHE') {
+  if (event.data.type === 'CLEAR_CACHE') {
     caches.keys().then((keys) => {
       return Promise.all(keys.map((k) => caches.delete(k)));
+    });
+  }
+  if (event.data.type === 'CHECK_VERSION' && event.ports && event.ports[0]) {
+    event.ports[0].postMessage({
+      type: 'SW_VERSION_RESPONSE',
+      version: SW_VERSION,
+      staticCache: STATIC_CACHE_NAME,
+      runtimeCache: RUNTIME_CACHE_NAME
     });
   }
 });

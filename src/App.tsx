@@ -41,7 +41,14 @@ import {
   isGuestQueueOwner,
   shouldQueueOfflineMutation
 } from './utils/storageUtils';
-import { getOfflineQueue, parseSafeConflictDetails, recordClientConflict, getRuntimeInFlightCount } from './utils/offlineQueueUtils';
+import {
+  getOfflineQueue,
+  parseSafeConflictDetails,
+  recordClientConflict,
+  getRuntimeInFlightCount,
+  getUnreplayableQueueItems,
+  clearFailedQueueItems
+} from './utils/offlineQueueUtils';
 import {
   applyOptimisticLogUpdate,
   rollbackOptimisticLogUpdate,
@@ -155,13 +162,18 @@ export default function App() {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [activeTab]);
 
-  const showAppToast = useCallback((msg: string, type: ToastType = 'success', duration = 2500) => {
+  const showAppToast = useCallback((
+    msg: string,
+    type: ToastType = 'success',
+    duration = 2500,
+    action?: { label: string; onClick: () => void }
+  ) => {
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current as NodeJS.Timeout);
       toastTimeoutRef.current = null;
     }
     const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    setToasts([{ id, message: msg, type, duration }]);
+    setToasts([{ id, message: msg, type, duration, action }]);
     toastTimeoutRef.current = setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
       toastTimeoutRef.current = null;
@@ -235,9 +247,35 @@ export default function App() {
 
   // Monotonic local mutation generation tracking per (ownerId:date) to protect rapid successive habit taps from stale rollbacks or older out-of-order server responses
   const logMutationGenerationsRef = useRef<Map<string, number>>(new Map());
+  // Active in-flight local habit mutation counter to coordinate with visibility refetch
+  const inFlightLogMutationsRef = useRef<number>(0);
 
   const lastRemotePullTimestampRef = useRef<number>(0);
   const isVisibilityRefetchInFlightRef = useRef<boolean>(false);
+  const requestSyncRef = useRef<((trigger: SyncTrigger, targetOwnerId?: string | null, targetToken?: string | null, force?: boolean) => Promise<SyncRunOutcome>) | null>(null);
+
+  const checkAndOfferQueueRepair = useCallback((ownerId?: string | null) => {
+    const unreplayable = getUnreplayableQueueItems(ownerId);
+    if (unreplayable.length > 0) {
+      showAppToastRef.current(
+        `تعداد ${toPersianDigits(unreplayable.length)} تغییر آفلاین قدیمی با سرور همگام نشدند.`,
+        'warning',
+        8000,
+        {
+          label: 'تعمیر همگام‌سازی',
+          onClick: () => {
+            const { clearedCount } = clearFailedQueueItems(ownerId);
+            showAppToastRef.current(
+              `همگام‌سازی تعمیر شد (${toPersianDigits(clearedCount)} مورد قدیمی بایگانی شدند).`,
+              'success',
+              3000
+            );
+            requestSyncRef.current?.('MANUAL_FORCE', ownerId, undefined, true);
+          }
+        }
+      );
+    }
+  }, []);
 
   const handleAppItemSuccess = useCallback((item: OfflineQueueItem, serverResult?: any) => {
     if (!verifyActiveAccount(activeAccountRef.current, item.ownerId)) {
@@ -270,7 +308,11 @@ export default function App() {
         'success'
       );
     }
-  }, []);
+
+    if (outcome.failedCount > 0) {
+      checkAndOfferQueueRepair(activeAccountRef.current);
+    }
+  }, [checkAndOfferQueueRepair]);
 
   const syncOrchestratorRef = useRef<SyncOrchestrator | null>(null);
   if (!syncOrchestratorRef.current) {
@@ -303,6 +345,10 @@ export default function App() {
       onResult: handleAppSyncResult
     });
   }, [syncOrchestrator, handleAppItemSuccess, handleAppSyncResult]);
+
+  useEffect(() => {
+    requestSyncRef.current = requestSync;
+  }, [requestSync]);
 
   useEffect(() => {
     let onlineTimer: any = null;
@@ -492,6 +538,10 @@ export default function App() {
             requestSync
           });
         }
+
+        if (fetchedUserProfile?.id) {
+          checkAndOfferQueueRepair(fetchedUserProfile.id);
+        }
       } catch (err) {
         console.warn('Backend sync warning (running in offline/local fallback):', err);
       }
@@ -561,7 +611,7 @@ export default function App() {
         setIsInFlight: (val) => {
           isVisibilityRefetchInFlightRef.current = val;
         },
-        hasInFlightMutations: () => getRuntimeInFlightCount() > 0 || logMutationGenerationsRef.current.size > 0
+        hasInFlightMutations: () => getRuntimeInFlightCount() > 0 || inFlightLogMutationsRef.current > 0 || logMutationGenerationsRef.current.size > 0
       });
     };
 
@@ -591,163 +641,171 @@ export default function App() {
   }, [currentCycle, systemState.logs, logicalToday]);
 
   const handleUpdateLog = useCallback(async (incomingLog: DailyLog) => {
-    const currentLogs = latestLogsRef.current || systemState.logs;
-    // Convert virtual placeholder into established DailyLog mutation input before state update or mutation
-    const updatedLog = convertVirtualDebtLogForMutation(incomingLog, activeCycleId, currentLogs);
+    inFlightLogMutationsRef.current += 1;
+    try {
+      const currentLogs = latestLogsRef.current || systemState.logs;
+      // Convert virtual placeholder into established DailyLog mutation input before state update or mutation
+      const updatedLog = convertVirtualDebtLogForMutation(incomingLog, activeCycleId, currentLogs);
 
-    // 1. Capture confirmed baseline before mutation for truthful rollback
-    const existingLog = currentLogs.find(l => l.date === updatedLog.date) || null;
-    const previousConfirmedSnapshot = existingLog ? { ...existingLog } : null;
+      // 1. Capture confirmed baseline before mutation for truthful rollback
+      const existingLog = currentLogs.find(l => l.date === updatedLog.date) || null;
+      const previousConfirmedSnapshot = existingLog ? { ...existingLog } : null;
 
-    const ownerId = systemState.userProfile?.id;
-    const initialOwner = ownerId;
+      const ownerId = systemState.userProfile?.id;
+      const initialOwner = ownerId;
 
-    // Track monotonic generation for this specific (ownerId:date) to guarantee newer rapid taps are never overwritten
-    const genKey = `${normalizeQueueOwner(ownerId)}:${updatedLog.date}`;
-    const nextGen = (logMutationGenerationsRef.current.get(genKey) || 0) + 1;
-    logMutationGenerationsRef.current.set(genKey, nextGen);
-    const thisMutationGen = nextGen;
+      // Track monotonic generation for this specific (ownerId:date) to guarantee newer rapid taps are never overwritten
+      const genKey = `${normalizeQueueOwner(ownerId)}:${updatedLog.date}`;
+      const nextGen = (logMutationGenerationsRef.current.get(genKey) || 0) + 1;
+      logMutationGenerationsRef.current.set(genKey, nextGen);
+      const thisMutationGen = nextGen;
 
-    // Optimistic UI update: unmark isSynced during in-flight state and sync latestLogsRef immediately
-    setSystemState(prev => {
-      const { nextLogs } = applyOptimisticLogUpdate(prev.logs, updatedLog);
-      latestLogsRef.current = nextLogs;
-      return {
-        ...prev,
-        logs: nextLogs
-      };
-    });
-
-    const result = await executeDirectDailyLogMutation({
-      updatedLog,
-      existingLog,
-      ownerId,
-      authToken,
-      activeCycleId,
-      activeAccountRef
-    });
-
-    if (result.status === 'IGNORED_NO_AUTH_NO_QUEUE' || result.status === 'QUEUED_OFFLINE' || result.status === 'ACCOUNT_SWITCHED') {
-      return;
-    }
-
-    const currentLatestGen = logMutationGenerationsRef.current.get(genKey) || 0;
-    const hasNewerLocalMutation = currentLatestGen > thisMutationGen;
-
-    if (result.status === 'STORAGE_WRITE_FAILED') {
-      if (!hasNewerLocalMutation) {
-        setSystemState(prev => {
-          if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-          const nextLogs = rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot);
-          latestLogsRef.current = nextLogs;
-          return {
-            ...prev,
-            logs: nextLogs
-          };
-        });
-        showAppToast(result.messageFa || 'خطا در ذخیره‌سازی محلی. تغییرات اعمال نشد.', 'warning');
-      }
-      return;
-    }
-
-    if (result.status === 'INVALID_PRECONDITION') {
-      if (!hasNewerLocalMutation) {
-        setSystemState(prev => {
-          if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-          const nextLogs = rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot);
-          latestLogsRef.current = nextLogs;
-          return {
-            ...prev,
-            logs: nextLogs
-          };
-        });
-        showAppToast(result.messageFa, 'warning');
-      }
-      requestSync('MANUAL_FORCE', ownerId, authToken, true);
-      return;
-    }
-
-    if (result.status === 'SUCCESS') {
+      // Optimistic UI update: unmark isSynced during in-flight state and sync latestLogsRef immediately
       setSystemState(prev => {
-        if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-        if (hasNewerLocalMutation || result.hasNewerIntent) {
-          // A newer local edit is still pending, keep optimistic state with updated server revision
-          const nextLogs = prev.logs.map(l => {
-            if (l.date === updatedLog.date) {
-              return {
-                ...l,
-                revision: result.serverLog.revision,
-                isSynced: false
-              };
-            }
-            return l;
-          });
-          latestLogsRef.current = nextLogs;
-          return {
-            ...prev,
-            logs: nextLogs
-          };
-        }
-        const nextLogs = prev.logs.map(l => l.date === updatedLog.date ? { ...l, ...result.serverLog, isSynced: true } : l);
+        const { nextLogs } = applyOptimisticLogUpdate(prev.logs, updatedLog);
         latestLogsRef.current = nextLogs;
         return {
           ...prev,
           logs: nextLogs
         };
       });
-      if (hasNewerLocalMutation || result.hasNewerIntent) {
-        // Trigger sync to dispatch the newer pending mutation
-        requestSync('NETWORK_ONLINE', ownerId, authToken);
-      }
-      return;
-    }
 
-    if (result.status === 'CONFLICT') {
-      if (!hasNewerLocalMutation) {
+      const result = await executeDirectDailyLogMutation({
+        updatedLog,
+        existingLog,
+        ownerId,
+        authToken,
+        activeCycleId,
+        activeAccountRef
+      });
+
+      if (result.status === 'IGNORED_NO_AUTH_NO_QUEUE' || result.status === 'QUEUED_OFFLINE' || result.status === 'ACCOUNT_SWITCHED') {
+        return;
+      }
+
+      const currentLatestGen = logMutationGenerationsRef.current.get(genKey) || 0;
+      const hasNewerLocalMutation = currentLatestGen > thisMutationGen;
+
+      if (result.status === 'STORAGE_WRITE_FAILED') {
+        if (!hasNewerLocalMutation) {
+          setSystemState(prev => {
+            if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+            const nextLogs = rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot);
+            latestLogsRef.current = nextLogs;
+            return {
+              ...prev,
+              logs: nextLogs
+            };
+          });
+          showAppToast(result.messageFa || 'خطا در ذخیره‌سازی محلی. تغییرات اعمال نشد.', 'warning');
+        }
+        return;
+      }
+
+      if (result.status === 'INVALID_PRECONDITION') {
+        if (!hasNewerLocalMutation) {
+          setSystemState(prev => {
+            if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+            const nextLogs = rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot);
+            latestLogsRef.current = nextLogs;
+            return {
+              ...prev,
+              logs: nextLogs
+            };
+          });
+          showAppToast(result.messageFa, 'warning');
+        }
+        requestSync('MANUAL_FORCE', ownerId, authToken, true);
+        return;
+      }
+
+      if (result.status === 'SUCCESS') {
         setSystemState(prev => {
           if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-          const nextLogs = rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot);
+          if (hasNewerLocalMutation || result.hasNewerIntent) {
+            // A newer local edit is still pending, keep optimistic state with updated server revision
+            const nextLogs = prev.logs.map(l => {
+              if (l.date === updatedLog.date) {
+                return {
+                  ...l,
+                  revision: result.serverLog.revision,
+                  isSynced: false
+                };
+              }
+              return l;
+            });
+            latestLogsRef.current = nextLogs;
+            return {
+              ...prev,
+              logs: nextLogs
+            };
+          }
+          const nextLogs = prev.logs.map(l => l.date === updatedLog.date ? { ...l, ...result.serverLog, isSynced: true } : l);
           latestLogsRef.current = nextLogs;
           return {
             ...prev,
             logs: nextLogs
           };
         });
-        showAppToast(result.conflictDetails.messageFa, 'warning');
+        if (hasNewerLocalMutation || result.hasNewerIntent) {
+          // Trigger sync to dispatch the newer pending mutation
+          requestSync('NETWORK_ONLINE', ownerId, authToken);
+        }
+        return;
       }
-      requestSync('NETWORK_ONLINE', ownerId, authToken, true);
-      return;
-    }
 
-    if (result.status === 'INVALID_SUCCESS_RESPONSE') {
-      console.warn('[DailyLog Mutation] Invalid success response, state remains unconfirmed:', result.errorMsg);
-      return;
-    }
-
-    if (result.status === 'FORBIDDEN' || result.status === 'VALIDATION_ERROR' || result.status === 'ENTITY_MISSING') {
-      if (!hasNewerLocalMutation) {
-        setSystemState(prev => {
-          if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
-          const nextLogs = rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot);
-          latestLogsRef.current = nextLogs;
-          return {
-            ...prev,
-            logs: nextLogs
-          };
-        });
+      if (result.status === 'CONFLICT') {
+        if (!hasNewerLocalMutation) {
+          setSystemState(prev => {
+            if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+            const nextLogs = rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot);
+            latestLogsRef.current = nextLogs;
+            return {
+              ...prev,
+              logs: nextLogs
+            };
+          });
+          showAppToast(result.conflictDetails.messageFa, 'warning');
+        }
+        requestSync('NETWORK_ONLINE', ownerId, authToken, true);
+        return;
       }
-      console.warn('[DailyLog Mutation] Non-retryable error, quarantined and rolled back:', result);
-      return;
-    }
 
-    if (result.status === 'AUTH_REQUIRED') {
-      console.warn('[DailyLog Mutation] Auth required, mutation preserved in queue for re-auth:', result);
-      return;
-    }
+      if (result.status === 'INVALID_SUCCESS_RESPONSE') {
+        console.warn('[DailyLog Mutation] Invalid success response, state remains unconfirmed:', result.errorMsg);
+        return;
+      }
 
-    if (result.status === 'RATE_LIMITED' || result.status === 'SERVER_RETRYABLE' || result.status === 'NETWORK_ERROR') {
-      console.warn('[DailyLog Mutation] Preserved in durable write-ahead queue for retry:', result);
-      return;
+      if (result.status === 'FORBIDDEN' || result.status === 'VALIDATION_ERROR' || result.status === 'ENTITY_MISSING') {
+        if (!hasNewerLocalMutation) {
+          setSystemState(prev => {
+            if (!verifyActiveAccount(activeAccountRef.current, initialOwner)) return prev;
+            const nextLogs = rollbackOptimisticLogUpdate(prev.logs, updatedLog.date, previousConfirmedSnapshot);
+            latestLogsRef.current = nextLogs;
+            return {
+              ...prev,
+              logs: nextLogs
+            };
+          });
+        }
+        console.warn('[DailyLog Mutation] Non-retryable error, quarantined and rolled back:', result);
+        return;
+      }
+
+      if (result.status === 'AUTH_REQUIRED') {
+        console.warn('[DailyLog Mutation] Auth required, mutation preserved in queue for re-auth:', result);
+        return;
+      }
+
+      if (result.status === 'RATE_LIMITED' || result.status === 'SERVER_RETRYABLE' || result.status === 'NETWORK_ERROR') {
+        console.warn('[DailyLog Mutation] Preserved in durable write-ahead queue for retry:', result);
+        return;
+      }
+    } finally {
+      inFlightLogMutationsRef.current = Math.max(0, inFlightLogMutationsRef.current - 1);
+      if (inFlightLogMutationsRef.current === 0) {
+        logMutationGenerationsRef.current.clear();
+      }
     }
   }, [authToken, activeCycleId, systemState.logs, systemState.userProfile?.id, showAppToast, requestSync]);
 

@@ -9,7 +9,9 @@ import {
 } from '../src/utils/directMutationUtils.js';
 import {
   saveOfflineQueue,
-  getOfflineQueue
+  getOfflineQueue,
+  getUnreplayableQueueItems,
+  clearFailedQueueItems
 } from '../src/utils/offlineQueueUtils.js';
 import { DailyLog } from '../src/types.js';
 
@@ -32,17 +34,17 @@ test('Rapid Habit Toggles & PWA Deployment Caching Test Suite', async (t) => {
 
   cleanup();
 
-  await t.test('1. Service Worker defines v4 cache versions and Network-First for scripts and styles', () => {
+  await t.test('1. Service Worker defines v5 cache versions and Network-First for scripts and styles', () => {
     const swPath = path.join(process.cwd(), 'public', 'sw.js');
     const swContent = fs.readFileSync(swPath, 'utf8');
 
     assert.ok(
-      swContent.includes("'bushido-static-v4'"),
-      'SW must define bushido-static-v4 as static cache name'
+      swContent.includes("'bushido-static-v5'"),
+      'SW must define bushido-static-v5 as static cache name'
     );
     assert.ok(
-      swContent.includes("'bushido-runtime-v4'"),
-      'SW must define bushido-runtime-v4 as runtime cache name'
+      swContent.includes("'bushido-runtime-v5'"),
+      'SW must define bushido-runtime-v5 as runtime cache name'
     );
     assert.ok(
       swContent.includes('isScriptOrStyle'),
@@ -227,6 +229,61 @@ test('Rapid Habit Toggles & PWA Deployment Caching Test Suite', async (t) => {
     assert.equal(rolledBack[0].study, false, 'Rolled back study must be false');
     assert.equal(rolledBack[0].journal, false, 'Rolled back journal must be false');
     assert.equal(rolledBack[0].isSynced, true, 'Rolled back state must restore original isSynced: true');
+  });
+
+  await t.test('5. getUnreplayableQueueItems identifies corrupted or permanently failed mutations', () => {
+    const queueOwner = 'user_repair_test';
+    const queueItems: any[] = [
+      {
+        id: 'healthy_item',
+        type: 'UPDATE_LOG',
+        ownerId: queueOwner,
+        payload: { cycleId: 'c1', date: '2026-09-07', wakeUp: true },
+        retryCount: 1
+      },
+      {
+        id: 'corrupted_payload_item',
+        type: 'UPDATE_LOG',
+        ownerId: queueOwner,
+        payload: null,
+        retryCount: 0
+      },
+      {
+        id: 'max_retries_exceeded_item',
+        type: 'UPDATE_LOG',
+        ownerId: queueOwner,
+        payload: { cycleId: 'c1', date: '2026-09-07', wakeUp: true },
+        retryCount: 5
+      },
+      {
+        id: 'validation_error_item',
+        type: 'UPDATE_LOG',
+        ownerId: queueOwner,
+        payload: { cycleId: 'c1', date: '2026-09-07', wakeUp: true },
+        classification: 'VALIDATION_ERROR',
+        retryCount: 1
+      }
+    ];
+
+    saveOfflineQueue(queueOwner, queueItems);
+
+    const unreplayable = getUnreplayableQueueItems(queueOwner);
+    assert.equal(unreplayable.length, 3, 'Should identify 3 unreplayable items');
+    assert.ok(unreplayable.some(i => i.id === 'corrupted_payload_item'));
+    assert.ok(unreplayable.some(i => i.id === 'max_retries_exceeded_item'));
+    assert.ok(unreplayable.some(i => i.id === 'validation_error_item'));
+    assert.ok(!unreplayable.some(i => i.id === 'healthy_item'));
+  });
+
+  await t.test('6. clearFailedQueueItems safely quarantines failed items and preserves healthy items', () => {
+    const queueOwner = 'user_repair_test';
+    const { clearedCount, remainingCount } = clearFailedQueueItems(queueOwner);
+    assert.equal(clearedCount, 3, 'Should clear 3 unreplayable items');
+    assert.equal(remainingCount, 1, 'Should keep 1 healthy item');
+
+    const remainingQueue = getOfflineQueue(queueOwner);
+    assert.equal(remainingQueue.length, 1);
+    assert.equal(remainingQueue[0].id, 'healthy_item');
   });
 
   cleanup();

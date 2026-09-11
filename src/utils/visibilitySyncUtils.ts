@@ -152,7 +152,12 @@ export async function performVisibilityRefetch(
     ? options.isInFlight()
     : defaultVisibilityCoordinator.isInFlight();
 
-  if (checkInFlight || (options.hasInFlightMutations && options.hasInFlightMutations())) {
+  const localMutationsInFlight = Boolean(options.hasInFlightMutations && options.hasInFlightMutations());
+
+  if (checkInFlight || localMutationsInFlight) {
+    if (localMutationsInFlight) {
+      console.log('[VisibilitySync] Refetch skipped: local mutations are currently in-flight.');
+    }
     return {
       status: 'SKIPPED_IN_FLIGHT',
       ownerId: snapshotOwnerId

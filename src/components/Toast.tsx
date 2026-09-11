@@ -9,6 +9,10 @@ export interface ToastItem {
   message: string;
   type?: ToastType;
   duration?: number;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 interface ToastProps {
@@ -70,15 +74,30 @@ export const Toast: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
                 </span>
               </div>
 
-              <button
-                type="button"
-                onClick={() => onDismiss(toast.id)}
-                className="w-8 h-8 sm:w-11 sm:h-11 min-w-[36px] min-h-[36px] radius-control surface-z2 hover:surface-z3 text-role-secondary hover:text-role-primary flex items-center justify-center shrink-0 transition cursor-pointer touch-manipulation focus-ring-tactical"
-                title="بستن اعلان"
-                aria-label="بستن اعلان"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {toast.action && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast.action?.onClick();
+                      onDismiss(toast.id);
+                    }}
+                    className="px-2.5 py-1 text-xs font-black bg-amber text-canvas-root radius-component hover:brightness-110 shrink-0 whitespace-nowrap cursor-pointer transition active:scale-95 focus-ring-tactical"
+                  >
+                    {toast.action.label}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => onDismiss(toast.id)}
+                  className="w-8 h-8 sm:w-11 sm:h-11 min-w-[36px] min-h-[36px] radius-control surface-z2 hover:surface-z3 text-role-secondary hover:text-role-primary flex items-center justify-center shrink-0 transition cursor-pointer touch-manipulation focus-ring-tactical"
+                  title="بستن اعلان"
+                  aria-label="بستن اعلان"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </motion.div>
           );
         })}

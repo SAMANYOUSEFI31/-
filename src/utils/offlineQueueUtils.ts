@@ -2650,3 +2650,68 @@ async function executeReplayLoop(
     remainingQueueCount: getOfflineQueue(initialOwner).length
   };
 }
+
+/**
+ * Detects offline queue items that have permanently failed or are corrupted
+ * and cannot be successfully replayed to the server.
+ */
+export function getUnreplayableQueueItems(ownerId?: string | null): OfflineQueueItem[] {
+  const normOwner = normalizeQueueOwner(ownerId);
+  const queue = getOfflineQueue(normOwner);
+  return queue.filter(item => {
+    // 1. Exceeded max retry count
+    if ((item.retryCount || 0) >= MAX_REPLAY_RETRIES) return true;
+
+    // 2. Non-retryable permanent classification error
+    if (
+      item.classification === 'VALIDATION_ERROR' ||
+      item.classification === 'FORBIDDEN' ||
+      item.classification === 'ENTITY_MISSING' ||
+      item.classification === 'UNKNOWN_MUTATION'
+    ) {
+      return true;
+    }
+
+    // 3. Corrupted or invalid payload structure
+    if (!item.payload || typeof item.payload !== 'object') return true;
+    if (item.type === 'UPDATE_LOG' && (!item.payload.date || !item.payload.cycleId)) return true;
+    if (item.type === 'UPDATE_CYCLE' && !item.payload.id) return true;
+
+    return false;
+  });
+}
+
+/**
+ * Safely clears unreplayable/failed queue entries for an active owner after
+ * preserving them in forensic quarantine. Leaves healthy pending mutations intact.
+ */
+export function clearFailedQueueItems(ownerId?: string | null): {
+  clearedCount: number;
+  remainingCount: number;
+} {
+  const normOwner = normalizeQueueOwner(ownerId);
+  const unreplayable = getUnreplayableQueueItems(normOwner);
+  if (unreplayable.length === 0) {
+    return {
+      clearedCount: 0,
+      remainingCount: getOfflineQueue(normOwner).length
+    };
+  }
+
+  // Preserve in durable quarantine for forensic safety
+  quarantineQueueItems(
+    unreplayable,
+    'REPAIR_SYNC: User cleared failed/unreplayable mutations',
+    normOwner
+  );
+
+  // Remove only the unreplayable items from offline queue
+  const idsToRemove = unreplayable.map(i => i.id);
+  removeReplayedQueueItems(normOwner, idsToRemove);
+
+  return {
+    clearedCount: unreplayable.length,
+    remainingCount: getOfflineQueue(normOwner).length
+  };
+}
+
