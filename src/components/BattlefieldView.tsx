@@ -751,23 +751,23 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           ) : (unresolvedPastLogs.length > 0 && isToday) ? (
             <div 
               id="battlefield-behavior-lock-banner"
-              className="bg-debt-subtle border border-debt-subtle radius-card p-4 text-role-primary shadow-subtle"
+              className="bg-debt-subtle border border-debt-subtle radius-card p-3.5 sm:p-4 text-role-primary shadow-subtle"
             >
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 radius-component bg-debt-subtle text-debt flex items-center justify-center shrink-0">
                   <Lock className="w-4 h-4" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <h3 className="text-xs sm:text-sm font-bold text-debt">
-                      قفل اجرا فعال است (Behavior Lock)
+                      قفل دیسیپلین و رفتار (Behavior Lock)
                     </h3>
                     <span className="text-[10px] bg-debt-subtle text-debt px-2 py-0.5 radius-control font-bold">
                       {toPersianDigits(unresolvedPastLogs.length)} روز بدهی باز
                     </span>
                   </div>
                   <p className="text-xs text-role-secondary mt-1 leading-relaxed">
-                    پیش از ثبت روز جاری، باید روزهای سوخته گذشته کالبدشکافی شده و علت شکست ثبت گردد.
+                    پیش از ورود به نبرد امروز، پرونده روزهای سوخته گذشته باید کالبدشکافی و ممهور شود.
                   </p>
                   
                   <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -776,7 +776,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                         id={`battlefield-autopsy-open-btn-${ul.id}`}
                         key={ul.id}
                         onClick={() => onOpenAutopsy(ul)}
-                        className="bg-debt hover:brightness-110 text-role-primary text-xs font-bold px-2.5 py-1 radius-control flex items-center gap-1.5 transition cursor-pointer shadow-subtle active:scale-95 focus-ring-tactical"
+                        className="min-h-[36px] bg-debt hover:brightness-110 text-role-primary text-xs font-bold px-3 py-1.5 radius-control flex items-center gap-1.5 transition cursor-pointer shadow-subtle active:scale-95 focus-ring-tactical"
                       >
                         <AlertTriangle className="w-3.5 h-3.5" />
                         <span>کالبدشکافی {formatPersianDate(ul.date, { short: true })}</span>
@@ -1094,7 +1094,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                     : (isToday ? 'surface-z1 border-standard' : 'bg-debt-subtle border-debt-subtle')
                 }`}
               >
-                <div className="flex items-start sm:items-center gap-3">
+                <div className="flex items-start sm:items-center gap-3 min-w-0">
                   <div className={`w-9 h-9 radius-component flex items-center justify-center shrink-0 ${
                     cleanFailureReason === 'دلایل شخصی' 
                       ? 'surface-z2 text-blue border border-blue-subtle' 
@@ -1110,17 +1110,21 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       <AlertTriangle className={`w-4 h-4 ${isToday ? 'text-role-muted' : 'text-debt'}`} />
                     )}
                   </div>
-                  <div>
+                  <div className="min-w-0 space-y-0.5">
                     <h4 className="font-bold text-xs sm:text-sm text-role-primary">
-                      {hasFailureReason 
-                        ? `کالبدشکافی ثبت‌شده: ${cleanFailureReason}` 
+                      {cleanFailureReason === 'دلایل شخصی'
+                        ? 'توقف اضطراری موجه (فریز شخصی)'
+                        : hasFailureReason 
+                        ? `پرونده کالبدشکافی مختومه: ${cleanFailureReason}` 
                         : (isToday ? 'ثبت کالبدشکافی یا توقف شخصی (اختیاری)' : 'کالبدشکافی و تسویه بدهی رفتاری')}
                     </h4>
-                    <p className="text-[11px] text-role-secondary mt-0.5 leading-relaxed">
-                      {hasFailureReason
-                        ? (hasCountermeasure ? `پادزهر: ${cleanCountermeasure}` : 'پرونده این روز تحلیل و ثبت شده است.')
+                    <p className="text-[11px] text-role-secondary leading-relaxed text-right">
+                      {cleanFailureReason === 'دلایل شخصی'
+                        ? 'این روز به دلیل موجه متوقف شده و زنجیره شما بدون جریمه حفظ گردیده است.'
+                        : hasFailureReason
+                        ? (hasCountermeasure ? `اقدام مقابله: ${cleanCountermeasure}` : 'پرونده این روز تحلیل و علت شکست ممهور شده است.')
                         : (isToday 
-                            ? 'در صورت مواجهه با مانع غیرمنتظره یا نیاز به فریز، می‌توانید کالبدشکافی را ثبت کنید.' 
+                            ? 'در صورت بروز مانع غیرمنتظره یا نیاز به فریز اضطراری، می‌توانید پرونده امروز را ثبت کنید.' 
                             : 'برای ثبت علت افت و رفع قفل دیسیپلین، کالبدشکافی این روز الزامی است.')}
                     </p>
                   </div>
@@ -1130,7 +1134,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   id="battlefield-autopsy-action-btn"
                   type="button"
                   onClick={() => onOpenAutopsy(currentActiveLog)}
-                  className={`w-full sm:w-auto font-bold text-xs px-3.5 py-2 radius-component inline-flex items-center justify-center gap-2 transition cursor-pointer border shrink-0 whitespace-nowrap active:scale-[0.98] focus-ring-tactical ${
+                  className={`w-full sm:w-auto min-h-[38px] font-bold text-xs px-3.5 py-2 radius-component inline-flex items-center justify-center gap-2 transition cursor-pointer border shrink-0 whitespace-nowrap active:scale-[0.98] focus-ring-tactical ${
                     hasFailureReason
                       ? 'surface-z2 hover:surface-z3 text-role-primary border-standard'
                       : (isToday 
@@ -1143,7 +1147,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   ) : (
                     <AlertTriangle className="w-3.5 h-3.5 text-role-primary" />
                   )}
-                  <span>{hasFailureReason ? 'ویرایش کالبدشکافی' : (isToday ? 'ثبت کالبدشکافی امروز' : 'کالبدشکافی این روز')}</span>
+                  <span>{hasFailureReason ? 'مشاهده و ویرایش کالبدشکافی' : (isToday ? 'ثبت کالبدشکافی امروز' : 'ثبت کالبدشکافی و بستن پرونده شکست')}</span>
                 </button>
               </div>
             );
@@ -1154,7 +1158,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
             <div className="flex items-center justify-between flex-wrap gap-2 px-0.5">
               <label htmlFor="battlefield-daily-notes" className="text-xs font-bold text-role-primary inline-flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-role-muted" />
-                <span>یادداشت و مشاهدات میدان نبرد</span>
+                <span>یادداشت و شفاف‌سازی روزانه</span>
               </label>
               <div id="battlefield-notes-status-badge" className="flex items-center gap-2 text-[11px]">
                 {isFuture ? (
@@ -1200,7 +1204,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   ? "ثبت یادداشت‌ها و مشاهدات در روز مقرر فعال خواهد شد..."
                   : isCycleArchived
                   ? "این چرخه بایگانی شده است و یادداشت‌ها فقط‌خواندنی هستند."
-                  : "ثبت دستاوردها، درس‌آموخته‌ها، چالش‌ها و بینش‌های استراتژیک امروز..."
+                  : "موانع، پیروزی‌ها و مشاهدات ذهن در نبرد امروز را ثبت کنید..."
               }
               rows={2}
               className="entity-input-well w-full p-3 sm:p-3.5 text-xs sm:text-sm placeholder:text-role-muted leading-relaxed font-sans resize-none overflow-hidden"

@@ -35,17 +35,17 @@ interface AutopsyModalProps {
   onClose: () => void;
 }
 
-const FAILURE_REASONS: FailureReason[] = [
-  'وقتم رو به خوبی مدیریت نکردم',
-  'نیمه‌کاره رها کردم',
-  'بی‌برنامه بودم',
-  'دلایل شخصی'
+const FAILURE_REASONS: { key: FailureReason; label: string; desc: string }[] = [
+  { key: 'وقتم رو به خوبی مدیریت نکردم', label: 'وقتم رو به خوبی مدیریت نکردم', desc: 'اتلاف وقت در شبکه‌های اجتماعی یا کارهای فرعی' },
+  { key: 'بی‌برنامه بودم', label: 'بی‌برنامه بودم', desc: 'ندانستن اولویت‌ها و تسک بعدی' },
+  { key: 'نیمه‌کاره رها کردم', label: 'نیمه‌کاره رها کردم', desc: 'خستگی یا کمال‌گرایی منفی در میانه کار' },
+  { key: 'دلایل شخصی', label: 'دلایل شخصی', desc: 'رویداد اضطراری غیرقابل پیش‌بینی / فریز موجه' }
 ];
 
-const FAILURE_TIMES: FailureTime[] = [
-  'اول روز',
-  'وسط روز',
-  'آخر روز'
+const FAILURE_TIMES: { key: FailureTime; label: string; desc: string }[] = [
+  { key: 'اول روز', label: 'اول روز', desc: 'اینرسی و شروع دیرهنگام' },
+  { key: 'وسط روز', label: 'وسط روز', desc: 'افت انرژی بعدازظهر' },
+  { key: 'آخر روز', label: 'آخر روز', desc: 'به تعویق انداختن به شب' }
 ];
 
 export const AutopsyModal: React.FC<AutopsyModalProps> = ({
@@ -213,10 +213,10 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
             </div>
             <div className="min-w-0">
               <h2 id="autopsy-title" className="font-bold text-sm sm:text-base md:text-lg text-role-primary flex items-center gap-1.5 truncate">
-                کالبدشکافی {formatPersianDate(log.date, { withWeekday: true })}
+                کالبدشکافی ریشه‌ای شکست و افت روزانه ({formatPersianDate(log.date, { withWeekday: true })})
               </h2>
               <p id="autopsy-description" className="text-[11px] sm:text-xs text-role-secondary truncate">
-                ثبت علت و پادزهر رفتاری جهت تسویه بدهی و باز شدن قفل اجرا
+                روزی که گذشت به حد نصاب ۵ پایه نرسید. با حقیقت عریان روبرو شوید و علت را ثبت کنید.
               </p>
             </div>
           </div>
@@ -267,7 +267,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
             {/* Missed Habits Summary */}
             {missedHabits.length > 0 && (
               <div className="surface-z2 border border-debt-subtle radius-component p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span className="text-xs text-role-muted font-medium shrink-0">پایه‌های اجرا نشده در این روز:</span>
+                <span className="text-xs text-role-muted font-medium shrink-0">عادت‌های بر زمین مانده:</span>
                 <div className="flex flex-wrap gap-1.5">
                   {missedHabits.map(h => (
                     <span key={h} className="text-xs bg-debt-subtle text-role-primary border border-debt-subtle px-2.5 py-0.5 radius-badge font-medium">
@@ -281,19 +281,19 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
             {/* 1. Failure Reason Selection */}
             <div role="group" aria-labelledby="autopsy-reason-group-label">
               <span id="autopsy-reason-group-label" className="block text-xs sm:text-sm font-semibold text-role-primary mb-2">
-                {toPersianDigits(1)}. دلیل اصلی عدم اجرای فونداسیون (دلیل شکست):
+                {toPersianDigits(1)}. علت اصلی عدم اجرای تعهد چه بود؟
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {FAILURE_REASONS.map(r => {
-                  const selected = reason === r;
-                  const isFrozenOpt = r === 'دلایل شخصی';
+                  const selected = reason === r.key;
+                  const isFrozenOpt = r.key === 'دلایل شخصی';
                   return (
                     <button
                       type="button"
-                      key={r}
-                      onClick={() => setReason(r)}
+                      key={r.key}
+                      onClick={() => setReason(r.key)}
                       aria-pressed={selected}
-                      className={`min-h-[44px] p-3 radius-component text-right text-xs sm:text-sm font-medium border transition-all flex items-center justify-between gap-2 cursor-pointer active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical ${
+                      className={`min-h-[52px] p-3 radius-component text-right text-xs sm:text-sm font-medium border transition-all flex items-start justify-between gap-2 cursor-pointer active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical ${
                         selected
                           ? (isFrozenOpt 
                               ? 'bg-blue-subtle border-blue text-blue shadow-subtle' 
@@ -301,8 +301,11 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                           : 'surface-z2 border-standard hover:surface-z1 text-role-secondary hover:text-role-primary'
                       }`}
                     >
-                      <span className="leading-relaxed">{r}</span>
-                      {selected && <CheckCircle2 className="w-4 h-4 text-emerald shrink-0" />}
+                      <div className="flex flex-col gap-0.5 text-right">
+                        <span className="font-semibold text-role-primary leading-tight">{r.label}</span>
+                        <span className="text-[11px] text-role-muted leading-tight">{r.desc}</span>
+                      </div>
+                      {selected && <CheckCircle2 className="w-4 h-4 text-emerald shrink-0 mt-0.5" />}
                     </button>
                   );
                 })}
@@ -319,25 +322,26 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
             {!isPersonalFrozen && (
               <div role="group" aria-labelledby="autopsy-time-group-label">
                 <span id="autopsy-time-group-label" className="block text-xs sm:text-sm font-semibold text-role-primary mb-2">
-                  {toPersianDigits(2)}. زمان شروع اصطکاک و شکستن دیسیپلین:
+                  {toPersianDigits(2)}. این افت در چه بازه‌ای از روز کلید خورد؟
                 </span>
                 <div className="grid grid-cols-3 gap-2">
                   {FAILURE_TIMES.map(t => {
-                    const selected = time === t;
+                    const selected = time === t.key;
                     return (
                       <button
                         type="button"
-                        key={t}
-                        onClick={() => setTime(t)}
+                        key={t.key}
+                        onClick={() => setTime(t.key)}
                         aria-pressed={selected}
-                        className={`min-h-[44px] p-2.5 radius-component text-center text-xs sm:text-sm font-medium border transition-all cursor-pointer active:scale-[0.98] motion-reduce:transform-none flex flex-col items-center justify-center focus-ring-tactical ${
+                        className={`min-h-[52px] p-2.5 radius-component text-center text-xs font-medium border transition-all cursor-pointer active:scale-[0.98] motion-reduce:transform-none flex flex-col items-center justify-center gap-1 focus-ring-tactical ${
                           selected
                             ? 'bg-debt-subtle border-debt text-debt'
                             : 'surface-z2 border-standard hover:surface-z1 text-role-secondary hover:text-role-primary'
                         }`}
                       >
-                        <Clock className="w-3.5 h-3.5 mx-auto mb-1 opacity-70 shrink-0" />
-                        <span className="whitespace-nowrap leading-none">{t}</span>
+                        <Clock className="w-3.5 h-3.5 mx-auto opacity-70 shrink-0" />
+                        <span className="whitespace-nowrap font-semibold leading-none">{t.label}</span>
+                        <span className="text-[10px] text-role-muted leading-none hidden sm:inline">{t.desc}</span>
                       </button>
                     );
                   })}
@@ -393,13 +397,13 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
             {/* 3. Notes / Psychological Root Cause */}
             <div>
               <label htmlFor="autopsy-notes-input" className="block text-xs sm:text-sm font-semibold text-role-primary mb-1">
-                {toPersianDigits(3)}. یادداشت ریشه‌یابی و اتفاقات روز:
+                {toPersianDigits(3)}. یادداشت و مشاهدات شما از ریشه این لغزش:
               </label>
               <textarea
                 id="autopsy-notes-input"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="چه محرک‌ها یا توجیه‌های ذهنی باعث رها شدن کار شد؟"
+                placeholder="دقیقاً چه حسی یا چه محرکی باعث شد فرمان از دست خارج شود؟ بدون توجیه بنویسید..."
                 rows={2}
                 className="w-full surface-z2 border-standard radius-component p-3 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-rose transition leading-relaxed focus-ring-tactical"
               />
@@ -409,14 +413,14 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
             <div>
               <label htmlFor="autopsy-countermeasure-input" className="block text-xs sm:text-sm font-semibold text-role-primary mb-1 flex items-center gap-1.5">
                 <Target className="w-4 h-4 text-emerald shrink-0" />
-                <span>{toPersianDigits(4)}. قانون مقابله و استراتژی ضدضربه (Countermeasure):</span>
+                <span>{toPersianDigits(4)}. اقدام مشخص و عملیاتی برای فردا صبح (Countermeasure):</span>
               </label>
               <input
                 id="autopsy-countermeasure-input"
                 type="text"
                 value={countermeasure}
                 onChange={e => setCountermeasure(e.target.value)}
-                placeholder="مثلا: بستن کامل نوتیفیکیشن‌ها تا ساعت ۱۲ ظهر"
+                placeholder="برای اینکه این شکست فردا تکرار نشود، چه مانعی را امشب حذف می‌کنید؟"
                 className="w-full min-h-[44px] surface-z2 border-standard radius-component px-3 py-2.5 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-emerald transition focus-ring-tactical"
               />
             </div>
@@ -437,7 +441,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
               className="min-h-[44px] bg-emerald hover:brightness-110 disabled:opacity-50 text-[var(--color-canvas-root)] font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 radius-component flex items-center justify-center gap-2 transition shadow-subtle cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
             >
               <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span className="whitespace-nowrap">ثبت کالبدشکافی و تسویه بدهی</span>
+              <span className="whitespace-nowrap">ممهور کردن کالبدشکافی و رفع قفل نبرد</span>
             </button>
           </div>
         </form>
