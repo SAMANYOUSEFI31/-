@@ -516,8 +516,7 @@ $$\text{Disabled} > \text{Loading} > \text{Active} > \text{Focus Visible} > \tex
     * **پوشش آیکون:** `id="battlefield-prev-day-icon-wrap"`, حاوی `<ChevronRight className="w-4 h-4 text-role-muted" />`
     * **متن دکمه:** `id="battlefield-prev-day-label"`, کلاس `hidden sm:inline whitespace-nowrap leading-none` («روز قبل»)
   * **ستون مرکزی نمایش تاریخ:** `id="battlefield-date-center-col"`, کلاس `flex-1 min-w-0 text-center px-1 flex flex-col items-center justify-center space-y-0.5`
-    * **کپسول برچسب نسبی روز:** `id="battlefield-relative-date-badge"`, کلاس `text-[11px] sm:text-xs text-role-secondary font-semibold inline-flex items-center justify-center gap-1.5`
-      * **پوشش آیکون تقویم:** `id="battlefield-relative-date-icon-wrap"`, حاوی `<Calendar className="w-3.5 h-3.5 text-role-muted" />`
+    * **کپسول برچسب نسبی روز:** `id="battlefield-relative-date-badge"`, کلاس `text-[11px] sm:text-xs text-role-secondary font-semibold inline-flex items-center justify-center`
       * **متن برچسب نسبی:** `id="battlefield-relative-date-label"`, کلاس `whitespace-nowrap` («روز جاری نبرد»، «X روز بعد»، «X روز قبل»)
     * **کانتینر سرتیتر تاریخ:** `id="battlefield-date-heading-container"`, کلاس `inline-flex items-center justify-center`
       * **سرتیتر تاریخ رسمی شمسی:** `id="battlefield-date-heading"`, عنوان `text-xs sm:text-sm md:text-base font-black text-role-primary tracking-tight font-mono whitespace-nowrap leading-none`
@@ -558,6 +557,86 @@ $$\text{Disabled} > \text{Loading} > \text{Active} > \text{Focus Visible} > \tex
         * `id="battlefield-score-status-icon-wrap"`: پوشش آیکون وضعیت (`<Swords />` / `<ShieldCheck />` / `<Clock />` / `<Compass />` / ...)
         * `id="battlefield-score-status-label"`: برچسب وضعیت قطعی روز (`whitespace-nowrap leading-none`)
     * **شیار گیج ۱۰ تکه پیشرفت:** `id="battlefield-score-gauge"`, کلاس `.entity-gauge-track w-full flex items-center gap-1 justify-center select-none pointer-events-none`
-      * ۱۰ کپسول مجزا با شناسه‌های یکتای `id="battlefield-gauge-segment-1"` تا `id="battlefield-gauge-segment-10"` (`h-2 flex-1 radius-capsule transition-all duration-200`)
+      * ۱۰ کپسول مجزا با شناسه‌های یکتای `id="battlefield-gauge-segment-1"` تا `id="battlefield-gauge-segment-10"` (`h-2 flex-1 radius-capsule border transition-colors duration-150`)
+
+---
+
+## ۱۴. استاندارد جامع نشانه‌شناسی و مهار نویز بصری آیکون‌ها (Iconography & Anti-Visual Noise Protocol)
+
+جهت جلوگیری از سلیقه‌ای شدن حضور آیکون‌ها و حفظ وقار استویک سیستم، دستورالعمل قطعی زیر حاکم است:
+
+### الف) کجا آیکون الزامی است؟ (Mandatory Icons)
+1. **سرتیتر بخش‌های اصلی ($Z_1$ Section Headings):** منحصراً یک آیکون در سمت راست تیتر اصلی برای جهت‌دهی سریع نگاه (مثل شمشیرها برای ۵ رکن، راکت برای ماموریت ویژه، مغز برای کالبدشکافی). رنگ آیکون سرتیتر بخش‌ها **همواره خنثی زینک** (`text-zinc-200` یا `text-zinc-400`) است.
+2. **کارت‌های تعاملی عادات ($Z_2$ Habit Cards):** محفظه آیکون ۴۰ پیکسلی با آیکون مفهومی اختصاصی هر عادت (ورزش، مطالعه، سحرخیزی و...).
+3. **ریبون‌های وضعیت سمانتیک داینامیک (Status Badges):** پیل‌های وضعیت روز نبرد (مثل شمشیر کمال ۱۰/۱۰، شیلد روز استاندارد، برفک فریز، هشدار بدهی).
+4. **سه‌گانه مقدس دیسیپلین (Holy Trinity Metrics):** زنجیره (`Flame` سرخ)، روزهای استاندارد (`CheckCircle2` زمردی) و امتیاز کل (`Award` کهربایی).
+5. **دکمه‌های اقدام کلیدی (Action Buttons):** برای درک سریع ماهیت اقدام (مثل ضربدر برای بستن، آیکون کالبدشکافی برای اقدام، شمشیر برای شروع چرخه).
+
+### ب) کجا آیکون اکیداً ممنوع و پارازیت بصری است؟ (Forbidden & De-cluttered Locations)
+1. **بج‌های کمکی و راهنما در کنار سرتیترها (Sub-badges & Helper Requirements):** بج‌های سمت چپ هدرها (مانند «شرط روز استاندارد: ۵ از ۵ پایه» یا «پاداش کمال: +۲ امتیاز») باید تایپوگرافی خالص با ارقام مونو باشند و هیچ آیکونی در آنها قرار نمی‌گیرد.
+2. **برچسب‌های تقویم و زمان نسبی (Relative Date & Timeline Badges):** در نوار ناوبری تاریخ که عنوان بزرگ تاریخ شمسی درج شده، استفاده از آیکون تقویم در کنار برچسب روز نسبی («روز جاری نبرد»، «۲ روز قبل») حشو است و حذف می‌شود.
+3. **تکرار بج امتیاز در داخل دکمه‌های اقدام (No Redundant Score Pills inside Buttons):** هنگامی که در هدر بخش میزان پاداش قید شده است، تکرار چیپ `+۲ امتیاز` در متن خود دکمه ممنوع است و عنوان دکمه به صورت موجز و رسا (`ماموریت ویژه روز`) نگارش می‌شود.
+4. **کارت‌ها و محفظه‌های نمایشی استاتیک (Non-Interactive Metric Wells):** کادرهای آماری ثابت نباید هیچ افکت هاور تعاملی یا آیکون‌های فانتزی تصادفی داشته باشند.
+
+---
+
+## ۱۵. استاندارد کارت شاخص انضباط دوره و همتایی با کارت روزانه نبرد (Cycle Discipline Score Twin Card)
+
+کارت شاخص انضباط کل دوره در اتاق فرماندهی (`#cycle-discipline-score-card`) دارای همتایی هندسی، بصری و ساختاری ۱۰۰٪ با کارت امتیاز روزانه در میدان نبرد است:
+
+* **شناسه کانتینر اصلی:** `id="cycle-discipline-score-card"`, کلاس `.entity-metric-card-nested p-3.5 sm:p-4 text-center flex flex-col items-center justify-center gap-2.5 shadow-subtle w-full max-w-[260px] mx-auto lg:max-w-none lg:w-full aspect-[1.618/1] sm:aspect-auto select-none pointer-events-none`
+* **هدر شاخص دوره:** `id="cycle-discipline-score-header"`, کلاس `text-[11px] sm:text-xs text-role-secondary font-medium flex items-center justify-center gap-1.5 whitespace-nowrap`
+  * `id="cycle-discipline-score-header-label"`: متن «شاخص انضباط دوره»
+  * `id="cycle-discipline-score-header-icon-wrap"`: حاوی `<TrendingUp className="w-3.5 h-3.5 text-role-muted" />`
+* **ارقام بزرگ درصد انضباط:** `id="cycle-discipline-score-value"`, کلاس `text-3xl sm:text-4xl font-black font-mono flex items-baseline justify-center gap-1 text-role-primary`
+  * `id="cycle-discipline-score-number"`: رقم شاخص (مانند «۸۶») با تایپوگرافی مونو
+  * `id="cycle-discipline-score-unit"`: علامت درصد («٪») در `text-xs font-semibold text-role-muted`
+* **ریبون وضعیت دیسیپلین دوره:** `id="cycle-discipline-score-ribbon"`, کانتینر ۲۴ پیکسلی یکپارچه
+  * `id="cycle-discipline-score-status-badge"`: پیل سمانتیک وضعیت (زمردی برای $\ge 80\%$, کهربایی برای ۷۰ تا ۷۹٪، قرمز برای $< 70\%$، خنثی در انتظار)
+  * `id="cycle-discipline-score-status-icon-wrap"`: پوشش آیکون سمانتیک
+  * `id="cycle-discipline-score-status-label"`: برچسب وضعیت
+* **پاورقی متدولوژی:** `id="cycle-discipline-score-caption"`, کلاس `text-[10px] text-role-muted text-center leading-normal` («محاسبه پیوسته با مخرج شبح طبق متدولوژی بوشیدو»)
+
+---
+
+## ۱۶. استاندارد ماتریس تاکتیکی ۹۰ روزه و پالت کنتراست تیره (Tactical 90-Day Matrix & Dark Contrast Protocol)
+
+ماتریس ۹۰ روزه (`TacticalHeatmap90.tsx`) نمای جامع و تعاملی کل چرخه را با پالت کنتراست تیره، هماهنگ با استانداردهای APCA و بدون ناهماهنگی بصری فراهم می‌کند:
+
+* **شناسه کانتینر:** `id="tactical-heatmap-container"`, کلاس `.entity-hero-panel w-full max-w-full p-3.5 sm:p-5 md:p-7 space-y-4 sm:space-y-5 overflow-hidden`
+* **سرتیتر و نشانه‌ها:**
+  * `id="tactical-heatmap-heading"`: عنوان «ماتریس تاکتیکی ۹۰ روزه» (بدون پرانتز انگلیسی)
+  * `id="tactical-heatmap-elapsed-badge"`: بج «روز X از ۹۰» (تایپوگرافی خالص مونو بدون آیکون)
+  * `id="tactical-heatmap-legend"`: راهنمای رنگ‌های سمانتیک بر پایه پس‌زمینه‌های تیره ساب‌تل (`bg-*-subtle`) و فونت‌های درخشان سمانتیک (`text-amber`, `text-emerald`, `text-blue`, `text-debt`, `text-purple`).
+* **سلول روز جاری (Today's Cell):** با بوردر ۲ پیکسلی کهربایی مستقیم (`border-2 border-amber ring-1 ring-amber/30 scale-105 z-10`) بدون گپ‌های سیاه اضافی (`ring-offset`) برای دقت و وضوح حداکثری.
+* **شبکه ۹۰ سلولی:** `id="tactical-heatmap-grid"`, ابعاد سلول‌ها با حداقل ارتفاع ۴۴ پیکسل برای تاچ استاندارد موبایل (`min-h-[44px]`), تمام اعداد با ارقام فارسی مونو و کنتراست بالای Lc > 75 در دارک‌مود.
+---
+
+## ۱۷. استاندارد ماتریس وفاداری به ارکان پنج‌گانه (Habit Fidelity Matrix Protocol)
+
+ماتریس وفاداری (`HabitFidelityMatrix.tsx`) عملکرد تفکیکی ۵ رکن شکست‌ناپذیر و ماموریت ویژه را محاسبه و عرضه می‌کند:
+
+* **شناسه کانتینر:** `id="fidelity-matrix-container"`, کلاس `.entity-hero-panel p-5 sm:p-7 space-y-6`
+* **هدر و نشانگر تجمیعی:**
+  * `id="fidelity-matrix-heading"`: عنوان «ماتریس وفاداری به ارکان دیسیپلین»
+  * `id="fidelity-matrix-active-days-badge"`: برچسب مونو «ارزیابی X روز فعال» (بدون آیکون)
+  * `id="fidelity-matrix-aggregate-card"`: کادر تجمیعی وفاداری با شیلد زمردی (`ShieldCheck`) و میانگین درصدی
+* **کارت‌های ۶ گانه:** `id="fidelity-card-habit-wakeEarly"`, `id="fidelity-card-habit-exercise"`, `id="fidelity-card-habit-deepWork"`, `id="fidelity-card-habit-study"`, `id="fidelity-card-habit-dailyReview"`, `id="fidelity-card-special-mission"` با استایل `.entity-metric-card-nested`, نوارهای پیشرفت روان با `transition-[width] duration-500`، و بج‌های سطح‌بندی پایدار.
+
+---
+
+## ۱۸. پروتکل پالایش ایموجی‌ها و انحصار آیکون‌های برداری سمانتیک (Text Emoji Ban & Semantic SVG Exclusivity)
+
+برای حفظ وقار استویک و یکنواختی نمایش در تمامی سیستم‌عامل‌ها (iOS, Android, Windows, macOS):
+
+۱. **ممنوعیت درج ایموجی در رشته‌های داده‌ای (No Emojis in Data Strings):** تمام رشته‌های خروجی موتور محاسبات و تعاریف داده (مانند `statusLabelFa` و `disciplineLevel`) باید تایپوگرافی خالص باشند (`چرخه فعال`، `انضباط آهنین`، `انضباط پایدار`، `بحران تعهد`، `آماده برای قرارگاه بوشیدو`) بدون کاراکترهای ایموجی مثل ⚡، 🛡️، 👹، 📦.
+۲. **تفکیک مسئولیت بصری (Visual Separation of Concerns):** نمایش نمادهای بصری منحصراً بر عهده کامپوننت‌های برداری سمانتیک (`Lucide React SVG`) است که بر اساس وضعیت داده (`metrics.status`, `metrics.disciplinePercentage`) با توکن‌های دقیق رنگی رندر می‌شوند.
+۳. **حذف بج‌های تکراری در تب‌ها (Zero Redundancy in Sub-Tabs):** اگر عنوان تب خود مشخص‌کننده بازه است (مانند «نقشه ۹۰ روزه»)، افزودن بج مکمل با همان عنوان (`۹۰ روز`) حشو و ممنوع است.
+
+
+
+
+
+
 
 

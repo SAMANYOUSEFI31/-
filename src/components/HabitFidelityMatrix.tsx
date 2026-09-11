@@ -112,31 +112,31 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
   };
 
   return (
-    <div className="entity-hero-panel p-5 sm:p-7 space-y-6" dir="rtl">
+    <div id="fidelity-matrix-container" className="entity-hero-panel p-5 sm:p-7 space-y-6" dir="rtl">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-subtle pb-5">
+      <div id="fidelity-matrix-header-row" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 radius-component surface-z2 border-standard flex items-center justify-center text-role-secondary shadow-subtle shrink-0">
+          <div id="fidelity-matrix-icon-wrap" className="w-12 h-12 radius-component surface-z2 border-standard flex items-center justify-center text-role-secondary shadow-subtle shrink-0">
             <Layers className="w-6 h-6 text-role-secondary" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base sm:text-lg font-black text-role-primary">
-                ماتریس وفاداری به ارکان دیسیپلین (Fidelity Matrix)
+              <h2 id="fidelity-matrix-heading" className="text-base sm:text-lg font-black text-role-primary">
+                ماتریس وفاداری به ارکان دیسیپلین
               </h2>
-              <span className="surface-z2 border-standard text-role-secondary text-[10px] px-2.5 py-0.5 radius-capsule font-bold select-none pointer-events-none cursor-default font-mono">
+              <span id="fidelity-matrix-active-days-badge" className="surface-z2 border-standard text-role-secondary text-[10px] px-2.5 py-0.5 radius-capsule font-bold select-none pointer-events-none cursor-default font-mono">
                 {totalLogs === 0 ? 'در انتظار نخستین ثبت' : `ارزیابی ${toPersianDigits(activeBase)} روز فعال`}
               </span>
             </div>
-            <p className="text-xs text-role-secondary mt-1">
+            <p id="fidelity-matrix-description" className="text-xs text-role-secondary mt-1">
               تحلیل تفکیکی نرخ وفاداری و پایداری هر یک از ۵ پایه شکست‌ناپذیر در طول چرخه ۹۰ روزه
             </p>
           </div>
         </div>
 
         {/* Aggregate Pillar Strength Badge */}
-        <div className="entity-metric-card-nested px-4 py-2.5 flex items-center gap-3 self-start sm:self-auto shadow-subtle select-none pointer-events-none cursor-default">
-          <div className={`w-10 h-10 radius-component flex items-center justify-center shrink-0 ${
+        <div id="fidelity-matrix-aggregate-card" className="entity-metric-card-nested px-4 py-2.5 flex items-center gap-3 self-start sm:self-auto shadow-subtle select-none pointer-events-none cursor-default">
+          <div id="fidelity-matrix-aggregate-icon-wrap" className={`w-10 h-10 radius-component flex items-center justify-center shrink-0 ${
             totalLogs === 0
               ? 'surface-z3 text-role-secondary'
               : 'bg-emerald-subtle border border-emerald-subtle text-emerald'
@@ -144,8 +144,8 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
             <ShieldCheck className={`w-5 h-5 ${totalLogs === 0 ? 'text-role-secondary' : 'text-emerald'}`} />
           </div>
           <div className="text-right">
-            <span className="text-[10px] text-role-secondary block font-medium">وفاداری میانگین ارکان</span>
-            <span className={`text-base font-black font-mono leading-tight ${totalLogs === 0 ? 'text-role-muted' : 'text-role-primary'}`}>
+            <span id="fidelity-matrix-aggregate-label" className="text-[10px] text-role-secondary block font-medium">وفاداری میانگین ارکان</span>
+            <span id="fidelity-matrix-aggregate-value" className={`text-base font-black font-mono leading-tight ${totalLogs === 0 ? 'text-role-muted' : 'text-role-primary'}`}>
               {totalLogs === 0 ? 'داده ناکافی' : `${toPersianDigits(averageFidelity)}٪`}
             </span>
           </div>
@@ -153,9 +153,10 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
       </div>
 
       {/* 5 Core Pillars Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div id="fidelity-matrix-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {habitStats.map(habit => (
           <div 
+            id={`fidelity-card-habit-${habit.key}`}
             key={habit.key}
             className="entity-metric-card-nested p-4.5 space-y-3.5"
           >
@@ -187,7 +188,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
             <div className="space-y-1.5">
               <div className="w-full surface-z0 h-2 radius-capsule overflow-hidden border-standard">
                 <div 
-                  className={`${habit.barColor} h-full radius-capsule transition-all duration-500`}
+                  className={`${habit.barColor} h-full radius-capsule transition-[width] duration-500`}
                   style={{ width: `${habit.ratePct}%` }}
                 />
               </div>
@@ -202,7 +203,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
         ))}
 
         {/* Special Mission Bonus Card (6th Card to complete the layout) */}
-        <div className="entity-metric-card-nested p-4.5 space-y-3.5">
+        <div id="fidelity-card-special-mission" className="entity-metric-card-nested p-4.5 space-y-3.5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 radius-component flex items-center justify-center shrink-0 ${
@@ -232,7 +233,7 @@ const HabitFidelityMatrixComponent: React.FC<HabitFidelityMatrixProps> = ({
           <div className="space-y-1.5">
             <div className="w-full surface-z0 h-2 radius-capsule overflow-hidden border-standard">
               <div 
-                className={`${totalLogs === 0 ? 'surface-z1' : 'bg-amber'} h-full radius-capsule transition-all duration-500`}
+                className={`${totalLogs === 0 ? 'surface-z1' : 'bg-amber'} h-full radius-capsule transition-[width] duration-500`}
                 style={{ width: `${specialMissionRate}%` }}
               />
             </div>

@@ -46,3 +46,9 @@
    - Section headers (e.g. Coach Banner, Hall of Records master box, Settings groups, Guide sections) must strictly use neutral zinc icons (`text-zinc-200` or `text-zinc-300`). Saturated semantic colors (rose, emerald, amber, red, purple, blue) are strictly reserved for actual state indicators and metric cards (Discipline Holy Trinity), never for static container titles.
 11. **Direct Milestone State Feedback (No Redundant Toasts)**:
    - Day milestones (8/10 Standard Day and 10/10 Mastery Day) are directly reflected in the Battlefield daily score badge and audio chime. Redundant floating toast banners are eliminated for a dignified, stoic user experience.
+12. **Iconography & Visual Noise Heuristics**:
+   - Section headers on Z1 get a single neutral zinc icon on the title, and helper badges on the left are pure typography (no icons).
+   - Date and relative markers (e.g. "روز جاری نبرد") are pure typography without redundant calendar icons.
+   - Action buttons avoid nested duplicate score/reward pills if the reward is already declared in the header.
+13. **Gauge Segment Geometric Uniformity**:
+   - 10-segment score gauge pills MUST share 100% identical dimensions, borders, and `transition-colors` (avoid `transition-all` or adding/removing borders that cause height jumps or white border flashes).

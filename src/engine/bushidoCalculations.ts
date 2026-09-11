@@ -83,7 +83,7 @@ export function createEmptyCycleMetrics(): CycleMetrics {
     totalScore: 0,
     disciplineScore: 0,
     disciplinePercentage: 0,
-    disciplineLevel: '🛡️ انضباط آهنین',
+    disciplineLevel: 'انضباط آهنین',
     pureStreak: 0,
     maxPureStreak: 0,
     inheritedStreak: 0,
@@ -248,7 +248,7 @@ export function computeCycleMetrics(
   const cycleEndDate = cycle.endDate || addDaysToDate(cycle.startDate, 89);
   
   let status: CycleStatusType = 'active';
-  let statusLabelFa = '⚡ چرخه فعال';
+  let statusLabelFa = 'چرخه فعال';
 
   // Check overlap with other active cycles
   const otherCycles = allCycles.filter(c => c.id !== cycle.id);
@@ -259,24 +259,24 @@ export function computeCycleMetrics(
 
   if (hasOverlap) {
     status = 'overlap_error';
-    statusLabelFa = '⚠️ تداخل تقویمی چرخه';
+    statusLabelFa = 'تداخل تقویمی چرخه';
   } else if (cycle.isArchived) {
     status = 'archived';
-    statusLabelFa = '📦 بایگانی شده';
+    statusLabelFa = 'بایگانی شده';
   } else if (logicalToday < cycleStartDate) {
     status = 'upcoming';
-    statusLabelFa = '⏳ چرخه آینده';
+    statusLabelFa = 'چرخه آینده';
   } else if (logicalToday > cycleEndDate) {
     if (cycle.reportRead) {
       status = 'archived';
-      statusLabelFa = '📦 بایگانی شده';
+      statusLabelFa = 'بایگانی شده';
     } else {
       status = 'ready_for_court';
-      statusLabelFa = '⚖️ آماده برای قرارگاه بوشیدو';
+      statusLabelFa = 'آماده برای قرارگاه بوشیدو';
     }
   } else {
     status = 'active';
-    statusLabelFa = '⚡ چرخه فعال';
+    statusLabelFa = 'چرخه فعال';
   }
 
   // Elapsed and remaining days (capped 0 to 90)
@@ -391,19 +391,19 @@ export function computeCycleMetrics(
   }
   const disciplinePercentage = Math.round(disciplineScore * 100);
 
-  let disciplineLevel: DisciplineLevel = '🛡️ انضباط آهنین';
+  let disciplineLevel: DisciplineLevel = 'انضباط آهنین';
   if (status === 'upcoming') {
-    disciplineLevel = '⏳ آینده';
+    disciplineLevel = 'آینده';
   } else if (status === 'overlap_error') {
-    disciplineLevel = '⚠️ خطای ساختار';
+    disciplineLevel = 'خطای ساختار';
   } else if (disciplineScore >= 0.8) {
-    disciplineLevel = '🛡️ انضباط آهنین';
+    disciplineLevel = 'انضباط آهنین';
   } else if (disciplineScore >= 0.6) {
-    disciplineLevel = '⚔️ انضباط پایدار';
+    disciplineLevel = 'انضباط پایدار';
   } else if (disciplineScore >= 0.4) {
-    disciplineLevel = '👺 انضباط ناپایدار';
+    disciplineLevel = 'انضباط ناپایدار';
   } else {
-    disciplineLevel = '👹 بحران تعهد';
+    disciplineLevel = 'بحران تعهد';
   }
 
   // Pure Streak & Max Pure Streak calculation (OCR Page 36 & 53)
@@ -531,7 +531,7 @@ export function computeCycleMetrics(
   });
 
   const needsIntervention = status === 'active' && (
-    disciplineLevel === '👹 بحران تعهد' || unresolvedDebtCount >= 2
+    disciplineLevel === 'بحران تعهد' || unresolvedDebtCount >= 2
   );
 
   const isCourtReady = remainingDays === 0 && unresolvedDebtCount === 0 && logsCount >= 85;
@@ -539,23 +539,23 @@ export function computeCycleMetrics(
   // Cycle Coach Behavioral Message (OCR Page 50)
   let coachMessage = '';
   if (status === 'overlap_error') {
-    coachMessage = '⚠️ تداخل تقویمی │ این چرخه با یکی از چرخه‌های دیگر تداخل زمانی دارد';
+    coachMessage = 'تداخل تقویمی │ این چرخه با یکی از چرخه‌های دیگر تداخل زمانی دارد.';
   } else if (status === 'upcoming') {
-    coachMessage = '⏳ در انتظار آغاز │ این دوره هنوز فعال نشده است';
+    coachMessage = 'در انتظار آغاز │ این دوره هنوز فعال نشده است.';
   } else if (isCourtReady) {
-    coachMessage = '⚖️ گزارش میدان نبرد آماده هست │ برای دریافت حکم نهایی به دادگاه بوشیدو مراجعه کنید';
+    coachMessage = 'گزارش میدان نبرد آماده است │ برای دریافت حکم نهایی به دادگاه بوشیدو مراجعه کنید.';
   } else if (remainingDays === 0) {
-    coachMessage = '🚨 چرخه منقضی شده │ برای دریافت گزارش نهایی، بررسی‌های باقیمانده را انجام دهید';
-  } else if (disciplineLevel === '👹 بحران تعهد') {
-    coachMessage = '🔴 بحران دیسیپلین │ امتیاز انضباط به پایین‌ترین سطح رسیده است. سریعاً به میدان نبرد برگردید!';
+    coachMessage = 'چرخه منقضی شده │ برای دریافت گزارش نهایی، بررسی‌های باقیمانده را انجام دهید.';
+  } else if (disciplineLevel === 'بحران تعهد') {
+    coachMessage = 'بحران دیسیپلین │ امتیاز انضباط به پایین‌ترین سطح رسیده است. سریعاً به میدان نبرد برگردید!';
   } else if (unresolvedDebtCount >= 2) {
-    coachMessage = `🚨 نیازمند مداخله فوری │ ${unresolvedDebtCount} روز بدهی کالبدشکافی نشده وجود دارد. سیستم قفل شده است!`;
+    coachMessage = `نیازمند مداخله فوری │ ${toPersianDigits(unresolvedDebtCount)} روز بدهی کالبدشکافی نشده وجود دارد. سیستم قفل شده است!`;
   } else if (unresolvedDebtCount === 1) {
-    coachMessage = '⚠️ روز بررسی نشده │ ۱ روز بررسی نشده از قبل دارید. قبل از بحرانی شدن پرونده‌اش را ببندید';
-  } else if (burnedDaysCount > 0 && unresolvedDebtCount === 0 && disciplineLevel !== '🛡️ انضباط آهنین') {
-    coachMessage = '🛡️ دارای پتانسیل جهش │ با تمرکز بیشتر می‌توانید به انضباط آهنین برسید';
+    coachMessage = 'روز بررسی نشده │ ۱ روز بررسی نشده از قبل دارید. قبل از بحرانی شدن پرونده‌اش را ببندید.';
+  } else if (burnedDaysCount > 0 && unresolvedDebtCount === 0 && disciplineLevel !== 'انضباط آهنین') {
+    coachMessage = 'دارای پتانسیل جهش │ با تمرکز بیشتر می‌توانید به انضباط آهنین برسید.';
   } else {
-    coachMessage = '🟢 انضباط آهنین │ این سطح از تعهد و دیسیپلین را تا پایان چرخه ۹۰ روزه حفظ کن';
+    coachMessage = 'انضباط آهنین │ این سطح از تعهد و دیسیپلین را تا پایان چرخه ۹۰ روزه حفظ کن.';
   }
 
   return {

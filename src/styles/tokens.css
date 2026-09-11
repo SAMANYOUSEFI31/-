@@ -812,29 +812,19 @@
   cursor: not-allowed !important;
 }
 
-/* Metric / Stats Bento Card Entity */
+/* Metric / Stats Bento Card Entity (Strictly read-only display) */
 .entity-metric-card {
   background-color: var(--color-card-elevated) !important;
   border: 1px solid var(--color-border-subtle) !important;
   border-radius: var(--radius-card) !important;
-  transition: border-color var(--duration-fast) var(--ease-tactical) !important;
   box-shadow: var(--shadow-subtle) !important;
 }
 
-.entity-metric-card:hover {
-  border-color: var(--color-border-hover) !important;
-}
-
-/* Nested Inner Well Metric Card (for Z2 inside Z1) */
+/* Nested Inner Well Metric Card (for Z2 inside Z1 - strictly read-only display) */
 .entity-metric-card-nested {
   background-color: var(--color-card-inner) !important;
   border: 1px solid var(--color-border-subtle) !important;
   border-radius: var(--radius-card) !important;
-  transition: border-color var(--duration-fast) var(--ease-tactical) !important;
-}
-
-.entity-metric-card-nested:hover {
-  border-color: var(--color-border-hover) !important;
 }
 
 /* Status Pill & Telemetry Badge (Strict Non-Clickable) */

@@ -27,7 +27,9 @@ import {
   Plus,
   Compass,
   Sparkles,
-  AlertTriangle
+  AlertTriangle,
+  Archive,
+  Scale
 } from 'lucide-react';
 
 interface CycleDashboardViewProps {
@@ -128,8 +130,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
     { 
       id: 'heatmap', 
       label: 'نقشه ۹۰ روزه', 
-      icon: Grid3X3, 
-      badge: `${toPersianDigits(90)} روز`
+      icon: Grid3X3
     },
     { 
       id: 'analytics', 
@@ -218,8 +219,20 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                   <span className="text-role-secondary text-[11px] font-sans">{formatPersianDate(currentCycle.startDate, { short: true })} تا {formatPersianDate(currentCycle.endDate, { short: true })}</span>
                 </div>
 
-                <div className="entity-status-badge bg-rose-subtle border border-rose-subtle text-rose font-bold inline-flex items-center gap-1.5 shadow-subtle">
-                  <Flame className="w-3.5 h-3.5 text-rose shrink-0" />
+                <div className={`entity-status-badge font-bold inline-flex items-center gap-1.5 shadow-subtle ${
+                  metrics.status === 'active'
+                    ? 'bg-rose-subtle border border-rose-subtle text-rose'
+                    : metrics.status === 'ready_for_court'
+                    ? 'bg-amber-subtle border border-amber-subtle text-amber'
+                    : metrics.status === 'overlap_error'
+                    ? 'bg-debt-subtle border border-debt-subtle text-debt'
+                    : 'surface-z2 border-standard text-role-secondary'
+                }`}>
+                  {metrics.status === 'active' && <Flame className="w-3.5 h-3.5 text-rose shrink-0" />}
+                  {metrics.status === 'upcoming' && <Clock className="w-3.5 h-3.5 text-role-muted shrink-0" />}
+                  {metrics.status === 'archived' && <Archive className="w-3.5 h-3.5 text-role-muted shrink-0" />}
+                  {metrics.status === 'ready_for_court' && <Scale className="w-3.5 h-3.5 text-amber shrink-0" />}
+                  {metrics.status === 'overlap_error' && <AlertTriangle className="w-3.5 h-3.5 text-debt shrink-0" />}
                   <span className="whitespace-nowrap leading-none">{metrics.statusLabelFa}</span>
                 </div>
 
@@ -270,24 +283,27 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
           </div>
 
           {/* Discipline Score Badge Column (Harmonized Twin with Battlefield Daily Score Box) */}
-          <div className="lg:col-span-4 entity-metric-card-nested p-3.5 sm:p-4 text-center flex flex-col items-center justify-center gap-2.5 shadow-subtle transition-all w-full max-w-[260px] mx-auto lg:max-w-none lg:w-full aspect-[1.618/1] sm:aspect-auto">
+          <div 
+            id="cycle-discipline-score-card"
+            className="lg:col-span-4 entity-metric-card-nested p-3.5 sm:p-4 text-center flex flex-col items-center justify-center gap-2.5 shadow-subtle w-full max-w-[260px] mx-auto lg:max-w-none lg:w-full aspect-[1.618/1] sm:aspect-auto select-none pointer-events-none"
+          >
             {/* Score Header Label */}
-            <div className="text-[11px] sm:text-xs text-role-secondary font-medium flex items-center justify-center gap-1.5 whitespace-nowrap select-none pointer-events-none">
-              <span>شاخص انضباط دوره (Discipline Score)</span>
-              <span className="inline-flex items-center justify-center shrink-0">
+            <div id="cycle-discipline-score-header" className="text-[11px] sm:text-xs text-role-secondary font-medium flex items-center justify-center gap-1.5 whitespace-nowrap">
+              <span id="cycle-discipline-score-header-label">شاخص انضباط دوره</span>
+              <span id="cycle-discipline-score-header-icon-wrap" className="inline-flex items-center justify-center shrink-0">
                 <TrendingUp className="w-3.5 h-3.5 text-role-muted" />
               </span>
             </div>
 
             {/* Big Score Number */}
-            <div className="text-3xl sm:text-4xl font-black font-mono flex items-baseline justify-center gap-1 text-role-primary">
-              <span className="leading-none">{toPersianDigits(metrics.disciplinePercentage)}</span>
-              <span className="text-xs font-semibold text-role-muted inline-flex items-center gap-0.5">٪</span>
+            <div id="cycle-discipline-score-value" className="text-3xl sm:text-4xl font-black font-mono flex items-baseline justify-center gap-1 text-role-primary">
+              <span id="cycle-discipline-score-number" className="leading-none">{toPersianDigits(metrics.disciplinePercentage)}</span>
+              <span id="cycle-discipline-score-unit" className="text-xs font-semibold text-role-muted inline-flex items-center gap-0.5">٪</span>
             </div>
             
             {/* Single Source of Truth: Status Ribbon with Fixed Height */}
-            <div className="flex items-center justify-center h-6 select-none pointer-events-none w-full">
-              <div className={`entity-status-badge inline-flex items-center gap-1.5 ${
+            <div id="cycle-discipline-score-ribbon" className="flex items-center justify-center h-6 w-full">
+              <div id="cycle-discipline-score-status-badge" className={`entity-status-badge inline-flex items-center gap-1.5 ${
                 metrics.logsCount === 0
                   ? 'surface-z3 text-role-secondary'
                   : metrics.disciplinePercentage >= 80
@@ -296,7 +312,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                   ? 'bg-debt-subtle border border-debt-subtle text-debt'
                   : 'bg-amber-subtle border border-amber-subtle text-amber'
               }`}>
-                <span className="inline-flex items-center justify-center shrink-0">
+                <span id="cycle-discipline-score-status-icon-wrap" className="inline-flex items-center justify-center shrink-0">
                   {metrics.logsCount === 0 ? (
                     <Clock className="w-3.5 h-3.5 text-role-muted" />
                   ) : metrics.disciplinePercentage >= 80 ? (
@@ -307,13 +323,13 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                     <Award className="w-3.5 h-3.5 text-amber" />
                   )}
                 </span>
-                <span className="whitespace-nowrap leading-none">
+                <span id="cycle-discipline-score-status-label" className="whitespace-nowrap leading-none">
                   {metrics.logsCount === 0 ? 'در انتظار ثبت نخستین روز' : metrics.disciplineLevel}
                 </span>
               </div>
             </div>
 
-            <p className="text-[10px] text-role-muted text-center leading-normal select-none pointer-events-none">
+            <p id="cycle-discipline-score-caption" className="text-[10px] text-role-muted text-center leading-normal">
               محاسبه پیوسته با مخرج شبح طبق متدولوژی بوشیدو
             </p>
           </div>
@@ -352,7 +368,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                 <div className="text-2xl font-bold font-mono text-rose leading-none my-1">
                   {toPersianDigits(metrics.pureStreak)} <span className="text-xs text-role-muted font-normal">روز</span>
                 </div>
-                <p className="text-[11px] text-role-secondary truncate">
+                <p className="text-[11px] text-role-secondary leading-tight text-right">
                   سقف دوره: {toPersianDigits(metrics.maxPureStreak)} روز
                 </p>
               </div>
@@ -368,7 +384,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                 <div className="text-2xl font-bold font-mono text-emerald leading-none my-1">
                   {toPersianDigits(metrics.standardDaysCount)} <span className="text-xs text-role-muted font-normal">/ {toPersianDigits(metrics.logsCount)}</span>
                 </div>
-                <p className="text-[11px] text-role-secondary truncate">
+                <p className="text-[11px] text-role-secondary leading-tight text-right">
                   نرخ موفقیت: {toPersianDigits(metrics.logsCount > 0 ? Math.round((metrics.standardDaysCount / metrics.logsCount) * 100) : 0)}٪
                 </p>
               </div>
@@ -384,17 +400,17 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                 <div className="text-2xl font-bold font-mono text-amber leading-none my-1">
                   {toPersianDigits(metrics.totalScore)}
                 </div>
-                <p className="text-[11px] text-role-secondary truncate">
+                <p className="text-[11px] text-role-secondary leading-tight text-right">
                   سقف دوره‌ای: {toPersianDigits(metrics.elapsedDays * 10)}
                 </p>
               </div>
 
-              {/* Unresolved Debt (Neutral Surface with conditional status accent) */}
+              {/* Unresolved Debt (Conditional Alert Accent) */}
               <div className="entity-metric-card p-4 min-h-[112px] flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">بدهی کالبدشکافی</span>
-                  <div className={`w-7 h-7 radius-component surface-z2 border-standard flex items-center justify-center shrink-0 ${
-                    metrics.unresolvedDebtCount > 0 ? 'text-debt' : 'text-role-muted'
+                  <div className={`w-7 h-7 radius-component flex items-center justify-center shrink-0 ${
+                    metrics.unresolvedDebtCount > 0 ? 'bg-debt-subtle border border-debt-subtle text-debt' : 'surface-z2 border-standard text-role-muted'
                   }`}>
                     <AlertOctagon className="w-4 h-4" />
                   </div>
@@ -404,39 +420,43 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                 }`}>
                   {toPersianDigits(metrics.unresolvedDebtCount)} <span className="text-xs text-role-muted font-normal">روز</span>
                 </div>
-                <p className="text-[11px] text-role-secondary truncate">
+                <p className="text-[11px] text-role-secondary leading-tight text-right">
                   {metrics.unresolvedDebtCount > 0 ? 'نیازمند کالبدشکافی فوری' : 'بدون بدهی معوق'}
                 </p>
               </div>
 
-              {/* Resolved Debt (Neutral Surface) */}
+              {/* Resolved Debt (Violet Semantic Accent) */}
               <div className="entity-metric-card p-4 min-h-[112px] flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">کالبدشکافی شده</span>
-                  <div className="w-7 h-7 radius-component surface-z2 border-standard flex items-center justify-center shrink-0 text-role-muted">
-                    <ShieldCheck className="w-4 h-4 text-role-muted" />
+                  <div className="w-7 h-7 radius-component bg-purple-subtle border border-purple-subtle flex items-center justify-center shrink-0 text-purple">
+                    <ShieldCheck className="w-4 h-4 text-purple" />
                   </div>
                 </div>
-                <div className="text-2xl font-bold font-mono text-role-primary leading-none my-1">
+                <div className={`text-2xl font-bold font-mono leading-none my-1 ${
+                  metrics.resolvedDebtCount > 0 ? 'text-purple' : 'text-role-primary'
+                }`}>
                   {toPersianDigits(metrics.resolvedDebtCount)} <span className="text-xs text-role-muted font-normal">روز</span>
                 </div>
-                <p className="text-[11px] text-role-secondary truncate">
+                <p className="text-[11px] text-role-secondary leading-tight text-right">
                   پرونده‌های تحلیل‌شده
                 </p>
               </div>
 
-              {/* Frozen Days (Neutral Surface) */}
+              {/* Frozen Days (Blue Semantic Accent) */}
               <div className="entity-metric-card p-4 min-h-[112px] flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">توقف اضطراری</span>
-                  <div className="w-7 h-7 radius-component surface-z2 border-standard flex items-center justify-center shrink-0 text-role-muted">
-                    <Snowflake className="w-4 h-4 text-role-muted" />
+                  <div className="w-7 h-7 radius-component bg-blue-subtle border border-blue-subtle flex items-center justify-center shrink-0 text-blue">
+                    <Snowflake className="w-4 h-4 text-blue" />
                   </div>
                 </div>
-                <div className="text-2xl font-bold font-mono text-role-primary leading-none my-1">
+                <div className={`text-2xl font-bold font-mono leading-none my-1 ${
+                  metrics.frozenDaysCount > 0 ? 'text-blue' : 'text-role-primary'
+                }`}>
                   {toPersianDigits(metrics.frozenDaysCount)} <span className="text-xs text-role-muted font-normal">روز</span>
                 </div>
-                <p className="text-[11px] text-role-secondary truncate">
+                <p className="text-[11px] text-role-secondary leading-tight text-right">
                   فریز بدون جریمه
                 </p>
               </div>
@@ -451,7 +471,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                   </div>
                   <div>
                     <h3 className="text-sm sm:text-base font-bold text-role-primary">
-                      تالار رکوردها و قله‌های دیسیپلین (Hall of Records)
+                      تالار رکوردها و قله‌های دیسیپلین
                     </h3>
                   </div>
                 </div>
