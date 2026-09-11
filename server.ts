@@ -113,9 +113,19 @@ app.use(express.json());
 // Lazy Database Initialization
 let isDbInitialized = false;
 let dbInitPromise: Promise<void> | null = null;
+let lastDbInitAttempt = 0;
+const DB_INIT_RETRY_COOLDOWN_MS = 5000;
+
 app.use(async (req, res, next) => {
+  // Static assets and front-end bundles do not block on DB connectivity
+  if (!req.path.startsWith('/api')) {
+    return next();
+  }
+
   if (!isDbInitialized) {
-    if (!dbInitPromise) {
+    const now = Date.now();
+    if (!dbInitPromise && now - lastDbInitAttempt >= DB_INIT_RETRY_COOLDOWN_MS) {
+      lastDbInitAttempt = now;
       dbInitPromise = initializeDatabase()
         .then(() => {
           isDbInitialized = true;
@@ -124,13 +134,18 @@ app.use(async (req, res, next) => {
           console.error('[Database Init Error]:', err?.message || err);
           if (isProduction()) {
             isDbInitialized = false;
-            dbInitPromise = null; // Do not treat failed init as initialized in production; allow retry
+            // Cooldown before allowing next re-init attempt to prevent request-flood thread starvation
+            setTimeout(() => {
+              dbInitPromise = null;
+            }, DB_INIT_RETRY_COOLDOWN_MS);
           } else {
             isDbInitialized = true; // Non-production environments allow fallback
           }
         });
     }
-    await dbInitPromise;
+    if (dbInitPromise) {
+      await dbInitPromise;
+    }
   }
   next();
 });

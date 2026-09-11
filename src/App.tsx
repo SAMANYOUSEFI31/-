@@ -41,7 +41,7 @@ import {
   isGuestQueueOwner,
   shouldQueueOfflineMutation
 } from './utils/storageUtils';
-import { getOfflineQueue, parseSafeConflictDetails, recordClientConflict } from './utils/offlineQueueUtils';
+import { getOfflineQueue, parseSafeConflictDetails, recordClientConflict, getRuntimeInFlightCount } from './utils/offlineQueueUtils';
 import {
   applyOptimisticLogUpdate,
   rollbackOptimisticLogUpdate,
@@ -52,6 +52,8 @@ import {
   prepareDirectLogPayload,
   prepareDirectCyclePayload,
   verifyActiveAccount,
+  safeMergeReconciledLogs,
+  safeMergeReconciledCycles,
   applyReplayItemToActiveState,
   executeDirectDailyLogMutation,
   executeDirectCreateCycleMutation,
@@ -519,12 +521,21 @@ export default function App() {
           }
           const { cycles: reconciledCycles, logs: reconciledLogs, userProfile: reconciledProfile, nextActiveCycleId } = reconciled;
           if (reconciledProfile || reconciledCycles !== null || reconciledLogs !== null) {
-            setSystemState(prev => ({
-              ...prev,
-              userProfile: reconciledProfile ? { ...prev.userProfile, ...reconciledProfile } : prev.userProfile,
-              cycles: reconciledCycles !== null ? reconciledCycles : prev.cycles,
-              logs: reconciledLogs !== null ? reconciledLogs : prev.logs
-            }));
+            setSystemState(prev => {
+              const nextCycles = reconciledCycles !== null
+                ? safeMergeReconciledCycles(prev.cycles, reconciledCycles)
+                : prev.cycles;
+              const nextLogs = reconciledLogs !== null
+                ? safeMergeReconciledLogs(prev.logs, reconciledLogs)
+                : prev.logs;
+              latestLogsRef.current = nextLogs;
+              return {
+                ...prev,
+                userProfile: reconciledProfile ? { ...prev.userProfile, ...reconciledProfile } : prev.userProfile,
+                cycles: nextCycles,
+                logs: nextLogs
+              };
+            });
 
             if (nextActiveCycleId) {
               setActiveCycleId(prev => {
@@ -549,7 +560,8 @@ export default function App() {
         isInFlight: () => isVisibilityRefetchInFlightRef.current,
         setIsInFlight: (val) => {
           isVisibilityRefetchInFlightRef.current = val;
-        }
+        },
+        hasInFlightMutations: () => getRuntimeInFlightCount() > 0 || logMutationGenerationsRef.current.size > 0
       });
     };
 

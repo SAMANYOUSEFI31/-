@@ -19,30 +19,74 @@ export function setPrismaState(client: any, available: boolean) {
   isPrismaAvailable = available;
 }
 
+function cleanEnvString(val?: string | null): string | null {
+  if (!val || typeof val !== 'string') return null;
+  const trimmed = val.trim().replace(/^["']|["']$/g, '');
+  if (!trimmed || trimmed === 'undefined' || trimmed === 'null') return null;
+  return trimmed;
+}
+
 // Harmonize connection string variables for Prisma & Vercel / Neon / Supabase
 export function harmonizeDatabaseEnv(): string | null {
-  const dbUrl =
-    process.env.POSTGRES_PRISMA_URL ||
-    process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL ||
-    process.env.DIRECT_URL ||
+  let dbUrl =
+    cleanEnvString(process.env.POSTGRES_PRISMA_URL) ||
+    cleanEnvString(process.env.DATABASE_URL) ||
+    cleanEnvString(process.env.POSTGRES_URL) ||
+    cleanEnvString(process.env.POSTGRES_URL_POOLED) ||
+    cleanEnvString(process.env.DATABASE_URL_POOLED) ||
+    cleanEnvString(process.env.DIRECT_URL) ||
+    cleanEnvString(process.env.PG_CONNECTION_STRING) ||
     null;
 
-  const directUrl =
-    process.env.POSTGRES_URL_NON_POOLING ||
-    process.env.DIRECT_URL ||
-    process.env.DATABASE_URL_UNPOOLED ||
-    dbUrl;
+  let directUrl =
+    cleanEnvString(process.env.POSTGRES_URL_NON_POOLING) ||
+    cleanEnvString(process.env.DIRECT_URL) ||
+    cleanEnvString(process.env.DATABASE_URL_UNPOOLED) ||
+    null;
 
+  // Discrete Postgres environment variable synthesis (e.g. Neon, Render, Supabase)
+  if (!dbUrl) {
+    const host = cleanEnvString(process.env.POSTGRES_HOST || process.env.PGHOST);
+    const user = cleanEnvString(process.env.POSTGRES_USER || process.env.PGUSER);
+    const pass = cleanEnvString(process.env.POSTGRES_PASSWORD || process.env.PGPASSWORD);
+    const db = cleanEnvString(process.env.POSTGRES_DATABASE || process.env.PGDATABASE);
+    const port = cleanEnvString(process.env.POSTGRES_PORT || process.env.PGPORT) || '5432';
+
+    if (host && user && db) {
+      const auth = pass ? `${encodeURIComponent(user)}:${encodeURIComponent(pass)}` : encodeURIComponent(user);
+      dbUrl = `postgresql://${auth}@${host}:${port}/${db}?sslmode=require`;
+    }
+  }
+
+  // Neon-specific direct URL derivation if directUrl is missing or identical to pooled URL
   if (dbUrl) {
-    if (!process.env.POSTGRES_PRISMA_URL) process.env.POSTGRES_PRISMA_URL = dbUrl;
-    if (!process.env.DATABASE_URL) process.env.DATABASE_URL = dbUrl;
-    if (!process.env.POSTGRES_URL_NON_POOLING && directUrl) process.env.POSTGRES_URL_NON_POOLING = directUrl;
-    if (!process.env.DIRECT_URL && directUrl) process.env.DIRECT_URL = directUrl;
+    // If Neon URL lacks sslmode, ensure sslmode=require
+    if (dbUrl.includes('neon.tech') && !dbUrl.includes('sslmode=')) {
+      dbUrl += dbUrl.includes('?') ? '&sslmode=require' : '?sslmode=require';
+    }
+
+    if (!directUrl) {
+      if (dbUrl.includes('-pooler.') && dbUrl.includes('neon.tech')) {
+        // Derive Neon unpooled directUrl by stripping -pooler
+        directUrl = dbUrl.replace('-pooler.', '.');
+      } else {
+        directUrl = dbUrl;
+      }
+    }
+
+    process.env.POSTGRES_PRISMA_URL = dbUrl;
+    process.env.DATABASE_URL = dbUrl;
+    process.env.POSTGRES_URL = dbUrl;
+    process.env.POSTGRES_URL_NON_POOLING = directUrl;
+    process.env.DIRECT_URL = directUrl;
+    process.env.DATABASE_URL_UNPOOLED = directUrl;
   }
 
   return dbUrl;
 }
+
+// Initial environment harmonization at module load time
+harmonizeDatabaseEnv();
 
 // In-Memory / File Persistent Store Fallback (Ensures 100% operational guarantee)
 export interface DBUser {

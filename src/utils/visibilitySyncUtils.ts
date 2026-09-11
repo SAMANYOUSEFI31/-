@@ -66,6 +66,7 @@ export interface VisibilityRefetchOptions {
   isInFlight?: () => boolean;
   setIsInFlight?: (inFlight: boolean) => void;
   checkDocumentVisibility?: () => boolean;
+  hasInFlightMutations?: () => boolean;
 }
 
 /**
@@ -151,7 +152,7 @@ export async function performVisibilityRefetch(
     ? options.isInFlight()
     : defaultVisibilityCoordinator.isInFlight();
 
-  if (checkInFlight) {
+  if (checkInFlight || (options.hasInFlightMutations && options.hasInFlightMutations())) {
     return {
       status: 'SKIPPED_IN_FLIGHT',
       ownerId: snapshotOwnerId

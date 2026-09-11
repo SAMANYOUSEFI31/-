@@ -190,6 +190,13 @@ export function isQueueItemInFlight(ownerId: string | null | undefined, itemId: 
   return runtimeInFlightOperations.has(getInFlightKey(normOwner, itemId));
 }
 
+/**
+ * Returns the count of runtime-only in-flight operations across all accounts.
+ */
+export function getRuntimeInFlightCount(): number {
+  return runtimeInFlightOperations.size;
+}
+
 export interface ReplayTimingDependencies {
   now?: () => number;
   setInterval?: (callback: () => void, intervalMs: number) => any;

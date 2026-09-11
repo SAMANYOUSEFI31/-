@@ -128,7 +128,7 @@ export async function initializeDatabase(): Promise<void> {
 
   // On Vercel / serverless, never attempt to connect to localhost Postgres
   if (dbConnectionString && !(isOnVercel && isLocalhost)) {
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         const mod = await import('@prisma/client');
         prisma = new mod.PrismaClient({
@@ -150,7 +150,7 @@ export async function initializeDatabase(): Promise<void> {
         }
         isPrismaAvailable = false;
         setPrismaState(null, false);
-        if (attempt < 2) await wait(300);
+        if (attempt < 3) await wait(300 * attempt);
       }
     }
   } else {

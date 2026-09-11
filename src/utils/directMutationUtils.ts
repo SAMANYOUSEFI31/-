@@ -201,9 +201,9 @@ export function rollbackOptimisticCycleCreate(
  * Rejects missing or non-positive integer revisions for existing entities.
  */
 export function prepareExistingEntityRevision(
-  entity: { revision?: number } | null | undefined
+  entity: { revision?: number; isVirtual?: boolean } | null | undefined
 ): { isExisting: boolean; expectedRevision?: number; isValidForMutation: boolean } {
-  if (!entity) {
+  if (!entity || entity.isVirtual) {
     return { isExisting: false, isValidForMutation: true };
   }
 
@@ -217,9 +217,9 @@ export function prepareExistingEntityRevision(
   }
 
   return {
-    isExisting: false,
+    isExisting: true,
     expectedRevision: undefined,
-    isValidForMutation: true
+    isValidForMutation: false
   };
 }
 
@@ -238,11 +238,36 @@ export function prepareDirectLogPayload(
   isValid: boolean;
 } {
   const cycleId = updatedLog.cycleId || activeCycleId;
+  const isVirtual = Boolean(
+    existingLog?.isVirtual ||
+    (existingLog?.id && typeof existingLog.id === 'string' && existingLog.id.startsWith('virtual-'))
+  );
+  const isExisting = Boolean(existingLog && !isVirtual);
   const rev = existingLog?.revision ?? updatedLog.revision;
   const hasValidRev = typeof rev === 'number' && Number.isInteger(rev) && rev > 0;
 
+  if (isExisting && !hasValidRev) {
+    const payload: Record<string, any> = {
+      ...updatedLog,
+      cycleId,
+      ...(clientOperationId ? { clientOperationId } : {})
+    };
+    if (payload.id && typeof payload.id === 'string' && payload.id.startsWith('virtual-')) {
+      payload.id = `log-${payload.date}`;
+    }
+    delete payload.isVirtual;
+    delete payload.expectedRevision;
+    delete payload.revision;
+    return {
+      payload,
+      expectedRevision: undefined,
+      isExisting: true,
+      isValid: false
+    };
+  }
+
   if (!hasValidRev) {
-    // Entity exists locally or is an initial unconfirmed state: omit expectedRevision
+    // New entity or virtual placeholder: omit expectedRevision
     // so backend can create or upsert cleanly without 428 Precondition Required.
     const payload: Record<string, any> = {
       ...updatedLog,
@@ -388,6 +413,65 @@ export function verifyActiveAccount(
 
   if (!normInitial || normInitial === 'guest') return false;
   return normInitial === normCurrent;
+}
+
+/**
+ * Merges authoritative reconciled logs with local active state while strictly protecting
+ * any local logs marked with isSynced: false (pending optimistic writes or in-flight mutations)
+ * from being clobbered by older server snapshots or race conditions.
+ */
+export function safeMergeReconciledLogs(
+  currentLogs: DailyLog[],
+  incomingReconciledLogs: DailyLog[]
+): DailyLog[] {
+  const merged: DailyLog[] = incomingReconciledLogs.map(l => ({ ...l }));
+  for (const localLog of currentLogs) {
+    if (localLog.isSynced === false) {
+      const idx = merged.findIndex(m => m.date === localLog.date);
+      if (idx >= 0) {
+        const incoming = merged[idx];
+        const incomingRev = typeof incoming.revision === 'number' ? incoming.revision : 0;
+        const localRev = typeof localLog.revision === 'number' ? localLog.revision : 0;
+        // If incoming server log is confirmed with a strictly higher revision, server advanced OCC
+        if (incoming.isSynced && incomingRev > localRev) {
+          continue;
+        }
+        // Protect local pending unconfirmed changes against stale server reads or race conditions
+        merged[idx] = { ...incoming, ...localLog, isSynced: false };
+      } else {
+        merged.push({ ...localLog });
+      }
+    }
+  }
+  return merged;
+}
+
+/**
+ * Merges authoritative reconciled cycles with local active state while strictly protecting
+ * any local cycles marked with isSynced: false from being clobbered by older server snapshots.
+ */
+export function safeMergeReconciledCycles(
+  currentCycles: Cycle[],
+  incomingReconciledCycles: Cycle[]
+): Cycle[] {
+  const merged: Cycle[] = incomingReconciledCycles.map(c => ({ ...c }));
+  for (const localCycle of currentCycles) {
+    if (localCycle.isSynced === false) {
+      const idx = merged.findIndex(c => c.id === localCycle.id);
+      if (idx >= 0) {
+        const incoming = merged[idx];
+        const incomingRev = typeof incoming.revision === 'number' ? incoming.revision : 0;
+        const localRev = typeof localCycle.revision === 'number' ? localCycle.revision : 0;
+        if (incoming.isSynced && incomingRev > localRev) {
+          continue;
+        }
+        merged[idx] = { ...incoming, ...localCycle, isSynced: false };
+      } else {
+        merged.push({ ...localCycle });
+      }
+    }
+  }
+  return merged;
 }
 
 /**
