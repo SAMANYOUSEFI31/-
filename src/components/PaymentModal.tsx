@@ -250,7 +250,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 type="button"
                 onClick={onClose}
                 disabled={isLoading}
-                className="w-11 h-11 min-w-[44px] min-h-[44px] radius-component surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-standard flex items-center justify-center transition-colors cursor-pointer shrink-0 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
+                className="btn-contract-ghost w-11 h-11 min-w-[44px] min-h-[44px] radius-component flex items-center justify-center shrink-0 touch-manipulation focus-ring-tactical"
                 aria-label="بستن"
               >
                 <X className="w-5 h-5" />
@@ -345,7 +345,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={onClose}
                   disabled={isLoading}
-                  className="px-4 py-2.5 sm:px-5 sm:py-2.5 min-h-[44px] surface-z2 hover:surface-z3 border-standard radius-card text-role-secondary hover:text-role-primary text-xs font-semibold cursor-pointer touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical"
+                  className="btn-contract-secondary px-4 py-2.5 sm:px-5 sm:py-2.5 min-h-[44px] radius-card text-xs font-semibold touch-manipulation focus-ring-tactical"
                 >
                   انصراف
                 </button>
@@ -354,7 +354,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={handleStartPayment}
                   disabled={isLoading}
-                  className="bg-amber hover:brightness-110 text-canvas-root font-black text-xs sm:text-sm px-5 py-2.5 sm:px-6 sm:py-3 radius-card flex items-center gap-2 shadow-subtle transition cursor-pointer disabled:opacity-75 focus-ring-tactical"
+                  className="btn-contract-mastery text-xs sm:text-sm px-5 py-2.5 sm:px-6 sm:py-3 min-h-[44px] radius-card flex items-center gap-2 shadow-subtle focus-ring-tactical"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2" aria-live="polite">
@@ -400,7 +400,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 type="button"
                 onClick={() => setStep('plans')}
                 disabled={isLoading}
-                className="w-11 h-11 min-w-[44px] min-h-[44px] radius-component surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-standard flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical touch-manipulation"
+                className="btn-contract-ghost w-11 h-11 min-w-[44px] min-h-[44px] radius-component flex items-center justify-center focus-ring-tactical touch-manipulation"
                 aria-label="بازگشت به پلن‌ها"
               >
                 <X className="w-5 h-5" />
@@ -447,7 +447,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={() => setStep('plans')}
                   disabled={isLoading}
-                  className="px-4 py-2.5 min-h-[44px] surface-z2 hover:surface-z3 border-standard radius-card text-role-secondary hover:text-role-primary text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-ring-tactical touch-manipulation"
+                  className="btn-contract-secondary px-4 py-2.5 min-h-[44px] radius-card text-xs font-semibold focus-ring-tactical touch-manipulation"
                 >
                   انصراف و بازگشت
                 </button>
@@ -456,7 +456,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   type="button"
                   onClick={handleVerifyPayment}
                   disabled={isLoading}
-                  className="bg-emerald hover:brightness-110 text-canvas-root font-bold text-xs sm:text-sm px-6 py-2.5 min-h-[44px] radius-component flex items-center gap-2 shadow-subtle transition-colors cursor-pointer active:scale-[0.98] motion-reduce:transform-none disabled:opacity-75 focus-ring-tactical touch-manipulation"
+                  className="btn-contract-mastery text-xs sm:text-sm px-6 py-2.5 min-h-[44px] radius-component flex items-center gap-2 shadow-subtle focus-ring-tactical touch-manipulation"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2" aria-live="polite">
@@ -527,7 +527,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="bg-amber hover:brightness-110 text-canvas-root font-black text-sm px-8 py-3 min-h-[44px] radius-card transition-colors shadow-subtle cursor-pointer focus-ring-tactical active:scale-[0.98] motion-reduce:transform-none touch-manipulation"
+              className="btn-contract-mastery text-sm px-8 py-3 min-h-[44px] radius-card shadow-subtle focus-ring-tactical touch-manipulation"
             >
               ورود به میدان نبرد با اشتراک ویژه
             </button>

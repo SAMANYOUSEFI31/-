@@ -562,7 +562,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
             id="battlefield-prev-day-btn"
             type="button"
             onClick={() => navigateDate(addDaysToDate(selectedDate, -1), -1)}
-            className="h-9 sm:h-10 px-2.5 sm:px-3.5 surface-z2 hover:surface-z3 active:surface-z3 text-role-primary radius-component transition cursor-pointer inline-flex items-center justify-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0 border-standard shadow-subtle active:scale-95 focus-ring-tactical"
+            className="btn-contract-secondary h-9 sm:h-10 px-2.5 sm:px-3.5 radius-component inline-flex items-center justify-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0 shadow-subtle focus-ring-tactical"
             title="رفتن به روز قبل"
             aria-label="روز قبل"
           >
@@ -596,7 +596,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
             id="battlefield-next-day-btn"
             type="button"
             onClick={() => navigateDate(addDaysToDate(selectedDate, 1), 1)}
-            className="h-9 sm:h-10 px-2.5 sm:px-3.5 surface-z2 hover:surface-z3 active:surface-z3 text-role-primary radius-component transition cursor-pointer inline-flex items-center justify-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0 border-standard shadow-subtle active:scale-95 focus-ring-tactical"
+            className="btn-contract-secondary h-9 sm:h-10 px-2.5 sm:px-3.5 radius-component inline-flex items-center justify-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0 shadow-subtle focus-ring-tactical"
             title="رفتن به روز بعد"
             aria-label="روز بعد"
           >
@@ -687,9 +687,9 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   id="battlefield-future-jump-today-btn"
                   type="button"
                   onClick={() => onSelectDate(logicalToday)}
-                  className="w-full sm:w-auto h-9 bg-rose-subtle hover:brightness-125 text-rose border border-rose-subtle font-bold text-xs px-3.5 radius-component inline-flex items-center justify-center gap-1.5 transition cursor-pointer shadow-subtle shrink-0 whitespace-nowrap active:scale-[0.98] focus-ring-tactical"
+                  className="btn-contract-primary w-full sm:w-auto h-9 font-bold text-xs px-3.5 radius-component inline-flex items-center justify-center gap-1.5 shadow-subtle shrink-0 whitespace-nowrap focus-ring-tactical"
                 >
-                  <Zap className="w-3.5 h-3.5 text-rose shrink-0" />
+                  <Zap className="w-3.5 h-3.5 text-white shrink-0" />
                   <span className="leading-none">پرش به روز جاری</span>
                 </button>
               </div>
@@ -717,9 +717,9 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   id="battlefield-past-jump-today-btn"
                   type="button"
                   onClick={() => onSelectDate(logicalToday)}
-                  className="w-full sm:w-auto h-8 bg-rose-subtle hover:brightness-125 text-rose border border-rose-subtle font-bold text-xs px-3 radius-component inline-flex items-center justify-center gap-1.5 transition cursor-pointer shadow-subtle shrink-0 whitespace-nowrap active:scale-[0.98] focus-ring-tactical"
+                  className="btn-contract-primary w-full sm:w-auto h-8 font-bold text-xs px-3 radius-component inline-flex items-center justify-center gap-1.5 shadow-subtle shrink-0 whitespace-nowrap focus-ring-tactical"
                 >
-                  <Zap className="w-3.5 h-3.5 text-rose shrink-0" />
+                  <Zap className="w-3.5 h-3.5 text-white shrink-0" />
                   <span className="leading-none">پرش به روز جاری</span>
                 </button>
               </div>
@@ -736,7 +736,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <div className="flex-1">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <h3 className="text-xs sm:text-sm font-bold text-purple">
-                      این چرخه بایگانی شده است (فقط‌خواندنی)
+                       این چرخه بایگانی شده است (فقط‌خواندنی)
                     </h3>
                     <span className="text-[10px] bg-purple-subtle text-purple px-2 py-0.5 radius-control font-bold">
                       سوابق قفل‌شده
@@ -776,9 +776,9 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                         id={`battlefield-autopsy-open-btn-${ul.id}`}
                         key={ul.id}
                         onClick={() => onOpenAutopsy(ul)}
-                        className="min-h-[36px] bg-debt hover:brightness-110 text-role-primary text-xs font-bold px-3 py-1.5 radius-control flex items-center gap-1.5 transition cursor-pointer shadow-subtle active:scale-95 focus-ring-tactical"
+                        className="btn-contract-primary min-h-[36px] text-xs font-bold px-3 py-1.5 radius-control flex items-center gap-1.5 shadow-subtle focus-ring-tactical"
                       >
-                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <AlertTriangle className="w-3.5 h-3.5 text-white" />
                         <span>کالبدشکافی {formatPersianDate(ul.date, { short: true })}</span>
                       </button>
                     ))}
@@ -1134,18 +1134,16 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   id="battlefield-autopsy-action-btn"
                   type="button"
                   onClick={() => onOpenAutopsy(currentActiveLog)}
-                  className={`w-full sm:w-auto min-h-[38px] font-bold text-xs px-3.5 py-2 radius-component inline-flex items-center justify-center gap-2 transition cursor-pointer border shrink-0 whitespace-nowrap active:scale-[0.98] focus-ring-tactical ${
-                    hasFailureReason
-                      ? 'surface-z2 hover:surface-z3 text-role-primary border-standard'
-                      : (isToday 
-                          ? 'surface-z2 hover:surface-z3 text-role-primary border-standard' 
-                          : 'bg-debt hover:brightness-110 text-role-primary border-debt shadow-subtle')
+                  className={`w-full sm:w-auto min-h-[38px] font-bold text-xs px-3.5 py-2 radius-component inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap focus-ring-tactical ${
+                    hasFailureReason || isToday
+                      ? 'btn-contract-secondary'
+                      : 'btn-contract-primary'
                   }`}
                 >
                   {hasFailureReason ? (
                     <ShieldCheck className="w-3.5 h-3.5 text-purple" />
                   ) : (
-                    <AlertTriangle className="w-3.5 h-3.5 text-role-primary" />
+                    <AlertTriangle className={`w-3.5 h-3.5 ${hasFailureReason || isToday ? 'text-role-primary' : 'text-white'}`} />
                   )}
                   <span>{hasFailureReason ? 'مشاهده و ویرایش کالبدشکافی' : (isToday ? 'ثبت کالبدشکافی امروز' : 'ثبت کالبدشکافی و بستن پرونده شکست')}</span>
                 </button>

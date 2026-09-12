@@ -83,7 +83,7 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-role-secondary hover:text-role-primary radius-component hover:surface-z1 transition-colors cursor-pointer shrink-0 touch-manipulation focus-ring-tactical"
+            className="btn-contract-ghost w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center radius-component shrink-0 touch-manipulation focus-ring-tactical"
             aria-label="بستن"
           >
             <X className="w-5 h-5" />
@@ -242,9 +242,9 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto min-h-[44px] bg-role-primary text-[var(--color-canvas-root)] font-bold text-xs sm:text-sm px-6 py-2.5 radius-component flex items-center justify-center gap-2 transition-colors shadow-subtle cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
+            className="btn-contract-primary w-full sm:w-auto min-h-[44px] text-xs sm:text-sm px-6 py-2.5 radius-component flex items-center justify-center gap-2 whitespace-nowrap shadow-subtle focus-ring-tactical"
           >
-            <ShieldCheck className="w-4 h-4 shrink-0" />
+            <ShieldCheck className="w-4 h-4 shrink-0 text-white" />
             <span>متوجه شدم و پایبندم</span>
           </button>
         </div>

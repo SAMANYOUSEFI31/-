@@ -17,6 +17,7 @@ interface ResponsiveSubTabBarProps<T extends string = string> {
   onSelectTab: (id: T) => void;
   layoutId?: string;
   className?: string;
+  isSticky?: boolean;
 }
 
 /**
@@ -24,6 +25,7 @@ interface ResponsiveSubTabBarProps<T extends string = string> {
  * Universal ergonomic sub-tab bar conforming to mobile UX standards:
  * - On very small screens (< 640px), ensures no text truncation or collision by showing icons and smart shortLabels with touch targets >= 44px
  * - Fully fluid & responsive on tablet/desktop with full labels and badges
+ * - Sticky positioning below the main app header (clearing pt-safe + header height) so users never have to scroll back up to switch tabs
  * - Uses spring-animated layout indicator for seamless tactile feedback
  * - Synchronized color transitions: Icon and Label share identical direct color classes and transition timings (motion-fast)
  * - Touch-manipulation eliminates 300ms tap delay and sticky hover artifacts on mobile devices
@@ -33,15 +35,17 @@ export function ResponsiveSubTabBar<T extends string = string>({
   activeTab,
   onSelectTab,
   layoutId = 'activeSubTabIndicator',
-  className = ''
+  className = '',
+  isSticky = true
 }: ResponsiveSubTabBarProps<T>) {
   const shouldReduceMotion = useReducedMotion();
+  const stickyClass = isSticky ? 'sticky-subtab-bar' : '';
 
   return (
     <div
       role="tablist"
       aria-orientation="horizontal"
-      className={`w-full max-w-full surface-z1 border-subtle p-1 sm:p-1.5 radius-card flex items-center shadow-subtle select-none relative ${className}`}
+      className={`${stickyClass} w-full max-w-full surface-z1 border-subtle p-1 sm:p-1.5 radius-card flex items-center shadow-subtle select-none relative ${className}`}
     >
       <LayoutGroup id={layoutId}>
         <div 

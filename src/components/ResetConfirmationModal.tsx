@@ -76,16 +76,16 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             ref={cancelButtonRef}
             type="button"
             onClick={onClose}
-            className="surface-z2 hover:surface-z3 text-role-secondary hover:text-role-primary border-standard px-4 py-2.5 min-h-[44px] radius-component text-xs font-bold transition-colors cursor-pointer focus-ring-tactical touch-manipulation"
+            className="btn-contract-secondary px-4 py-2.5 min-h-[44px] radius-component text-xs font-bold focus-ring-tactical touch-manipulation"
           >
             انصراف
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="bg-debt hover:brightness-110 text-white font-bold px-5 py-2.5 min-h-[44px] radius-component text-xs flex items-center gap-1.5 shadow-subtle transition-colors cursor-pointer active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical touch-manipulation"
+            className="btn-contract-primary font-bold px-5 py-2.5 min-h-[44px] radius-component text-xs flex items-center gap-1.5 shadow-subtle focus-ring-tactical touch-manipulation"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-4 h-4 text-white" />
             <span>بله، بازنشانی داده‌ها</span>
           </button>
         </div>

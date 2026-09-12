@@ -107,7 +107,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-3 sm:top-4 left-3 sm:left-4 w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-role-secondary hover:text-role-primary hover:surface-z1 radius-component transition-colors cursor-pointer touch-manipulation focus-ring-tactical"
+            className="btn-contract-ghost absolute top-3 sm:top-4 left-3 sm:left-4 w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center radius-component touch-manipulation focus-ring-tactical"
             title="بستن"
             aria-label="بستن"
           >
@@ -246,13 +246,13 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-standard px-4 py-2.5 min-h-[44px] radius-component text-xs font-bold transition-colors cursor-pointer active:scale-[0.98] motion-reduce:transform-none touch-manipulation focus-ring-tactical"
+                className="btn-contract-secondary px-4 py-2.5 min-h-[44px] radius-component text-xs font-bold touch-manipulation focus-ring-tactical"
               >
                 انصراف
               </button>
               <button
                 type="submit"
-                className="bg-amber hover:brightness-110 active:brightness-95 text-[var(--color-canvas-root)] px-6 py-2.5 min-h-[44px] radius-component text-xs font-black shadow-subtle transition-colors cursor-pointer active:scale-[0.98] motion-reduce:transform-none flex items-center gap-1.5 touch-manipulation focus-ring-tactical"
+                className="btn-contract-mastery px-6 py-2.5 min-h-[44px] radius-component text-xs font-black shadow-subtle flex items-center gap-1.5 touch-manipulation focus-ring-tactical"
               >
                 <Sparkles className="w-4 h-4" />
                 <span>آغاز چرخه نبرد</span>

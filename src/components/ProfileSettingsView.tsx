@@ -323,16 +323,16 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                     <button
                       type="button"
                       onClick={onOpenPaymentModal}
-                      className="w-full surface-z2 hover:brightness-110 hover:border-amber-subtle border border-amber-subtle text-amber font-bold text-xs py-3 radius-card flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] shadow-subtle whitespace-nowrap focus-ring-tactical"
+                      className="btn-contract-mastery w-full font-bold text-xs py-3 radius-card flex items-center justify-center gap-2 shadow-subtle whitespace-nowrap focus-ring-tactical"
                     >
-                      <Crown className="w-4 h-4 text-amber" />
+                      <Crown className="w-4 h-4 text-canvas-root" />
                       <span>تمدید اشتراک سامورایی ویژه (VIP)</span>
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={onOpenPaymentModal}
-                      className="w-full bg-amber hover:brightness-110 text-canvas-root font-black text-xs py-3 radius-card flex items-center justify-center gap-2 shadow-subtle transition cursor-pointer active:scale-[0.98] whitespace-nowrap focus-ring-tactical"
+                      className="btn-contract-mastery w-full font-black text-xs py-3 radius-card flex items-center justify-center gap-2 shadow-subtle whitespace-nowrap focus-ring-tactical"
                     >
                       <Crown className="w-4 h-4" />
                       <span>ارتقا به حساب سامورایی ویژه (VIP)</span>
@@ -349,9 +349,9 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                             soundFX.playCheck();
                             onNavigateToAdmin();
                           }}
-                          className="w-full bg-debt-subtle hover:brightness-110 border border-debt-subtle text-debt text-xs font-bold py-3 radius-card flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] whitespace-nowrap shadow-xs"
+                          className="btn-contract-primary w-full text-xs font-bold py-3 radius-card flex items-center justify-center gap-2 whitespace-nowrap shadow-xs focus-ring-tactical"
                         >
-                          <ShieldCheck className="w-4 h-4 text-debt" />
+                          <ShieldCheck className="w-4 h-4 text-white" />
                           <span>پنل مدیریت سامانه (/admin)</span>
                         </button>
                       )}
@@ -362,7 +362,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                           soundFX.playSlash();
                           onLogout();
                         }}
-                        className="w-full bg-debt-subtle/50 hover:bg-debt-subtle hover:text-debt border border-debt-subtle/40 text-role-muted text-xs font-bold py-2.5 radius-card flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-[0.98] whitespace-nowrap"
+                        className="btn-contract-secondary w-full text-role-muted hover:text-role-primary text-xs font-bold py-2.5 radius-card flex items-center justify-center gap-1.5 whitespace-nowrap focus-ring-tactical"
                       >
                         <LogOut className="w-3.5 h-3.5" />
                         <span>خروج از حساب کاربری</span>
@@ -373,7 +373,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                       <button
                         type="button"
                         onClick={onOpenAuthModal}
-                        className="w-full bg-amber hover:brightness-110 text-canvas-root text-xs font-black py-3 radius-card flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-[0.98] whitespace-nowrap shadow-subtle focus-ring-tactical"
+                        className="btn-contract-mastery w-full text-xs font-black py-3 radius-card flex items-center justify-center gap-1.5 whitespace-nowrap shadow-subtle focus-ring-tactical"
                       >
                         <LogIn className="w-4 h-4" />
                         <span>ورود یا ایجاد حساب کاربری</span>
@@ -512,9 +512,9 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                   <button
                     type="button"
                     onClick={onResetData}
-                    className="bg-debt-subtle hover:brightness-110 border border-debt-subtle text-debt font-bold px-4 py-2.5 radius-card text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition whitespace-nowrap shrink-0 shadow-xs focus-visible:outline-hidden min-h-[44px]"
+                    className="btn-contract-primary font-bold px-4 py-2.5 radius-card text-xs flex items-center justify-center gap-2 whitespace-nowrap shrink-0 shadow-xs min-h-[44px] focus-ring-tactical"
                   >
-                    <RotateCcw className="w-4 h-4" />
+                    <RotateCcw className="w-4 h-4 text-white" />
                     <span>بازنشانی به وضعیت اولیه</span>
                   </button>
                 </div>
@@ -685,7 +685,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                             href={ch.link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-full py-2.5 min-h-[44px] surface-z1 hover:surface-z3 text-role-primary border-standard radius-card text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                            className="btn-contract-secondary w-full py-2.5 min-h-[44px] radius-card text-xs font-bold flex items-center justify-center gap-1.5 focus-ring-tactical"
                           >
                             <span>{ch.actionLabel}</span>
                             <ExternalLink className="w-3 h-3 text-role-muted" />

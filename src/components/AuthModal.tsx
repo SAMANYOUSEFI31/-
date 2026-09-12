@@ -517,7 +517,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] radius-component surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-standard flex items-center justify-center transition-colors cursor-pointer shrink-0 touch-manipulation focus-ring-tactical"
+            className="btn-contract-ghost w-11 h-11 min-w-[44px] min-h-[44px] radius-component border border-standard flex items-center justify-center shrink-0 touch-manipulation focus-ring-tactical"
             aria-label="بستن"
           >
             <X className="w-5 h-5" />
@@ -538,8 +538,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={() => switchTab('login')}
               className={`flex-1 min-h-[44px] py-2 radius-component text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical touch-manipulation ${
                 activeTab === 'login'
-                  ? 'bg-amber text-canvas-root shadow-subtle'
-                  : 'surface-z1 hover:surface-z3 text-role-secondary hover:text-role-primary border-standard'
+                  ? 'btn-contract-mastery shadow-subtle'
+                  : 'btn-contract-secondary'
               }`}
             >
               <LogIn className="w-3.5 h-3.5" />
@@ -557,8 +557,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={() => switchTab('register')}
               className={`flex-1 min-h-[44px] py-2 radius-component text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical touch-manipulation ${
                 activeTab === 'register'
-                  ? 'bg-amber text-canvas-root shadow-subtle'
-                  : 'surface-z1 hover:surface-z3 text-role-secondary hover:text-role-primary border-standard'
+                  ? 'btn-contract-mastery shadow-subtle'
+                  : 'btn-contract-secondary'
               }`}
             >
               <UserPlus className="w-3.5 h-3.5" />
@@ -576,8 +576,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={() => switchTab('forgot')}
               className={`flex-1 min-h-[44px] py-2 radius-component text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap focus-ring-tactical touch-manipulation ${
                 activeTab === 'forgot'
-                  ? 'bg-amber text-canvas-root shadow-subtle'
-                  : 'surface-z1 hover:surface-z3 text-role-secondary hover:text-role-primary border-standard'
+                  ? 'btn-contract-mastery shadow-subtle'
+                  : 'btn-contract-secondary'
               }`}
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -638,9 +638,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   onClick={onLogout}
-                  className="w-full min-h-[44px] bg-debt-subtle hover:bg-debt/20 text-role-primary border border-debt-subtle font-bold text-sm py-3 radius-card flex items-center justify-center gap-2 transition cursor-pointer whitespace-nowrap focus-ring-tactical"
+                  className="btn-contract-primary w-full min-h-[44px] font-bold text-sm py-3 radius-card flex items-center justify-center gap-2 whitespace-nowrap focus-ring-tactical"
                 >
-                  <LogOut className="w-4 h-4 text-debt" />
+                  <LogOut className="w-4 h-4 text-white" />
                   خروج از حساب کاربری
                 </button>
               </div>
@@ -723,7 +723,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full min-h-[44px] bg-amber hover:brightness-110 text-canvas-root font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical touch-manipulation"
+                      className="btn-contract-mastery w-full min-h-[44px] font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 whitespace-nowrap motion-reduce:transform-none focus-ring-tactical touch-manipulation"
                     >
                       {isLoading ? (
                         <span className="w-5 h-5 border-2 border-canvas-root border-t-transparent radius-capsule animate-spin motion-reduce:animate-none"></span>
@@ -801,7 +801,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full min-h-[44px] bg-amber hover:brightness-110 text-canvas-root font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical touch-manipulation"
+                        className="btn-contract-mastery w-full min-h-[44px] font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 whitespace-nowrap motion-reduce:transform-none focus-ring-tactical touch-manipulation"
                       >
                         {isLoading ? (
                           <span className="w-5 h-5 border-2 border-canvas-root border-t-transparent radius-capsule animate-spin motion-reduce:animate-none"></span>
@@ -937,14 +937,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             setErrorField(null);
                             setErrorMessage('');
                           }}
-                          className="w-1/3 min-h-[44px] surface-z2 hover:surface-z3 border-standard text-role-secondary hover:text-role-primary text-xs font-bold py-3.5 radius-card transition-colors cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical touch-manipulation"
+                          className="btn-contract-secondary w-1/3 min-h-[44px] text-xs font-bold py-3.5 radius-card whitespace-nowrap motion-reduce:transform-none focus-ring-tactical touch-manipulation"
                         >
                           تغییر شماره
                         </button>
                         <button
                           type="submit"
                           disabled={isLoading}
-                          className="w-2/3 min-h-[44px] bg-amber hover:brightness-110 text-canvas-root font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical touch-manipulation"
+                          className="btn-contract-mastery w-2/3 min-h-[44px] font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 whitespace-nowrap motion-reduce:transform-none focus-ring-tactical touch-manipulation"
                         >
                           {isLoading ? (
                             <span className="w-5 h-5 border-2 border-canvas-root border-t-transparent radius-capsule animate-spin motion-reduce:animate-none"></span>
@@ -995,7 +995,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full min-h-[44px] bg-amber hover:brightness-110 text-canvas-root font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical touch-manipulation"
+                        className="btn-contract-mastery w-full min-h-[44px] font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 whitespace-nowrap motion-reduce:transform-none focus-ring-tactical touch-manipulation"
                       >
                         {isLoading ? (
                           <span className="w-5 h-5 border-2 border-canvas-root border-t-transparent radius-capsule animate-spin motion-reduce:animate-none"></span>
@@ -1127,14 +1127,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setForgotStep('request')}
-                          className="w-1/3 min-h-[44px] surface-z2 hover:surface-z3 border-standard text-role-secondary hover:text-role-primary text-xs font-bold py-3.5 radius-card transition-colors cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical touch-manipulation"
+                          className="btn-contract-secondary w-1/3 min-h-[44px] text-xs font-bold py-3.5 radius-card whitespace-nowrap motion-reduce:transform-none focus-ring-tactical touch-manipulation"
                         >
                           تغییر شماره
                         </button>
                         <button
                           type="submit"
                           disabled={isLoading}
-                          className="w-2/3 min-h-[44px] bg-amber hover:brightness-110 text-canvas-root font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical touch-manipulation"
+                          className="btn-contract-mastery w-2/3 min-h-[44px] font-black text-sm py-3.5 radius-card shadow-subtle flex items-center justify-center gap-2 whitespace-nowrap motion-reduce:transform-none focus-ring-tactical touch-manipulation"
                         >
                           {isLoading ? (
                             <span className="w-5 h-5 border-2 border-canvas-root border-t-transparent radius-capsule animate-spin motion-reduce:animate-none"></span>
@@ -1164,7 +1164,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           localStorage.setItem('bushido_secret_dev_mode', 'false');
                         } catch {}
                       }}
-                      className="text-[10px] text-role-secondary hover:text-role-primary surface-z2 px-2 py-0.5 radius-badge border-standard cursor-pointer whitespace-nowrap"
+                      className="btn-contract-secondary text-[10px] px-2 py-0.5 radius-badge whitespace-nowrap"
                     >
                       مخفی‌سازی
                     </button>
@@ -1175,20 +1175,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type="button"
                       onClick={() => handleQuickLogin('admin')}
                       disabled={isLoading}
-                      className="bg-debt-subtle hover:bg-debt/20 border border-debt-subtle text-role-primary radius-component p-2.5 text-right transition cursor-pointer text-xs focus-ring-tactical"
+                      className="btn-contract-primary radius-component p-2.5 text-right text-xs focus-ring-tactical"
                     >
-                      <div className="flex items-center gap-1.5 font-bold text-debt">
-                        <ShieldCheck className="w-3.5 h-3.5 text-debt" />
+                      <div className="flex items-center gap-1.5 font-bold text-white">
+                        <ShieldCheck className="w-3.5 h-3.5 text-white" />
                         <span>ورود به عنوان مدیر</span>
                       </div>
-                      <span className="text-[10px] text-role-muted block mt-0.5">فرمانده ارشد (09375454050)</span>
+                      <span className="text-[10px] text-zinc-300 block mt-0.5">فرمانده ارشد (09375454050)</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleQuickLogin('test_user')}
                       disabled={isLoading}
-                      className="surface-z2 hover:surface-z3 border-standard text-role-primary radius-component p-2.5 text-right transition cursor-pointer text-xs focus-ring-tactical"
+                      className="btn-contract-secondary radius-component p-2.5 text-right text-xs focus-ring-tactical"
                     >
                       <div className="flex items-center gap-1.5 font-bold text-role-primary">
                         <User className="w-3.5 h-3.5 text-amber" />

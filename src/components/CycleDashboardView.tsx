@@ -82,14 +82,14 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
             <button
               onClick={onOpenCreateCycle || (() => onNavigateTab('archives'))}
-              className="w-full sm:w-auto bg-amber hover:brightness-105 text-canvas-root font-black text-xs px-5 py-2.5 radius-component transition cursor-pointer active:scale-95 shadow-subtle inline-flex items-center justify-center gap-1.5 focus-ring-tactical"
+              className="btn-contract-mastery w-full sm:w-auto text-xs px-5 py-2.5 radius-component shadow-subtle inline-flex items-center justify-center gap-1.5 focus-ring-tactical"
             >
               <Plus className="w-4 h-4" />
               <span>تعریف چرخه ۹۰ روزه</span>
             </button>
             <button
               onClick={() => onNavigateTab('archives')}
-              className="w-full sm:w-auto surface-z2 hover:brightness-110 text-role-primary font-bold text-xs px-4 py-2.5 radius-component transition cursor-pointer border-standard inline-flex items-center justify-center gap-1.5"
+              className="btn-contract-secondary w-full sm:w-auto text-xs font-bold px-4 py-2.5 radius-component inline-flex items-center justify-center gap-1.5 focus-ring-tactical"
             >
               <span>مشاهده بایگانی</span>
             </button>

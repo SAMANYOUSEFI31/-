@@ -169,6 +169,7 @@
   --z-base: 0;
   --z-card: 10;
   --z-card-inner: 20;
+  --z-sticky-subtab: 30;
   --z-sticky-header: 40;
   --z-mobile-nav: 40;
   --z-toast: 50;
@@ -176,10 +177,14 @@
   --z-modal-content: 100;
 
   /* =========================================================================
-   * 11. PWA STANDALONE SAFE-AREA INSETS
+   * 11. PWA STANDALONE SAFE-AREA INSETS & SHELL OFFSETS
    * ========================================================================= */
   --safe-area-top: max(0.5rem, env(safe-area-inset-top, 0px));
   --safe-area-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  --navbar-height-mobile: 3.5rem;
+  --navbar-height-desktop: 4rem;
+  --header-offset-mobile: calc(var(--safe-area-top) + var(--navbar-height-mobile));
+  --header-offset-desktop: calc(var(--safe-area-top) + var(--navbar-height-desktop));
 }
 
 /* =========================================================================
@@ -196,6 +201,19 @@
   backdrop-filter: blur(20px) saturate(190%);
   -webkit-backdrop-filter: blur(20px) saturate(190%);
   background-image: none !important;
+}
+
+/* Sticky Sub-Tab Bar Container & Positioning */
+.sticky-subtab-bar {
+  position: sticky !important;
+  top: var(--header-offset-mobile) !important;
+  z-index: var(--z-sticky-subtab) !important;
+}
+
+@media (min-width: 640px) {
+  .sticky-subtab-bar {
+    top: var(--header-offset-desktop) !important;
+  }
 }
 
 .surface-z1 {

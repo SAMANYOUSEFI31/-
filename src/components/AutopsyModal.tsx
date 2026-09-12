@@ -225,7 +225,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-role-secondary hover:text-role-primary radius-component hover:surface-z1 transition-colors cursor-pointer shrink-0 touch-manipulation focus-ring-tactical"
+            className="btn-contract-ghost w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center radius-component shrink-0 touch-manipulation focus-ring-tactical"
             aria-label="بستن"
           >
             <X className="w-5 h-5" />
@@ -369,7 +369,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                   onClick={handleAiAutopsy}
                   disabled={isLoadingAi || !reason}
                   aria-busy={isLoadingAi}
-                  className="min-h-[44px] w-full sm:w-auto bg-amber hover:brightness-110 disabled:opacity-50 text-[var(--color-canvas-root)] font-bold text-xs px-3.5 py-2.5 radius-component flex items-center justify-center gap-1.5 transition-colors shadow-subtle cursor-pointer active:scale-[0.98] motion-reduce:transform-none whitespace-nowrap focus-ring-tactical"
+                  className="btn-contract-mastery min-h-[44px] w-full sm:w-auto font-bold text-xs px-3.5 py-2.5 radius-component flex items-center justify-center gap-1.5 shadow-subtle whitespace-nowrap focus-ring-tactical"
                 >
                   {isLoadingAi ? (
                     <>
@@ -439,7 +439,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="min-h-[44px] px-4 py-2.5 radius-component text-role-secondary hover:text-role-primary hover:surface-z1 text-xs sm:text-sm font-medium transition-colors cursor-pointer whitespace-nowrap inline-flex items-center justify-center active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
+              className="btn-contract-ghost min-h-[44px] px-4 py-2.5 radius-component text-xs sm:text-sm font-medium whitespace-nowrap inline-flex items-center justify-center focus-ring-tactical"
             >
               انصراف
             </button>
@@ -447,18 +447,18 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
               <button
                 type="submit"
                 disabled={!reason}
-                className="min-h-[44px] bg-blue hover:brightness-110 disabled:opacity-50 text-white font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 radius-component flex items-center justify-center gap-2 transition-colors shadow-subtle cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
+                className="btn-contract-secondary min-h-[44px] text-blue font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 radius-component flex items-center justify-center gap-2 shadow-subtle whitespace-nowrap focus-ring-tactical"
               >
-                <Snowflake className="w-4 h-4 shrink-0 text-white" />
+                <Snowflake className="w-4 h-4 shrink-0 text-blue" />
                 <span className="whitespace-nowrap">تأیید توقف اضطراری و حفظ زنجیره</span>
               </button>
             ) : (
               <button
                 type="submit"
                 disabled={!reason || !time}
-                className="min-h-[44px] bg-emerald hover:brightness-110 disabled:opacity-50 text-[var(--color-canvas-root)] font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 radius-component flex items-center justify-center gap-2 transition-colors shadow-subtle cursor-pointer whitespace-nowrap active:scale-[0.98] motion-reduce:transform-none focus-ring-tactical"
+                className="btn-contract-primary min-h-[44px] font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 radius-component flex items-center justify-center gap-2 shadow-subtle whitespace-nowrap focus-ring-tactical"
               >
-                <ShieldCheck className="w-4 h-4 shrink-0" />
+                <ShieldCheck className="w-4 h-4 shrink-0 text-white" />
                 <span className="whitespace-nowrap">ممهور کردن کالبدشکافی و رفع قفل نبرد</span>
               </button>
             )}

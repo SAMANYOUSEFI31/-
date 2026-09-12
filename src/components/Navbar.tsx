@@ -407,7 +407,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                             setConfirmDeleteCycleId(null);
                             onOpenNewCycleModal();
                           }}
-                          className="w-full py-2.5 min-h-[44px] px-3 bg-amber hover:brightness-110 text-canvas-root radius-component text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-subtle active:scale-[0.98] touch-manipulation focus-ring-tactical"
+                          className="btn-contract-mastery w-full py-2.5 min-h-[44px] px-3 radius-component text-xs font-black flex items-center justify-center gap-1.5 shadow-subtle touch-manipulation focus-ring-tactical"
                         >
                           <Plus className="w-4 h-4" />
                           <span>+ تعریف چرخه جدید ۹۰ روزه</span>
@@ -420,7 +420,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                           setConfirmDeleteCycleId(null);
                           onSelectTab('archives');
                         }}
-                        className="w-full py-2.5 min-h-[44px] px-3 surface-z1 hover:surface-z2 text-role-secondary hover:text-role-primary border-subtle radius-component text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation focus-ring-tactical"
+                        className="btn-contract-secondary w-full py-2.5 min-h-[44px] px-3 radius-component text-xs font-bold flex items-center justify-center gap-1.5 touch-manipulation focus-ring-tactical"
                       >
                         <Archive className="w-3.5 h-3.5 text-role-muted" />
                         <span>کارنامه و بایگانی چرخه‌ها</span>
@@ -519,7 +519,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={onOpenPaymentModal}
-                  className="h-8 sm:h-9 min-w-[44px] bg-amber hover:brightness-105 active:brightness-95 text-canvas-root px-2.5 sm:px-3 radius-component text-[11px] sm:text-xs font-black inline-flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shadow-subtle shrink-0 transition active:scale-95 touch-manipulation focus-ring-tactical"
+                  className="btn-contract-mastery h-8 sm:h-9 min-w-[44px] px-2.5 sm:px-3 radius-component text-[11px] sm:text-xs font-black inline-flex items-center justify-center gap-1 sm:gap-1.5 shadow-subtle shrink-0 touch-manipulation focus-ring-tactical"
                   title="ارتقا به حساب سامورایی ویژه"
                 >
                   <Crown className="w-3.5 h-3.5 text-canvas-root shrink-0" />
@@ -579,7 +579,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             <button 
               type="button"
               onClick={() => setShowStreakInfo(false)}
-              className="absolute top-3 left-3 w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-role-secondary hover:text-role-primary surface-z2 hover:surface-z1 border-standard radius-component transition-colors cursor-pointer touch-manipulation focus-ring-tactical"
+              className="btn-contract-ghost absolute top-3 left-3 w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center radius-component shrink-0 touch-manipulation focus-ring-tactical"
               aria-label="بستن"
             >
               <X className="w-4 h-4" />
@@ -598,7 +598,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             <button 
               type="button"
               onClick={() => setShowStreakInfo(false)}
-              className="w-full min-h-[44px] bg-role-primary text-canvas-root radius-component font-bold text-xs sm:text-sm hover:brightness-110 transition-colors active:scale-[0.98] motion-reduce:transform-none cursor-pointer focus-ring-tactical touch-manipulation"
+              className="btn-contract-primary w-full min-h-[44px] radius-component font-bold text-xs sm:text-sm shadow-subtle focus-ring-tactical touch-manipulation"
             >
               متوجه شدم
             </button>
