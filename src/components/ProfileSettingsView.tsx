@@ -332,9 +332,13 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                     <button
                       type="button"
                       onClick={onOpenPaymentModal}
-                      className="btn-contract-mastery w-full font-black text-xs py-3 radius-card flex items-center justify-center gap-2 shadow-subtle whitespace-nowrap focus-ring-tactical"
+                      className={`${
+                        isLoggedIn
+                          ? 'btn-contract-mastery font-black shadow-subtle'
+                          : 'btn-contract-secondary font-bold'
+                      } w-full text-xs py-3 radius-card flex items-center justify-center gap-2 whitespace-nowrap focus-ring-tactical`}
                     >
-                      <Crown className="w-4 h-4" />
+                      <Crown className={`w-4 h-4 ${isLoggedIn ? 'text-canvas-root' : 'text-amber'}`} />
                       <span>ارتقا به حساب سامورایی ویژه (VIP)</span>
                     </button>
                   )}
@@ -375,7 +379,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                         onClick={onOpenAuthModal}
                         className="btn-contract-mastery w-full text-xs font-black py-3 radius-card flex items-center justify-center gap-1.5 whitespace-nowrap shadow-subtle focus-ring-tactical"
                       >
-                        <LogIn className="w-4 h-4" />
+                        <LogIn className="w-4 h-4 text-canvas-root" />
                         <span>ورود یا ایجاد حساب کاربری</span>
                       </button>
                     </div>
