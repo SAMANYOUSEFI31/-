@@ -1111,12 +1111,12 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                         {/* Failure Reason and Time */}
                         <td className="p-3.5 text-xs text-role-secondary align-middle text-right max-w-[240px]">
                           {l.failureReason && l.failureReason.trim() !== '' ? (
-                            <div className="space-y-1 surface-z0 p-2 radius-component border-standard">
+                            <div className="space-y-1.5">
                               <p className="font-semibold text-role-primary leading-snug break-words">
                                 {l.failureReason.trim()}
                               </p>
                               {l.failureTime && l.failureTime.trim() !== '' && (
-                                <div className="inline-flex items-center gap-1 text-[10px] surface-z1 px-2 py-0.5 radius-badge border-standard text-role-muted font-mono">
+                                <div className="inline-flex items-center gap-1 text-[10px] surface-z2 px-2 py-0.5 radius-badge border-standard text-role-muted font-mono">
                                   <Clock className="w-3 h-3 text-role-muted" />
                                   <span>زمان: {toPersianDigits(l.failureTime.trim())}</span>
                                 </div>
