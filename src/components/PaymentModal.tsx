@@ -193,7 +193,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex items-center justify-center p-2.5 sm:p-4 pt-safe pb-safe overflow-y-auto" 
+      className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex items-center justify-center p-2.5 sm:p-4 pt-safe overscroll-contain overflow-y-auto modal-overlay-resilient" 
       dir="rtl"
     >
       <div 
@@ -226,7 +226,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
         exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 15 }}
         transition={{ duration: shouldReduceMotion ? 0.01 : 0.2, ease: 'easeOut' }}
-        className="relative z-10 surface-z3 border-standard radius-modal w-full max-w-2xl text-role-primary shadow-subtle overflow-hidden flex flex-col max-h-[92dvh] my-auto focus:outline-none"
+        className="relative z-10 surface-z3 border-standard radius-modal w-full max-w-2xl text-role-primary shadow-subtle overflow-hidden flex flex-col modal-dialog-resilient my-auto focus:outline-none"
       >
         {/* STEP 1: PLANS SELECTION */}
         {step === 'plans' && (

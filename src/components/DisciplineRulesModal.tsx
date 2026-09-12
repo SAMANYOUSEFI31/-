@@ -53,7 +53,7 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto"
+      className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 pt-safe overscroll-contain overflow-y-auto modal-overlay-resilient"
       dir="rtl"
     >
       <div 
@@ -63,7 +63,7 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
         aria-labelledby="discipline-rules-title"
         aria-describedby="discipline-rules-description"
         tabIndex={-1}
-        className="my-auto max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.5rem))] w-full max-w-2xl surface-z3 border-standard radius-modal text-role-primary shadow-subtle flex flex-col overflow-hidden focus:outline-none animate-in zoom-in-95 duration-150"
+        className="my-auto modal-dialog-resilient w-full max-w-2xl surface-z3 border-standard radius-modal text-role-primary shadow-subtle flex flex-col overflow-hidden focus:outline-none animate-in zoom-in-95 duration-150"
       >
         {/* Sticky Modal Header */}
         <div className="px-4 sm:px-6 py-3.5 sm:py-4 surface-z3 border-b border-standard flex items-center justify-between shrink-0 sticky top-0 z-20 backdrop-blur-md">

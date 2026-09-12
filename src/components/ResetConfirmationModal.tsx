@@ -37,7 +37,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto max-h-[100dvh]"
+      className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe overscroll-contain overflow-y-auto modal-overlay-resilient"
       dir="rtl"
     >
       <div
@@ -47,7 +47,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
         aria-labelledby="reset-confirmation-title"
         aria-describedby="reset-confirmation-description"
         tabIndex={-1}
-        className="surface-z3 border border-debt-subtle/40 radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast my-auto focus:outline-none"
+        className="surface-z3 border border-debt-subtle/40 radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast modal-dialog-resilient my-auto focus:outline-none"
       >
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 radius-component bg-debt-subtle border border-debt-subtle flex items-center justify-center text-debt shrink-0">

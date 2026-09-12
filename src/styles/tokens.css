@@ -181,6 +181,7 @@
    * ========================================================================= */
   --safe-area-top: max(0.5rem, env(safe-area-inset-top, 0px));
   --safe-area-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  --keyboard-inset-bottom: env(keyboard-inset-height, 0px);
   --navbar-height-mobile: 3.5rem;
   --navbar-height-desktop: 4rem;
   --header-offset-mobile: calc(var(--safe-area-top) + var(--navbar-height-mobile));
@@ -235,6 +236,18 @@
 
 .surface-backdrop-dropdown {
   background-color: rgba(9, 9, 11, 0.35) !important;
+}
+
+/* Virtual Keyboard Resilience Container for Modals & Interactive Overlays */
+.modal-overlay-resilient {
+  max-height: 100dvh !important;
+  max-height: 100svh !important;
+  padding-bottom: max(var(--safe-area-bottom), var(--keyboard-inset-bottom)) !important;
+  scroll-padding-bottom: max(var(--safe-area-bottom), var(--keyboard-inset-bottom), 1.5rem) !important;
+}
+
+.modal-dialog-resilient {
+  max-height: min(92dvh, calc(100dvh - var(--safe-area-top) - max(var(--safe-area-bottom), var(--keyboard-inset-bottom)) - 1rem)) !important;
 }
 
 /* Surface Pseudo-Class State Utilities (Technical Gap Fix) */

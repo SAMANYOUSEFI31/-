@@ -687,9 +687,9 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   id="battlefield-future-jump-today-btn"
                   type="button"
                   onClick={() => onSelectDate(logicalToday)}
-                  className="btn-contract-primary w-full sm:w-auto h-9 font-bold text-xs px-3.5 radius-component inline-flex items-center justify-center gap-1.5 shadow-subtle shrink-0 whitespace-nowrap focus-ring-tactical"
+                  className="btn-contract-secondary w-full sm:w-auto h-9 font-bold text-xs px-3.5 radius-component inline-flex items-center justify-center gap-1.5 shadow-subtle shrink-0 whitespace-nowrap focus-ring-tactical"
                 >
-                  <Zap className="w-3.5 h-3.5 text-white shrink-0" />
+                  <Zap className="w-3.5 h-3.5 text-role-muted shrink-0" />
                   <span className="leading-none">پرش به روز جاری</span>
                 </button>
               </div>
@@ -717,9 +717,9 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   id="battlefield-past-jump-today-btn"
                   type="button"
                   onClick={() => onSelectDate(logicalToday)}
-                  className="btn-contract-primary w-full sm:w-auto h-8 font-bold text-xs px-3 radius-component inline-flex items-center justify-center gap-1.5 shadow-subtle shrink-0 whitespace-nowrap focus-ring-tactical"
+                  className="btn-contract-secondary w-full sm:w-auto h-8 font-bold text-xs px-3 radius-component inline-flex items-center justify-center gap-1.5 shadow-subtle shrink-0 whitespace-nowrap focus-ring-tactical"
                 >
-                  <Zap className="w-3.5 h-3.5 text-white shrink-0" />
+                  <Zap className="w-3.5 h-3.5 text-role-muted shrink-0" />
                   <span className="leading-none">پرش به روز جاری</span>
                 </button>
               </div>
@@ -776,9 +776,9 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                         id={`battlefield-autopsy-open-btn-${ul.id}`}
                         key={ul.id}
                         onClick={() => onOpenAutopsy(ul)}
-                        className="btn-contract-primary min-h-[36px] text-xs font-bold px-3 py-1.5 radius-control flex items-center gap-1.5 shadow-subtle focus-ring-tactical"
+                        className="btn-contract-danger-subtle min-h-[36px] text-xs font-bold px-3 py-1.5 radius-control flex items-center gap-1.5 shadow-subtle focus-ring-tactical"
                       >
-                        <AlertTriangle className="w-3.5 h-3.5 text-white" />
+                        <AlertTriangle className="w-3.5 h-3.5 text-debt" />
                         <span>کالبدشکافی {formatPersianDate(ul.date, { short: true })}</span>
                       </button>
                     ))}
@@ -1137,13 +1137,13 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   className={`w-full sm:w-auto min-h-[38px] font-bold text-xs px-3.5 py-2 radius-component inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap focus-ring-tactical ${
                     hasFailureReason || isToday
                       ? 'btn-contract-secondary'
-                      : 'btn-contract-primary'
+                      : 'btn-contract-danger-subtle'
                   }`}
                 >
                   {hasFailureReason ? (
                     <ShieldCheck className="w-3.5 h-3.5 text-purple" />
                   ) : (
-                    <AlertTriangle className={`w-3.5 h-3.5 ${hasFailureReason || isToday ? 'text-role-primary' : 'text-white'}`} />
+                    <AlertTriangle className={`w-3.5 h-3.5 ${hasFailureReason || isToday ? 'text-role-primary' : 'text-debt'}`} />
                   )}
                   <span>{hasFailureReason ? 'مشاهده و ویرایش کالبدشکافی' : (isToday ? 'ثبت کالبدشکافی امروز' : 'ثبت کالبدشکافی و بستن پرونده شکست')}</span>
                 </button>

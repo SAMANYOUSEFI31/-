@@ -215,6 +215,10 @@ export function useModalAccessibility<T extends HTMLElement = HTMLDivElement>({
 
       if (formInput) {
         formInput.focus();
+        // Ensure the active input is smoothly visible above virtual keyboards
+        if (typeof formInput.scrollIntoView === 'function') {
+          formInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       } else {
         // Priority 3: first focusable element (e.g. close button or tab)
         focusables[0].focus();
@@ -223,6 +227,33 @@ export function useModalAccessibility<T extends HTMLElement = HTMLDivElement>({
 
     return () => clearTimeout(timer);
   }, [isOpen, initialFocusRef, autoFocusFirst]);
+
+  // 2.5 Focusin listener to guarantee any clicked or tabbed input scrolls safely into view on mobile keyboard pop
+  useEffect(() => {
+    if (!isOpen || !containerRef.current) return;
+
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target;
+      if (
+        target instanceof HTMLElement &&
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) &&
+        containerRef.current?.contains(target)
+      ) {
+        // Delay slightly for virtual keyboard animation on iOS/Android
+        setTimeout(() => {
+          if (document.activeElement === target && typeof target.scrollIntoView === 'function') {
+            target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }, 120);
+      }
+    };
+
+    const container = containerRef.current;
+    container.addEventListener('focusin', handleFocusIn);
+    return () => {
+      container.removeEventListener('focusin', handleFocusIn);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {

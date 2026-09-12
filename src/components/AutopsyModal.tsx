@@ -190,7 +190,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto max-h-[100dvh]"
+      className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe overscroll-contain overflow-y-auto modal-overlay-resilient"
     >
       <motion.div 
         ref={containerRef}
@@ -204,7 +204,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
         animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
         exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 15 }}
         transition={{ duration: shouldReduceMotion ? 0.05 : 0.2, ease: 'easeOut' }}
-        className="my-auto max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.5rem))] w-full max-w-2xl surface-z3 border-standard radius-modal text-role-primary shadow-subtle flex flex-col overflow-hidden focus:outline-none"
+        className="my-auto modal-dialog-resilient w-full max-w-2xl surface-z3 border-standard radius-modal text-role-primary shadow-subtle flex flex-col overflow-hidden focus:outline-none"
         dir="rtl"
       >
         {/* Sticky Modal Header */}

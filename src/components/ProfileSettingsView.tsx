@@ -349,9 +349,9 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                             soundFX.playCheck();
                             onNavigateToAdmin();
                           }}
-                          className="btn-contract-primary w-full text-xs font-bold py-3 radius-card flex items-center justify-center gap-2 whitespace-nowrap shadow-xs focus-ring-tactical"
+                          className="btn-contract-secondary w-full text-xs font-bold py-3 radius-card flex items-center justify-center gap-2 whitespace-nowrap shadow-xs focus-ring-tactical"
                         >
-                          <ShieldCheck className="w-4 h-4 text-white" />
+                          <ShieldCheck className="w-4 h-4 text-role-secondary" />
                           <span>پنل مدیریت سامانه (/admin)</span>
                         </button>
                       )}
@@ -512,9 +512,9 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                   <button
                     type="button"
                     onClick={onResetData}
-                    className="btn-contract-primary font-bold px-4 py-2.5 radius-card text-xs flex items-center justify-center gap-2 whitespace-nowrap shrink-0 shadow-xs min-h-[44px] focus-ring-tactical"
+                    className="btn-contract-danger-subtle font-bold px-4 py-2.5 radius-card text-xs flex items-center justify-center gap-2 whitespace-nowrap shrink-0 shadow-xs min-h-[44px] focus-ring-tactical"
                   >
-                    <RotateCcw className="w-4 h-4 text-white" />
+                    <RotateCcw className="w-4 h-4" />
                     <span>بازنشانی به وضعیت اولیه</span>
                   </button>
                 </div>

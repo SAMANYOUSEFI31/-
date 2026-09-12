@@ -91,7 +91,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
   return (
     <>
       <div 
-        className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto"
+        className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 pt-safe overscroll-contain overflow-y-auto modal-overlay-resilient"
         dir="rtl"
       >
         <div 
@@ -101,7 +101,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
           aria-labelledby="create-cycle-title"
           aria-describedby="create-cycle-description"
           tabIndex={-1}
-          className="surface-z3 border-standard radius-modal w-full max-w-lg p-5 sm:p-7 space-y-5 shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast relative my-auto focus:outline-none"
+          className="surface-z3 border-standard radius-modal w-full max-w-lg p-5 sm:p-7 space-y-5 shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast relative my-auto focus:outline-none modal-dialog-resilient"
         >
           {/* Close Button */}
           <button
