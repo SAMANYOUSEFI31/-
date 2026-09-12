@@ -507,10 +507,10 @@ const NavbarComponent: React.FC<NavbarProps> = ({
               <button 
                 type="button"
                 onClick={() => setShowStreakInfo(true)}
-                className="h-8 sm:h-9 bg-rose-subtle border border-rose-subtle hover:bg-rose-subtle/80 text-rose px-2.5 sm:px-3 radius-capsule inline-flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold shrink-0 cursor-pointer shadow-xs transition active:scale-95 touch-manipulation focus-ring-tactical"
+                className="h-8 sm:h-9 bg-orange-subtle border border-orange-subtle hover:bg-orange-subtle/80 text-orange px-2.5 sm:px-3 radius-capsule inline-flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold shrink-0 cursor-pointer shadow-xs transition active:scale-95 touch-manipulation focus-ring-tactical"
                 title="تعداد روزهای زنجیره خالص متوالی بدون شکست - کلیک برای جزئیات"
               >
-                <Flame className="w-3.5 h-3.5 shrink-0 fill-current text-rose animate-flame-flicker" />
+                <Flame className="w-3.5 h-3.5 shrink-0 fill-current text-orange animate-flame-flicker" />
                 <span className="whitespace-nowrap font-mono">{toPersianDigits(metrics.pureStreak)} <span className="hidden xs:inline">روز</span></span>
               </button>
 
@@ -585,8 +585,8 @@ const NavbarComponent: React.FC<NavbarProps> = ({
               <X className="w-4 h-4" />
             </button>
             <div className="flex flex-col items-center justify-center text-center space-y-3 pb-1">
-              <div className="w-12 h-12 radius-component bg-rose-subtle flex items-center justify-center border border-rose-subtle shadow-subtle">
-                <Flame className="w-6 h-6 text-rose fill-current animate-flame-flicker" />
+              <div className="w-12 h-12 radius-component bg-orange-subtle flex items-center justify-center border border-orange-subtle shadow-subtle">
+                <Flame className="w-6 h-6 text-orange fill-current animate-flame-flicker" />
               </div>
               <h3 id="streak-info-modal-title" className="font-bold text-base text-role-primary">
                 زنجیره خالص (Pure Streak)

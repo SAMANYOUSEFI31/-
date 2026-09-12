@@ -434,13 +434,13 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                           onClick={() => handleSelectCutoffHour(item.hour)}
                           className={`px-3.5 py-2.5 min-h-[44px] radius-component text-xs font-bold flex items-center justify-between border transition-colors cursor-pointer active:scale-[0.98] ${
                             isSelected
-                              ? 'bg-rose-subtle border-rose text-role-primary shadow-xs'
-                              : 'surface-z1 hover:surface-z3 border-standard text-role-secondary hover:text-role-primary'
+                              ? 'surface-z3 border-[var(--color-input-border-focus)] text-role-primary shadow-xs'
+                              : 'surface-z1 hover:surface-z2 border-standard text-role-secondary hover:text-role-primary'
                           }`}
                         >
                           <span className="whitespace-nowrap">{item.label}</span>
                           {isSelected ? (
-                            <span className="w-4 h-4 radius-capsule bg-rose flex items-center justify-center text-white shrink-0">
+                            <span className="w-4 h-4 radius-capsule bg-white text-zinc-950 flex items-center justify-center font-black shrink-0">
                               <Check className="w-2.5 h-2.5 stroke-[3]" />
                             </span>
                           ) : (
@@ -544,7 +544,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                   </div>
                 </div>
 
-                <div className="surface-z2 p-3.5 radius-card border-standard text-xs text-role-secondary leading-relaxed text-right">
+                <div className="surface-z2 p-3.5 radius-card text-xs text-role-secondary leading-relaxed text-right">
                   ۵ پایه بوشیدو بر اساس روانشناسی رفتار و ایجاد مقاومت ذهنی طراحی شده‌اند. برای مشاهده جزئیات هر عادت، روی آن ضربه بزنید:
                 </div>
 
@@ -700,7 +700,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                   ))}
                 </div>
 
-                <div className="surface-z2 p-4 radius-card border-standard flex items-start gap-3">
+                <div className="surface-z2 p-4 radius-card flex items-start gap-3">
                   <Info className="w-4 h-4 text-role-muted shrink-0 mt-0.5" />
                   <p className="text-xs text-role-secondary leading-relaxed text-right">
                     زمان پاسخ‌گویی پشتیبانی معمولاً در کمتر از ۲ ساعت کاری است. همچنین می‌توانید با ذخیره خروجی پشتیبان، داده‌های خود را همیشه در امان نگه دارید.

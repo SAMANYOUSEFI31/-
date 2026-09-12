@@ -814,7 +814,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                       isFuture
                         ? 'surface-z2 border-standard text-role-secondary font-medium'
                         : computed.isStandard
-                        ? 'bg-rose-subtle border-rose-subtle text-rose font-bold'
+                        ? 'bg-orange-subtle border-orange-subtle text-orange font-bold'
                         : computed.statusType === 'personal_frozen'
                         ? 'bg-blue-subtle border-blue-subtle text-blue font-bold'
                         : isToday
@@ -824,7 +824,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   >
                     <span id="battlefield-streak-vitality-icon-wrap" className="inline-flex items-center justify-center shrink-0">
                       <Flame className={`w-3.5 h-3.5 shrink-0 ${
-                        isFuture ? 'text-role-muted' : computed.isStandard ? 'text-rose fill-rose-500/20' : isToday ? 'text-role-muted' : 'text-debt'
+                        isFuture ? 'text-role-muted' : computed.isStandard ? 'text-orange fill-orange-500/20' : isToday ? 'text-role-muted' : 'text-debt'
                       }`} />
                     </span>
                     <span id="battlefield-streak-vitality-label" className="whitespace-nowrap leading-none">

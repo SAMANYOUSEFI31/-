@@ -413,7 +413,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                 onChange={e => setNotes(e.target.value)}
                 placeholder="دقیقاً چه حسی یا چه محرکی باعث شد فرمان از دست خارج شود؟ بدون توجیه بنویسید..."
                 rows={2}
-                className="w-full surface-z2 border-standard radius-component p-3 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-standard focus-ring-tactical transition-colors leading-relaxed"
+                className="w-full surface-z2 border-standard radius-component p-3 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-[var(--color-input-border-focus)] focus-ring-neutral transition-colors leading-relaxed"
               />
             </div>
 
@@ -429,7 +429,7 @@ export const AutopsyModal: React.FC<AutopsyModalProps> = ({
                 value={countermeasure}
                 onChange={e => setCountermeasure(e.target.value)}
                 placeholder="برای اینکه این شکست فردا تکرار نشود، چه مانعی را امشب حذف می‌کنید؟"
-                className="w-full min-h-[44px] surface-z2 border-standard radius-component px-3 py-2.5 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-standard focus-ring-tactical transition-colors"
+                className="w-full min-h-[44px] surface-z2 border-standard radius-component px-3 py-2.5 text-xs sm:text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-[var(--color-input-border-focus)] focus-ring-neutral transition-colors"
               />
             </div>
           </div>

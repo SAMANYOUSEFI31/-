@@ -50,11 +50,45 @@
   --color-accent-emerald-bg: rgba(52, 211, 153, 0.1);
   --color-accent-emerald-border: rgba(52, 211, 153, 0.25);
 
-  /* Fiery Rose: Active Pure Streak / Momentum only (Immutable Token) */
+  /* =========================================================================
+   * PRIMITIVE SCALE: TACTICAL ORANGE / EMBER (50 - 950)
+   * Complete 10-step perceptual ramp for Pure Streak Vitality, Momentum & Fire
+   * ========================================================================= */
+  --color-orange-50:  #fff7ed;
+  --color-orange-100: #ffedd5;
+  --color-orange-200: #fed7aa;
+  --color-orange-300: #fdba74;
+  --color-orange-400: #fb923c; /* High-contrast light tint for dark canvas (APCA Lc > 75) */
+  --color-orange-500: #f97316; /* Tactical Flame Core Benchmark (APCA Lc > 65) */
+  --color-orange-600: #ea580c; /* Deep Ember / Active State */
+  --color-orange-700: #c2410c;
+  --color-orange-800: #9a3412;
+  --color-orange-900: #7c2d12;
+  --color-orange-950: #431407; /* Deepest Sub-surface / Flame Base */
+
+  /* Tactical Ember / Flame Orange: Active Pure Streak & Momentum only (Immutable Token) */
+  --color-accent-orange: #f97316;
+  --color-accent-orange-rgb: 249, 115, 22;
+  --color-accent-orange-light: #fb923c;
+  --color-accent-orange-deep: #ea580c;
+  --color-accent-orange-bg: rgba(249, 115, 22, 0.12);
+  --color-accent-orange-border: rgba(249, 115, 22, 0.28);
+
+  /* Semantic Aliases for Pure Streak Flame (Holy Trinity: Streak = Flame Orange) */
+  --color-streak-flame: var(--color-accent-orange-light);
+  --color-streak-flame-core: var(--color-accent-orange);
+  --color-streak-flame-bg: var(--color-accent-orange-bg);
+  --color-streak-flame-border: var(--color-accent-orange-border);
+
+  /* Fiery Rose: Legacy Rose alias preserved for backward compatibility */
   --color-accent-rose: #FB7185;
   --color-accent-rose-rgb: 251, 113, 133;
   --color-accent-rose-bg: rgba(251, 113, 133, 0.1);
   --color-accent-rose-border: rgba(251, 113, 133, 0.25);
+
+  /* Form Input & Note-Taking Neutral Focus State (Zero False Error Tint) */
+  --color-input-border-focus: #a1a1aa; /* Crisp Zinc 400 / Matte White-Zinc - Dignified Neutral Focus */
+  --color-input-ring-focus: rgba(244, 244, 245, 0.12); /* Soft neutral luminous ring - Zero Crimson/Error Halo */
 
   /* Debt Red / Honor Crimson: Open Debts, Failures, Burned Days, Behavior Locks */
   --color-accent-red: #F87171;
@@ -349,6 +383,14 @@
   color: var(--color-accent-emerald) !important;
 }
 
+.text-orange {
+  color: var(--color-accent-orange-light) !important;
+}
+
+.text-streak {
+  color: var(--color-streak-flame) !important;
+}
+
 .text-rose {
   color: var(--color-accent-rose) !important;
 }
@@ -390,10 +432,21 @@
   background-color: var(--color-accent-emerald-bg) !important;
 }
 
+.bg-orange {
+  background-color: var(--color-accent-orange) !important;
+}
+
+.bg-orange-subtle {
+  background-color: var(--color-accent-orange-bg) !important;
+}
+
+.bg-streak-subtle {
+  background-color: var(--color-streak-flame-bg) !important;
+}
+
 .bg-rose {
   background-color: var(--color-accent-rose) !important;
 }
-
 .bg-rose-subtle {
   background-color: var(--color-accent-rose-bg) !important;
 }
@@ -445,6 +498,18 @@
 
 .border-emerald-subtle {
   border-color: var(--color-accent-emerald-border) !important;
+}
+
+.border-orange {
+  border-color: var(--color-accent-orange) !important;
+}
+
+.border-orange-subtle {
+  border-color: var(--color-accent-orange-border) !important;
+}
+
+.border-streak-subtle {
+  border-color: var(--color-streak-flame-border) !important;
 }
 
 .border-rose {
@@ -598,6 +663,14 @@
 .focus-ring-tactical:focus-visible {
   outline: none !important;
   box-shadow: 0 0 0 2px var(--color-canvas-root), 0 0 0 4px var(--color-accent-primary-border) !important;
+}
+
+/* Neutral Input Focus Ring Helper (Matte white/zinc focus ring for inputs and textareas - Zero False Error Halo) */
+.focus-ring-neutral:focus-visible,
+.focus-ring-neutral:focus {
+  outline: none !important;
+  border-color: var(--color-input-border-focus) !important;
+  box-shadow: 0 0 0 2px var(--color-canvas-root), 0 0 0 4px var(--color-input-ring-focus) !important;
 }
 
 /* Button Contract Utility Classes */
@@ -917,8 +990,8 @@
 
 .entity-input-well:focus {
   outline: none !important;
-  border-color: var(--color-border-active) !important;
-  box-shadow: 0 0 0 2px var(--color-canvas-root), 0 0 0 4px var(--color-accent-primary-border) !important;
+  border-color: var(--color-input-border-focus) !important;
+  box-shadow: 0 0 0 2px var(--color-canvas-root), 0 0 0 4px var(--color-input-ring-focus) !important;
 }
 
 .entity-input-well:disabled {

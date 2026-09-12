@@ -228,14 +228,14 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
 
                 <div className={`entity-status-badge font-bold inline-flex items-center gap-1.5 shadow-subtle ${
                   metrics.status === 'active'
-                    ? 'bg-rose-subtle border border-rose-subtle text-rose'
+                    ? 'bg-orange-subtle border border-orange-subtle text-orange'
                     : metrics.status === 'ready_for_court'
                     ? 'bg-amber-subtle border border-amber-subtle text-amber'
                     : metrics.status === 'overlap_error'
                     ? 'bg-debt-subtle border border-debt-subtle text-debt'
                     : 'surface-z2 border-standard text-role-secondary'
                 }`}>
-                  {metrics.status === 'active' && <Flame className="w-3.5 h-3.5 text-rose shrink-0" />}
+                  {metrics.status === 'active' && <Flame className="w-3.5 h-3.5 text-orange shrink-0" />}
                   {metrics.status === 'upcoming' && <Clock className="w-3.5 h-3.5 text-role-muted shrink-0" />}
                   {metrics.status === 'archived' && <Archive className="w-3.5 h-3.5 text-role-muted shrink-0" />}
                   {metrics.status === 'ready_for_court' && <Scale className="w-3.5 h-3.5 text-amber shrink-0" />}
@@ -276,7 +276,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
             </div>
 
             {/* Coach Voice Banner */}
-            <div className="w-full surface-z2 border-standard radius-card p-3.5 sm:p-4 flex items-start gap-3 mt-1 shadow-subtle">
+            <div className="w-full surface-z2 radius-card p-3.5 sm:p-4 flex items-start gap-3 mt-1 shadow-subtle">
               <div className="w-9 h-9 radius-component surface-z3 flex items-center justify-center text-role-secondary shrink-0">
                 <Compass className="w-4.5 h-4.5 text-role-secondary" />
               </div>
@@ -364,15 +364,15 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
           >
             {/* Key Metrics Bento Grid (معیارهای پویای چرخه فعلی با نسبت طلایی و ارتفاع هماهنگ) */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-              {/* Streak Card (Fiery Rose) */}
+              {/* Streak Card (Tactical Orange) */}
               <div className="entity-metric-card p-4 min-h-[112px] flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-role-secondary">زنجیره فعال</span>
-                  <div className="w-7 h-7 radius-component bg-rose-subtle flex items-center justify-center shrink-0">
-                    <Flame className="w-4 h-4 text-rose" />
+                  <div className="w-7 h-7 radius-component bg-orange-subtle border border-orange-subtle flex items-center justify-center shrink-0">
+                    <Flame className="w-4 h-4 text-orange" />
                   </div>
                 </div>
-                <div className="text-2xl font-bold font-mono text-rose leading-none my-1">
+                <div className="text-2xl font-bold font-mono text-orange leading-none my-1">
                   {toPersianDigits(metrics.pureStreak)} <span className="text-xs text-role-muted font-normal">روز</span>
                 </div>
                 <p className="text-[11px] text-role-secondary leading-tight text-right">
@@ -440,9 +440,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                     <ShieldCheck className="w-4 h-4 text-purple" />
                   </div>
                 </div>
-                <div className={`text-2xl font-bold font-mono leading-none my-1 ${
-                  metrics.resolvedDebtCount > 0 ? 'text-purple' : 'text-role-primary'
-                }`}>
+                <div className="text-2xl font-bold font-mono text-purple leading-none my-1">
                   {toPersianDigits(metrics.resolvedDebtCount)} <span className="text-xs text-role-muted font-normal">روز</span>
                 </div>
                 <p className="text-[11px] text-role-secondary leading-tight text-right">
@@ -458,9 +456,7 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                     <Snowflake className="w-4 h-4 text-blue" />
                   </div>
                 </div>
-                <div className={`text-2xl font-bold font-mono leading-none my-1 ${
-                  metrics.frozenDaysCount > 0 ? 'text-blue' : 'text-role-primary'
-                }`}>
+                <div className="text-2xl font-bold font-mono text-blue leading-none my-1">
                   {toPersianDigits(metrics.frozenDaysCount)} <span className="text-xs text-role-muted font-normal">روز</span>
                 </div>
                 <p className="text-[11px] text-role-secondary leading-tight text-right">
@@ -485,23 +481,23 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-1">
-                {/* Record 1: All-Time Longest Streak (Fiery Rose/Flame) */}
+                {/* Record 1: All-Time Longest Streak (Tactical Orange/Flame) */}
                 <div className="entity-metric-card-nested p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-role-secondary font-medium">طولانی‌ترین زنجیره تاریخ</span>
-                    <div className="w-8 h-8 radius-component bg-rose-subtle border border-rose-subtle flex items-center justify-center shrink-0">
-                      <Flame className="w-4 h-4 text-rose" />
+                    <div className="w-8 h-8 radius-component bg-orange-subtle border border-orange-subtle flex items-center justify-center shrink-0">
+                      <Flame className="w-4 h-4 text-orange" />
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl sm:text-3xl font-black font-mono text-rose">
+                    <span className="text-2xl sm:text-3xl font-black font-mono text-orange">
                       {toPersianDigits(allTimeMaxStreak)}
                     </span>
                     <span className="text-xs text-role-secondary font-mono">روز متوالی</span>
                   </div>
                   <div className="text-[11px] text-role-secondary flex items-center justify-between">
                     <span>در چرخه فعلی:</span>
-                    <span className="font-bold text-rose font-mono">{toPersianDigits(metrics.maxPureStreak)} روز</span>
+                    <span className="font-bold text-orange font-mono">{toPersianDigits(metrics.maxPureStreak)} روز</span>
                   </div>
                 </div>
 

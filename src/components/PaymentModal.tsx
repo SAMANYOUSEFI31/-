@@ -303,7 +303,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                           <span className="text-xs text-role-secondary">تومان</span>
                         </div>
 
-                        <ul className="space-y-1.5 sm:space-y-2 pt-2 border-t border-standard text-[11px] sm:text-xs text-role-secondary">
+                        <ul className="space-y-1.5 sm:space-y-2 pt-1 text-[11px] sm:text-xs text-role-secondary">
                           {plan.features.map((feat, i) => (
                             <li key={i} className="flex items-start gap-1.5 sm:gap-2">
                               <Check className="w-3.5 h-3.5 text-emerald shrink-0 mt-0.5" />
@@ -318,7 +318,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
 
               {/* Secure Payment Note */}
-              <div className="surface-z2 border-standard radius-card p-3 sm:p-4 flex items-center justify-between text-xs text-role-secondary">
+              <div className="surface-z2 radius-card p-3 sm:p-4 flex items-center justify-between text-xs text-role-secondary">
                 <div className="flex items-center gap-2">
                   <Lock className="w-4 h-4 text-emerald shrink-0" aria-hidden="true" />
                   <span className="text-[11px] sm:text-xs">پرداخت امن از طریق درگاه رسمی بانکی</span>
@@ -424,7 +424,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 </div>
               </div>
 
-              <div className="surface-z2 border-standard radius-component p-3.5 text-xs text-role-secondary leading-relaxed">
+              <div className="surface-z2 radius-component p-3.5 text-xs text-role-secondary leading-relaxed">
                 <p>
                   این شبیه‌ساز تنها در محیط توسعه فعال است و هیچ‌گونه شماره کارت، رمز دوم یا کد اعتبارسنجی بانکی دریافت نمی‌کند. برای تکمیل چرخه و ارسال درخواست تایید به سرور، دکمه زیر را کلیک نمایید.
                 </p>

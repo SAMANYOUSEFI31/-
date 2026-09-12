@@ -33,12 +33,12 @@
    - Primary Text: `#f4f4f5` (`text-zinc-100` / `text-white`), Secondary: `#a1a1aa` (`text-zinc-400` / `text-slate-300`).
    - Amber (`amber-400` / `#fbbf24`): Mastery 10/10, AI judgment, VIP actions, cumulative total score (`Award`).
    - Emerald (`emerald-400` / `#34d399`): Standard Day 8/10 (5/5 checks), streak vitality (`CheckCircle2`).
-   - Fiery Rose (`rose-400` / `#fb7185`): Pure continuous streak, historical streak peak (`Flame`). (Immutable semantic token across all themes).
+   - Tactical Orange / Flame (`orange-400` / `#fb923c` & `#f97316`): Pure continuous streak, historical streak peak (`Flame`). (Immutable semantic token across all themes, backed by full 50-950 primitive scale).
    - Crimson / Alert Red (`red-400` / `red-500`): Open debts, behavior locks, critical autopsy alerts (`AlertOctagon`).
    - Blue (`blue-400` / `#60a5fa`): Personal freeze, excused pauses (`Snowflake`).
    - Violet (`purple-400` / `#c084fc`): Resolved autopsy cases (`ShieldCheck`).
 8. **Discipline Holy Trinity & Universal Streak Invariance**:
-   - All-time Hall of Records, current cycle metrics, and Top Hub Bar must share identical icon & color tokens: Streak (`Flame` with `text-rose-400 bg-rose-500/10 border-rose-500/20`), Standard Days (`CheckCircle2` with `text-emerald-400`), and Total Score (`Award` with `text-amber-400`).
+   - All-time Hall of Records, current cycle metrics, and Top Hub Bar must share identical icon & color tokens: Streak (`Flame` with `text-orange bg-orange-subtle border-orange-subtle`), Standard Days (`CheckCircle2` with `text-emerald`), and Total Score (`Award` with `text-amber`).
    - User accent theme selection NEVER recolors the semantic Pure Streak flame.
 9. **Modal & Container Copy Contrast Rule**:
    - Multi-line body copy and explanatory descriptions must use neutral text (`text-zinc-300` / `text-slate-300`), NEVER saturated colored text. Saturated semantic colors are strictly reserved for icons, titles, metric badges, and status pills.

@@ -118,8 +118,8 @@ export const OnboardingWelcomeView: React.FC<OnboardingWelcomeViewProps> = ({
                 سحرخیزی، تمرین فیزیکی، مطالعه، ژورنال و کار عمیق. ثبت کامل = روز استاندارد (۸ از ۱۰) و با ماموریت ویژه = کمال (۱۰ از ۱۰).
               </p>
             </div>
-            <div className="pt-2 border-t border-standard text-[11px] text-emerald font-medium flex items-center gap-1">
-              <Flame className="w-3.5 h-3.5 text-rose" />
+            <div className="pt-2 border-t border-standard text-[11px] text-orange font-medium flex items-center gap-1">
+              <Flame className="w-3.5 h-3.5 text-orange" />
               <span>حفظ رگه استمرار (Pure Streak)</span>
             </div>
           </div>

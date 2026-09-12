@@ -726,7 +726,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="جستجو در روز، تاریخ، امتیاز، وضعیت، عادات، علت شکست..."
-              className="w-full surface-z0 border-standard radius-component pr-9 pl-8 py-2 text-xs text-role-primary placeholder:text-role-muted focus:outline-none focus:border-[var(--color-border-active)] focus-ring-tactical transition"
+              className="w-full surface-z0 border-standard radius-component pr-9 pl-8 py-2 text-xs text-role-primary placeholder:text-role-muted focus:outline-none focus:border-[var(--color-input-border-focus)] focus-ring-neutral transition"
             />
             {search.length > 0 && (
               <button
