@@ -1193,7 +1193,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
       {/* New Cycle Creation Modal */}
       {showNewCycleModal && (
         <div className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="surface-z1 border-standard radius-modal w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
+          <div className="surface-z3 border-standard radius-modal w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
             <h3 className="font-bold text-base sm:text-lg text-role-primary flex items-center gap-2">
               <Layers className="w-5 h-5 text-role-secondary" />
               <span>تعریف چرخه ۹۰ روزه جدید</span>
@@ -1262,7 +1262,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
       {/* Archive Cycle Confirmation Modal */}
       {showArchiveConfirmModal && (
         <div className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="surface-z1 border-standard radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
+          <div className="surface-z3 border-standard radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 radius-card surface-z2 border-standard flex items-center justify-center text-role-secondary shrink-0">
                 <Archive className="w-5 h-5" />
@@ -1305,7 +1305,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
       {/* Unarchive Cycle Confirmation Modal */}
       {showUnarchiveConfirmModal && (
         <div className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="surface-z1 border-standard radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
+          <div className="surface-z3 border-standard radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 radius-card surface-z2 border-standard flex items-center justify-center text-role-secondary shrink-0">
                 <Unlock className="w-5 h-5" />
@@ -1348,7 +1348,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
       {/* Delete Cycle Confirmation Modal */}
       {showDeleteConfirmModal && (
         <div className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="surface-z1 border border-debt-subtle radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
+          <div className="surface-z3 border border-debt-subtle radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 radius-card bg-debt-subtle border border-debt-subtle flex items-center justify-center text-debt shrink-0">
                 <Trash2 className="w-5 h-5" />

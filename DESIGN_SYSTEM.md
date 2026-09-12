@@ -671,4 +671,13 @@ $$\text{Disabled} > \text{Loading} > \text{Active} > \text{Focus Visible} > \tex
 - **کمیابی دکمه اصلی (Primary Scarcity):** در هر ویو یا مودال حداکثر **یک** دکمه با قرارداد `btn-contract-primary` (سرخ توپر برند) مجاز است. اکشن‌های ناوبری، پرش تاریخی، جابه‌جایی صفحات و اکشن‌های ثانویه باید اکیداً از `btn-contract-secondary` یا `btn-contract-ghost` استفاده کنند.
 - **تفکیک اکشن‌های خطر از رنگ سرخ برند (Danger vs Brand Separation):** تریگرهای پاک‌سازی داده، بازنشانی، خروج یا اقدامات مخرب هرگز نباید از `btn-contract-primary` استفاده کنند؛ این اکشن‌ها باید از `btn-contract-danger-subtle` (برای تریگرهای سطحی) یا `btn-contract-danger` (صرفاً برای تایید نهایی در مودال) بهره ببرند.
 
+---
+
+## ۲۰. قرارداد عمق سطوح و فرورفتگی‌ها (Surface Z & Inset-Well Contract)
+- **بستر کنواس (Page Canvas):** ریشه صفحه همواره `surface-z0` / `var(--color-canvas-root)` (`#09090b`) است.
+- **کارت‌ها و بخش‌ها (Sections / Cards):** کانتینرهای اصلی محتوا با `surface-z1` + `border-standard` + `radius-card` / `radius-modal` مشخص می‌شوند.
+- **سطوح برآمده و چیپ‌ها (Raised Platforms / Sub-containers):** المان‌های داخلی کارت‌ها و چیپ‌های آیکون روی `surface-z2` قرار می‌گیرند.
+- **تاکید داخلی و مودال‌های شناور (Modals & Floating Emphasis):** سطوح شناور و تاکید برآمده در مودال‌ها با `surface-z3` رندر می‌شوند.
+- **چاه‌های فرورفته (Inset Wells):** اینپوت‌ها، نوارهای پیشرفت و بلوک‌های محتوای فرورفته واقعی منحصراً از `surface-z0` استفاده می‌کنند؛ استفاده تزئینی یا خالی از چاه‌های فرورفته ممنوع است.
+
 
