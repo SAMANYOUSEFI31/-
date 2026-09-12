@@ -1,11 +1,18 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Cycle, CycleMetrics, DailyLog } from '../types';
 import { addDaysToDate, getLogicalTodayDate, formatPersianDate } from '../utils/dateUtils';
 import { toPersianDigits } from '../utils/numberUtils';
-import { HabitFidelityMatrix } from './HabitFidelityMatrix';
-import { TacticalHeatmap90 } from './TacticalHeatmap90';
 import { ResponsiveSubTabBar, SubTabItem } from './ResponsiveSubTabBar';
+import { ChartLoadingFallback } from './ChartLoadingFallback';
+
+// Lazy load heavy chart & matrix components for fast initial view render
+const HabitFidelityMatrix = React.lazy(() => 
+  import('./HabitFidelityMatrix').then(m => ({ default: m.HabitFidelityMatrix }))
+);
+const TacticalHeatmap90 = React.lazy(() => 
+  import('./TacticalHeatmap90').then(m => ({ default: m.TacticalHeatmap90 }))
+);
 import { 
   ShieldCheck, 
   Flame, 
@@ -552,12 +559,14 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
             className="space-y-6"
           >
             {/* 90-Day Tactical Heatmap (نقشه حرارتی و ماتریس ۹۰ روزه در ۳ فاز) */}
-            <TacticalHeatmap90
-              currentCycle={currentCycle}
-              metrics={metrics}
-              logs={logs}
-              onSelectDate={onSelectDate}
-            />
+            <Suspense fallback={<ChartLoadingFallback type="heatmap" title="در حال بارگذاری نقشه حرارتی ۹۰ روزه..." subtitle="محاسبه وضعیت سلول‌های نبرد در ۳ فاز" />}>
+              <TacticalHeatmap90
+                currentCycle={currentCycle}
+                metrics={metrics}
+                logs={logs}
+                onSelectDate={onSelectDate}
+              />
+            </Suspense>
           </motion.div>
         )}
 
@@ -571,11 +580,13 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
             className="space-y-6 sm:space-y-8"
           >
             {/* Habit Fidelity Matrix (ماتریس وفاداری به ارکان دیسیپلین) */}
-            <HabitFidelityMatrix
-              currentCycle={currentCycle}
-              metrics={metrics}
-              logs={logs}
-            />
+            <Suspense fallback={<ChartLoadingFallback type="matrix" title="در حال بارگذاری ماتریس وفاداری..." subtitle="محاسبه نرخ اجرای ۵ رکن فونداسیون بوشیدو" />}>
+              <HabitFidelityMatrix
+                currentCycle={currentCycle}
+                metrics={metrics}
+                logs={logs}
+              />
+            </Suspense>
 
             {/* Friction Analysis & Critical Vulnerabilities (تحلیل اصطکاک و ریشه‌یابی کلان) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
@@ -609,9 +620,9 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
                       </p>
                     </div>
                   ) : metrics.vulnerableHabits.length === 0 ? (
-                    <div className="bg-emerald-subtle border border-emerald-subtle radius-card p-6 text-center flex-1 flex flex-col items-center justify-center my-auto min-h-[140px]">
+                    <div className="surface-z2 border-standard radius-card p-6 text-center flex-1 flex flex-col items-center justify-center my-auto min-h-[140px]">
                       <CheckCircle2 className="w-8 h-8 text-emerald mb-2" />
-                      <p className="text-sm font-bold text-emerald">
+                      <p className="text-sm font-bold text-role-primary">
                         پایداری کامل ارکان فونداسیون
                       </p>
                       <p className="text-xs text-role-secondary mt-1 max-w-sm text-center">

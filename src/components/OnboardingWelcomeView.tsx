@@ -28,8 +28,8 @@ export const OnboardingWelcomeView: React.FC<OnboardingWelcomeViewProps> = ({
   return (
     <div className="max-w-4xl mx-auto py-4 sm:py-8 px-2 sm:px-4 space-y-6 sm:space-y-8 animate-in fade-in duration-300" dir="rtl">
       {/* 1. Hero Header */}
-      <div className="surface-z1 border border-amber-subtle radius-card sm:radius-modal p-6 sm:p-10 text-center space-y-4 shadow-subtle relative overflow-hidden">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 radius-card bg-amber-subtle border border-amber-subtle flex items-center justify-center text-amber mx-auto shadow-subtle">
+      <div className="surface-z1 border-standard radius-card sm:radius-modal p-6 sm:p-10 text-center space-y-4 shadow-subtle relative overflow-hidden">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 radius-card surface-z2 border-standard flex items-center justify-center text-amber mx-auto shadow-subtle">
           <Swords className="w-8 h-8 sm:w-10 sm:h-10 text-amber" />
         </div>
 

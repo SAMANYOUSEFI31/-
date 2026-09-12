@@ -3,7 +3,8 @@ import React, {
   useEffect, 
   useMemo, 
   useCallback, 
-  useRef 
+  useRef,
+  Suspense
 } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { Cycle, DailyLog, SystemSettings, UserProfile, AdminUserItem, OfflineQueueItem } from './types';
@@ -95,10 +96,7 @@ import {
 } from './utils/impersonationUtils';
 import { Navbar } from './components/Navbar';
 import { BattlefieldView } from './components/BattlefieldView';
-import { CycleDashboardView } from './components/CycleDashboardView';
-import { ArchivesView } from './components/ArchivesView';
-import { ProfileSettingsView } from './components/ProfileSettingsView';
-import { AdminView } from './components/AdminView';
+import { ViewLoadingSkeleton } from './components/ViewLoadingSkeleton';
 import { AutopsyModal } from './components/AutopsyModal';
 import { PaymentModal } from './components/PaymentModal';
 import { AuthModal } from './components/AuthModal';
@@ -111,6 +109,20 @@ import { Toast, ToastItem, ToastType } from './components/Toast';
 import { toPersianDigits } from './utils/numberUtils';
 import { RotateCcw, Eye, ShieldCheck } from 'lucide-react';
 import './styles/tokens.css';
+
+// Lazy load secondary heavy views to minimize initial bundle size and optimize startup performance
+const CycleDashboardView = React.lazy(() => 
+  import('./components/CycleDashboardView').then(m => ({ default: m.CycleDashboardView }))
+);
+const ArchivesView = React.lazy(() => 
+  import('./components/ArchivesView').then(m => ({ default: m.ArchivesView }))
+);
+const ProfileSettingsView = React.lazy(() => 
+  import('./components/ProfileSettingsView').then(m => ({ default: m.ProfileSettingsView }))
+);
+const AdminView = React.lazy(() => 
+  import('./components/AdminView').then(m => ({ default: m.AdminView }))
+);
 
 export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(() => {
@@ -1677,16 +1689,18 @@ export default function App() {
                   {...pageMotion}
                   className="w-full"
                 >
-                  <CycleDashboardView
-                    currentCycle={currentCycle}
-                    metrics={cycleMetrics}
-                    logs={systemState.logs}
-                    cycles={systemState.cycles}
-                    allTimeSettings={dashboardAllTimeSettings}
-                    onSelectDate={handleDashboardSelectDate}
-                    onNavigateTab={handleDashboardNavigateTab}
-                    onOpenCreateCycle={() => setIsCreateCycleModalOpen(true)}
-                  />
+                  <Suspense fallback={<ViewLoadingSkeleton title="در حال بارگذاری اتاق فرماندهی و نمودارهای چرخه..." />}>
+                    <CycleDashboardView
+                      currentCycle={currentCycle}
+                      metrics={cycleMetrics}
+                      logs={systemState.logs}
+                      cycles={systemState.cycles}
+                      allTimeSettings={dashboardAllTimeSettings}
+                      onSelectDate={handleDashboardSelectDate}
+                      onNavigateTab={handleDashboardNavigateTab}
+                      onOpenCreateCycle={() => setIsCreateCycleModalOpen(true)}
+                    />
+                  </Suspense>
                 </motion.div>
               )}
 
@@ -1696,21 +1710,23 @@ export default function App() {
                   {...pageMotion}
                   className="w-full"
                 >
-                  <ArchivesView
-                    cycles={systemState.cycles}
-                    currentCycle={currentCycle}
-                    logs={systemState.logs}
-                    metrics={cycleMetrics}
-                    onSelectCycle={c => setActiveCycleId(c.id)}
-                    onUpdateCycle={handleUpdateCycle}
-                    onDeleteCycle={handleDeleteCycle}
-                    onSelectDate={d => {
-                      handleSelectDate(d);
-                      setActiveTab('battlefield');
-                    }}
-                    onOpenAutopsy={log => setAutopsyTargetLog(log)}
-                    onCreateNewCycle={handleCreateNewCycle}
-                  />
+                  <Suspense fallback={<ViewLoadingSkeleton title="در حال فراخوانی تاریخچه و بایگانی چرخه‌ها..." />}>
+                    <ArchivesView
+                      cycles={systemState.cycles}
+                      currentCycle={currentCycle}
+                      logs={systemState.logs}
+                      metrics={cycleMetrics}
+                      onSelectCycle={c => setActiveCycleId(c.id)}
+                      onUpdateCycle={handleUpdateCycle}
+                      onDeleteCycle={handleDeleteCycle}
+                      onSelectDate={d => {
+                        handleSelectDate(d);
+                        setActiveTab('battlefield');
+                      }}
+                      onOpenAutopsy={log => setAutopsyTargetLog(log)}
+                      onCreateNewCycle={handleCreateNewCycle}
+                    />
+                  </Suspense>
                 </motion.div>
               )}
 
@@ -1720,19 +1736,21 @@ export default function App() {
                   {...pageMotion}
                   className="w-full"
                 >
-                  <ProfileSettingsView
-                    userProfile={systemState.userProfile}
-                    settings={systemState.settings}
-                    onUpdateUserProfile={handleUpdateUserProfile}
-                    onUpdateSettings={handleUpdateSettings}
-                    onOpenPaymentModal={() => setIsPaymentModalOpen(true)}
-                    onOpenAuthModal={() => setIsAuthModalOpen(true)}
-                    onQuickLogin={handleQuickLogin}
-                    onLogout={handleLogout}
-                    onResetData={handleResetData}
-                    onExportData={handleExportData}
-                    onNavigateToAdmin={() => setActiveTab('admin')}
-                  />
+                  <Suspense fallback={<ViewLoadingSkeleton title="در حال بارگذاری تنظیمات سامانه و نمایه کاربری..." />}>
+                    <ProfileSettingsView
+                      userProfile={systemState.userProfile}
+                      settings={systemState.settings}
+                      onUpdateUserProfile={handleUpdateUserProfile}
+                      onUpdateSettings={handleUpdateSettings}
+                      onOpenPaymentModal={() => setIsPaymentModalOpen(true)}
+                      onOpenAuthModal={() => setIsAuthModalOpen(true)}
+                      onQuickLogin={handleQuickLogin}
+                      onLogout={handleLogout}
+                      onResetData={handleResetData}
+                      onExportData={handleExportData}
+                      onNavigateToAdmin={() => setActiveTab('admin')}
+                    />
+                  </Suspense>
                 </motion.div>
               )}
 
@@ -1742,37 +1760,39 @@ export default function App() {
                   {...pageMotion}
                   className="w-full"
                 >
-                  <AdminView
-                    currentUser={systemState.userProfile}
-                    authToken={authToken}
-                    onBack={() => setActiveTab('profile')}
-                    onImpersonateUser={handleImpersonateUser}
-                    onRefreshUserProfile={() => {
-                      if (authToken) {
-                        fetch('/api/auth/me', {
-                          headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${authToken}`
-                          }
-                        })
-                          .then(r => r.json())
-                          .then(data => {
-                            if (data?.user) {
-                              setSystemState(prev => ({
-                                ...prev,
-                                userProfile: {
-                                  ...prev.userProfile,
-                                  ...data.user,
-                                  isVip: !!data.user.isVip,
-                                  isAdmin: !!data.user.isAdmin
-                                }
-                              }));
+                  <Suspense fallback={<ViewLoadingSkeleton title="در حال ورود به پنل مدیریت ارشد سامانه..." />}>
+                    <AdminView
+                      currentUser={systemState.userProfile}
+                      authToken={authToken}
+                      onBack={() => setActiveTab('profile')}
+                      onImpersonateUser={handleImpersonateUser}
+                      onRefreshUserProfile={() => {
+                        if (authToken) {
+                          fetch('/api/auth/me', {
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${authToken}`
                             }
                           })
-                          .catch(console.error);
-                      }
-                    }}
-                  />
+                            .then(r => r.json())
+                            .then(data => {
+                              if (data?.user) {
+                                setSystemState(prev => ({
+                                  ...prev,
+                                  userProfile: {
+                                    ...prev.userProfile,
+                                    ...data.user,
+                                    isVip: !!data.user.isVip,
+                                    isAdmin: !!data.user.isAdmin
+                                  }
+                                }));
+                              }
+                            })
+                            .catch(console.error);
+                        }
+                      }}
+                    />
+                  </Suspense>
                 </motion.div>
               )}
             </AnimatePresence>

@@ -119,8 +119,8 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
     return (
       <div className="space-y-6 animate-in fade-in duration-200" dir="rtl">
         <div className="surface-z1 border-standard radius-modal p-8 sm:p-12 text-center space-y-5 max-w-xl mx-auto shadow-subtle">
-          <div className="w-16 h-16 radius-card bg-amber-subtle border border-amber-subtle flex items-center justify-center mx-auto text-amber">
-            <Archive className="w-8 h-8" />
+          <div className="w-16 h-16 radius-card surface-z2 border-standard flex items-center justify-center mx-auto text-amber">
+            <Archive className="w-8 h-8 text-amber" />
           </div>
           <div className="space-y-2">
             <h2 className="text-lg sm:text-xl font-black text-role-primary">
@@ -133,7 +133,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
           <button
             type="button"
             onClick={handleOpenNewCycleModal}
-            className="btn-contract-mastery font-black text-sm px-6 py-3 radius-card inline-flex items-center justify-center gap-2 mx-auto shadow-subtle whitespace-nowrap"
+            className="btn-contract-mastery font-black text-sm px-6 py-3 radius-card inline-flex items-center justify-center gap-2 mx-auto shadow-subtle whitespace-nowrap focus-ring-tactical"
           >
             <Plus className="w-4 h-4" />
             <span>تعریف چرخه نبرد ۹۰ روزه</span>
