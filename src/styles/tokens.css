@@ -687,6 +687,89 @@
   transform: none !important;
 }
 
+/* 5. Danger / Destructive Action Button Contracts */
+.btn-contract-danger {
+  background-color: var(--color-accent-red-deep) !important;
+  color: #ffffff !important;
+  border: 1px solid var(--color-accent-red-deep) !important;
+  border-radius: var(--radius-component) !important;
+  transition: all var(--duration-fast) var(--ease-tactical) !important;
+  cursor: pointer;
+}
+
+.btn-contract-danger:hover {
+  background-color: #dc2626 !important;
+  border-color: #dc2626 !important;
+  filter: brightness(1.08);
+}
+
+.btn-contract-danger:active {
+  transform: scale(0.98);
+}
+
+.btn-contract-danger:disabled,
+.btn-contract-danger.is-disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  transform: none !important;
+}
+
+/* Danger Subtle (Surface Trigger: restrained idle, turns crimson on hover) */
+.btn-contract-danger-subtle {
+  background-color: var(--color-card-inner) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  color: var(--color-text-secondary) !important;
+  border-radius: var(--radius-component) !important;
+  transition: all var(--duration-fast) var(--ease-tactical) !important;
+  cursor: pointer;
+}
+
+.btn-contract-danger-subtle:hover {
+  background-color: var(--color-accent-red-bg) !important;
+  border-color: var(--color-accent-red-border) !important;
+  color: var(--color-accent-red) !important;
+}
+
+.btn-contract-danger-subtle:active {
+  transform: scale(0.98);
+  background-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+.btn-contract-danger-subtle:disabled,
+.btn-contract-danger-subtle.is-disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  transform: none !important;
+}
+
+/* Danger Ghost (Transparent Trigger: e.g. table rows & compact menus) */
+.btn-contract-danger-ghost {
+  background-color: transparent !important;
+  color: var(--color-text-muted) !important;
+  border-radius: var(--radius-component) !important;
+  transition: all var(--duration-fast) var(--ease-tactical) !important;
+  cursor: pointer;
+}
+
+.btn-contract-danger-ghost:hover {
+  background-color: var(--color-accent-red-bg) !important;
+  color: var(--color-accent-red) !important;
+}
+
+.btn-contract-danger-ghost:active {
+  transform: scale(0.98);
+}
+
+.btn-contract-danger-ghost:disabled,
+.btn-contract-danger-ghost.is-disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  transform: none !important;
+}
+
 /* Glassmorphism Backdrop Blur */
 .crisp-blur {
   -webkit-backdrop-filter: blur(16px);

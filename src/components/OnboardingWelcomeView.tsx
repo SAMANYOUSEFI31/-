@@ -51,7 +51,7 @@ export const OnboardingWelcomeView: React.FC<OnboardingWelcomeViewProps> = ({
           <button
             type="button"
             onClick={onOpenCreateCycle}
-            className="w-full sm:w-auto bg-amber hover:brightness-110 active:brightness-90 text-canvas-root font-black text-xs sm:text-sm px-6 py-3.5 radius-card inline-flex items-center justify-center gap-2 shadow-subtle transition cursor-pointer active:scale-95 focus-ring-tactical"
+            className="btn-contract-mastery w-full sm:w-auto text-xs sm:text-sm px-6 py-3.5 radius-card inline-flex items-center justify-center gap-2 shadow-subtle focus-ring-tactical"
           >
             <Sparkles className="w-4 h-4 text-canvas-root" />
             <span>تعریف اولین چرخه ۹۰ روزه نبرد</span>
@@ -60,7 +60,7 @@ export const OnboardingWelcomeView: React.FC<OnboardingWelcomeViewProps> = ({
           <button
             type="button"
             onClick={onNavigateToHabitsGuide}
-            className="w-full sm:w-auto surface-z2 hover:surface-z3 active:surface-z3 text-role-primary font-bold text-xs sm:text-sm px-5 py-3.5 radius-card inline-flex items-center justify-center gap-2 border-standard transition cursor-pointer active:scale-95 focus-ring-tactical"
+            className="btn-contract-secondary w-full sm:w-auto text-xs sm:text-sm px-5 py-3.5 radius-card inline-flex items-center justify-center gap-2 focus-ring-tactical"
           >
             <BookOpen className="w-4 h-4 text-role-muted" />
             <span>فلسفه و راهنمای ۵ عادت بوشیدو</span>

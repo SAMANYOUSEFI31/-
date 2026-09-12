@@ -377,10 +377,10 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                                 <button
                                   type="button"
                                   onClick={(e) => handleDeleteCycleClick(e, c.id)}
-                                  className={`p-2 min-h-[38px] min-w-[38px] radius-control text-xs transition shrink-0 cursor-pointer flex items-center justify-center touch-manipulation focus-ring-tactical ${
+                                  className={`p-2 min-h-[38px] min-w-[38px] radius-control text-xs shrink-0 flex items-center justify-center touch-manipulation focus-ring-tactical ${
                                     isConfirming 
-                                      ? 'bg-debt hover:brightness-110 text-role-primary font-black px-2 py-1 shadow-subtle animate-pulse motion-reduce:animate-none' 
-                                      : 'text-role-muted hover:text-debt hover:bg-debt-subtle'
+                                      ? 'btn-contract-danger font-black px-2 py-1 shadow-subtle animate-pulse motion-reduce:animate-none' 
+                                      : 'btn-contract-danger-ghost'
                                   }`}
                                   aria-label={isConfirming ? `تایید حذف قطعی چرخه ${c.title}` : `حذف چرخه ${c.title}`}
                                   title={isConfirming ? 'کلیک مجدد برای حذف قطعی' : 'حذف این چرخه'}

@@ -133,7 +133,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
           <button
             type="button"
             onClick={handleOpenNewCycleModal}
-            className="bg-amber hover:brightness-105 text-canvas-root font-black text-sm px-6 py-3 radius-card inline-flex items-center justify-center gap-2 mx-auto shadow-subtle transition cursor-pointer active:scale-95 whitespace-nowrap"
+            className="btn-contract-mastery font-black text-sm px-6 py-3 radius-card inline-flex items-center justify-center gap-2 mx-auto shadow-subtle whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             <span>تعریف چرخه نبرد ۹۰ روزه</span>
@@ -193,13 +193,13 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowNewCycleModal(false)}
-                    className="surface-z1 hover:surface-z2 border-standard text-role-secondary px-4 py-2 radius-component text-xs font-bold transition cursor-pointer"
+                    className="btn-contract-secondary px-4 py-2 radius-component text-xs font-bold"
                   >
                     انصراف
                   </button>
                   <button
                     type="submit"
-                    className="bg-amber hover:brightness-105 text-[var(--color-canvas-root)] font-black px-5 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-95"
+                    className="btn-contract-mastery px-5 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle"
                   >
                     <Plus className="w-4 h-4" />
                     <span>ایجاد چرخه نبرد</span>
@@ -518,7 +518,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               type="button"
               onClick={handleGenerateVerdict}
               disabled={isGeneratingVerdict || currentCycle.isArchived}
-              className="flex-1 sm:flex-initial bg-amber hover:brightness-105 active:brightness-95 disabled:opacity-40 text-black font-black text-xs px-3.5 py-2 radius-component flex items-center justify-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-[0.98] whitespace-nowrap"
+              className="btn-contract-mastery flex-1 sm:flex-initial text-xs px-3.5 py-2 radius-component flex items-center justify-center gap-1.5 shadow-subtle whitespace-nowrap"
             >
               <Sparkles className="w-3.5 h-3.5 text-black shrink-0" />
               <span>{verdict ? 'ارزیابی مجدد حکم' : 'صدور حکم دادگاه'}</span>
@@ -527,7 +527,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
             <button
               type="button"
               onClick={handleOpenNewCycleModal}
-              className="surface-z2 hover:surface-z3 active:surface-z2 text-role-primary text-xs font-bold px-3 py-2 radius-component border-standard flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-[0.98] whitespace-nowrap shadow-subtle"
+              className="btn-contract-secondary text-xs font-bold px-3 py-2 radius-component flex items-center justify-center gap-1.5 whitespace-nowrap shadow-subtle"
               title="تعریف چرخه ۹۰ روزه جدید"
             >
               <Plus className="w-3.5 h-3.5 text-amber shrink-0" />
@@ -557,7 +557,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                 onClick={handleOpenArchiveModal}
                 disabled={!canArchive}
                 title={!canArchive ? 'شرایط بایگانی: اتمام ۹۰ روز، تسویه بدهی‌ها و صدور حکم دادگاه' : 'بایگانی و قفل رسمی این چرخه'}
-                className="surface-z2 hover:surface-z3 disabled:opacity-40 border-standard text-role-secondary px-3 py-1.5 radius-control font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-[0.98] text-[11px] whitespace-nowrap"
+                className="btn-contract-secondary px-3 py-1.5 radius-control font-bold flex items-center gap-1.5 text-[11px] whitespace-nowrap"
               >
                 <Archive className="w-3.5 h-3.5 text-role-muted" />
                 <span>بایگانی چرخه</span>
@@ -565,7 +565,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
             ) : (
               <button
                 onClick={handleOpenUnarchiveModal}
-                className="surface-z2 hover:surface-z3 border-standard text-role-primary px-3 py-1.5 radius-control font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-[0.98] text-[11px] whitespace-nowrap shadow-subtle"
+                className="btn-contract-secondary px-3 py-1.5 radius-control font-bold flex items-center gap-1.5 text-[11px] whitespace-nowrap shadow-subtle"
               >
                 <Unlock className="w-3.5 h-3.5 text-role-secondary" />
                 <span>خروج از بایگانی</span>
@@ -575,7 +575,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
             {onDeleteCycle && (
               <button
                 onClick={handleDeleteCurrentCycle}
-                className="bg-debt-subtle hover:brightness-110 border border-debt-subtle text-debt px-2.5 py-1.5 radius-control font-bold flex items-center gap-1 transition cursor-pointer active:scale-[0.98] text-[11px] whitespace-nowrap"
+                className="btn-contract-danger-subtle px-2.5 py-1.5 radius-control font-bold flex items-center gap-1 text-[11px] whitespace-nowrap focus-ring-tactical"
                 title="حذف این چرخه"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -623,7 +623,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCourtDetailsOpen(!isCourtDetailsOpen)}
-                className="w-full sm:w-auto h-9 px-3.5 radius-component surface-z2 hover:surface-z3 active:surface-z2 text-role-primary border-standard text-xs font-bold inline-flex items-center justify-center gap-2 shrink-0 transition cursor-pointer active:scale-98 whitespace-nowrap shadow-subtle"
+                className="btn-contract-secondary w-full sm:w-auto h-9 px-3.5 radius-component text-xs font-bold inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap shadow-subtle"
               >
                 <span>{isCourtDetailsOpen ? 'بستن تحلیل' : 'مشاهده گزارش کامل'}</span>
                 {isCourtDetailsOpen ? <ChevronUp className="w-4 h-4 text-role-muted" /> : <ChevronDown className="w-4 h-4 text-role-muted" />}
@@ -938,7 +938,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                       {(computed.needsAutopsy || l.failureReason) && (
                         <button
                           onClick={() => onOpenAutopsy(l)}
-                          className="surface-z2 hover:surface-z3 text-role-primary text-xs font-bold px-2.5 py-1 radius-control border-standard cursor-pointer active:scale-95 whitespace-nowrap transition"
+                          className="btn-contract-secondary text-xs font-bold px-2.5 py-1 radius-control whitespace-nowrap"
                         >
                           کالبدشکافی
                         </button>
@@ -1142,7 +1142,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                         <td className="p-3.5 whitespace-nowrap text-center align-middle">
                           <button
                             onClick={() => onOpenAutopsy(l)}
-                            className="text-xs surface-z2 hover:surface-z3 text-role-primary px-2.5 py-1 radius-control border-standard transition cursor-pointer active:scale-[0.98]"
+                            className="btn-contract-secondary text-xs font-bold px-2.5 py-1 radius-control whitespace-nowrap"
                           >
                             کالبدشکافی
                           </button>
@@ -1243,13 +1243,13 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowNewCycleModal(false)}
-                  className="surface-z2 hover:surface-z3 border-standard text-role-secondary px-4 py-2 radius-component text-xs font-bold transition cursor-pointer active:scale-[0.98]"
+                  className="btn-contract-secondary px-4 py-2 radius-component text-xs font-bold"
                 >
                   انصراف
                 </button>
                 <button
                   type="submit"
-                  className="bg-amber hover:brightness-105 active:brightness-95 text-black px-5 py-2 radius-component text-xs font-black shadow-subtle transition cursor-pointer active:scale-[0.98]"
+                  className="btn-contract-mastery px-5 py-2 radius-component text-xs font-black shadow-subtle"
                 >
                   ایجاد و شروع چرخه
                 </button>
@@ -1285,14 +1285,14 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowArchiveConfirmModal(false)}
-                className="surface-z2 hover:surface-z3 border-standard text-role-secondary px-3.5 py-2 radius-component text-xs font-bold transition cursor-pointer active:scale-[0.98]"
+                className="btn-contract-secondary px-3.5 py-2 radius-component text-xs font-bold"
               >
                 انصراف
               </button>
               <button
                 type="button"
                 onClick={handleConfirmArchive}
-                className="surface-z3 hover:surface-z2 text-role-primary font-bold px-4 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle border-standard transition cursor-pointer active:scale-[0.98]"
+                className="btn-contract-primary font-bold px-4 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle"
               >
                 <Archive className="w-3.5 h-3.5 text-role-muted" />
                 <span>تأیید بایگانی</span>
@@ -1328,14 +1328,14 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowUnarchiveConfirmModal(false)}
-                className="surface-z2 hover:surface-z3 border-standard text-role-secondary px-3.5 py-2 radius-component text-xs font-bold transition cursor-pointer active:scale-[0.98]"
+                className="btn-contract-secondary px-3.5 py-2 radius-component text-xs font-bold"
               >
                 انصراف
               </button>
               <button
                 type="button"
                 onClick={handleConfirmUnarchive}
-                className="surface-z3 hover:surface-z2 text-role-primary font-bold px-4 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle border-standard transition cursor-pointer active:scale-[0.98]"
+                className="btn-contract-primary font-bold px-4 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle"
               >
                 <Unlock className="w-3.5 h-3.5 text-role-muted" />
                 <span>تأیید خروج</span>
@@ -1371,14 +1371,14 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirmModal(false)}
-                className="surface-z2 hover:surface-z3 border-standard text-role-secondary px-3.5 py-2 radius-component text-xs font-bold transition cursor-pointer active:scale-[0.98]"
+                className="btn-contract-secondary px-3.5 py-2 radius-component text-xs font-bold"
               >
                 انصراف
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                className="bg-debt hover:brightness-110 active:brightness-95 text-role-primary font-bold px-4 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle transition cursor-pointer active:scale-[0.98]"
+                className="btn-contract-danger font-bold px-4 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle focus-ring-tactical"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>حذف قطعی</span>

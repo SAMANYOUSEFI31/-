@@ -280,7 +280,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             {onBack && (
               <button
                 onClick={onBack}
-                className="surface-z2 hover:surface-z3 text-role-secondary hover:text-role-primary px-3.5 py-1.5 radius-component text-xs font-bold flex items-center gap-1.5 transition cursor-pointer border-standard focus-ring-tactical"
+                className="btn-contract-secondary px-3.5 py-1.5 radius-component text-xs font-bold flex items-center gap-1.5 focus-ring-tactical"
               >
                 <span>بازگشت به تنظیمات</span>
               </button>
@@ -294,7 +294,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             <button
               onClick={fetchAdminData}
               disabled={isLoading}
-              className="surface-z2 hover:surface-z3 text-role-secondary hover:text-role-primary px-3.5 py-1.5 radius-component text-xs font-bold flex items-center gap-1.5 transition cursor-pointer border-standard focus-ring-tactical"
+              className="btn-contract-secondary px-3.5 py-1.5 radius-component text-xs font-bold flex items-center gap-1.5 focus-ring-tactical"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
               <span>به‌روزرسانی</span>
@@ -312,7 +312,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           </div>
           <button 
             onClick={() => setActionMessage(null)}
-            className="text-amber/80 hover:text-amber font-bold cursor-pointer"
+            className="btn-contract-ghost p-1 radius-control text-amber font-bold text-xs"
           >
             ✕
           </button>
@@ -408,7 +408,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCreateUserOpen(!isCreateUserOpen)}
-                className="bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-bold text-xs px-4 py-2 radius-component transition cursor-pointer flex items-center gap-2 shrink-0 shadow-subtle focus-ring-tactical"
+                className="btn-contract-secondary font-bold text-xs px-4 py-2 radius-component flex items-center gap-2 shrink-0 shadow-subtle focus-ring-tactical"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>{isCreateUserOpen ? 'بستن فرم ایجاد' : 'ایجاد حساب کاربری تست جدید'}</span>
@@ -466,7 +466,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   <button
                     type="submit"
                     disabled={isCreatingUser}
-                    className="bg-emerald hover:brightness-110 text-[var(--color-canvas-root)] font-bold text-xs px-4 py-2 radius-component transition cursor-pointer h-[38px] flex items-center justify-center shrink-0 disabled:opacity-50 focus-ring-tactical"
+                    className="btn-contract-primary font-bold text-xs px-4 py-2 radius-component h-[38px] flex items-center justify-center shrink-0 focus-ring-tactical"
                   >
                     {isCreatingUser ? 'در حال ثبت...' : 'ثبت کاربر'}
                   </button>
@@ -491,16 +491,16 @@ export const AdminView: React.FC<AdminViewProps> = ({
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={() => setFilterTier('all')}
-                className={`px-3 py-1.5 radius-control text-xs font-bold transition cursor-pointer ${
-                  filterTier === 'all' ? 'surface-z2 text-role-primary' : 'text-role-muted hover:text-role-primary'
+                className={`px-3 py-1.5 radius-control text-xs font-bold ${
+                  filterTier === 'all' ? 'btn-contract-secondary text-role-primary' : 'btn-contract-ghost text-role-muted'
                 }`}
               >
                 همه ({toPersianDigits(users.length)})
               </button>
               <button
                 onClick={() => setFilterTier('vip')}
-                className={`px-3 py-1.5 radius-control text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
-                  filterTier === 'vip' ? 'bg-amber-subtle text-amber border border-amber-subtle' : 'text-role-muted hover:text-role-primary'
+                className={`px-3 py-1.5 radius-control text-xs font-bold flex items-center gap-1 ${
+                  filterTier === 'vip' ? 'btn-contract-secondary text-amber' : 'btn-contract-ghost text-role-muted'
                 }`}
               >
                 <Crown className="w-3.5 h-3.5 text-amber" />
@@ -508,8 +508,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </button>
               <button
                 onClick={() => setFilterTier('free')}
-                className={`px-3 py-1.5 radius-control text-xs font-bold transition cursor-pointer ${
-                  filterTier === 'free' ? 'surface-z2 text-role-primary' : 'text-role-muted hover:text-role-primary'
+                className={`px-3 py-1.5 radius-control text-xs font-bold ${
+                  filterTier === 'free' ? 'btn-contract-secondary text-role-primary' : 'btn-contract-ghost text-role-muted'
                 }`}
               >
                 رایگان ({toPersianDigits(users.filter(u => !u.isVip).length)})
@@ -618,10 +618,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                   type="button"
                                   onClick={() => handleToggleAdminStatus(user.id, !!user.isAdmin)}
                                   disabled={isUpdatingUser === user.id}
-                                  className={`px-2 py-1 radius-control text-[11px] font-bold transition cursor-pointer flex items-center gap-1 border ${
+                                  className={`px-2 py-1 radius-control text-[11px] font-bold flex items-center gap-1 ${
                                     user.isAdmin 
-                                      ? 'bg-autopsy-subtle hover:brightness-110 text-autopsy border-autopsy-subtle' 
-                                      : 'surface-z2 hover:surface-z3 text-role-muted border-standard hover:text-role-primary'
+                                      ? 'btn-contract-ghost text-autopsy' 
+                                      : 'btn-contract-secondary text-role-muted hover:text-role-primary'
                                   }`}
                                   title={user.isAdmin ? 'عزل از مدیریت سامانه' : 'ارتقا به مدیر سامانه'}
                                 >
@@ -635,7 +635,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => onImpersonateUser(user)}
-                                  className="bg-blue-subtle hover:brightness-110 text-blue border border-blue-subtle px-2.5 py-1 radius-control text-[11px] font-bold transition cursor-pointer flex items-center gap-1 focus-ring-tactical"
+                                  className="btn-contract-secondary text-blue px-2.5 py-1 radius-control text-[11px] font-bold flex items-center gap-1 focus-ring-tactical"
                                   title="مشاهده سامانه از دید این کاربر"
                                 >
                                   <Eye className="w-3.5 h-3.5 text-blue" />
@@ -648,7 +648,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                   <button
                                     onClick={() => handleUpdateUserTier(user.id, 'vip_samurai', 90)}
                                     disabled={isUpdatingUser === user.id}
-                                    className="bg-amber-subtle hover:brightness-110 text-amber border border-amber-subtle px-2.5 py-1 radius-control text-[11px] font-bold transition cursor-pointer"
+                                    className="btn-contract-secondary text-amber px-2.5 py-1 radius-control text-[11px] font-bold"
                                     title="تمدید ۹۰ روزه اشتراک"
                                   >
                                     +۹۰ روز
@@ -656,7 +656,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                   <button
                                     onClick={() => handleUpdateUserTier(user.id, 'ronin_free')}
                                     disabled={isUpdatingUser === user.id}
-                                    className="surface-z2 hover:bg-debt-subtle hover:text-debt hover:border-debt-subtle text-role-muted border-standard px-2 py-1 radius-control text-[11px] transition cursor-pointer"
+                                    className="btn-contract-danger-ghost px-2 py-1 radius-control text-[11px] font-bold"
                                     title="تنزل به حساب رایگان"
                                   >
                                     تنزل
@@ -666,9 +666,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                 <button
                                   onClick={() => handleUpdateUserTier(user.id, 'vip_samurai', 90)}
                                   disabled={isUpdatingUser === user.id}
-                                  className="bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black px-3 py-1 radius-control text-[11px] transition cursor-pointer shadow-subtle flex items-center gap-1 focus-ring-tactical"
+                                  className="btn-contract-mastery px-3 py-1 radius-control text-[11px] font-bold shadow-subtle flex items-center gap-1 focus-ring-tactical"
                                 >
-                                  <Crown className="w-3 h-3" />
+                                  <Crown className="w-3 h-3 text-canvas-root" />
                                   <span>ارتقا VIP</span>
                                 </button>
                               )}
