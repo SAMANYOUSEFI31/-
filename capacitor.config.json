@@ -1,0 +1,8 @@
+{
+  "appId": "app.bushido.discipline",
+  "appName": "بوشیدو",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
