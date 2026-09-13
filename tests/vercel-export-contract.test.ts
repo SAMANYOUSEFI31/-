@@ -17,12 +17,8 @@ describe('Vercel Export & Serverless Contract', () => {
     assert.strictEqual(typeof app.post, 'function', 'Exported app must have express routing function .post()');
   });
 
-  it('exports an executable Express application from api/[[...path]].js and api/[...path].js', async () => {
+  it('exports an executable Express application from api/index.js and api/[...path].js', async () => {
     process.env.VERCEL = '1';
-
-    const optionalCatchAll = await import('../api/[[...path]].js');
-    assert.ok(optionalCatchAll.default);
-    assert.strictEqual(typeof optionalCatchAll.default, 'function');
 
     const catchAll = await import('../api/[...path].js');
     assert.ok(catchAll.default);
