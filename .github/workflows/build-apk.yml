@@ -34,7 +34,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Initialize Capacitor Android
+      - name: Initialize & Sync Capacitor Android
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap init "بوشیدو" "app.bushido.discipline" --web-dir "dist" || true
@@ -44,11 +44,20 @@ jobs:
           npx cap copy android
           npx cap sync android
 
+      - name: Patch Kotlin Duplicate Classes
+        run: |
+          echo "
+          configurations.all {
+              exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+              exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+          }
+          " >> android/app/build.gradle
+
       - name: Build APK via Gradle
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug -x test -x lint -x checkDebugDuplicateClasses --stacktrace
+          ./gradlew assembleDebug -x test -x lint --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
