@@ -104,6 +104,31 @@ const PORT = 3000;
 // Trust proxy required for Cloud Run / reverse proxies and IP-based rate limiting
 app.set('trust proxy', 1);
 
+// Vercel Serverless Gateway & Catch-All Route Path Normalization
+// Preserves full /api/... path structure if serverless gateway strips /api or rewrites sub-paths
+app.use((req, res, next) => {
+  try {
+    const forwardedUri = (req.headers['x-forwarded-uri'] as string) || (req.headers['x-matched-path'] as string);
+    if (forwardedUri && forwardedUri.startsWith('/api') && (req.url === '/api' || req.url === '/api/' || !req.url.startsWith('/api'))) {
+      req.url = forwardedUri;
+    } else if (req.query && (req.query.path || req.query['path[]'])) {
+      const rawPath = req.query.path || req.query['path[]'];
+      const pathSegments = Array.isArray(rawPath) ? rawPath.join('/') : String(rawPath);
+      if (pathSegments && !req.url.startsWith(`/api/${pathSegments}`) && (!req.url.startsWith('/api') || req.url === '/api' || req.url === '/api/')) {
+        const queryIndex = req.url.indexOf('?');
+        const search = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
+        req.url = `/api/${pathSegments}${search}`;
+      }
+    } else if (!req.url.startsWith('/api') && (process.env.VERCEL || req.headers['x-vercel-id'])) {
+      const clean = req.url.startsWith('/') ? req.url : `/${req.url}`;
+      req.url = `/api${clean}`;
+    }
+  } catch (e) {
+    // Fail-safe pass-through
+  }
+  next();
+});
+
 // Apply Security Headers (CSP, HSTS, No-Sniff, etc.)
 app.use(setSecurityHeaders);
 

@@ -41,11 +41,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api"
-    },
-    {
-      "source": "/api",
-      "destination": "/api"
+      "destination": "/api/$1"
     },
     {
       "source": "/((?!api(?:/|$)|assets/|fonts/|icons/|favicon.ico|manifest.json|sw.js).*)",
@@ -53,7 +49,10 @@
     }
   ],
   "functions": {
-    "api/index.js": {
+    "api/**": {
+      "includeFiles": "dist/**"
+    },
+    "api/*.js": {
       "includeFiles": "dist/**"
     }
   }
