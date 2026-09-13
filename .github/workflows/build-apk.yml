@@ -19,18 +19,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Install Project Dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Web App (Vite)
-        run: npm run build
+        run: |
+          npm run build || npx vite build
 
-      - name: Add and Sync Capacitor Android
+      - name: Install & Initialize Capacitor
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap add android || true
+          npx cap init "بوشیدو" "app.bushido.discipline" --web-dir "dist" || true
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
           npx cap copy android
           npx cap sync android
 
