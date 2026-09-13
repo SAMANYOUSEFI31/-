@@ -20,14 +20,13 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Project Dependencies
+      - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build Web App (Vite)
-        run: |
-          npm run build || npx vite build
+      - name: Build Web Application
+        run: npm run build
 
-      - name: Install & Initialize Capacitor
+      - name: Initialize and Sync Capacitor
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap init "بوشیدو" "app.bushido.discipline" --web-dir "dist" || true
