@@ -7,7 +7,12 @@ import { BUSHIDO_CRIMSON_THEME } from '../utils/themeUtils';
 import { soundFX } from '../utils/audioEffects';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { ResponsiveSubTabBar, SubTabItem } from './ResponsiveSubTabBar';
-import { BUSHIDO_HABITS_PHILOSOPHY, SUPPORT_CONTACT_CHANNELS } from '../data/moreTabData';
+import { 
+  BUSHIDO_HABITS_PHILOSOPHY, 
+  SUPPORT_CONTACT_CHANNELS, 
+  BUSHIDO_SYSTEM_RULES, 
+  BUSHIDO_SPECIAL_MISSION_GUIDE 
+} from '../data/moreTabData';
 import { 
   User, 
   Crown, 
@@ -38,7 +43,13 @@ import {
   BookMarked,
   Clock,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Award,
+  AlertOctagon,
+  Snowflake,
+  Target,
+  Sparkles,
+  Compass
 } from 'lucide-react';
 
 interface ProfileSettingsViewProps {
@@ -53,6 +64,7 @@ interface ProfileSettingsViewProps {
   onResetData: () => void;
   onExportData: () => void;
   onNavigateToAdmin: () => void;
+  onReplayTour?: () => void;
 }
 
 type SettingsSection = 'account' | 'settings' | 'habits' | 'support';
@@ -63,6 +75,13 @@ const HABIT_ICONS_MAP: Record<HabitKey, React.ComponentType<{ className?: string
   study: BookOpen,
   journal: PenTool,
   hardTask: Briefcase
+};
+
+const RULE_ICONS_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  CheckCircle2,
+  Award,
+  AlertOctagon,
+  Snowflake
 };
 
 export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
@@ -76,7 +95,8 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
   onLogout,
   onResetData,
   onExportData,
-  onNavigateToAdmin
+  onNavigateToAdmin,
+  onReplayTour
 }) => {
   const [activeSection, setActiveSection] = useState<SettingsSection>('account');
   const [navDirection, setNavDirection] = useState<number>(0);
@@ -617,6 +637,131 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                   })}
                 </div>
               </div>
+
+              {/* Special Mission Philosophy & 90-Day Goal */}
+              <div id="guide-special-mission-card" className="surface-z1 border-standard radius-modal p-5 sm:p-6 shadow-subtle space-y-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 radius-card surface-z2 flex items-center justify-center text-role-secondary shrink-0">
+                    <Target className="w-5 h-5 text-amber" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm sm:text-base font-bold text-role-primary">
+                        {BUSHIDO_SPECIAL_MISSION_GUIDE.title}
+                      </h3>
+                      <span className="bg-amber-subtle border border-amber-subtle text-amber text-[10px] sm:text-xs font-bold px-2 py-0.5 radius-capsule whitespace-nowrap">
+                        +{toPersianDigits(2)} امتیاز تسلط
+                      </span>
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-role-secondary mt-0.5 leading-relaxed">
+                      {BUSHIDO_SPECIAL_MISSION_GUIDE.subtitle}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="surface-z2 border-standard radius-card p-4 space-y-3">
+                  <p className="text-xs sm:text-sm text-role-secondary leading-relaxed text-right">
+                    {BUSHIDO_SPECIAL_MISSION_GUIDE.howItWorks}
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div className="surface-z3 p-3 radius-component space-y-1">
+                      <span className="font-bold text-amber text-[11px] block">معیار ثبت ماموریت:</span>
+                      <p className="text-xs text-role-secondary leading-relaxed text-right">
+                        {BUSHIDO_SPECIAL_MISSION_GUIDE.criteria}
+                      </p>
+                    </div>
+                    <div className="surface-z3 p-3 radius-component space-y-1">
+                      <span className="font-bold text-blue text-[11px] block">تاکتیک نبرد:</span>
+                      <p className="text-xs text-role-secondary leading-relaxed text-right">
+                        {BUSHIDO_SPECIAL_MISSION_GUIDE.tacticalTip}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4 System Discipline Laws */}
+              <div id="guide-discipline-laws-card" className="surface-z1 border-standard radius-modal p-5 sm:p-6 shadow-subtle space-y-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 radius-card surface-z2 flex items-center justify-center text-role-secondary shrink-0">
+                    <ShieldCheck className="w-5 h-5 text-role-secondary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm sm:text-base font-bold text-role-primary">
+                      قوانین چهارگانه حاکم بر ثبت، امتیاز و زنجیره
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-role-secondary mt-0.5 leading-relaxed">
+                      اصول قطعی و غیرقابل تغییر سامانه برای ارزیابی روزانه، زنجیره استمرار و حل بدهی
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {BUSHIDO_SYSTEM_RULES.map(rule => {
+                    const IconComp = RULE_ICONS_MAP[rule.iconName] || ShieldCheck;
+                    const colorClass = 
+                      rule.colorToken === 'emerald' ? 'text-emerald bg-emerald-subtle border-emerald-subtle' :
+                      rule.colorToken === 'amber' ? 'text-amber bg-amber-subtle border-amber-subtle' :
+                      rule.colorToken === 'debt' ? 'text-debt bg-debt-subtle border-debt' :
+                      'text-blue bg-blue-subtle border-blue';
+                    const iconColor = 
+                      rule.colorToken === 'emerald' ? 'text-emerald' :
+                      rule.colorToken === 'amber' ? 'text-amber' :
+                      rule.colorToken === 'debt' ? 'text-debt' :
+                      'text-blue';
+
+                    return (
+                      <div
+                        key={rule.id}
+                        className="surface-z2 border-standard radius-card p-4 space-y-2 flex flex-col justify-between"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-8 h-8 radius-component surface-z3 border-standard flex items-center justify-center shrink-0">
+                                <IconComp className={`w-4 h-4 ${iconColor}`} />
+                              </div>
+                              <h4 className="text-xs sm:text-sm font-bold text-role-primary">
+                                {rule.title}
+                              </h4>
+                            </div>
+                            <span className={`text-[10px] sm:text-[11px] font-mono font-bold px-2 py-0.5 radius-capsule border whitespace-nowrap shrink-0 ${colorClass}`}>
+                              {rule.badge}
+                            </span>
+                          </div>
+                          <p className="text-xs text-role-secondary leading-relaxed text-right">
+                            {rule.description}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Replay Tour Trigger Card */}
+              {onReplayTour && (
+                <div id="guide-replay-tour-card" className="surface-z1 border-standard radius-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-subtle">
+                  <div className="space-y-0.5">
+                    <h4 className="text-xs sm:text-sm font-bold text-role-primary">
+                      راهنمای تصویری میدان نبرد (Coach Marks)
+                    </h4>
+                    <p className="text-xs text-role-secondary">
+                      مرور ۴ بخش کلیدی میدان نبرد: ارکان بنیادین، روز استاندارد، ماموریت ویژه و ناوبری
+                    </p>
+                  </div>
+                  <button
+                    id="guide-replay-tour-btn"
+                    type="button"
+                    onClick={onReplayTour}
+                    className="surface-z2 border-standard hover:border-amber/50 text-role-primary hover:text-amber font-bold text-xs px-3.5 py-2 radius-component transition cursor-pointer flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95"
+                  >
+                    <Compass className="w-4 h-4 text-amber" />
+                    <span>مشاهده مجدد راهنمای میدانی</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

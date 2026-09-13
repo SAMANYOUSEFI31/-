@@ -41,11 +41,7 @@ import {
   saveSystemStateDebounced, 
   flushPendingStorageSave, 
   cancelPendingStorageSave,
-  STORAGE_KEY, 
   TOKEN_KEY,
-  DEMO_CONSUMED_KEY,
-  LEGACY_DEMO_CONSUMED_KEY,
-  LEGACY_STORAGE_KEY,
   getScopedStorageKey,
   getScopedDemoConsumedKey,
   getActiveAccountId,
@@ -207,7 +203,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
   });
 
   const [activeCycleId, setActiveCycleId] = useState<string>(() => {
-    return systemState.cycles[0]?.id || 'cycle-1';
+    return systemState.cycles[0]?.id || '';
   });
 
   const [selectedDate, setSelectedDate] = useState<string>(() => getLogicalTodayDate());

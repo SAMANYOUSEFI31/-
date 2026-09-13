@@ -18,9 +18,6 @@ import {
   flushPendingStorageSave, 
   cancelPendingStorageSave,
   TOKEN_KEY,
-  DEMO_CONSUMED_KEY,
-  LEGACY_DEMO_CONSUMED_KEY,
-  LEGACY_STORAGE_KEY,
   getScopedStorageKey,
   getScopedDemoConsumedKey,
   getActiveAccountId,
@@ -103,6 +100,8 @@ import { AuthModal } from './components/AuthModal';
 import { CreateCycleModal } from './components/CreateCycleModal';
 import { DisciplineRulesModal } from './components/DisciplineRulesModal';
 import { ResetConfirmationModal } from './components/ResetConfirmationModal';
+import { FirstRunTour } from './components/FirstRunTour';
+import { isTourSeen, markTourSeen, resetTourSeen } from './utils/storageUtils';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useBodyScrollLock } from './utils/useBodyScrollLock';
 import { Toast, ToastItem, ToastType } from './components/Toast';
@@ -153,7 +152,7 @@ export default function App() {
   });
 
   const [activeCycleId, setActiveCycleId] = useState<string>(() => {
-    return systemState.cycles[0]?.id || 'cycle-1';
+    return systemState.cycles[0]?.id || '';
   });
 
   const [selectedDate, setSelectedDate] = useState<string>(() => getLogicalTodayDate());
@@ -166,6 +165,38 @@ export default function App() {
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+
+  const currentOwnerId = authToken ? (systemState.userProfile?.id || getActiveAccountId()) : null;
+
+  // First-run coach-mark tour state: show on battlefield for new users/demo sessions
+  const [isTourOpen, setIsTourOpen] = useState<boolean>(() => {
+    const ownerId = safeGetLocalStorage(TOKEN_KEY) ? getActiveAccountId() : null;
+    return !isTourSeen(ownerId) && systemState.cycles.length > 0;
+  });
+
+  useEffect(() => {
+    if (!isTourSeen(currentOwnerId) && systemState.cycles.length > 0) {
+      setIsTourOpen(true);
+    }
+  }, [currentOwnerId, systemState.cycles.length]);
+
+  const handleTourComplete = useCallback(() => {
+    setIsTourOpen(false);
+    markTourSeen(currentOwnerId);
+  }, [currentOwnerId]);
+
+  const handleTourSkip = useCallback(() => {
+    setIsTourOpen(false);
+    markTourSeen(currentOwnerId);
+  }, [currentOwnerId]);
+
+  const handleReplayTour = useCallback(() => {
+    resetTourSeen(currentOwnerId);
+    setActiveTab('battlefield');
+    setIsTourOpen(true);
+  }, [currentOwnerId]);
+
+  const isAnyModalOpen = isPaymentModalOpen || isAuthModalOpen || isCreateCycleModalOpen || isDisciplineRulesOpen || isResetConfirmOpen || autopsyTargetLog !== null;
 
   useBodyScrollLock(isResetConfirmOpen);
 
@@ -1749,6 +1780,7 @@ export default function App() {
                       onResetData={handleResetData}
                       onExportData={handleExportData}
                       onNavigateToAdmin={() => setActiveTab('admin')}
+                      onReplayTour={handleReplayTour}
                     />
                   </Suspense>
                 </motion.div>
@@ -1856,6 +1888,13 @@ export default function App() {
           isOpen={isResetConfirmOpen}
           onClose={() => setIsResetConfirmOpen(false)}
           onConfirm={handleConfirmReset}
+        />
+
+        {/* First Run Coach Marks Tour: Overlays real battlefield, never blocks ticking habits */}
+        <FirstRunTour
+          isOpen={isTourOpen && activeTab === 'battlefield' && !isAnyModalOpen && systemState.cycles.length > 0}
+          onComplete={handleTourComplete}
+          onSkip={handleTourSkip}
         />
       </div>
     </ErrorBoundary>

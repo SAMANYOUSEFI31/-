@@ -13,9 +13,11 @@ import {
   LEGACY_STORAGE_KEY,
   DEMO_CONSUMED_KEY,
   LEGACY_DEMO_CONSUMED_KEY,
+  TOUR_SEEN_KEY,
   normalizeUserId,
   getScopedStorageKey,
   getScopedDemoConsumedKey,
+  getScopedTourSeenKey,
   getScopedOfflineQueueKey,
   getScopedStateRecoveryKey,
   isGuestQueueOwner,
@@ -41,6 +43,39 @@ export function setActiveAccountId(userId: string | null): void {
     safeSetLocalStorage(ACTIVE_ACCOUNT_KEY, normId);
   } else {
     safeRemoveLocalStorage(ACTIVE_ACCOUNT_KEY);
+  }
+}
+
+/**
+ * Checks whether the battlefield coach-mark tour has been seen/dismissed for this account.
+ */
+export function isTourSeen(userId?: string | null): boolean {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedTourSeenKey(normId);
+  return safeGetLocalStorage(scopedKey) === 'true' || (!normId && safeGetLocalStorage(TOUR_SEEN_KEY) === 'true');
+}
+
+/**
+ * Marks the battlefield coach-mark tour as seen for this account.
+ */
+export function markTourSeen(userId?: string | null): void {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedTourSeenKey(normId);
+  safeSetLocalStorage(scopedKey, 'true');
+  if (!normId) {
+    safeSetLocalStorage(TOUR_SEEN_KEY, 'true');
+  }
+}
+
+/**
+ * Resets the tour seen status (useful for testing or re-triggering from settings).
+ */
+export function resetTourSeen(userId?: string | null): void {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedTourSeenKey(normId);
+  safeRemoveLocalStorage(scopedKey);
+  if (!normId) {
+    safeRemoveLocalStorage(TOUR_SEEN_KEY);
   }
 }
 
@@ -491,7 +526,7 @@ export function transitionAccountState(options: AccountTransitionOptions): Accou
     };
   }
 
-  const nextActiveCycleId = loadedState.cycles[0]?.id || 'cycle-1';
+  const nextActiveCycleId = loadedState.cycles[0]?.id || '';
 
   return {
     nextState: loadedState,

@@ -12,6 +12,8 @@ export const STORAGE_PREFIX = 'bushido_state_';
 export const DEMO_CONSUMED_KEY = 'bushido_demo_consumed_v1';
 export const LEGACY_DEMO_CONSUMED_KEY = 'bushido_demo_consumed_v1';
 export const DEMO_CONSUMED_PREFIX = 'bushido_demo_consumed_';
+export const TOUR_SEEN_KEY = 'bushido_tour_seen_v1';
+export const TOUR_SEEN_PREFIX = 'bushido_tour_seen_';
 export const TOKEN_KEY = 'bushido_auth_token';
 export const ACTIVE_ACCOUNT_KEY = 'bushido_active_account_id';
 export const GUEST_USER_ID = '__guest__';
@@ -94,6 +96,14 @@ export function getScopedStorageKey(userId?: string | null): string {
 export function getScopedDemoConsumedKey(userId?: string | null): string {
   const normId = normalizeUserId(userId);
   return normId ? `${DEMO_CONSUMED_PREFIX}user_${normId}` : `${DEMO_CONSUMED_PREFIX}guest`;
+}
+
+/**
+ * Generates an account-scoped storage key for the battlefield coach-mark tour seen flag.
+ */
+export function getScopedTourSeenKey(userId?: string | null): string {
+  const normId = normalizeUserId(userId);
+  return normId ? `${TOUR_SEEN_PREFIX}user_${normId}` : `${TOUR_SEEN_PREFIX}guest`;
 }
 
 /**

@@ -206,17 +206,26 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
             </div>
 
             <div>
-              <label htmlFor="create-cycle-theme-input" className="text-xs font-bold text-role-secondary block mb-1.5">
-                میثاق و تم اصلی چرخه (جهت یادآوری هدف):
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="create-cycle-theme-input" className="text-xs font-bold text-role-primary flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5 text-amber" />
+                  <span>هدف و میثاق ۹۰ روزه چرخه (ماموریت ویژه روزانه):</span>
+                </label>
+                <span className="text-[10px] text-amber font-bold bg-amber-subtle border border-amber-subtle px-1.5 py-0.5 radius-capsule whitespace-nowrap">
+                  +{toPersianDigits(2)} امتیاز تسلط
+                </span>
+              </div>
               <textarea
                 id="create-cycle-theme-input"
                 value={targetTheme}
                 onChange={e => setTargetTheme(e.target.value)}
                 rows={2}
-                placeholder="مثال: بدون بهانه، اراده آهنین در سحرخیزی و اتمام پروژه اصلی"
+                placeholder="مثال: تسلط بر سحرخیزی، ۱۰۰ ساعت کار عمیق تخصصی و اتمام پروژه اصلی"
                 className="w-full surface-z2 border-standard focus:border-standard focus-ring-tactical radius-component p-3 text-xs sm:text-sm text-role-primary focus:outline-none transition-colors resize-none leading-relaxed"
               />
+              <span className="text-[11px] text-role-muted mt-1 block leading-relaxed">
+                یک هدف کلیدی برای این ۹۰ روز تعیین کنید؛ هر روزی که اقدامی در جهت تحقق این هدف انجام دهید، تیک «ماموریت ویژه روز» را ثبت می‌کنید.
+              </span>
             </div>
 
             {/* Informative Bushido Discipline Notice & Rules Trigger */}

@@ -109,3 +109,64 @@ export const SUPPORT_CONTACT_CHANNELS: SupportContactInfo[] = [
     iconName: 'Mail'
   }
 ];
+
+export interface SystemDisciplineRule {
+  id: string;
+  title: string;
+  badge: string;
+  description: string;
+  iconName: 'CheckCircle2' | 'Award' | 'AlertOctagon' | 'Snowflake';
+  colorToken: 'emerald' | 'amber' | 'debt' | 'blue';
+}
+
+export const BUSHIDO_SYSTEM_RULES: SystemDisciplineRule[] = [
+  {
+    id: 'standard-day',
+    title: 'قانون روز استاندارد',
+    badge: '۸ از ۱۰',
+    description: 'تکمیل تمام ۵ پایه روزانه معادل ۸ امتیاز است. هر روزی که به این حد نصاب برسد، یک روز موفق محسوب شده و زنجیره پیشروی می‌کند.',
+    iconName: 'CheckCircle2',
+    colorToken: 'emerald'
+  },
+  {
+    id: 'mastery-day',
+    title: 'قانون کمال و تسلط',
+    badge: '۱۰ از ۱۰',
+    description: 'رسیدن به امتیاز کامل نیازمند تکمیل ۵ پایه به علاوه انجام ماموریت ویژه در راستای هدف ۹۰ روزه چرخه است؛ این نشان، برترین رکورد افتخار در تالار سوابق است.',
+    iconName: 'Award',
+    colorToken: 'amber'
+  },
+  {
+    id: 'debt-autopsy',
+    title: 'قانون کالبدشکافی بدهی (Debt)',
+    badge: 'کسر امتیاز',
+    description: 'هر روزی که به حد نصاب نرسد، بدهی انضباطی ایجاد می‌کند. تا زمان کالبدشکافی، ثبت ریشه ناکامی و پادزهر عملی، وضعیت هشدار باقی می‌ماند.',
+    iconName: 'AlertOctagon',
+    colorToken: 'debt'
+  },
+  {
+    id: 'emergency-freeze',
+    title: 'قانون توقف موجه (فریز اضطراری)',
+    badge: 'حفظ زنجیره',
+    description: 'در صورت بیماری شدید یا شرایط فورس‌ماژور، ثبت «دلایل شخصی» مانع از سوختن زنجیره می‌شود؛ اما امتیازی به آن روز اختصاص نمی‌یابد.',
+    iconName: 'Snowflake',
+    colorToken: 'blue'
+  }
+];
+
+export interface SpecialMissionPhilosophy {
+  title: string;
+  subtitle: string;
+  howItWorks: string;
+  criteria: string;
+  tacticalTip: string;
+}
+
+export const BUSHIDO_SPECIAL_MISSION_GUIDE: SpecialMissionPhilosophy = {
+  title: 'ماموریت ویژه روزانه (جهش هدف ۹۰ روزه)',
+  subtitle: 'پیوند عمیق بین عادات روزانه و دستاورد نهایی چرخه ۹۰ روزه',
+  howItWorks: 'در شروع هر چرخه، شما یک هدف کلیدی ۹۰ روزه برای خود تعیین می‌کنید. هر روزی که علاوه بر ۵ پایه، دست‌کم یک اقدام مشخص در جهت این هدف انجام دهید، تیک «ماموریت ویژه روز» (+۲ امتیاز) را می‌زنید تا به امتیاز کامل ۱۰ از ۱۰ برسید.',
+  criteria: 'معیار ثبت: هر اقدامی که مستقیماً خروجی، پیشرفت ملموس یا گامی عملی به سوی هدف چرخه باشد (مانند نگارش یک بخش، کدنویسی یک ویژگی، یا تمرین تخصصی).',
+  tacticalTip: 'ماموریت ویژه را با کارهای روتین اشتباه نگیرید؛ این اقدام، تعیین‌کننده‌ترین گام شما در طول روز برای فتح چرخه ۹۰ روزه است.'
+};
+

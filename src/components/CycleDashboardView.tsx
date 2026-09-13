@@ -5,6 +5,7 @@ import { addDaysToDate, getLogicalTodayDate, formatPersianDate } from '../utils/
 import { toPersianDigits } from '../utils/numberUtils';
 import { ResponsiveSubTabBar, SubTabItem } from './ResponsiveSubTabBar';
 import { ChartLoadingFallback } from './ChartLoadingFallback';
+import { CompactEmptyCycleState } from './CompactEmptyCycleState';
 
 // Lazy load heavy chart & matrix components for fast initial view render
 const HabitFidelityMatrix = React.lazy(() => 
@@ -74,34 +75,16 @@ const CycleDashboardViewComponent: React.FC<CycleDashboardViewProps> = ({
   if (!currentCycle || !metrics) {
     return (
       <div className="space-y-6 max-w-lg mx-auto py-12 px-4 animate-in fade-in duration-200" dir="rtl">
-        <div className="surface-z1 border-standard radius-modal p-6 sm:p-8 text-center space-y-4 shadow-subtle">
-          <div className="w-16 h-16 radius-card surface-z2 border-standard flex items-center justify-center mx-auto text-role-secondary">
-            <LayoutDashboard className="w-8 h-8 text-role-secondary" />
-          </div>
-          <div className="space-y-1.5">
-            <h3 className="text-base sm:text-lg font-black text-role-primary">
-              اتاق فرماندهی در انتظار چرخه فعال
-            </h3>
-            <p className="text-xs text-role-secondary leading-relaxed max-w-sm mx-auto">
-              جهت مشاهده نقشه‌های تاکتیکی ۹۰ روزه، ماتریس وفاداری به ارکان و رکوردهای دیسیپلین، ابتدا یک چرخه نبرد تعریف کنید.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
-            <button
-              onClick={onOpenCreateCycle || (() => onNavigateTab('archives'))}
-              className="btn-contract-mastery w-full sm:w-auto text-xs px-5 py-2.5 radius-component shadow-subtle inline-flex items-center justify-center gap-1.5 focus-ring-tactical"
-            >
-              <Plus className="w-4 h-4" />
-              <span>تعریف چرخه ۹۰ روزه</span>
-            </button>
-            <button
-              onClick={() => onNavigateTab('archives')}
-              className="btn-contract-secondary w-full sm:w-auto text-xs font-bold px-4 py-2.5 radius-component inline-flex items-center justify-center gap-1.5 focus-ring-tactical"
-            >
-              <span>مشاهده بایگانی</span>
-            </button>
-          </div>
-        </div>
+        <CompactEmptyCycleState
+          title="اتاق فرماندهی در انتظار چرخه فعال"
+          description="جهت مشاهده نقشه‌های تاکتیکی ۹۰ روزه، ماتریس وفاداری به ارکان و رکوردهای دیسیپلین، ابتدا یک چرخه نبرد تعریف کنید."
+          buttonText="تعریف چرخه ۹۰ روزه"
+          onOpenCreateCycle={onOpenCreateCycle || (() => onNavigateTab('archives'))}
+          secondaryAction={{
+            label: "مشاهده بایگانی",
+            onClick: () => onNavigateTab('archives')
+          }}
+        />
       </div>
     );
   }

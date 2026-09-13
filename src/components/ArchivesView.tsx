@@ -8,6 +8,7 @@ import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { getDeterministicCourtVerdict } from '../engine/deterministicSensei';
+import { CompactEmptyCycleState } from './CompactEmptyCycleState';
 import { 
   Archive, 
   Search, 
@@ -118,27 +119,12 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
   if (!currentCycle || !metrics) {
     return (
       <div className="space-y-6 animate-in fade-in duration-200" dir="rtl">
-        <div className="surface-z1 border-standard radius-modal p-8 sm:p-12 text-center space-y-5 max-w-xl mx-auto shadow-subtle">
-          <div className="w-16 h-16 radius-card surface-z2 border-standard flex items-center justify-center mx-auto text-amber">
-            <Archive className="w-8 h-8 text-amber" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-lg sm:text-xl font-black text-role-primary">
-              هیچ چرخه نبردی در سیستم تعریف نشده است
-            </h2>
-            <p className="text-xs sm:text-sm text-role-secondary leading-relaxed max-w-md mx-auto">
-              جهت ورود به کارزار، ردیابی ۹۰ روزه ارکان دیسیپلین و صدور احکام دادگاه بوشیدو، نخستین چرخه نبرد خود را آغاز کنید.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleOpenNewCycleModal}
-            className="btn-contract-mastery font-black text-sm px-6 py-3 radius-card inline-flex items-center justify-center gap-2 mx-auto shadow-subtle whitespace-nowrap focus-ring-tactical"
-          >
-            <Plus className="w-4 h-4" />
-            <span>تعریف چرخه نبرد ۹۰ روزه</span>
-          </button>
-        </div>
+        <CompactEmptyCycleState
+          title="هیچ چرخه نبردی در سیستم تعریف نشده است"
+          description="جهت ورود به کارزار، ردیابی ۹۰ روزه ارکان دیسیپلین و صدور احکام دادگاه بوشیدو، نخستین چرخه نبرد خود را آغاز کنید."
+          buttonText="تعریف چرخه نبرد ۹۰ روزه"
+          onOpenCreateCycle={handleOpenNewCycleModal}
+        />
 
         {/* New Cycle Modal when empty */}
         {showNewCycleModal && (

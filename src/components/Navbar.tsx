@@ -274,6 +274,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
 
       {/* Top Hub Bar Header with Frosted Glass Chrome & Universal Status-Bar Flow */}
       <header 
+        id="top-hub-bar"
         className="sticky top-0 z-40 surface-shell pt-safe select-none"
         style={{ borderBottom: '1px solid var(--color-border-muted)' }}
         dir="rtl"

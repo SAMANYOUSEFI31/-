@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { useModalAccessibility } from '../utils/useModalAccessibility';
-import { BUSHIDO_HABITS_PHILOSOPHY } from '../data/moreTabData';
+import { BUSHIDO_HABITS_PHILOSOPHY, BUSHIDO_SYSTEM_RULES, BUSHIDO_SPECIAL_MISSION_GUIDE } from '../data/moreTabData';
 import { HabitKey } from '../types';
 import { toPersianDigits } from '../utils/numberUtils';
 
@@ -34,6 +34,13 @@ const HABIT_ICONS_MAP: Record<HabitKey, React.ComponentType<{ className?: string
   study: BookOpen,
   journal: PenTool,
   hardTask: Briefcase
+};
+
+const RULE_ICONS_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  CheckCircle2,
+  Award,
+  AlertOctagon,
+  Snowflake
 };
 
 export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
@@ -183,6 +190,28 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
             })}
           </div>
 
+          {/* Special Mission Philosophy & 90-Day Goal */}
+          <div className="surface-z2 border-standard radius-card p-4 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-amber shrink-0" />
+                <h3 className="text-xs sm:text-sm font-bold text-role-primary">
+                  {BUSHIDO_SPECIAL_MISSION_GUIDE.title}
+                </h3>
+              </div>
+              <span className="bg-amber-subtle border border-amber-subtle text-amber text-[10px] sm:text-[11px] font-bold px-2 py-0.5 radius-capsule whitespace-nowrap">
+                +{toPersianDigits(2)} امتیاز تسلط
+              </span>
+            </div>
+            <p className="text-xs text-role-secondary leading-relaxed">
+              {BUSHIDO_SPECIAL_MISSION_GUIDE.howItWorks}
+            </p>
+            <div className="surface-z3 p-2.5 radius-component text-[11px] text-role-secondary leading-relaxed">
+              <span className="font-bold text-role-primary block mb-0.5">معیار ثبت:</span>
+              {BUSHIDO_SPECIAL_MISSION_GUIDE.criteria}
+            </div>
+          </div>
+
           {/* 4 System Discipline Laws */}
           <div className="space-y-2.5 pt-1">
             <span className="text-xs font-bold text-role-primary px-1 block">
@@ -190,49 +219,38 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
             </span>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {/* Rule 1 */}
-              <div className="surface-z2 border-standard radius-card p-3.5 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald shrink-0" />
-                  <span className="text-xs font-bold text-role-primary">قانون روز استاندارد ({toPersianDigits(8)} از {toPersianDigits(10)})</span>
-                </div>
-                <p className="text-[11px] text-role-secondary leading-relaxed">
-                  تکمیل تمام ۵ پایه روزانه معادل ۸ امتیاز است. هر روزی که به این حد نصاب برسد، یک روز موفق محسوب شده و زنجیره پیشروی می‌کند.
-                </p>
-              </div>
+              {BUSHIDO_SYSTEM_RULES.map(rule => {
+                const IconComp = RULE_ICONS_MAP[rule.iconName] || ShieldCheck;
+                const colorClass = 
+                  rule.colorToken === 'emerald' ? 'text-emerald bg-emerald-subtle border-emerald-subtle' :
+                  rule.colorToken === 'amber' ? 'text-amber bg-amber-subtle border-amber-subtle' :
+                  rule.colorToken === 'debt' ? 'text-debt bg-debt-subtle border-debt' :
+                  'text-blue bg-blue-subtle border-blue';
+                const iconColor = 
+                  rule.colorToken === 'emerald' ? 'text-emerald' :
+                  rule.colorToken === 'amber' ? 'text-amber' :
+                  rule.colorToken === 'debt' ? 'text-debt' :
+                  'text-blue';
 
-              {/* Rule 2 */}
-              <div className="surface-z2 border-standard radius-card p-3.5 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4 text-amber shrink-0" />
-                  <span className="text-xs font-bold text-role-primary">قانون کمال و تسلط ({toPersianDigits(10)} از {toPersianDigits(10)})</span>
-                </div>
-                <p className="text-[11px] text-role-secondary leading-relaxed">
-                  رسیدن به امتیاز کامل نیازمند عملکردی فراتر از روتین است؛ دستیابی به این نشان، برترین رکورد افتخار در تالار سوابق است.
-                </p>
-              </div>
-
-              {/* Rule 3 */}
-              <div className="surface-z2 border-standard radius-card p-3.5 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <AlertOctagon className="w-4 h-4 text-debt shrink-0" />
-                  <span className="text-xs font-bold text-role-primary">قانون کالبدشکافی بدهی (Debt)</span>
-                </div>
-                <p className="text-[11px] text-role-secondary leading-relaxed">
-                  هر روزی که به حد نصاب نرسد، بدهی انضباطی ایجاد می‌کند. تا زمان کالبدشکافی و ثبت پادزهر، سیستم در وضعیت قفل نسبی باقی می‌ماند.
-                </p>
-              </div>
-
-              {/* Rule 4 */}
-              <div className="surface-z2 border-standard radius-card p-3.5 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Snowflake className="w-4 h-4 text-blue shrink-0" />
-                  <span className="text-xs font-bold text-role-primary">قانون توقف موجه (فریز اضطراری)</span>
-                </div>
-                <p className="text-[11px] text-role-secondary leading-relaxed">
-                  در صورت بیماری شدید یا فورس‌ماژور، ثبت «دلایل شخصی» مانع از سوختن زنجیره می‌شود؛ اما امتیازی به روز اختصاص نمی‌یابد.
-                </p>
-              </div>
+                return (
+                  <div key={rule.id} className="surface-z2 border-standard radius-card p-3.5 space-y-1.5 flex flex-col justify-between">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <IconComp className={`w-4 h-4 ${iconColor} shrink-0`} />
+                          <span className="text-xs font-bold text-role-primary truncate">{rule.title}</span>
+                        </div>
+                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 radius-capsule border whitespace-nowrap shrink-0 ${colorClass}`}>
+                          {rule.badge}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-role-secondary leading-relaxed">
+                        {rule.description}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

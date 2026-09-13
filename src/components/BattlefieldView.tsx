@@ -7,7 +7,7 @@ import { toPersianDigits } from '../utils/numberUtils';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
 import { safeGetLocalStorage, safeSetLocalStorage } from '../utils/storageUtils';
-import { OnboardingWelcomeView } from './OnboardingWelcomeView';
+import { CompactEmptyCycleState } from './CompactEmptyCycleState';
 import { 
   Sun, 
   Dumbbell, 
@@ -285,11 +285,11 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
     return list;
   }, [currentCycle, cycleStartDate, logs, logicalToday]);
 
-  // 1. Guard against No Active Cycle / Empty State with Comprehensive Onboarding
+  // 1. Guard against No Active Cycle / Compact Empty State (Phase 1A)
   // (Placed AFTER all hooks to strictly adhere to React Rules of Hooks)
   if (!currentCycle || !metrics) {
     return (
-      <OnboardingWelcomeView
+      <CompactEmptyCycleState
         onOpenCreateCycle={onOpenCreateCycle || onNavigateToArchives || (() => {})}
         onNavigateToHabitsGuide={onNavigateToHabitsGuide || (() => {})}
       />
@@ -1058,11 +1058,18 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   <Target className={`w-5 h-5 ${currentActiveLog.specialMission ? 'text-amber' : 'text-role-muted group-hover:text-role-primary'}`} />
                 </div>
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <div className="font-bold text-xs sm:text-sm text-role-primary leading-snug">
+                  <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm text-role-primary leading-snug">
                     <span>ماموریت ویژه روز</span>
+                    <span className="text-[10px] text-amber font-mono font-bold bg-amber-subtle border border-amber-subtle px-1.5 py-0.5 radius-capsule whitespace-nowrap">
+                      +{toPersianDigits(2)} امتیاز تسلط
+                    </span>
                   </div>
                   <p className="text-[11px] text-role-secondary leading-relaxed text-right">
-                    ثبت ماموریت کلیدی امروز در کنار ۵ رکن فونداسیون برای کسب امتیاز کامل ۱۰ از ۱۰.
+                    {currentCycle?.targetTheme
+                      ? (currentActiveLog.specialMission
+                          ? `اقدام روزانه در راستای هدف چرخه «${currentCycle.targetTheme}» ثبت شد.`
+                          : `اقدام روزانه در راستای هدف ۹۰ روزه: «${currentCycle.targetTheme}»`)
+                      : 'ثبت اقدام روزانه در راستای هدف ۹۰ روزه چرخه برای کسب امتیاز کامل ۱۰ از ۱۰.'}
                   </p>
                 </div>
               </div>
