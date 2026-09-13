@@ -830,6 +830,12 @@ export default function App() {
               logs: nextLogs
             };
           });
+          const errorMsgFa = result.status === 'FORBIDDEN'
+            ? 'دسترسی غیرمجاز. تغییرات ذخیره نشد.'
+            : result.status === 'ENTITY_MISSING'
+            ? 'گزارش یا چرخه مورد نظر یافت نشد.'
+            : 'داده‌های ارسالی نامعتبر است.';
+          showAppToast(errorMsgFa, 'error');
         }
         console.warn('[DailyLog Mutation] Non-retryable error, quarantined and rolled back:', result);
         return;

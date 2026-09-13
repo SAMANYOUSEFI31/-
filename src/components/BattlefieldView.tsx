@@ -136,12 +136,14 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
 
   const latestActiveLogRef = useRef<DailyLog>(activeLog);
 
-  // Sync ref with props/state whenever activeLog changes
+  // Sync ref with props/state whenever activeLog or optimisticLog changes
   useEffect(() => {
-    if (activeLog && activeLog.date === selectedDate) {
+    if (optimisticLog && optimisticLog.date === selectedDate) {
+      latestActiveLogRef.current = optimisticLog;
+    } else if (activeLog && activeLog.date === selectedDate) {
       latestActiveLogRef.current = activeLog;
     }
-  }, [activeLog, selectedDate]);
+  }, [activeLog, optimisticLog, selectedDate]);
 
   // Derived currentActiveLog: prioritizes local optimistic state for 0ms visual feedback
   const currentActiveLog: DailyLog = useMemo(() => {
@@ -154,14 +156,14 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
   // Reconcile optimisticLog when props.logs updates with latest mutations or when date changes
   useEffect(() => {
     const currentInLogs = logs.find(l => l.date === selectedDate);
-    if (currentInLogs && latestActiveLogRef.current && latestActiveLogRef.current.date === selectedDate) {
-      const allMatch = FOUNDATION_HABITS.every(h => Boolean(currentInLogs[h.key]) === Boolean(latestActiveLogRef.current[h.key])) &&
-        Boolean(currentInLogs.specialMission) === Boolean(latestActiveLogRef.current.specialMission);
+    if (optimisticLog && optimisticLog.date === selectedDate && currentInLogs) {
+      const allMatch = FOUNDATION_HABITS.every(h => Boolean(currentInLogs[h.key]) === Boolean(optimisticLog[h.key])) &&
+        Boolean(currentInLogs.specialMission) === Boolean(optimisticLog.specialMission);
       if (allMatch) {
         setOptimisticLog(null);
       }
     }
-  }, [logs, selectedDate]);
+  }, [logs, optimisticLog, selectedDate]);
 
   const onUpdateLogRef = useRef(onUpdateLog);
   onUpdateLogRef.current = onUpdateLog;
@@ -199,6 +201,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
       setIsSaved(true);
       lastSyncDateRef.current = selectedDate;
       latestActiveLogRef.current = activeLog;
+      setOptimisticLog(null);
     } else if (isSaved && notesValue !== (activeLog?.notes || '')) {
       setNotesValue(activeLog?.notes || '');
     }

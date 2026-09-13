@@ -160,10 +160,15 @@ app.use('/api', apiRateLimiter);
 // Strict Authentication Limiter applied to auth routes
 app.use('/api/auth', authRateLimiter);
 
-// Minimal public health check endpoint (Container & PaaS Liveness Probe - never exposes sensitive diagnostics)
+// Minimal public health check endpoint (Container & PaaS Liveness/Health Probe - never exposes sensitive diagnostics)
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
+  const ready = isDatabaseReady();
+  const isProd = isProduction();
+  const statusCode = ready ? 200 : (isProd ? 503 : 200);
+
+  res.status(statusCode).json({
+    status: ready ? 'ok' : 'degraded',
+    ready,
     timestamp: new Date().toISOString()
   });
 });

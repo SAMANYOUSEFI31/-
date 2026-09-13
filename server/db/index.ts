@@ -24,7 +24,10 @@ import * as otpModule from './otp.js';
 
 export let prisma: any = null;
 export let isPrismaAvailable = false;
-const isOnVercel = Boolean(process.env.VERCEL);
+
+export function isRunningOnVercel(): boolean {
+  return Boolean(process.env.VERCEL || process.env.VERCEL_ENV || process.env.NOW_REGION);
+}
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -121,13 +124,20 @@ export async function ensurePrismaAdmin(): Promise<void> {
 
 export async function initializeDatabase(): Promise<void> {
   const dbConnectionString = harmonizeDatabaseEnv();
+  const onVercel = isRunningOnVercel();
 
   const isLocalhost =
     !!dbConnectionString &&
-    (dbConnectionString.includes('localhost') || dbConnectionString.includes('127.0.0.1'));
+    (dbConnectionString.includes('localhost') ||
+     dbConnectionString.includes('127.0.0.1') ||
+     dbConnectionString.includes('0.0.0.0'));
+
+  if (onVercel && isLocalhost) {
+    console.warn('[Database] Localhost Postgres connection string detected in Vercel serverless environment. Skipping connection attempt to unavailable local daemon.');
+  }
 
   // On Vercel / serverless, never attempt to connect to localhost Postgres
-  if (dbConnectionString && !(isOnVercel && isLocalhost)) {
+  if (dbConnectionString && !(onVercel && isLocalhost)) {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         const mod = await import('@prisma/client');

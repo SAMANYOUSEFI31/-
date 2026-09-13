@@ -178,6 +178,15 @@ export function errorHandler(err: any, req: Request, res: Response, next: NextFu
     return;
   }
 
+  if (err.name === 'ServiceUnavailableError' || err.code === 'SERVICE_UNAVAILABLE' || err.statusCode === 503 || err.status === 503) {
+    res.status(503).json({
+      code: 'SERVICE_UNAVAILABLE',
+      messageFa: err.messageFa || 'سرویس پایگاه داده در دسترس نیست. لطفاً دقایقی دیگر مجدداً تلاش نمایید.',
+      message: isProd ? 'Database persistence service is currently unavailable.' : (err.message || 'Database persistence service is currently unavailable.')
+    });
+    return;
+  }
+
   const statusCode = err.statusCode || err.status || 500;
   const code = err.code || (statusCode === 500 ? 'INTERNAL_SERVER_ERROR' : 'API_ERROR');
   const messageFa = err.messageFa || 'خطایی در پردازش درخواست روی داد.';

@@ -432,14 +432,15 @@ export function safeMergeReconciledLogs(
         const incoming = merged[idx];
         const incomingRev = typeof incoming.revision === 'number' ? incoming.revision : 0;
         const localRev = typeof localLog.revision === 'number' ? localLog.revision : 0;
-        // If incoming server log is confirmed with a strictly higher revision, server advanced OCC
-        if (incoming.isSynced && incomingRev > localRev) {
-          continue;
-        }
-        // Protect local pending unconfirmed changes against stale server reads or race conditions
-        merged[idx] = { ...incoming, ...localLog, isSynced: false };
+        // Protect local pending unconfirmed changes against stale/equal/higher server reads or race conditions
+        merged[idx] = {
+          ...incoming,
+          ...localLog,
+          revision: Math.max(incomingRev, localRev),
+          isSynced: false
+        };
       } else {
-        merged.push({ ...localLog });
+        merged.push({ ...localLog, isSynced: false });
       }
     }
   }
@@ -462,12 +463,14 @@ export function safeMergeReconciledCycles(
         const incoming = merged[idx];
         const incomingRev = typeof incoming.revision === 'number' ? incoming.revision : 0;
         const localRev = typeof localCycle.revision === 'number' ? localCycle.revision : 0;
-        if (incoming.isSynced && incomingRev > localRev) {
-          continue;
-        }
-        merged[idx] = { ...incoming, ...localCycle, isSynced: false };
+        merged[idx] = {
+          ...incoming,
+          ...localCycle,
+          revision: Math.max(incomingRev, localRev),
+          isSynced: false
+        };
       } else {
-        merged.push({ ...localCycle });
+        merged.push({ ...localCycle, isSynced: false });
       }
     }
   }

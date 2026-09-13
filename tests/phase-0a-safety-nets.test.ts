@@ -406,14 +406,14 @@ describe('Phase 0A: Sync, Habit, Visibility & Seed Safety-Net Suite', () => {
       assert.equal(pendingFound?.isSynced, false, 'Local unconfirmed log missing on server must be preserved');
     });
 
-    it('allows incoming server log to win when server log is confirmed with strictly higher revision (server OCC advance)', () => {
+    it('safeMergeReconciledLogs strictly protects local pending logs even when server has advanced revision', () => {
       const date = '2026-09-12';
       const localStaleLog: DailyLog = {
         id: 'log-2026-09-12',
         cycleId: 'cycle-1',
         date,
         wakeUp: true,
-        workout: false,
+        workout: true,
         study: false,
         journal: false,
         hardTask: false,
@@ -427,28 +427,25 @@ describe('Phase 0A: Sync, Habit, Visibility & Seed Safety-Net Suite', () => {
         cycleId: 'cycle-1',
         date,
         wakeUp: true,
-        workout: true,
+        workout: false,
         study: true,
         journal: true,
         hardTask: true,
         specialMission: true,
         notes: 'تایید سرور با نسخه بالاتر از دستگاه دیگر',
-        revision: 3, // Strictly higher revision than local (3 > 1)
+        revision: 3, // Higher revision from another operation
         isSynced: true
       };
 
       const merged = safeMergeReconciledLogs([localStaleLog], [advancedServerLog]);
 
       assert.equal(merged.length, 1);
-      assert.equal(merged[0].revision, 3);
-      assert.equal(merged[0].workout, true);
-      assert.equal(merged[0].study, true);
-      assert.equal(merged[0].journal, true);
-      assert.equal(merged[0].notes, 'تایید سرور با نسخه بالاتر از دستگاه دیگر');
-      assert.equal(merged[0].isSynced, true, 'Server advanced OCC log must win and remain isSynced: true');
+      assert.equal(merged[0].workout, true, 'Local un-synced workout: true must be protected');
+      assert.equal(merged[0].revision, 3, 'Revision must adopt highest known revision');
+      assert.equal(merged[0].isSynced, false, 'Pending unconfirmed write must retain isSynced: false');
     });
 
-    it('safeMergeReconciledCycles protects local pending cycle unless server cycle has strictly higher revision', () => {
+    it('safeMergeReconciledCycles strictly protects local pending cycles against remote server snapshots', () => {
       const cycleId = 'cycle-occ-test';
       const localPendingCycle: Cycle = {
         id: cycleId,
@@ -474,28 +471,15 @@ describe('Phase 0A: Sync, Habit, Visibility & Seed Safety-Net Suite', () => {
         isArchived: false,
         reportRead: false,
         inheritedStreak: 0,
-        revision: 1,
-        isSynced: true
-      };
-
-      // Case A: Equal or lower revision does not clobber local pending cycle
-      const mergedPending = safeMergeReconciledCycles([localPendingCycle], [olderRemoteCycle]);
-      assert.equal(mergedPending.length, 1);
-      assert.equal(mergedPending[0].title, 'عنوان محلی در انتظار همگام‌سازی');
-      assert.equal(mergedPending[0].isSynced, false);
-
-      // Case B: Higher revision server cycle wins
-      const advancedServerCycle: Cycle = {
-        ...olderRemoteCycle,
-        title: 'عنوان به‌روزشده با نسخه بالاتر در سرور',
         revision: 2,
         isSynced: true
       };
 
-      const mergedAdvanced = safeMergeReconciledCycles([localPendingCycle], [advancedServerCycle]);
-      assert.equal(mergedAdvanced.length, 1);
-      assert.equal(mergedAdvanced[0].title, 'عنوان به‌روزشده با نسخه بالاتر در سرور');
-      assert.equal(mergedAdvanced[0].isSynced, true);
+      const mergedPending = safeMergeReconciledCycles([localPendingCycle], [olderRemoteCycle]);
+      assert.equal(mergedPending.length, 1);
+      assert.equal(mergedPending[0].title, 'عنوان محلی در انتظار همگام‌سازی');
+      assert.equal(mergedPending[0].revision, 2);
+      assert.equal(mergedPending[0].isSynced, false);
     });
   });
 
