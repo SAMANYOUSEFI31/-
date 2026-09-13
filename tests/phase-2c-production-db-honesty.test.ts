@@ -18,24 +18,33 @@ import {
   DailyLog
 } from '../src/utils/directMutationUtils.js';
 import {
-  clearAllOfflineStorage,
   getOfflineQueue,
-  saveOfflineQueue,
-  storageMock
+  saveOfflineQueue
 } from '../src/utils/offlineQueueUtils.js';
 
 describe('Phase 2C: Production DB Honesty and Health Signal Suite', () => {
   const originalEnv = { ...process.env };
+  const mockStorage: Record<string, string> = {};
+  const storageMock = {
+    getItem: (key: string) => mockStorage[key] ?? null,
+    setItem: (key: string, val: string) => { mockStorage[key] = String(val); },
+    removeItem: (key: string) => { delete mockStorage[key]; },
+    clear: () => { for (const k in mockStorage) delete mockStorage[k]; },
+    get length() { return Object.keys(mockStorage).length; },
+    key: (i: number) => Object.keys(mockStorage)[i] ?? null
+  };
 
   beforeEach(() => {
     process.env = { ...originalEnv };
-    clearAllOfflineStorage();
+    mockStorage && Object.keys(mockStorage).forEach(k => delete mockStorage[k]);
+    (globalThis as any).localStorage = storageMock;
+    (globalThis as any).window = { localStorage: storageMock };
     setPrismaState(null, false);
   });
 
   afterEach(() => {
     process.env = { ...originalEnv };
-    clearAllOfflineStorage();
+    mockStorage && Object.keys(mockStorage).forEach(k => delete mockStorage[k]);
     setPrismaState(null, false);
   });
 

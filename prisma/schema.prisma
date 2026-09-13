@@ -3,9 +3,8 @@
 // Engineered according to BENCHMARKS.md for sub-10ms queries & zero data-orphan guarantee
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {

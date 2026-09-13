@@ -1866,7 +1866,7 @@ if (process.env.VERCEL) {
     res.sendFile(path.join(distPath, 'index.html'));
   });
   app.use(errorHandler);
-} else if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
+} else if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID && !process.env.NODE_TEST_CONTEXT && !process.execArgv.includes('--test') && !process.argv.includes('--test')) {
   startServer();
 }
 
