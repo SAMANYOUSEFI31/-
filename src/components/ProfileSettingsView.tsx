@@ -765,23 +765,59 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                 </div>
               )}
 
-              {/* One-Line Backup Guide: iOS Add to Home Screen */}
-              <div id="guide-ios-install-backup-card" className="surface-z1 border-standard radius-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-subtle text-right">
-                <div className="flex items-center gap-3 min-w-0">
+              {/* Cross-Platform Device Installation Guide */}
+              <div id="guide-install-device-card" className="surface-z1 border-standard radius-card p-4 sm:p-5 shadow-subtle text-right space-y-4">
+                <div className="flex items-center gap-3">
                   <div className="w-10 h-10 radius-card surface-z2 flex items-center justify-center text-role-secondary shrink-0">
-                    <Smartphone className="w-5 h-5 text-role-secondary" />
+                    <Download className="w-5 h-5 text-role-secondary" />
                   </div>
                   <div className="space-y-0.5 min-w-0">
+                    <h4 className="text-xs sm:text-sm font-bold text-role-primary">
+                      نصب روی دستگاه / صفحه اصلی
+                    </h4>
+                    <p className="text-[11px] sm:text-xs text-role-secondary leading-relaxed">
+                      برای استفاده تمام‌صفحه، دسترسی سریع و اجرای روان‌تر آفلاین بدون کادر مرورگر:
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  {/* Android */}
+                  <div id="guide-android-install-item" className="surface-z2 border-standard radius-component p-3 space-y-1">
                     <div className="flex items-center gap-2">
-                      <h4 className="text-xs sm:text-sm font-bold text-role-primary">
-                        افزودن به صفحه اصلی در آیفون و آیپد (iOS)
-                      </h4>
-                      <span className="text-[10px] font-mono surface-z2 px-2 py-0.5 radius-capsule text-role-muted shrink-0 select-none border border-zinc-800 hidden sm:inline-block">
+                      <span className="text-xs font-bold text-role-primary">اندروید (Android)</span>
+                      <span className="text-[10px] font-mono surface-z1 px-1.5 py-0.5 radius-capsule text-role-muted border border-zinc-800 select-none">
+                        Chrome
+                      </span>
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-role-secondary leading-relaxed">
+                      در صورت نمایش پیشنهاد نصب درون سامانه، آن را تایید کنید؛ در غیر این صورت از منوی مرورگر (مانند Chrome) گزینه «نصب برنامه» (Install app) یا «افزودن به صفحه اصلی» (Add to Home screen) را بزنید.
+                    </p>
+                  </div>
+
+                  {/* iPhone / iPad */}
+                  <div id="guide-ios-install-backup-card" className="surface-z2 border-standard radius-component p-3 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-role-primary">آیفون و آیپد (iOS)</span>
+                      <span className="text-[10px] font-mono surface-z1 px-1.5 py-0.5 radius-capsule text-role-muted border border-zinc-800 select-none">
                         Safari
                       </span>
                     </div>
                     <p className="text-[11px] sm:text-xs text-role-secondary leading-relaxed">
-                      در مرورگر Safari دکمه اشتراک‌گذاری (Share) را لمس کرده و گزینه «افزودن به صفحه اصلی» (Add to Home Screen) را انتخاب کنید.
+                      در مرورگر Safari دکمه اشتراک‌گذاری (Share) در نوار ابزار را لمس کرده و گزینه «افزودن به صفحه اصلی» (Add to Home Screen) را برای افزودن به صفحه اصلی در آیفون انتخاب کنید.
+                    </p>
+                  </div>
+
+                  {/* Windows / Desktop */}
+                  <div id="guide-desktop-install-item" className="surface-z2 border-standard radius-component p-3 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-role-primary">ویندوز و رایانه (Desktop)</span>
+                      <span className="text-[10px] font-mono surface-z1 px-1.5 py-0.5 radius-capsule text-role-muted border border-zinc-800 select-none">
+                        Chrome / Edge
+                      </span>
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-role-secondary leading-relaxed">
+                      در مرورگر Chrome یا Edge روی آیکون نصب در نوار آدرس کلیک کنید، یا از منوی مرورگر گزینه «نصب برنامه» (Install app) را برگزینید.
                     </p>
                   </div>
                 </div>

@@ -195,4 +195,34 @@ test('Bushido OS — Phase 3C: PWA Install UX Closure & Mutual Exclusion Invaria
     assert.equal(pwaBannerMatches?.length, 1, 'App.tsx must render exactly 1 PwaInstallBanner');
     assert.equal(iosTipMatches?.length, 1, 'App.tsx must render exactly 1 IosInstallTip');
   });
+
+  await t.test('7. Cross-Platform Install Guide in More (ProfileSettingsView) is unified with zero fake buttons', () => {
+    const profileViewPath = path.join(process.cwd(), 'src', 'components', 'ProfileSettingsView.tsx');
+    const content = fs.readFileSync(profileViewPath, 'utf8');
+
+    // Root card identifier
+    assert.ok(content.includes('guide-install-device-card'), 'Must contain guide-install-device-card');
+    assert.ok(content.includes('نصب روی دستگاه / صفحه اصلی'), 'Must contain unified title');
+
+    // Android coverage
+    assert.ok(content.includes('guide-android-install-item'), 'Must contain Android item');
+    assert.ok(content.includes('اندروید') || content.includes('Android'), 'Must mention Android');
+    assert.ok(content.includes('Chrome'), 'Must mention Chrome');
+    assert.ok(content.includes('Install app') || content.includes('نصب برنامه'), 'Must mention Install app');
+
+    // iPhone / iOS coverage
+    assert.ok(content.includes('guide-ios-install-backup-card'), 'Must contain iOS card');
+    assert.ok(content.includes('Safari'), 'Must mention Safari');
+    assert.ok(content.includes('Share') || content.includes('اشتراک‌گذاری'), 'Must mention Share');
+    assert.ok(content.includes('Add to Home Screen') || content.includes('افزودن به صفحه اصلی'), 'Must mention Add to Home Screen');
+
+    // Windows / Desktop coverage
+    assert.ok(content.includes('guide-desktop-install-item'), 'Must contain Desktop item');
+    assert.ok(content.includes('ویندوز') || content.includes('Desktop'), 'Must mention Desktop/Windows');
+    assert.ok(content.includes('Edge'), 'Must mention Edge');
+
+    // Zero fake install buttons inside the guide card
+    const guideCardSlice = content.slice(content.indexOf('id="guide-install-device-card"'), content.indexOf('activeSection === \'support\''));
+    assert.ok(!guideCardSlice.includes('<button'), 'Guide card must NOT contain any fake install buttons');
+  });
 });
