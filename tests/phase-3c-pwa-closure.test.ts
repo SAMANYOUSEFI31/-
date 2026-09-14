@@ -225,4 +225,131 @@ test('Bushido OS — Phase 3C: PWA Install UX Closure & Mutual Exclusion Invaria
     const guideCardSlice = content.slice(content.indexOf('id="guide-install-device-card"'), content.indexOf('activeSection === \'support\''));
     assert.ok(!guideCardSlice.includes('<button'), 'Guide card must NOT contain any fake install buttons');
   });
+
+  await t.test('8. Desktop Chromium (Windows Chrome / Edge) qualification with beforeinstallprompt and iOS event gate', () => {
+    // Windows 10/11 Chrome desktop environment
+    setupMockEnv({
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      platform: 'Win32'
+    });
+
+    assert.equal(isIOSDevice(), false, 'Windows desktop Chrome must not be identified as iOS');
+
+    // Simulate PwaInstallBanner shouldShow rule evaluation
+    const evalShouldShow = (opts: {
+      hasDeferredPrompt: boolean;
+      isDismissed: boolean;
+      isInstalled: boolean;
+      hasFirstVal: boolean;
+      hasElapsedGrace: boolean;
+      isTour: boolean;
+    }) => {
+      const isIOSWithoutEvent = isIOSDevice() && !opts.hasDeferredPrompt;
+      return (
+        !isIOSWithoutEvent &&
+        opts.hasDeferredPrompt &&
+        !opts.isDismissed &&
+        !opts.isInstalled &&
+        opts.hasFirstVal &&
+        opts.hasElapsedGrace &&
+        !opts.isTour
+      );
+    };
+
+    const userDesktop = 'samurai-desktop-win';
+
+    // Condition 1: beforeinstallprompt NOT fired yet -> should NOT show
+    assert.equal(
+      evalShouldShow({
+        hasDeferredPrompt: false,
+        isDismissed: false,
+        isInstalled: false,
+        hasFirstVal: true,
+        hasElapsedGrace: true,
+        isTour: false
+      }),
+      false,
+      'Must not show if beforeinstallprompt has not fired'
+    );
+
+    // Condition 2: beforeinstallprompt fired, but NO first value -> should NOT show
+    assert.equal(
+      evalShouldShow({
+        hasDeferredPrompt: true,
+        isDismissed: false,
+        isInstalled: false,
+        hasFirstVal: false,
+        hasElapsedGrace: true,
+        isTour: false
+      }),
+      false,
+      'Must enforce first-value gate on desktop Chromium'
+    );
+
+    // Condition 3: beforeinstallprompt fired + first value achieved + grace period -> QUALIFIES & SHOWS
+    markFirstValueAchieved(userDesktop);
+    assert.equal(
+      evalShouldShow({
+        hasDeferredPrompt: true,
+        isDismissed: false,
+        isInstalled: false,
+        hasFirstVal: hasFirstValueAchieved(userDesktop),
+        hasElapsedGrace: true,
+        isTour: false
+      }),
+      true,
+      'Must show on desktop Chromium when beforeinstallprompt fires and first-value is achieved'
+    );
+
+    // Condition 4: Dismissal rule: once dismissed, never shows again on desktop
+    markPwaDismissed(userDesktop);
+    assert.equal(
+      evalShouldShow({
+        hasDeferredPrompt: true,
+        isDismissed: isPwaDismissed(userDesktop),
+        isInstalled: false,
+        hasFirstVal: hasFirstValueAchieved(userDesktop),
+        hasElapsedGrace: true,
+        isTour: false
+      }),
+      false,
+      'Must respect dismissal persistence on desktop Chromium'
+    );
+
+    // Condition 5: iPhone / iOS environment WITHOUT beforeinstallprompt -> NEVER shows
+    setupMockEnv({
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+      platform: 'iPhone'
+    });
+    assert.equal(isIOSDevice(), true, 'Must identify iPhone as iOS');
+    assert.equal(
+      evalShouldShow({
+        hasDeferredPrompt: false,
+        isDismissed: false,
+        isInstalled: false,
+        hasFirstVal: true,
+        hasElapsedGrace: true,
+        isTour: false
+      }),
+      false,
+      'Must NEVER show on iOS without beforeinstallprompt event'
+    );
+
+    // Source code verification in index.html and PwaInstallBanner.tsx
+    const indexHtml = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8');
+    assert.ok(
+      indexHtml.includes('window.__bushido_deferred_prompt'),
+      'index.html must capture early beforeinstallprompt event for desktop Chromium'
+    );
+
+    const bannerCode = fs.readFileSync(path.join(process.cwd(), 'src', 'components', 'PwaInstallBanner.tsx'), 'utf8');
+    assert.ok(
+      bannerCode.includes('__bushido_deferred_prompt'),
+      'PwaInstallBanner.tsx must read early captured prompt'
+    );
+    assert.ok(
+      bannerCode.includes('isIOSWithoutEvent'),
+      'PwaInstallBanner.tsx must enforce iOS without event guard'
+    );
+  });
 });

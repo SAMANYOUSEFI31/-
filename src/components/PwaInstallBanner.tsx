@@ -30,9 +30,9 @@ export interface PwaInstallBannerProps {
  * Bushido Discipline OS — Phase 3A: Mild Add-to-Home-Screen (A2HS) Banner.
  *
  * GOVERNANCE RULES:
- * 1. Listen for beforeinstallprompt; preventDefault; keep deferredPrompt.
- * 2. If beforeinstallprompt never fires (typical iOS, desktop unsupported, or already installed):
- *    DO NOT show this banner (iOS is Phase 3B).
+ * 1. Listen for beforeinstallprompt; preventDefault; keep deferredPrompt (supports Android and Desktop Chromium like Windows Chrome/Edge).
+ * 2. If beforeinstallprompt never fires (typical iOS Safari/WebKit, unsupported browser, or already installed):
+ *    DO NOT show this banner (iOS without the event is handled by IosInstallTip).
  * 3. Never block first paint or habit ticking (no modal backdrop, non-blocking floating card).
  * 4. Show only AFTER first value (at least one successful habit tick in this or prior session).
  * 5. Never on the first second of first visit (enforces mount grace period).
@@ -45,7 +45,12 @@ export const PwaInstallBanner: React.FC<PwaInstallBannerProps> = ({
   hasSessionFirstValue = false,
   isTourOpen = false
 }) => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(() => {
+    if (typeof window !== 'undefined') {
+      return (window as unknown as { __bushido_deferred_prompt?: BeforeInstallPromptEvent }).__bushido_deferred_prompt ?? null;
+    }
+    return null;
+  });
   const [isDismissed, setIsDismissed] = useState<boolean>(() => isPwaDismissed(ownerId));
   const [isInstalled, setIsInstalled] = useState<boolean>(() => isPwaStandalone() || isPwaInstalled(ownerId));
   const [hasElapsedGracePeriod, setHasElapsedGracePeriod] = useState<boolean>(false);
@@ -64,19 +69,28 @@ export const PwaInstallBanner: React.FC<PwaInstallBannerProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
-  // Listen for beforeinstallprompt & appinstalled events
+  // Listen for beforeinstallprompt & appinstalled events (Android and Desktop Chromium)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Pick up early event if caught before React mount
+    const earlyPrompt = (window as unknown as { __bushido_deferred_prompt?: BeforeInstallPromptEvent }).__bushido_deferred_prompt;
+    if (earlyPrompt && !deferredPrompt) {
+      setDeferredPrompt(earlyPrompt);
+    }
+
     const handleBeforeInstallPrompt = (e: Event) => {
-      // Prevent browser mini-infobar from appearing on mobile
+      // Prevent browser default mini-infobar from appearing on mobile and desktop
       e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      const promptEvent = e as BeforeInstallPromptEvent;
+      (window as unknown as { __bushido_deferred_prompt?: BeforeInstallPromptEvent }).__bushido_deferred_prompt = promptEvent;
+      setDeferredPrompt(promptEvent);
     };
 
     const handleAppInstalled = () => {
       markPwaInstalled(ownerId);
       setIsInstalled(true);
+      (window as unknown as { __bushido_deferred_prompt?: BeforeInstallPromptEvent | null }).__bushido_deferred_prompt = null;
       setDeferredPrompt(null);
     };
 
@@ -87,16 +101,20 @@ export const PwaInstallBanner: React.FC<PwaInstallBannerProps> = ({
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, [ownerId]);
+  }, [ownerId, deferredPrompt]);
 
   // Check first value: either ticked in current session or recorded previously
   const hasFirstValue = useMemo(() => {
     return hasSessionFirstValue || hasFirstValueAchieved(ownerId);
   }, [hasSessionFirstValue, ownerId]);
 
-  // Determine whether banner should be displayed (strictly non-iOS; iOS uses IosInstallTip)
+  // Determine whether banner should be displayed:
+  // - Shows on desktop Chromium (Windows Chrome/Edge, macOS Chrome) and Android when beforeinstallprompt fires.
+  // - Still strictly never shows on iOS without the event (iOS without the event is handled by IosInstallTip).
+  // - Enforces same first-value, grace period, dismissed/installed, and tour rules.
+  const isIOSWithoutEvent = isIOSDevice() && !deferredPrompt;
   const shouldShow = (
-    !isIOSDevice() &&
+    !isIOSWithoutEvent &&
     Boolean(deferredPrompt) &&
     !isDismissed &&
     !isInstalled &&
@@ -123,6 +141,7 @@ export const PwaInstallBanner: React.FC<PwaInstallBannerProps> = ({
     } catch (err) {
       console.warn('[PWA A2HS] Error executing install prompt:', err);
     } finally {
+      (window as unknown as { __bushido_deferred_prompt?: BeforeInstallPromptEvent | null }).__bushido_deferred_prompt = null;
       setDeferredPrompt(null);
     }
   }, [deferredPrompt, ownerId]);
@@ -130,6 +149,8 @@ export const PwaInstallBanner: React.FC<PwaInstallBannerProps> = ({
   const handleDismiss = useCallback(() => {
     markPwaDismissed(ownerId);
     setIsDismissed(true);
+    (window as unknown as { __bushido_deferred_prompt?: BeforeInstallPromptEvent | null }).__bushido_deferred_prompt = null;
+    setDeferredPrompt(null);
   }, [ownerId]);
 
   return (

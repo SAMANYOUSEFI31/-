@@ -63,6 +63,12 @@
     </div>
     <script>
       (function() {
+        // Early capture of beforeinstallprompt for desktop Chromium (Windows Chrome/Edge) and Android
+        window.addEventListener('beforeinstallprompt', function(e) {
+          e.preventDefault();
+          window.__bushido_deferred_prompt = e;
+        });
+
         var slowTimer = setTimeout(function() {
           var el = document.getElementById('bushido-slow-loader');
           if (el) el.style.display = 'flex';
