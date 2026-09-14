@@ -183,6 +183,7 @@ export interface UserProfile {
   tier: UserSubscriptionTier;
   isVip: boolean;
   isAdmin?: boolean;
+  isSuperAdmin?: boolean;
   vipSince?: string;
   vipExpiresAt?: string;
   paymentRefId?: string;
@@ -197,6 +198,8 @@ export interface AuthState {
   user: UserProfile | null;
 }
 
+export type AdminSubTab = 'analytics' | 'users' | 'subscriptions';
+
 export interface AdminUserItem {
   id: string;
   name: string;
@@ -205,6 +208,7 @@ export interface AdminUserItem {
   tier: string;
   isVip: boolean;
   isAdmin?: boolean;
+  isSuperAdmin?: boolean;
   vipSince?: string | null;
   vipExpiresAt?: string | null;
   paymentRefId?: string | null;

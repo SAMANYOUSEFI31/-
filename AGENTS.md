@@ -52,8 +52,12 @@
    - Action buttons avoid nested duplicate score/reward pills if the reward is already declared in the header.
 13. **Gauge Segment Geometric Uniformity**:
    - 10-segment score gauge pills MUST share 100% identical dimensions, borders, and `transition-colors` (avoid `transition-all` or adding/removing borders that cause height jumps or white border flashes).
-14. **Optical Borders on Sub-Containers ($Z_2$) & Zero False Hover**:
-   - Secondary nested containers on $Z_1$ (e.g. Identity Cards, Cutoff selector container, Data Export box) must use subtle `border-standard` for clean optical separation without adding false hover borders (`hover:border-*`) or fake interactive pointers to non-clickable containers.
+14. **Anti-Boxification, Seamless Surfaces & Zero Wireframing**:
+   - **قانون حذف کادرهای تودرتو و خطوط برش تیز (Strict Ban on Nested Cages & Harsh Dividers)**:
+     از ایجاد خطوط مرزی افقی سرتاسری (`border-t`, `border-b`) در داخل کارت‌ها، کادرهای مستطیلی تیز تودرتو و محصور کردن المان‌های تصویری یا آماری (مانند میله‌های نمودار در کادرهای بردردار جداگانه) اکیداً خودداری شود. این الگو صفحه را شبیه قفس سیمی (Wireframe Cage) می‌کند.
+   - تفکیک زیربخش‌ها در یک کارت ($Z_1$) باید به صورت یکپارچه (Seamless) و با فاصله متقارن (`gap` و `padding`)، تایپوگرافی سلسله‌مراتبی و تفاوت نوری بسیار ملایم سطح ($Z_2$) بدون نیاز به بردرهای اضافه انجام شود.
+   - نمودارها باید دارای ساختاری شناور و ارگانیک با خطوط منحنی رِند و نرم (Smooth Spline / Bezier Curves) و فیل گرادیان ملایم باشند، نه ستون‌های تکه‌تکه در کادرهای خط‌کشی‌شده.
+   - کانتینرهای ثانویه ($Z_2$) هرگز نباید دارای هاور دروغین (`hover:border-*`) یا نشانگر اشاره‌گر روی محتوای غیرکلیکی باشند.
 15. **Radio & Switch Indicator Geometric Stability**:
    - Selection indicators and radio pills must maintain 100% identical outer dimensions (e.g. `w-4 h-4`) in both active and inactive states to eliminate layout shifts. State transitions must strictly use `transition-colors`.
 16. **Semantic Token Exclusivity in Autopsy & State Overlays**:
@@ -64,3 +68,7 @@
    - All modal overlays must employ `useBodyScrollLock` to prevent background body scroll bleed, support `Escape` key dismissal, and preserve tactile focus hygiene.
 19. **Zero Relic & Dead UI Policy**:
    - Prune legacy multi-theme remnants, redundant decorative badges, and inactive controls. Every pixel and control must have active functional purpose.
+20. **Admin Dashboard Architecture & Tab Governance**:
+   - The Admin View is strictly consolidated into 3 unified sub-tabs: `analytics` (Growth, Conversion Funnel, Cohorts, and Spline Trend), `users` (User database, RBAC roles, impersonation), and `subscriptions` (Transactions audit, Financial KPIs, payment gateway telemetry).
+   - Retention metrics (Active fighters ratio, cycle completion health, churn risk, and lifecycle cohorts) are natively integrated into the `analytics` sub-tab. Never create a separate or redundant 4th tab for retention.
+

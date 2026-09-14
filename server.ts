@@ -48,6 +48,7 @@ import {
   verifyToken,
   authMiddleware,
   adminMiddleware,
+  superAdminMiddleware,
   optionalAuthMiddleware,
   AuthenticatedRequest
 } from './server/auth.js';
@@ -1520,13 +1521,25 @@ app.get('/api/user/subscriptions', authMiddleware, handleGetUserSubscriptions);
 app.get('/api/subscriptions/my', authMiddleware, handleGetUserSubscriptions);
 
 /* =========================================================================
- * ADMIN PANEL ENDPOINTS
+ * ADMIN PANEL ENDPOINTS & STRICT RBAC CONTROLS (Phase 3)
  * ========================================================================= */
+
+function checkIsSuperAdminUser(user?: { email?: string | null; phoneNumber?: string | null } | null): boolean {
+  if (!user) return false;
+  if (user.phoneNumber && (isSuperAdminIdentifier(user.phoneNumber) || (SUPER_ADMIN_PHONE && user.phoneNumber === SUPER_ADMIN_PHONE))) return true;
+  if (user.email && (isSuperAdminIdentifier(user.email) || (SUPER_ADMIN_EMAIL && user.email === SUPER_ADMIN_EMAIL))) return true;
+  return false;
+}
 
 app.get('/api/admin/stats', adminMiddleware, async (req: AuthenticatedRequest, res, next) => {
   try {
+    const callerUser = await findUserById(req.user!.userId);
+    const isCallerSuperAdmin = checkIsSuperAdminUser(callerUser);
     const stats = await adminGetOverviewStats();
-    res.json({ stats });
+    res.json({ 
+      stats,
+      isCallerSuperAdmin
+    });
   } catch (error) {
     next(error);
   }
@@ -1534,8 +1547,34 @@ app.get('/api/admin/stats', adminMiddleware, async (req: AuthenticatedRequest, r
 
 app.get('/api/admin/users', adminMiddleware, async (req: AuthenticatedRequest, res, next) => {
   try {
-    const users = await adminGetAllUsers();
-    res.json({ users });
+    const callerUser = await findUserById(req.user!.userId);
+    const isCallerSuperAdmin = checkIsSuperAdminUser(callerUser);
+    const rawUsers = await adminGetAllUsers();
+
+    const users = rawUsers.map(u => ({
+      ...u,
+      isSuperAdmin: checkIsSuperAdminUser(u)
+    }));
+
+    res.json({ 
+      users,
+      isCallerSuperAdmin
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/admin/role', adminMiddleware, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const callerUser = await findUserById(req.user!.userId);
+    const isCallerSuperAdmin = checkIsSuperAdminUser(callerUser);
+    res.json({
+      role: isCallerSuperAdmin ? 'super_admin' : 'admin',
+      isSuperAdmin: isCallerSuperAdmin,
+      isAdmin: true,
+      userId: req.user!.userId
+    });
   } catch (error) {
     next(error);
   }
@@ -1546,14 +1585,50 @@ app.put('/api/admin/users/:id', adminMiddleware, async (req: AuthenticatedReques
     const userId = req.params.id;
     const { tier, isVip, isAdmin, name, daysExtension } = req.body;
 
+    const callerUser = await findUserById(req.user!.userId);
+    const isCallerSuperAdmin = checkIsSuperAdminUser(callerUser);
+
     const targetUser = await findUserById(userId);
     if (!targetUser) {
       return res.status(404).json({ code: 'NOT_FOUND', messageFa: 'کاربر مورد نظر یافت نشد.' });
     }
 
-    const isTargetRootAdmin = targetUser.email === SUPER_ADMIN_EMAIL || targetUser.phoneNumber === SUPER_ADMIN_PHONE;
-    if (isTargetRootAdmin && (isAdmin === false || isVip === false)) {
-      return res.status(403).json({ code: 'FORBIDDEN', messageFa: 'حساب مالک ارشد سیستم غیرقابل تنزل می‌باشد.' });
+    const isTargetSuperAdmin = checkIsSuperAdminUser(targetUser);
+
+    // Rule 1: Super Admin Immutability Shield
+    if (isTargetSuperAdmin) {
+      if (isAdmin === false || isVip === false || tier === 'free') {
+        return res.status(403).json({ 
+          code: 'FORBIDDEN_SUPER_ADMIN_IMMUTABLE', 
+          messageFa: 'حساب مالک و فرمانده کل سامانه (Super Admin) دارای مصونیت کامل بوده و غیرقابل تنزل یا لغو دسترسی است.' 
+        });
+      }
+      if (!isCallerSuperAdmin) {
+        return res.status(403).json({
+          code: 'FORBIDDEN',
+          messageFa: 'ویرایش اطلاعات حساب سوپر ادمین برای سایر مدیران اکیداً ممنوع است.'
+        });
+      }
+    }
+
+    // Rule 2: Admin Protection Shield (Non-Super Admins CANNOT modify other Admins)
+    if (Boolean(targetUser.isAdmin) && !isTargetSuperAdmin) {
+      if (!isCallerSuperAdmin) {
+        return res.status(403).json({
+          code: 'FORBIDDEN_ADMIN_MUTATION',
+          messageFa: 'مدیران عادی مجاز به ویرایش، تنزل، تمدید یا عزل سایر مدیران سامانه نیستند. این اختیارات منحصراً در صلاحیت سوپر ادمین است.'
+        });
+      }
+    }
+
+    // Rule 3: Strict RBAC for Admin Role Changes (Only Super Admin can grant/revoke admin rights)
+    if (typeof isAdmin === 'boolean' && isAdmin !== Boolean(targetUser.isAdmin)) {
+      if (!isCallerSuperAdmin) {
+        return res.status(403).json({
+          code: 'SUPER_ADMIN_REQUIRED',
+          messageFa: 'تغییر سطح دسترسی مدیران و ارتقا یا تنزل نقش ادمین منحصراً در صلاحیت سوپر ادمین (فرمانده کل سامانه) می‌باشد.'
+        });
+      }
     }
 
     const updated = await adminUpdateUser(userId, {
@@ -1564,7 +1639,13 @@ app.put('/api/admin/users/:id', adminMiddleware, async (req: AuthenticatedReques
       daysExtension: Number(daysExtension) || undefined
     });
 
-    res.json({ user: updated, messageFa: 'اطلاعات کاربر با موفقیت به‌روزرسانی شد.' });
+    res.json({ 
+      user: {
+        ...updated,
+        isSuperAdmin: checkIsSuperAdminUser(updated)
+      }, 
+      messageFa: 'اطلاعات کاربر با موفقیت به‌روزرسانی شد.' 
+    });
   } catch (error) {
     next(error);
   }
@@ -1573,13 +1654,25 @@ app.put('/api/admin/users/:id', adminMiddleware, async (req: AuthenticatedReques
 app.post('/api/admin/users/create-test', adminMiddleware, async (req: AuthenticatedRequest, res, next) => {
   try {
     const { name, email, phoneNumber, tier, isVip, isAdmin } = req.body;
+
+    const callerUser = await findUserById(req.user!.userId);
+    const isCallerSuperAdmin = checkIsSuperAdminUser(callerUser);
+
+    // Rule 3: Only Super Admin can create admin test accounts
+    if (isAdmin && !isCallerSuperAdmin) {
+      return res.status(403).json({
+        code: 'SUPER_ADMIN_REQUIRED',
+        messageFa: 'تعیین نقش مدیر برای کاربران جدید فقط در صلاحیت سوپر ادمین می‌باشد.'
+      });
+    }
+
     const user = await adminCreateTestUser({
       name: name?.trim() || 'کاربر آزمایشی بوشیدو',
       email: email?.trim() || undefined,
       phoneNumber: phoneNumber?.trim() || undefined,
       tier: tier || (isVip ? 'vip_samurai' : 'free'),
       isVip: Boolean(isVip || tier === 'vip_samurai'),
-      isAdmin: Boolean(isAdmin)
+      isAdmin: Boolean(isAdmin && isCallerSuperAdmin)
     });
 
     const token = generateToken({
@@ -1591,7 +1684,15 @@ app.post('/api/admin/users/create-test', adminMiddleware, async (req: Authentica
       isAdmin: Boolean(user.isAdmin)
     });
 
-    res.json({ success: true, user, token, messageFa: `حساب جدید «${user.name}» ایجاد گردید.` });
+    res.json({ 
+      success: true, 
+      user: {
+        ...user,
+        isSuperAdmin: checkIsSuperAdminUser(user)
+      }, 
+      token, 
+      messageFa: `حساب جدید «${user.name}» ایجاد گردید.` 
+    });
   } catch (error) {
     next(error);
   }

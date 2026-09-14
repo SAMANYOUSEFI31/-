@@ -56,6 +56,7 @@ export interface AuthUserPayload {
   isVip: boolean;
   tier: string;
   isAdmin?: boolean;
+  isSuperAdmin?: boolean;
   tokenVersion?: number;
   isImpersonated?: boolean;
   impersonatedBy?: string | null;
@@ -116,6 +117,7 @@ export async function authMiddleware(
       isVip: isMaster ? true : user.isVip,
       tier: isMaster ? 'vip_samurai' : user.tier,
       isAdmin: isMaster ? true : Boolean(user.isAdmin),
+      isSuperAdmin: isMaster,
       tokenVersion: user.tokenVersion ?? 0,
       isImpersonated: Boolean(decoded.isImpersonated),
       impersonatedBy: decoded.impersonatedBy || null
@@ -203,6 +205,7 @@ export async function adminMiddleware(
       isVip: true,
       tier: 'vip_samurai',
       isAdmin: true,
+      isSuperAdmin: isMaster,
       tokenVersion: user.tokenVersion ?? 0,
       isImpersonated: Boolean(decoded.isImpersonated),
       impersonatedBy: decoded.impersonatedBy || null
@@ -214,6 +217,90 @@ export async function adminMiddleware(
     res.status(401).json({
       code: 'AUTH_ERROR',
       messageFa: 'احراز هویت مدیر با خطا مواجه شد.'
+    });
+  }
+}
+
+/**
+ * Super Admin Middleware: Strictly reserved for the Master Commander (Super Admin).
+ * Regular Admins will receive 403 SUPER_ADMIN_REQUIRED.
+ */
+export async function superAdminMiddleware(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        code: 'UNAUTHORIZED',
+        messageFa: 'دسترسی غیرمجاز: ابتدا وارد شوید.'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = verifyToken<AuthUserPayload>(token);
+    if (!decoded || !decoded.userId) {
+      return res.status(401).json({
+        code: 'INVALID_TOKEN',
+        messageFa: 'توکن نامعتبر یا منقضی شده است.'
+      });
+    }
+
+    if (decoded.isImpersonated) {
+      return res.status(403).json({
+        code: 'IMPERSONATION_ACCESS_FORBIDDEN',
+        messageFa: 'عملیات فرماندهی کل در حالت شبیه‌سازی مجاز نمی‌باشد.'
+      });
+    }
+
+    const user = await findUserById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({
+        code: 'USER_NOT_FOUND',
+        messageFa: 'حساب کاربری یافت نشد.'
+      });
+    }
+
+    const userVersion = user.tokenVersion ?? 0;
+    const tokenVersion = decoded.tokenVersion ?? 0;
+    if (tokenVersion < userVersion) {
+      return res.status(401).json({
+        code: 'SESSION_REVOKED',
+        messageFa: 'نشست کاربری منقضی شده است. لطفاً مجدداً وارد شوید.'
+      });
+    }
+
+    const isMaster =
+      isSuperAdminIdentifier(user.phoneNumber) || isSuperAdminIdentifier(user.email);
+
+    if (!isMaster) {
+      return res.status(403).json({
+        code: 'SUPER_ADMIN_REQUIRED',
+        messageFa: 'این عملیات فوق‌امنیتی منحصراً در صلاحیت سوپر ادمین (فرمانده کل بوشیدو) می‌باشد.'
+      });
+    }
+
+    req.user = {
+      userId: user.id,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      isVip: true,
+      tier: 'vip_samurai',
+      isAdmin: true,
+      isSuperAdmin: true,
+      tokenVersion: user.tokenVersion ?? 0,
+      isImpersonated: false,
+      impersonatedBy: null
+    };
+
+    next();
+  } catch (err) {
+    console.error('Super Admin middleware error:', err);
+    res.status(401).json({
+      code: 'AUTH_ERROR',
+      messageFa: 'احراز هویت سوپر ادمین با خطا مواجه شد.'
     });
   }
 }
