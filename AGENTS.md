@@ -3,6 +3,7 @@
 ## Project Reference
 - Official Design System: See `/DESIGN_SYSTEM.md` for complete color tokens, affordance rules, icon sizing hierarchy, typography, and responsive standards.
 - Universal Benchmarks & AI Decision Protocol: See `/BENCHMARKS.md` for sound ergonomics, motion physics, and RTL balance rules.
+- Calculations, Metrics & Formulas Engine: See `/ADMIN_METRICS_AND_LOGIC.md` for complete mathematical logic, formulas, conversion funnels, cohorts, and discipline scoring algorithms.
 
 ## Core Rules for All Future Edits
 1. **Typography & Layout**:
@@ -52,11 +53,12 @@
    - Action buttons avoid nested duplicate score/reward pills if the reward is already declared in the header.
 13. **Gauge Segment Geometric Uniformity**:
    - 10-segment score gauge pills MUST share 100% identical dimensions, borders, and `transition-colors` (avoid `transition-all` or adding/removing borders that cause height jumps or white border flashes).
-14. **Anti-Boxification, Seamless Surfaces & Zero Wireframing**:
-   - **قانون حذف کادرهای تودرتو و خطوط برش تیز (Strict Ban on Nested Cages & Harsh Dividers)**:
-     از ایجاد خطوط مرزی افقی سرتاسری (`border-t`, `border-b`) در داخل کارت‌ها، کادرهای مستطیلی تیز تودرتو و محصور کردن المان‌های تصویری یا آماری (مانند میله‌های نمودار در کادرهای بردردار جداگانه) اکیداً خودداری شود. این الگو صفحه را شبیه قفس سیمی (Wireframe Cage) می‌کند.
-   - تفکیک زیربخش‌ها در یک کارت ($Z_1$) باید به صورت یکپارچه (Seamless) و با فاصله متقارن (`gap` و `padding`)، تایپوگرافی سلسله‌مراتبی و تفاوت نوری بسیار ملایم سطح ($Z_2$) بدون نیاز به بردرهای اضافه انجام شود.
-   - نمودارها باید دارای ساختاری شناور و ارگانیک با خطوط منحنی رِند و نرم (Smooth Spline / Bezier Curves) و فیل گرادیان ملایم باشند، نه ستون‌های تکه‌تکه در کادرهای خط‌کشی‌شده.
+14. **Anti-Boxification, Seamless Surfaces & Border Governance**:
+   - **تفکیک قطعی کادرهای استاندارد مجاز از قفس‌های سیمی ممنوع (Permitted Curved Cards vs. Banned Wireframes)**:
+     - **کارت‌های اصلی استاندارد با کرو نرم و بردر ظریف کاملاً مجاز و الزامی هستند**: کانتینرهای سطح ۱ ($Z_1$) با شعاع‌های خمیده و کرو نرم (`radius-card: 14px`، `radius-component: 12px`، `radius-modal: 18px`) و تک‌حاشیه بسیار ظریف و ملایم استاندارد (`border-standard` / `border-zinc-800` / `#27272a`) ستون فقرات سیستم طراحی بوشیدو هستند (مانند کادر شاخص و سطح انضباط، کادر پایه‌های ۵ گانه عادات، کادرهای KPI، و پنل‌های تله‌متری). این کادرها هرگز نباید حذف شوند.
+     - **آنچه اکیداً ممنوع است (Banned Harsh Wireframes)**: ۱. کشیدن کادرهای مستطیلی با زاویه‌های تیز ۹۰ درجه بدون کرو (`rounded-none` یا رادیوس‌های نامتناسب)، ۲. خطوط برش سراسری افقی/عمودی تند داخل یک کارت (`border-t`, `border-b`) که سطح کارت را شبیه دفترچه خط‌دار سیمی می‌کند، ۳. کادربندی‌های تو در تو خط‌دار (کشیدن کادر بردردار درون کادر بردردار دیگر برای تک‌تک متن‌ها یا میله‌های نمودار)، ۴. حاشیه‌های سفید تند و درخشان (`border-white` یا `border-zinc-400`).
+   - **تفکیک داخلی یکپارچه (Seamless Internal Surfaces)**: تفکیک زیربخش‌ها در داخل یک کارت ($Z_1$) باید از طریق سطوح نوری تیره ملایم ($Z_2$)، گپ و پدینگ متقارن، و تایپوگرافی سلسله‌مراتبی انجام شود، نه کشیدن خطوط بردر اضافه در اطراف هر المان خرد.
+   - **نمودارها**: نمودارها باید دارای ساختاری شناور و ارگانیک با خطوط منحنی رِند و نرم (Smooth Spline / Bezier Curves) و فیل گرادیان ملایم باشند، نه ستون‌های تکه‌تکه در کادرهای خط‌کشی‌شده.
    - کانتینرهای ثانویه ($Z_2$) هرگز نباید دارای هاور دروغین (`hover:border-*`) یا نشانگر اشاره‌گر روی محتوای غیرکلیکی باشند.
 15. **Radio & Switch Indicator Geometric Stability**:
    - Selection indicators and radio pills must maintain 100% identical outer dimensions (e.g. `w-4 h-4`) in both active and inactive states to eliminate layout shifts. State transitions must strictly use `transition-colors`.
