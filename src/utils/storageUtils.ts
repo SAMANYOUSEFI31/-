@@ -14,10 +14,18 @@ import {
   DEMO_CONSUMED_KEY,
   LEGACY_DEMO_CONSUMED_KEY,
   TOUR_SEEN_KEY,
+  PWA_DISMISSED_KEY,
+  PWA_INSTALLED_KEY,
+  FIRST_VALUE_KEY,
+  IOS_TIP_DISMISSED_KEY,
   normalizeUserId,
   getScopedStorageKey,
   getScopedDemoConsumedKey,
   getScopedTourSeenKey,
+  getScopedPwaDismissedKey,
+  getScopedPwaInstalledKey,
+  getScopedFirstValueKey,
+  getScopedIosTipDismissedKey,
   getScopedOfflineQueueKey,
   getScopedStateRecoveryKey,
   isGuestQueueOwner,
@@ -77,6 +85,151 @@ export function resetTourSeen(userId?: string | null): void {
   if (!normId) {
     safeRemoveLocalStorage(TOUR_SEEN_KEY);
   }
+}
+
+/**
+ * Checks whether the PWA A2HS banner has been dismissed for this account.
+ */
+export function isPwaDismissed(userId?: string | null): boolean {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedPwaDismissedKey(normId);
+  return safeGetLocalStorage(scopedKey) === 'true' || (!normId && safeGetLocalStorage(PWA_DISMISSED_KEY) === 'true');
+}
+
+/**
+ * Marks the PWA A2HS banner as dismissed for this account.
+ */
+export function markPwaDismissed(userId?: string | null): void {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedPwaDismissedKey(normId);
+  safeSetLocalStorage(scopedKey, 'true');
+  if (!normId) {
+    safeSetLocalStorage(PWA_DISMISSED_KEY, 'true');
+  }
+}
+
+/**
+ * Resets the PWA A2HS banner dismissed status (useful for testing or reset).
+ */
+export function resetPwaDismissed(userId?: string | null): void {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedPwaDismissedKey(normId);
+  safeRemoveLocalStorage(scopedKey);
+  if (!normId) {
+    safeRemoveLocalStorage(PWA_DISMISSED_KEY);
+  }
+}
+
+/**
+ * Checks whether the PWA has been installed for this account.
+ */
+export function isPwaInstalled(userId?: string | null): boolean {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedPwaInstalledKey(normId);
+  return safeGetLocalStorage(scopedKey) === 'true' || (!normId && safeGetLocalStorage(PWA_INSTALLED_KEY) === 'true');
+}
+
+/**
+ * Marks the PWA as installed for this account.
+ */
+export function markPwaInstalled(userId?: string | null): void {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedPwaInstalledKey(normId);
+  safeSetLocalStorage(scopedKey, 'true');
+  if (!normId) {
+    safeSetLocalStorage(PWA_INSTALLED_KEY, 'true');
+  }
+}
+
+/**
+ * Checks whether the user has achieved their first value (e.g. habit tick) for this account.
+ */
+export function hasFirstValueAchieved(userId?: string | null): boolean {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedFirstValueKey(normId);
+  return safeGetLocalStorage(scopedKey) === 'true' || (!normId && safeGetLocalStorage(FIRST_VALUE_KEY) === 'true');
+}
+
+/**
+ * Marks the first value (e.g. habit tick) as achieved for this account.
+ */
+export function markFirstValueAchieved(userId?: string | null): void {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedFirstValueKey(normId);
+  safeSetLocalStorage(scopedKey, 'true');
+  if (!normId) {
+    safeSetLocalStorage(FIRST_VALUE_KEY, 'true');
+  }
+}
+
+/**
+ * Resets the first value status (useful for testing or reset).
+ */
+export function resetFirstValue(userId?: string | null): void {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedFirstValueKey(normId);
+  safeRemoveLocalStorage(scopedKey);
+  if (!normId) {
+    safeRemoveLocalStorage(FIRST_VALUE_KEY);
+  }
+}
+
+/**
+ * Checks whether the iOS A2HS tip has been dismissed for this account.
+ */
+export function isIosTipDismissed(userId?: string | null): boolean {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedIosTipDismissedKey(normId);
+  return safeGetLocalStorage(scopedKey) === 'true' || (!normId && safeGetLocalStorage(IOS_TIP_DISMISSED_KEY) === 'true');
+}
+
+/**
+ * Marks the iOS A2HS tip as dismissed for this account.
+ */
+export function markIosTipDismissed(userId?: string | null): void {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedIosTipDismissedKey(normId);
+  safeSetLocalStorage(scopedKey, 'true');
+  if (!normId) {
+    safeSetLocalStorage(IOS_TIP_DISMISSED_KEY, 'true');
+  }
+}
+
+/**
+ * Resets the iOS A2HS tip dismissal flag.
+ */
+export function resetIosTipDismissed(userId?: string | null): void {
+  const normId = normalizeUserId(userId);
+  const scopedKey = getScopedIosTipDismissedKey(normId);
+  safeRemoveLocalStorage(scopedKey);
+  if (!normId) {
+    safeRemoveLocalStorage(IOS_TIP_DISMISSED_KEY);
+  }
+}
+
+/**
+ * Detects if the runtime environment is an iOS/iPadOS device (iPhone, iPad, iPod, iPadOS on MacIntel).
+ */
+export function isIOSDevice(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const isAppleMobile = /iPad|iPhone|iPod/i.test(ua);
+  const isIPadOS = navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
+  return isAppleMobile || isIPadOS;
+}
+
+/**
+ * Checks whether the application is currently running in standalone display mode (installed PWA).
+ */
+export function isPwaStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  const isStandaloneMedia = Boolean(
+    typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches
+  );
+  const isNavigatorStandalone = Boolean(
+    (window.navigator as unknown as { standalone?: boolean })?.standalone
+  );
+  return isStandaloneMedia || isNavigatorStandalone;
 }
 
 export interface BackendSyncDecisionInput {

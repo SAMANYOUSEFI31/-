@@ -14,6 +14,14 @@ export const LEGACY_DEMO_CONSUMED_KEY = 'bushido_demo_consumed_v1';
 export const DEMO_CONSUMED_PREFIX = 'bushido_demo_consumed_';
 export const TOUR_SEEN_KEY = 'bushido_tour_seen_v1';
 export const TOUR_SEEN_PREFIX = 'bushido_tour_seen_';
+export const PWA_DISMISSED_KEY = 'bushido_pwa_dismissed_v1';
+export const PWA_DISMISSED_PREFIX = 'bushido_pwa_dismissed_';
+export const PWA_INSTALLED_KEY = 'bushido_pwa_installed_v1';
+export const PWA_INSTALLED_PREFIX = 'bushido_pwa_installed_';
+export const FIRST_VALUE_KEY = 'bushido_first_value_v1';
+export const FIRST_VALUE_PREFIX = 'bushido_first_value_';
+export const IOS_TIP_DISMISSED_KEY = 'bushido_ios_tip_dismissed_v1';
+export const IOS_TIP_DISMISSED_PREFIX = 'bushido_ios_tip_dismissed_';
 export const TOKEN_KEY = 'bushido_auth_token';
 export const ACTIVE_ACCOUNT_KEY = 'bushido_active_account_id';
 export const GUEST_USER_ID = '__guest__';
@@ -104,6 +112,38 @@ export function getScopedDemoConsumedKey(userId?: string | null): string {
 export function getScopedTourSeenKey(userId?: string | null): string {
   const normId = normalizeUserId(userId);
   return normId ? `${TOUR_SEEN_PREFIX}user_${normId}` : `${TOUR_SEEN_PREFIX}guest`;
+}
+
+/**
+ * Generates an account-scoped storage key for the PWA install banner dismissal flag.
+ */
+export function getScopedPwaDismissedKey(userId?: string | null): string {
+  const normId = normalizeUserId(userId);
+  return normId ? `${PWA_DISMISSED_PREFIX}user_${normId}` : `${PWA_DISMISSED_PREFIX}guest`;
+}
+
+/**
+ * Generates an account-scoped storage key for the PWA installed flag.
+ */
+export function getScopedPwaInstalledKey(userId?: string | null): string {
+  const normId = normalizeUserId(userId);
+  return normId ? `${PWA_INSTALLED_PREFIX}user_${normId}` : `${PWA_INSTALLED_PREFIX}guest`;
+}
+
+/**
+ * Generates an account-scoped storage key for the user first value achieved flag.
+ */
+export function getScopedFirstValueKey(userId?: string | null): string {
+  const normId = normalizeUserId(userId);
+  return normId ? `${FIRST_VALUE_PREFIX}user_${normId}` : `${FIRST_VALUE_PREFIX}guest`;
+}
+
+/**
+ * Generates an account-scoped storage key for the iOS A2HS tip dismissed flag.
+ */
+export function getScopedIosTipDismissedKey(userId?: string | null): string {
+  const normId = normalizeUserId(userId);
+  return normId ? `${IOS_TIP_DISMISSED_PREFIX}user_${normId}` : `${IOS_TIP_DISMISSED_PREFIX}guest`;
 }
 
 /**

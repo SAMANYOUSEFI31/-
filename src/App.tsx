@@ -101,7 +101,9 @@ import { CreateCycleModal } from './components/CreateCycleModal';
 import { DisciplineRulesModal } from './components/DisciplineRulesModal';
 import { ResetConfirmationModal } from './components/ResetConfirmationModal';
 import { FirstRunTour } from './components/FirstRunTour';
-import { isTourSeen, markTourSeen, resetTourSeen } from './utils/storageUtils';
+import { PwaInstallBanner } from './components/PwaInstallBanner';
+import { IosInstallTip } from './components/IosInstallTip';
+import { isTourSeen, markTourSeen, resetTourSeen, markFirstValueAchieved } from './utils/storageUtils';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useBodyScrollLock } from './utils/useBodyScrollLock';
 import { Toast, ToastItem, ToastType } from './components/Toast';
@@ -167,6 +169,9 @@ export default function App() {
   const toastTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
 
   const currentOwnerId = authToken ? (systemState.userProfile?.id || getActiveAccountId()) : null;
+
+  // Session first-value state: tracks if user performed at least one habit tick in current session
+  const [hasSessionFirstValue, setHasSessionFirstValue] = useState<boolean>(false);
 
   // First-run coach-mark tour state: show on battlefield for new users/demo sessions
   const [isTourOpen, setIsTourOpen] = useState<boolean>(() => {
@@ -686,6 +691,20 @@ export default function App() {
   const handleUpdateLog = useCallback(async (incomingLog: DailyLog) => {
     inFlightLogMutationsRef.current += 1;
     try {
+      // Phase 3A: Detect user-driven habit tick for first-value PWA install milestone
+      const hasAnyHabitTicked = Boolean(
+        incomingLog.wakeUp ||
+        incomingLog.workout ||
+        incomingLog.study ||
+        incomingLog.journal ||
+        incomingLog.hardTask ||
+        incomingLog.specialMission
+      );
+      if (hasAnyHabitTicked) {
+        setHasSessionFirstValue(true);
+        markFirstValueAchieved(systemState.userProfile?.id);
+      }
+
       const currentLogs = latestLogsRef.current || systemState.logs;
       // Convert virtual placeholder into established DailyLog mutation input before state update or mutation
       const updatedLog = convertVirtualDebtLogForMutation(incomingLog, activeCycleId, currentLogs);
@@ -1901,6 +1920,20 @@ export default function App() {
           isOpen={isTourOpen && activeTab === 'battlefield' && !isAnyModalOpen && systemState.cycles.length > 0}
           onComplete={handleTourComplete}
           onSkip={handleTourSkip}
+        />
+
+        {/* Phase 3A: PWA Add-to-Home-Screen Mild Banner (beforeinstallprompt only) */}
+        <PwaInstallBanner
+          ownerId={currentOwnerId}
+          hasSessionFirstValue={hasSessionFirstValue}
+          isTourOpen={isTourOpen && activeTab === 'battlefield' && !isAnyModalOpen && systemState.cycles.length > 0}
+        />
+
+        {/* Phase 3B: Honest iOS Add-to-Home-Screen Tip */}
+        <IosInstallTip
+          ownerId={currentOwnerId}
+          hasSessionFirstValue={hasSessionFirstValue}
+          isTourOpen={isTourOpen && activeTab === 'battlefield' && !isAnyModalOpen && systemState.cycles.length > 0}
         />
       </div>
     </ErrorBoundary>
