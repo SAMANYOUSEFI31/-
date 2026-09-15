@@ -58,7 +58,7 @@ import {
   safeRemoveSessionStorage,
   resolveBackendSyncDecision,
   shouldQueueOfflineMutation
-} from '../utils/storageUtils';
+} from '../sync/storageUtils';
 import {
   IMPERSONATOR_TOKEN_KEY,
   IMPERSONATING_USER_KEY,
@@ -67,7 +67,7 @@ import {
   buildExitImpersonationSuccessState,
   buildExitImpersonationRevokedState,
   executeLogoutDuringImpersonation
-} from '../utils/impersonationUtils';
+} from '../sync/impersonationUtils';
 import {
   enqueueOfflineMutation,
   getOfflineQueue,
@@ -79,7 +79,7 @@ import {
   isGuestQueueOwner,
   parseSafeConflictDetails,
   recordClientConflict
-} from '../utils/offlineQueueUtils';
+} from '../sync/offlineQueueUtils';
 
 const parseApiError = async (res: Response): Promise<string> => {
   try {

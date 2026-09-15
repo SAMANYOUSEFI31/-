@@ -5,7 +5,7 @@ import { toPersianDigits } from '../../shared/utils/numberUtils';
 import { haptics } from '../../utils/haptics';
 import { useBodyScrollLock } from '../../shared/hooks/useBodyScrollLock';
 import { useModalAccessibility } from '../../shared/hooks/useModalAccessibility';
-import { handleTabListKeyDown, AuthTab } from '../../utils/authTabNavigation';
+import { handleTabListKeyDown, AuthTab } from '../../app/routing/authTabNavigation';
 import { 
   ShieldCheck, 
   Smartphone, 

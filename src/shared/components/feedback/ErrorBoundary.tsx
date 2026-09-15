@@ -1,6 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { ShieldAlert, RotateCcw, RefreshCw, AlertTriangle, Home } from 'lucide-react';
-import { clearUserLocalState, getActiveAccountId, safeRemoveLocalStorage } from '../../../utils/storageUtils';
+import { clearUserLocalState, getActiveAccountId, safeRemoveLocalStorage } from '../../../sync/storageUtils';
 
 interface Props {
   children: ReactNode;

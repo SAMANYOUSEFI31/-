@@ -6,7 +6,7 @@ import { formatPersianDate, getLogicalTodayDate, addDaysToDate, getRelativeDateL
 import { toPersianDigits } from '../../shared/utils/numberUtils';
 import { soundFX } from '../../utils/audioEffects';
 import { haptics } from '../../utils/haptics';
-import { safeGetLocalStorage, safeSetLocalStorage } from '../../utils/storageUtils';
+import { safeGetLocalStorage, safeSetLocalStorage } from '../../sync/storageUtils';
 import { CompactEmptyCycleState } from '../cycles/CompactEmptyCycleState';
 import { 
   Sun, 

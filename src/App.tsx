@@ -38,7 +38,7 @@ import {
   normalizeQueueOwner,
   isGuestQueueOwner,
   shouldQueueOfflineMutation
-} from './utils/storageUtils';
+} from './sync/storageUtils';
 import {
   getOfflineQueue,
   parseSafeConflictDetails,
@@ -46,7 +46,7 @@ import {
   getRuntimeInFlightCount,
   getUnreplayableQueueItems,
   clearFailedQueueItems
-} from './utils/offlineQueueUtils';
+} from './sync/offlineQueueUtils';
 import {
   applyOptimisticLogUpdate,
   rollbackOptimisticLogUpdate,
@@ -64,24 +64,24 @@ import {
   executeDirectCreateCycleMutation,
   executeDirectUpdateCycleMutation,
   executeDirectDeleteCycleMutation
-} from './utils/directMutationUtils';
+} from './sync/directMutationUtils';
 import {
   deriveUnresolvedDebtLogs,
   convertVirtualDebtLogForMutation
 } from './features/autopsy/debtAutopsyUtils';
-import { reconcileBootState } from './utils/syncReconciliation';
-import { emitSyncDiagnostic } from './utils/syncDiagnostics';
+import { reconcileBootState } from './sync/syncReconciliation';
+import { emitSyncDiagnostic } from './sync/syncDiagnostics';
 import { 
   createSyncOrchestrator, 
   SyncTrigger, 
   SyncOrchestrator,
   SyncRunOutcome,
   bindBootAuthAndRequestSync
-} from './utils/syncOrchestrator';
+} from './sync/syncOrchestrator';
 import {
   performVisibilityRefetch,
   setupVisibilityRefetchListeners
-} from './utils/visibilitySyncUtils';
+} from './sync/visibilitySyncUtils';
 import {
   IMPERSONATOR_TOKEN_KEY,
   IMPERSONATING_USER_KEY,
@@ -90,7 +90,7 @@ import {
   buildExitImpersonationSuccessState,
   buildExitImpersonationRevokedState,
   executeLogoutDuringImpersonation
-} from './utils/impersonationUtils';
+} from './sync/impersonationUtils';
 import { Navbar } from './shared/components/layout/Navbar';
 import { BattlefieldView } from './features/battlefield/BattlefieldView';
 import { ViewLoadingSkeleton } from './shared/components/feedback/ViewLoadingSkeleton';
@@ -103,12 +103,12 @@ import { ResetConfirmationModal } from './features/cycles/ResetConfirmationModal
 import { FirstRunTour } from './features/tour/FirstRunTour';
 import { PwaInstallBanner } from './shared/components/pwa/PwaInstallBanner';
 import { IosInstallTip } from './shared/components/pwa/IosInstallTip';
-import { isTourSeen, markTourSeen, resetTourSeen, markFirstValueAchieved } from './utils/storageUtils';
+import { isTourSeen, markTourSeen, resetTourSeen, markFirstValueAchieved } from './sync/storageUtils';
 import { ErrorBoundary } from './shared/components/feedback/ErrorBoundary';
 import { useBodyScrollLock } from './shared/hooks/useBodyScrollLock';
 import { Toast, ToastItem, ToastType } from './shared/components/feedback/Toast';
 import { toPersianDigits } from './shared/utils/numberUtils';
-import { resolveTabFromPath, getPathForTab, normalizePathname, shouldPushTab } from './utils/routerUtils';
+import { resolveTabFromPath, getPathForTab, normalizePathname, shouldPushTab } from './app/routing/routerUtils';
 import { RotateCcw, Eye, ShieldCheck } from 'lucide-react';
 import './styles/tokens.css';
 

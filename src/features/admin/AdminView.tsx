@@ -9,7 +9,7 @@ import {
 import { toPersianDigits, formatPersianToman } from '../../shared/utils/numberUtils';
 import { formatPersianDate } from '../../shared/utils/dateUtils';
 import { soundFX } from '../../utils/audioEffects';
-import { safeGetLocalStorage } from '../../utils/storageUtils';
+import { safeGetLocalStorage } from '../../sync/storageUtils';
 import { ResponsiveSubTabBar, SubTabItem } from '../../shared/components/layout/ResponsiveSubTabBar';
 import { TrendCurvedChart } from '../../shared/components/charts/TrendCurvedChart';
 import { 
