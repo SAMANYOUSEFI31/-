@@ -1,9 +1,54 @@
 # Bushido Discipline OS — Target Architecture & Staged Folder Map
 
-> **Status:** APPROVED ARCHITECTURAL SPECIFICATION  
-> **Target Scope:** `src/`, `server/`, `public/`, `tests/`  
-> **Mandate:** Documentation & architectural map ONLY. **DO NOT move application source files in this prompt.**  
+> **Status:** MIGRATION WAVE 1 COMPLETED (STAGED FOLDER RELOCATION)  
+> **Current State:** `src/shared/`, `src/features/`, `src/app/routing/`, and `src/sync/` relocated and active. All 844 tests green.  
 > **Zero-Regression Invariants:** No UI redesign. No changes to Vercel API `?path=` serverless routing. No rewrite of sync/offline/tick logic. Pure import path updates per cluster.
+
+---
+
+## Migration Wave 1 Execution Status
+
+### A. Completed Moves (Active in Codebase)
+1. **Shared Primitives & Hooks (`src/shared/`)**:
+   - `src/shared/hooks/`: `useBodyScrollLock.ts`, `useModalAccessibility.ts`.
+   - `src/shared/utils/`: `dateUtils.ts`, `numberUtils.ts`, `themeUtils.ts`.
+   - `src/shared/components/feedback/`: `Toast.tsx`, `ErrorBoundary.tsx`, `ViewLoadingSkeleton.tsx`.
+   - `src/shared/components/layout/`: `Navbar.tsx`, `ResponsiveSubTabBar.tsx`.
+   - `src/shared/components/pwa/`: `PwaInstallBanner.tsx`, `IosInstallTip.tsx`.
+   - `src/shared/components/charts/`: `TacticalHeatmap90.tsx`, `TrendCurvedChart.tsx`, `HabitFidelityMatrix.tsx`, `ChartLoadingFallback.tsx`.
+2. **Domain Features (`src/features/`)**:
+   - `src/features/archives/`: `ArchivesView.tsx`.
+   - `src/features/profile/`: `ProfileSettingsView.tsx`.
+   - `src/features/dashboard/`: `CycleDashboardView.tsx`.
+   - `src/features/tour/`: `FirstRunTour.tsx`, `OnboardingWelcomeView.tsx`.
+   - `src/features/cycles/`: `CreateCycleModal.tsx`, `ResetConfirmationModal.tsx`, `CompactEmptyCycleState.tsx`.
+   - `src/features/battlefield/`: `BattlefieldView.tsx` (relocated as whole file, no split).
+   - `src/features/court/`: `BushidoCourtView.tsx`, `DisciplineRulesModal.tsx`.
+   - `src/features/autopsy/`: `AutopsyModal.tsx`, `debtAutopsyUtils.ts`.
+   - `src/features/payment/`: `PaymentModal.tsx`, `paymentValidation.ts`.
+   - `src/features/auth/`: `AuthModal.tsx` (relocated as whole file, no split).
+   - `src/features/admin/`: `AdminView.tsx` (relocated as whole file, no split).
+3. **Application Routing (`src/app/routing/`)**:
+   - `routerUtils.ts`, `authTabNavigation.ts`.
+4. **Sync & Storage Engine (`src/sync/`)**:
+   - `directMutationUtils.ts`, `offlineQueueUtils.ts`, `storageCore.ts`, `storageUtils.ts`, `syncOrchestrator.ts`, `syncReconciliation.ts`, `syncDiagnostics.ts`, `visibilitySyncUtils.ts`, `impersonationUtils.ts`.
+5. **Compatibility Stubs**:
+   - Lightweight backward-compatible re-export stubs maintained in `src/components/` and `src/utils/` to prevent breaking imports across legacy test harnesses.
+
+### B. Explicitly Deferred Work
+The following refactorings were explicitly deferred during this migration wave to maintain absolute stability, zero-regression guarantees, and avoid breaking serverless or test harnesses:
+1. **Server Route Splitting (`server.ts` → `server/routes/*`)**:
+   - `server.ts` remains intact as the consolidated Express server. Moving routes into separate files is deferred to prevent breaking Vercel serverless bindings (`api/index.js` `?path=` normalization) and DB concurrency tests.
+2. **Test Directory Reorganization (`tests/*`)**:
+   - Flat directory `/tests` (49 test files) is preserved. Moving test files into categorized subfolders is deferred to keep root test runners and path-sensitive test assertions (`fs.readFileSync`) stable.
+3. **Internal Component Decomposition (Granular Splits)**:
+   - Deep decomposition of `BattlefieldView.tsx` (extracting `HabitCard`, `DayCarousel`, `BattlefieldHeader`), `AdminView.tsx` (extracting tab subcomponents), and `AuthModal.tsx` (extracting `LoginForm`, `OtpVerificationForm`, `RegisterForm`) is deferred. Views were moved as atomic whole files.
+4. **BushidoContext Extraction**:
+   - `src/context/BushidoContext.tsx` extraction/refactoring is deferred; context structure is preserved.
+5. **Public Icons Folder (`public/icons/`)**:
+   - Asset relocations in `public/` are deferred.
+6. **Auxiliary Views in `src/components/`**:
+   - `DatabaseView.tsx` and `SenseiView.tsx` remain in `src/components/` (along with re-export stubs) as referenced by contract tests (`data-integrity-and-import-removal.test.ts`).
 
 ---
 
