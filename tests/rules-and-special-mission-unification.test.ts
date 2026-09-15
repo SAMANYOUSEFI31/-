@@ -41,7 +41,7 @@ describe('Discipline Rules and Special Mission Unification', () => {
   });
 
   it('3. ProfileSettingsView contains both the 4 discipline rules and the special mission card', () => {
-    const filePath = path.resolve(process.cwd(), 'src/components/ProfileSettingsView.tsx');
+    const filePath = path.resolve(process.cwd(), 'src/features/profile/ProfileSettingsView.tsx');
     const content = fs.readFileSync(filePath, 'utf-8');
 
     assert.ok(content.includes('guide-special-mission-card'), 'ProfileSettingsView should have guide-special-mission-card');

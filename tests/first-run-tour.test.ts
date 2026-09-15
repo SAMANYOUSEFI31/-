@@ -152,7 +152,7 @@ describe('Phase 1B: First-Run Coach Marks on Battlefield', () => {
   });
 
   it('6. ProfileSettingsView exposes onReplayTour button in Guide section', () => {
-    const profilePath = path.resolve(process.cwd(), 'src/components/ProfileSettingsView.tsx');
+    const profilePath = path.resolve(process.cwd(), 'src/features/profile/ProfileSettingsView.tsx');
     const profileContent = fs.readFileSync(profilePath, 'utf-8');
 
     assert.ok(profileContent.includes('onReplayTour'), 'ProfileSettingsView must accept onReplayTour prop');

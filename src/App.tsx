@@ -117,10 +117,10 @@ const CycleDashboardView = React.lazy(() =>
   import('./components/CycleDashboardView').then(m => ({ default: m.CycleDashboardView }))
 );
 const ArchivesView = React.lazy(() => 
-  import('./components/ArchivesView').then(m => ({ default: m.ArchivesView }))
+  import('./features/archives/ArchivesView').then(m => ({ default: m.ArchivesView }))
 );
 const ProfileSettingsView = React.lazy(() => 
-  import('./components/ProfileSettingsView').then(m => ({ default: m.ProfileSettingsView }))
+  import('./features/profile/ProfileSettingsView').then(m => ({ default: m.ProfileSettingsView }))
 );
 const AdminView = React.lazy(() => 
   import('./components/AdminView').then(m => ({ default: m.AdminView }))

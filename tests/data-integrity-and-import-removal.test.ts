@@ -55,7 +55,7 @@ describe('Phase 6.3A: Data Integrity Hardening & JSON Import Removal', () => {
 
     it('3. ProfileSettingsView and DatabaseView no longer expose onImportData or import callbacks', () => {
       const profileSettingsContent = fs.readFileSync(
-        path.resolve(process.cwd(), 'src/components/ProfileSettingsView.tsx'),
+        path.resolve(process.cwd(), 'src/features/profile/ProfileSettingsView.tsx'),
         'utf-8'
       );
       assert.ok(!profileSettingsContent.includes('onImportData'), 'ProfileSettingsView should not have onImportData');
@@ -71,7 +71,7 @@ describe('Phase 6.3A: Data Integrity Hardening & JSON Import Removal', () => {
 
     it('4. No file input for JSON restoration remains in settings or database views', () => {
       const profileSettingsContent = fs.readFileSync(
-        path.resolve(process.cwd(), 'src/components/ProfileSettingsView.tsx'),
+        path.resolve(process.cwd(), 'src/features/profile/ProfileSettingsView.tsx'),
         'utf-8'
       );
       assert.ok(!profileSettingsContent.includes('accept=".json"'), 'ProfileSettingsView should not have .json file input');

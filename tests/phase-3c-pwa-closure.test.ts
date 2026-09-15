@@ -197,7 +197,7 @@ test('Bushido OS — Phase 3C: PWA Install UX Closure & Mutual Exclusion Invaria
   });
 
   await t.test('7. Cross-Platform Install Guide in More (ProfileSettingsView) is unified with zero fake buttons', () => {
-    const profileViewPath = path.join(process.cwd(), 'src', 'components', 'ProfileSettingsView.tsx');
+    const profileViewPath = path.join(process.cwd(), 'src', 'features', 'profile', 'ProfileSettingsView.tsx');
     const content = fs.readFileSync(profileViewPath, 'utf8');
 
     // Root card identifier

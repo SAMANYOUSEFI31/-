@@ -177,7 +177,7 @@ test('Bushido OS — Phase 3B: Honest iOS Add-to-Home-Screen Tip & Guide Backup'
   });
 
   await t.test('7. Source code inspection: One-line backup under More / Guide in ProfileSettingsView', () => {
-    const profileViewPath = path.join(process.cwd(), 'src', 'components', 'ProfileSettingsView.tsx');
+    const profileViewPath = path.join(process.cwd(), 'src', 'features', 'profile', 'ProfileSettingsView.tsx');
     const viewContent = fs.readFileSync(profileViewPath, 'utf8');
 
     assert.ok(

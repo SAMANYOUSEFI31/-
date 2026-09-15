@@ -53,7 +53,7 @@ describe('Phase 1C: Onboarding Residue Sweep & Unified Empty State Contract', ()
 
   it('2. CompactEmptyCycleState is unified and used across Battlefield, Archives, and Dashboard', () => {
     const bfContent = fs.readFileSync('src/components/BattlefieldView.tsx', 'utf-8');
-    const archivesContent = fs.readFileSync('src/components/ArchivesView.tsx', 'utf-8');
+    const archivesContent = fs.readFileSync('src/features/archives/ArchivesView.tsx', 'utf-8');
     const dashboardContent = fs.readFileSync('src/components/CycleDashboardView.tsx', 'utf-8');
     const compactContent = fs.readFileSync('src/components/CompactEmptyCycleState.tsx', 'utf-8');
 
