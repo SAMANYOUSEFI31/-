@@ -45,7 +45,14 @@
       "name": "داشبورد تحلیلی چرخه",
       "short_name": "داشبورد",
       "description": "مشاهده وضعیت زنجیره و امتیاز دیسیپلین",
-      "url": "/?tab=dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "کارنامه و بایگانی چرخه‌ها",
+      "short_name": "بایگانی",
+      "description": "مشاهده سوابق و کارنامه چرخه‌های ۹۰ روزه",
+      "url": "/archives",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]

@@ -1,5 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { 
   normalizePathname, 
   resolveTabFromPath, 
@@ -258,6 +260,75 @@ describe('Client Router: Phase R1A Route Resolution & History Invariants', () =>
       // Pressing back once means there are no prior in-app entries
       const canGoBackInApp = currentIndex > 0;
       assert.equal(canGoBackInApp, false, 'Deep link Back once leaves the app or goes to prior external page');
+    });
+  });
+
+  describe('5. Phase R1C: PWA Manifest & Routing Closure Invariants', () => {
+    const manifestPath = path.resolve(process.cwd(), 'public/manifest.json');
+    const manifestContent = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+    it('manifest start_url is / (or /battlefield), matching the default application route', () => {
+      assert.ok(
+        manifestContent.start_url === '/' || manifestContent.start_url === '/battlefield',
+        `start_url must be / or /battlefield, got ${manifestContent.start_url}`
+      );
+      const resolved = resolveTabFromPath(manifestContent.start_url);
+      assert.equal(resolved.tab, 'battlefield');
+      assert.equal(resolved.isKnown, true);
+    });
+
+    it('all PWA shortcuts point to real canonical paths without query param fragments', () => {
+      assert.ok(Array.isArray(manifestContent.shortcuts), 'shortcuts must be an array');
+      assert.ok(manifestContent.shortcuts.length >= 2, 'manifest must declare at least 2 shortcuts');
+
+      const urls = manifestContent.shortcuts.map((s: { url: string }) => s.url);
+
+      // Verify no shortcut uses old query string pattern like ?tab=...
+      for (const url of urls) {
+        assert.ok(!url.includes('?tab='), `Shortcut URL ${url} must not use query parameter pattern`);
+        assert.ok(url.startsWith('/'), `Shortcut URL ${url} must be an absolute path starting with /`);
+
+        // Every shortcut URL must resolve cleanly to a known tab
+        const resolved = resolveTabFromPath(url);
+        assert.equal(resolved.isKnown, true, `Shortcut ${url} must resolve to a known tab`);
+      }
+
+      // Explicitly check that / and /dashboard are among the shortcuts
+      assert.ok(urls.includes('/') || urls.includes('/battlefield'), 'Must include root or battlefield shortcut');
+      assert.ok(urls.includes('/dashboard'), 'Must include real /dashboard shortcut');
+    });
+
+    it('Navbar component adheres to router navigation without full page reloads', () => {
+      const navbarFile = path.resolve(process.cwd(), 'src/components/Navbar.tsx');
+      const navbarContent = fs.readFileSync(navbarFile, 'utf8');
+
+      // Brand mark is an interactive button that triggers handleTabClick('battlefield')
+      assert.ok(
+        navbarContent.includes("onClick={() => handleTabClick('battlefield')}"),
+        'Brand button must navigate to battlefield via handleTabClick'
+      );
+
+      // Desktop and mobile navigation tabs trigger handleTabClick
+      assert.ok(
+        navbarContent.includes('onClick={() => handleTabClick(tab.id)}'),
+        'Tab buttons must trigger handleTabClick without page reload'
+      );
+
+      // handleTabClick uses onSelectTab and avoids reload
+      assert.ok(
+        navbarContent.includes('onSelectTab(tabId)'),
+        'handleTabClick must delegate to onSelectTab router handler'
+      );
+
+      // No raw <a href links for internal tab navigation
+      assert.ok(
+        !navbarContent.includes('<a href="/dashboard"'),
+        'Navbar must not use hard anchor navigation for /dashboard'
+      );
+      assert.ok(
+        !navbarContent.includes('<a href="/battlefield"'),
+        'Navbar must not use hard anchor navigation for /battlefield'
+      );
     });
   });
 });

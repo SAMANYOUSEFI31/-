@@ -284,7 +284,12 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             
             {/* Brand & Cycle Switcher */}
             <div className="flex items-center gap-2 sm:gap-3.5 min-w-0 shrink">
-              <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleTabClick('battlefield')}
+                aria-label="میدان نبرد - بازگشت به صفحه اصلی"
+                className="flex items-center gap-2 shrink-0 cursor-pointer focus-ring-tactical radius-component text-right"
+              >
                 <div
                   className="h-8 w-8 sm:h-9 sm:w-9 radius-component flex items-center justify-center bg-crimson text-role-primary font-black shadow-subtle text-sm sm:text-base shrink-0 select-none pointer-events-none"
                 >
@@ -298,7 +303,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                     BUSHIDO OS
                   </span>
                 </div>
-              </div>
+              </button>
 
               {/* Cycle Switcher Dropdown */}
               <div className="relative min-w-0 z-50">
