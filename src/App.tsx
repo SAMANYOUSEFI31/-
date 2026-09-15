@@ -108,6 +108,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useBodyScrollLock } from './utils/useBodyScrollLock';
 import { Toast, ToastItem, ToastType } from './components/Toast';
 import { toPersianDigits } from './utils/numberUtils';
+import { resolveTabFromPath, getPathForTab, normalizePathname } from './utils/routerUtils';
 import { RotateCcw, Eye, ShieldCheck } from 'lucide-react';
 import './styles/tokens.css';
 
@@ -158,7 +159,55 @@ export default function App() {
   });
 
   const [selectedDate, setSelectedDate] = useState<string>(() => getLogicalTodayDate());
-  const [activeTab, setActiveTab] = useState<string>('battlefield');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return resolveTabFromPath(window.location.pathname).tab;
+    }
+    return 'battlefield';
+  });
+
+  const navigateTab = useCallback((nextTab: string, options?: { replace?: boolean }) => {
+    const replace = options?.replace ?? false;
+    const targetPath = getPathForTab(nextTab);
+    if (typeof window !== 'undefined') {
+      const currentNorm = normalizePathname(window.location.pathname);
+      const targetNorm = normalizePathname(targetPath);
+      const isAlreadyOnPath = currentNorm === targetNorm || (currentNorm === '/' && targetNorm === '/battlefield');
+      if (!isAlreadyOnPath) {
+        if (replace) {
+          window.history.replaceState({ tab: nextTab }, '', targetPath);
+        } else {
+          window.history.pushState({ tab: nextTab }, '', targetPath);
+        }
+      }
+    }
+    setActiveTab(nextTab);
+  }, []);
+
+  // Router popstate synchronization for browser back/forward buttons and swipe-back navigation
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handlePopState = () => {
+      const resolved = resolveTabFromPath(window.location.pathname);
+      if (!resolved.isKnown) {
+        window.history.replaceState({ tab: resolved.tab }, '', resolved.canonicalPath);
+      }
+      setActiveTab(resolved.tab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Router hydration: if landing on an unknown URL, replace with /battlefield so URL matches view
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const resolved = resolveTabFromPath(window.location.pathname);
+    if (!resolved.isKnown) {
+      window.history.replaceState({ tab: 'battlefield' }, '', '/battlefield');
+    }
+  }, []);
   const [autopsyTargetLog, setAutopsyTargetLog] = useState<DailyLog | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -197,9 +246,9 @@ export default function App() {
 
   const handleReplayTour = useCallback(() => {
     resetTourSeen(currentOwnerId);
-    setActiveTab('battlefield');
+    navigateTab('battlefield');
     setIsTourOpen(true);
-  }, [currentOwnerId]);
+  }, [currentOwnerId, navigateTab]);
 
   const isAnyModalOpen = isPaymentModalOpen || isAuthModalOpen || isCreateCycleModalOpen || isDisciplineRulesOpen || isResetConfirmOpen || autopsyTargetLog !== null;
 
@@ -1271,7 +1320,7 @@ export default function App() {
     
     setActiveCycleId(newCycle.id);
     setSelectedDate(startDate);
-    setActiveTab('battlefield');
+    navigateTab('battlefield');
 
     const result = await executeDirectCreateCycleMutation({
       newCycle,
@@ -1306,7 +1355,7 @@ export default function App() {
 
       setActiveCycleId(previousActiveCycleId);
       setSelectedDate(previousSelectedDate);
-      setActiveTab(previousActiveTab);
+      navigateTab(previousActiveTab, { replace: true });
     };
 
     if (result.status === 'IGNORED_NO_AUTH_NO_QUEUE') {
@@ -1508,7 +1557,7 @@ export default function App() {
         if (transition.nextState.cycles.length > 0) {
           setActiveCycleId(transition.nextActiveCycleId);
         }
-        setActiveTab('battlefield');
+        navigateTab('battlefield');
         showAppToast(`در حال شبیه‌سازی و مشاهده سامانه از دید: «${data.user.name}»`);
         // Explicit binding: Replay target user's queue through single orchestrator gateway
         activeAccountRef.current = data.user.id;
@@ -1565,7 +1614,7 @@ export default function App() {
         }).catch(() => {});
       }
 
-      setActiveTab('admin');
+      navigateTab('admin');
       showAppToast(result.messageFa);
       return;
     }
@@ -1630,12 +1679,12 @@ export default function App() {
 
   const handleDashboardSelectDate = useCallback((d: string) => {
     handleSelectDate(d);
-    setActiveTab('battlefield');
-  }, [handleSelectDate]);
+    navigateTab('battlefield');
+  }, [handleSelectDate, navigateTab]);
 
   const handleDashboardNavigateTab = useCallback((tab: string) => {
-    setActiveTab(tab);
-  }, []);
+    navigateTab(tab);
+  }, [navigateTab]);
 
   const shouldReduceMotion = useReducedMotion();
   const pageMotion = useMemo(() => {
@@ -1693,7 +1742,7 @@ export default function App() {
         {/* Top Hub Bar */}
         <Navbar
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={navigateTab}
           cycles={systemState.cycles}
           currentCycle={currentCycle}
           onSelectCycle={c => setActiveCycleId(c.id)}
@@ -1709,7 +1758,7 @@ export default function App() {
             if (unresolvedDebtLogs.length > 0) {
               setAutopsyTargetLog(unresolvedDebtLogs[0]);
             } else {
-              setActiveTab('battlefield');
+              navigateTab('battlefield');
             }
           }}
         />
@@ -1732,9 +1781,9 @@ export default function App() {
                     onSelectDate={handleSelectDate}
                     onUpdateLog={handleUpdateLog}
                     onOpenAutopsy={log => setAutopsyTargetLog(log)}
-                    onNavigateToArchives={() => setActiveTab('archives')}
+                    onNavigateToArchives={() => navigateTab('archives')}
                     onOpenCreateCycle={() => setIsCreateCycleModalOpen(true)}
-                    onNavigateToHabitsGuide={() => setActiveTab('profile')}
+                    onNavigateToHabitsGuide={() => navigateTab('profile')}
                   />
                 </motion.div>
               )}
@@ -1777,7 +1826,7 @@ export default function App() {
                       onDeleteCycle={handleDeleteCycle}
                       onSelectDate={d => {
                         handleSelectDate(d);
-                        setActiveTab('battlefield');
+                        navigateTab('battlefield');
                       }}
                       onOpenAutopsy={log => setAutopsyTargetLog(log)}
                       onCreateNewCycle={handleCreateNewCycle}
@@ -1804,7 +1853,7 @@ export default function App() {
                       onLogout={handleLogout}
                       onResetData={handleResetData}
                       onExportData={handleExportData}
-                      onNavigateToAdmin={() => setActiveTab('admin')}
+                      onNavigateToAdmin={() => navigateTab('admin')}
                       onReplayTour={handleReplayTour}
                     />
                   </Suspense>
@@ -1821,7 +1870,7 @@ export default function App() {
                     <AdminView
                       currentUser={systemState.userProfile}
                       authToken={authToken}
-                      onBack={() => setActiveTab('profile')}
+                      onBack={() => navigateTab('profile')}
                       onImpersonateUser={handleImpersonateUser}
                       onRefreshUserProfile={() => {
                         if (authToken) {
