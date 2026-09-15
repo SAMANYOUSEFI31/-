@@ -7,12 +7,17 @@ const __dirname = path.dirname(__filename);
 const distServerPath = path.resolve(__dirname, '../dist/server.cjs');
 
 let serverModule;
-if (fs.existsSync(distServerPath)) {
+if (fs.existsSync(distServerPath) && (process.env.NODE_ENV === 'production' || process.env.VERCEL)) {
   const imported = await import('../dist/server.cjs');
   serverModule = imported.default || imported;
 } else {
-  const imported = await import('../server.ts');
-  serverModule = imported.default || imported;
+  try {
+    const imported = await import('../server.ts');
+    serverModule = imported.default || imported;
+  } catch {
+    const imported = await import('../dist/server.cjs');
+    serverModule = imported.default || imported;
+  }
 }
 
 // Robust ESM/CJS interop handler for Vercel Serverless Functions

@@ -183,6 +183,18 @@ app.use('/api', apiRateLimiter);
 // Strict Authentication Limiter applied to auth routes
 app.use('/api/auth', authRateLimiter);
 
+// Root API endpoint (prevents "Cannot GET /api" when root /api is requested)
+app.get(['/api', '/api/'], (req, res) => {
+  const ready = isDatabaseReady();
+  res.status(200).json({
+    status: 'ok',
+    service: 'Bushido Discipline OS API',
+    ready,
+    health: '/api/health',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Minimal public health check endpoint (Container & PaaS Liveness/Health Probe - never exposes sensitive diagnostics)
 app.get('/api/health', (req, res) => {
   const ready = isDatabaseReady();
@@ -1895,6 +1907,16 @@ app.get('/api/admin/subscriptions', adminMiddleware, async (req: AuthenticatedRe
   } catch (error) {
     next(error);
   }
+});
+
+// Fallback JSON 404 handler for unmatched /api routes (guarantees structured JSON instead of HTML/text)
+app.all('/api/*', (req, res) => {
+  res.status(404).json({
+    error: 'NOT_FOUND',
+    messageFa: 'مسیر API مورد نظر یافت نشد.',
+    path: req.originalUrl || req.url,
+    timestamp: new Date().toISOString()
+  });
 });
 
 /* =========================================================================
