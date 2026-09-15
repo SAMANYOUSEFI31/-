@@ -33,7 +33,12 @@ export function normalizeVercelUrl(req) {
     const parsed = new URL(rawUrl, 'http://localhost');
 
     // 1. Primary path: if request is already /api/... (real path), keep it intact!
-    if (parsed.pathname.startsWith('/api') && parsed.pathname !== '/api' && parsed.pathname !== '/api/') {
+    if (
+      parsed.pathname.startsWith('/api') &&
+      parsed.pathname !== '/api' &&
+      parsed.pathname !== '/api/' &&
+      !parsed.pathname.includes('[...path]')
+    ) {
       if (parsed.searchParams.has('path')) {
         parsed.searchParams.delete('path');
         const search = parsed.searchParams.toString();
@@ -42,9 +47,9 @@ export function normalizeVercelUrl(req) {
       return;
     }
 
-    // 2. Legacy fallback: query parameter (?path=health or ?path=logs)
+    // 2. Query parameter rewrite (?path=health or ?path=logs)
     const pathParam = parsed.searchParams.get('path');
-    if (pathParam) {
+    if (pathParam && !pathParam.includes('[...path]')) {
       // Reconstruct /api/<pathParam> and preserve remaining query parameters
       parsed.searchParams.delete('path');
       const cleanPath = pathParam.startsWith('/') ? pathParam : `/${pathParam}`;
@@ -55,7 +60,7 @@ export function normalizeVercelUrl(req) {
 
     // 3. Fallback: forwarded headers
     const forwardedUri = req.headers['x-forwarded-uri'] || req.headers['x-matched-path'];
-    if (forwardedUri && forwardedUri.startsWith('/api')) {
+    if (forwardedUri && forwardedUri.startsWith('/api') && !forwardedUri.includes('[...path]')) {
       req.url = forwardedUri;
       return;
     }
