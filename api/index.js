@@ -27,12 +27,23 @@ const rawApp = typeof serverModule === 'function'
 /**
  * Normalizes incoming Vercel serverless request URLs so Express matches full /api/* routes.
  */
-function normalizeVercelUrl(req) {
+export function normalizeVercelUrl(req) {
   try {
     const rawUrl = req.url || '';
     const parsed = new URL(rawUrl, 'http://localhost');
-    const pathParam = parsed.searchParams.get('path');
 
+    // 1. Primary path: if request is already /api/... (real path), keep it intact!
+    if (parsed.pathname.startsWith('/api') && parsed.pathname !== '/api' && parsed.pathname !== '/api/') {
+      if (parsed.searchParams.has('path')) {
+        parsed.searchParams.delete('path');
+        const search = parsed.searchParams.toString();
+        req.url = `${parsed.pathname}${search ? `?${search}` : ''}`;
+      }
+      return;
+    }
+
+    // 2. Legacy fallback: query parameter (?path=health or ?path=logs)
+    const pathParam = parsed.searchParams.get('path');
     if (pathParam) {
       // Reconstruct /api/<pathParam> and preserve remaining query parameters
       parsed.searchParams.delete('path');
@@ -42,12 +53,14 @@ function normalizeVercelUrl(req) {
       return;
     }
 
+    // 3. Fallback: forwarded headers
     const forwardedUri = req.headers['x-forwarded-uri'] || req.headers['x-matched-path'];
     if (forwardedUri && forwardedUri.startsWith('/api')) {
       req.url = forwardedUri;
       return;
     }
 
+    // 4. Fallback: x-now-route-matches
     const routeMatches = req.headers['x-now-route-matches'];
     if (routeMatches && typeof routeMatches === 'string') {
       const matchParams = new URLSearchParams(routeMatches);
@@ -59,6 +72,7 @@ function normalizeVercelUrl(req) {
       }
     }
 
+    // 5. Fallback: if Vercel stripped /api prefix (e.g. /health -> /api/health)
     if (rawUrl && !rawUrl.startsWith('/api')) {
       const clean = rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`;
       req.url = `/api${clean}`;
