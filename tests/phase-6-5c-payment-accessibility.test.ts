@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
-import { handleEscapeKey, shouldBlockEscape, trapTabKey } from '../src/utils/useModalAccessibility';
+import { handleEscapeKey, shouldBlockEscape, trapTabKey } from '../src/shared/hooks/useModalAccessibility';
 import { PLANS } from '../src/config/plans';
 
 describe('Phase 6.5C: Payment Modal Accessibility Verification', () => {

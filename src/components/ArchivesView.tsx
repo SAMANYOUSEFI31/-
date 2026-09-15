@@ -6,7 +6,7 @@ import { formatPersianDate, getLogicalTodayDate, addDaysToDate, daysBetween } fr
 import { toPersianDigits, toEnglishDigits, normalizeSearchText } from '../utils/numberUtils';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
-import { useBodyScrollLock } from '../utils/useBodyScrollLock';
+import { useBodyScrollLock } from '../shared/hooks/useBodyScrollLock';
 import { getDeterministicCourtVerdict } from '../engine/deterministicSensei';
 import { CompactEmptyCycleState } from './CompactEmptyCycleState';
 import { 

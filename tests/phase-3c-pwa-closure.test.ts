@@ -176,7 +176,7 @@ test('Bushido OS — Phase 3C: PWA Install UX Closure & Mutual Exclusion Invaria
   });
 
   await t.test('6. Codebase Hygiene: Exactly two distinct non-overlapping install UI components and zero dead relics', () => {
-    const componentsDir = path.join(process.cwd(), 'src', 'components');
+    const componentsDir = path.join(process.cwd(), 'src', 'shared', 'components', 'pwa');
     const files = fs.readdirSync(componentsDir);
 
     // Ensure no legacy/duplicate install files like PwaInstallModal, InstallPrompt, etc.
@@ -342,7 +342,7 @@ test('Bushido OS — Phase 3C: PWA Install UX Closure & Mutual Exclusion Invaria
       'index.html must capture early beforeinstallprompt event for desktop Chromium'
     );
 
-    const bannerCode = fs.readFileSync(path.join(process.cwd(), 'src', 'components', 'PwaInstallBanner.tsx'), 'utf8');
+    const bannerCode = fs.readFileSync(path.join(process.cwd(), 'src', 'shared', 'components', 'pwa', 'PwaInstallBanner.tsx'), 'utf8');
     assert.ok(
       bannerCode.includes('__bushido_deferred_prompt'),
       'PwaInstallBanner.tsx must read early captured prompt'

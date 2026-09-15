@@ -7,8 +7,8 @@ import { getDeterministicAutopsy } from '../engine/deterministicSensei';
 import { toPersianDigits } from '../utils/numberUtils';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
-import { useBodyScrollLock } from '../utils/useBodyScrollLock';
-import { useModalAccessibility } from '../utils/useModalAccessibility';
+import { useBodyScrollLock } from '../shared/hooks/useBodyScrollLock';
+import { useModalAccessibility } from '../shared/hooks/useModalAccessibility';
 import { 
   X, 
   Sparkles, 

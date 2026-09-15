@@ -4,8 +4,8 @@ import { UserProfile, SubscriptionPlan } from '../types';
 import { PLANS } from '../config/plans';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
-import { useBodyScrollLock } from '../utils/useBodyScrollLock';
-import { useModalAccessibility } from '../utils/useModalAccessibility';
+import { useBodyScrollLock } from '../shared/hooks/useBodyScrollLock';
+import { useModalAccessibility } from '../shared/hooks/useModalAccessibility';
 import {
   validateAuthoritativePaymentResponse,
   AuthoritativePaymentReceipt

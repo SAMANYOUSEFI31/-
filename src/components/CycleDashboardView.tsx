@@ -3,16 +3,16 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Cycle, CycleMetrics, DailyLog } from '../types';
 import { addDaysToDate, getLogicalTodayDate, formatPersianDate } from '../utils/dateUtils';
 import { toPersianDigits } from '../utils/numberUtils';
-import { ResponsiveSubTabBar, SubTabItem } from './ResponsiveSubTabBar';
-import { ChartLoadingFallback } from './ChartLoadingFallback';
+import { ResponsiveSubTabBar, SubTabItem } from '../shared/components/layout/ResponsiveSubTabBar';
+import { ChartLoadingFallback } from '../shared/components/charts/ChartLoadingFallback';
 import { CompactEmptyCycleState } from './CompactEmptyCycleState';
 
 // Lazy load heavy chart & matrix components for fast initial view render
 const HabitFidelityMatrix = React.lazy(() => 
-  import('./HabitFidelityMatrix').then(m => ({ default: m.HabitFidelityMatrix }))
+  import('../shared/components/charts/HabitFidelityMatrix').then(m => ({ default: m.HabitFidelityMatrix }))
 );
 const TacticalHeatmap90 = React.lazy(() => 
-  import('./TacticalHeatmap90').then(m => ({ default: m.TacticalHeatmap90 }))
+  import('../shared/components/charts/TacticalHeatmap90').then(m => ({ default: m.TacticalHeatmap90 }))
 );
 import { 
   ShieldCheck, 

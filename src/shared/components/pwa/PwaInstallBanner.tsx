@@ -9,7 +9,7 @@ import {
   hasFirstValueAchieved,
   isIOSDevice,
   isPwaStandalone
-} from '../utils/storageUtils';
+} from '../../../utils/storageUtils';
 
 export interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];

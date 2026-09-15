@@ -299,7 +299,7 @@ describe('Client Router: Phase R1A Route Resolution & History Invariants', () =>
     });
 
     it('Navbar component adheres to router navigation without full page reloads', () => {
-      const navbarFile = path.resolve(process.cwd(), 'src/components/Navbar.tsx');
+      const navbarFile = path.resolve(process.cwd(), 'src/shared/components/layout/Navbar.tsx');
       const navbarContent = fs.readFileSync(navbarFile, 'utf8');
 
       // Brand mark is an interactive button that triggers handleTabClick('battlefield')

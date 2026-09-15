@@ -9,7 +9,7 @@ import {
   isElementVisible,
   getFocusableElements,
   trapTabKey
-} from '../src/utils/useModalAccessibility.ts';
+} from '../src/shared/hooks/useModalAccessibility.ts';
 import {
   getNextTab,
   handleTabListKeyDown,

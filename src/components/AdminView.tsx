@@ -10,8 +10,8 @@ import { toPersianDigits, formatPersianToman } from '../utils/numberUtils';
 import { formatPersianDate } from '../utils/dateUtils';
 import { soundFX } from '../utils/audioEffects';
 import { safeGetLocalStorage } from '../utils/storageUtils';
-import { ResponsiveSubTabBar, SubTabItem } from './ResponsiveSubTabBar';
-import { TrendCurvedChart } from './TrendCurvedChart';
+import { ResponsiveSubTabBar, SubTabItem } from '../shared/components/layout/ResponsiveSubTabBar';
+import { TrendCurvedChart } from '../shared/components/charts/TrendCurvedChart';
 import { 
   ShieldCheck, 
   Users, 

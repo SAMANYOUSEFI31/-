@@ -91,9 +91,9 @@ import {
   buildExitImpersonationRevokedState,
   executeLogoutDuringImpersonation
 } from './utils/impersonationUtils';
-import { Navbar } from './components/Navbar';
+import { Navbar } from './shared/components/layout/Navbar';
 import { BattlefieldView } from './components/BattlefieldView';
-import { ViewLoadingSkeleton } from './components/ViewLoadingSkeleton';
+import { ViewLoadingSkeleton } from './shared/components/feedback/ViewLoadingSkeleton';
 import { AutopsyModal } from './components/AutopsyModal';
 import { PaymentModal } from './components/PaymentModal';
 import { AuthModal } from './components/AuthModal';
@@ -101,12 +101,12 @@ import { CreateCycleModal } from './components/CreateCycleModal';
 import { DisciplineRulesModal } from './components/DisciplineRulesModal';
 import { ResetConfirmationModal } from './components/ResetConfirmationModal';
 import { FirstRunTour } from './components/FirstRunTour';
-import { PwaInstallBanner } from './components/PwaInstallBanner';
-import { IosInstallTip } from './components/IosInstallTip';
+import { PwaInstallBanner } from './shared/components/pwa/PwaInstallBanner';
+import { IosInstallTip } from './shared/components/pwa/IosInstallTip';
 import { isTourSeen, markTourSeen, resetTourSeen, markFirstValueAchieved } from './utils/storageUtils';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { useBodyScrollLock } from './utils/useBodyScrollLock';
-import { Toast, ToastItem, ToastType } from './components/Toast';
+import { ErrorBoundary } from './shared/components/feedback/ErrorBoundary';
+import { useBodyScrollLock } from './shared/hooks/useBodyScrollLock';
+import { Toast, ToastItem, ToastType } from './shared/components/feedback/Toast';
 import { toPersianDigits } from './utils/numberUtils';
 import { resolveTabFromPath, getPathForTab, normalizePathname, shouldPushTab } from './utils/routerUtils';
 import { RotateCcw, Eye, ShieldCheck } from 'lucide-react';

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { useModalAccessibility } from '../utils/useModalAccessibility';
+import { useModalAccessibility } from '../shared/hooks/useModalAccessibility';
 import { RotateCcw, AlertTriangle } from 'lucide-react';
 
 export interface ResetConfirmationModalProps {

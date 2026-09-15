@@ -3,8 +3,8 @@ import { motion, useReducedMotion } from 'motion/react';
 import { UserProfile } from '../types';
 import { toPersianDigits } from '../utils/numberUtils';
 import { haptics } from '../utils/haptics';
-import { useBodyScrollLock } from '../utils/useBodyScrollLock';
-import { useModalAccessibility } from '../utils/useModalAccessibility';
+import { useBodyScrollLock } from '../shared/hooks/useBodyScrollLock';
+import { useModalAccessibility } from '../shared/hooks/useModalAccessibility';
 import { handleTabListKeyDown, AuthTab } from '../utils/authTabNavigation';
 import { 
   ShieldCheck, 

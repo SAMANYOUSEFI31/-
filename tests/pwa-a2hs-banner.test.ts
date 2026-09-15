@@ -115,7 +115,7 @@ test('Bushido OS — Phase 3A: PWA A2HS Banner & First-Value Governance', async 
   });
 
   await t.test('5. Source code verification: PwaInstallBanner component governance adherence', () => {
-    const componentPath = path.join(process.cwd(), 'src', 'components', 'PwaInstallBanner.tsx');
+    const componentPath = path.join(process.cwd(), 'src', 'shared', 'components', 'pwa', 'PwaInstallBanner.tsx');
     const content = fs.readFileSync(componentPath, 'utf8');
 
     // Rule: Listen for beforeinstallprompt and preventDefault
@@ -173,7 +173,7 @@ test('Bushido OS — Phase 3A: PWA A2HS Banner & First-Value Governance', async 
 
     // Verification: PwaInstallBanner is imported and mounted
     assert.ok(
-      appContent.includes("import { PwaInstallBanner } from './components/PwaInstallBanner'"),
+      appContent.includes("import { PwaInstallBanner } from './shared/components/pwa/PwaInstallBanner'"),
       'App.tsx must import PwaInstallBanner'
     );
     assert.ok(

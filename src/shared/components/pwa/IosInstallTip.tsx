@@ -7,7 +7,7 @@ import {
   hasFirstValueAchieved,
   isIOSDevice,
   isPwaStandalone
-} from '../utils/storageUtils';
+} from '../../../utils/storageUtils';
 
 export interface IosInstallTipProps {
   ownerId?: string | null;

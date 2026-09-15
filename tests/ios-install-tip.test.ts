@@ -146,7 +146,7 @@ test('Bushido OS — Phase 3B: Honest iOS Add-to-Home-Screen Tip & Guide Backup'
   });
 
   await t.test('5. Source code inspection: IosInstallTip honesty, steps and no fake install', () => {
-    const componentPath = path.join(process.cwd(), 'src', 'components', 'IosInstallTip.tsx');
+    const componentPath = path.join(process.cwd(), 'src', 'shared', 'components', 'pwa', 'IosInstallTip.tsx');
     const content = fs.readFileSync(componentPath, 'utf8');
 
     // Rule: Must contain honest Persian steps
@@ -171,7 +171,7 @@ test('Bushido OS — Phase 3B: Honest iOS Add-to-Home-Screen Tip & Guide Backup'
     const appPath = path.join(process.cwd(), 'src', 'App.tsx');
     const appContent = fs.readFileSync(appPath, 'utf8');
 
-    assert.ok(appContent.includes("import { IosInstallTip } from './components/IosInstallTip'"), 'App.tsx must import IosInstallTip');
+    assert.ok(appContent.includes("import { IosInstallTip } from './shared/components/pwa/IosInstallTip'"), 'App.tsx must import IosInstallTip');
     assert.ok(appContent.includes('<IosInstallTip'), 'App.tsx must render IosInstallTip');
     assert.ok(appContent.includes('hasSessionFirstValue'), 'Must wire first-value gate');
   });

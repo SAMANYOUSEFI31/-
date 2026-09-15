@@ -17,8 +17,8 @@ import {
   Target,
   Flame
 } from 'lucide-react';
-import { useBodyScrollLock } from '../utils/useBodyScrollLock';
-import { useModalAccessibility } from '../utils/useModalAccessibility';
+import { useBodyScrollLock } from '../shared/hooks/useBodyScrollLock';
+import { useModalAccessibility } from '../shared/hooks/useModalAccessibility';
 import { BUSHIDO_HABITS_PHILOSOPHY, BUSHIDO_SYSTEM_RULES, BUSHIDO_SPECIAL_MISSION_GUIDE } from '../data/moreTabData';
 import { HabitKey } from '../types';
 import { toPersianDigits } from '../utils/numberUtils';

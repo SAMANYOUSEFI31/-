@@ -4,7 +4,7 @@ import { computeDailyProperties, FOUNDATION_HABITS } from '../engine/bushidoCalc
 import { formatPersianDate, getLogicalTodayDate } from '../utils/dateUtils';
 import { toPersianDigits } from '../utils/numberUtils';
 import { soundFX } from '../utils/audioEffects';
-import { useBodyScrollLock } from '../utils/useBodyScrollLock';
+import { useBodyScrollLock } from '../shared/hooks/useBodyScrollLock';
 import { buildExportPayload } from '../utils/storageUtils';
 import { 
   Database, 

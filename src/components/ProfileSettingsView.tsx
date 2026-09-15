@@ -5,8 +5,8 @@ import { toPersianDigits } from '../utils/numberUtils';
 import { formatPersianDate, daysBetween } from '../utils/dateUtils';
 import { BUSHIDO_CRIMSON_THEME } from '../utils/themeUtils';
 import { soundFX } from '../utils/audioEffects';
-import { useBodyScrollLock } from '../utils/useBodyScrollLock';
-import { ResponsiveSubTabBar, SubTabItem } from './ResponsiveSubTabBar';
+import { useBodyScrollLock } from '../shared/hooks/useBodyScrollLock';
+import { ResponsiveSubTabBar, SubTabItem } from '../shared/components/layout/ResponsiveSubTabBar';
 import { 
   BUSHIDO_HABITS_PHILOSOPHY, 
   SUPPORT_CONTACT_CHANNELS, 

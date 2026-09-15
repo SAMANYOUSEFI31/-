@@ -88,7 +88,7 @@ describe('Phase 1B: First-Run Coach Marks on Battlefield', () => {
     assert.ok(bfContent.includes('id="battlefield-score-card"'), 'BattlefieldView must have battlefield-score-card');
     assert.ok(bfContent.includes('id="battlefield-special-mission-card"'), 'BattlefieldView must have battlefield-special-mission-card');
 
-    const navPath = path.resolve(process.cwd(), 'src/components/Navbar.tsx');
+    const navPath = path.resolve(process.cwd(), 'src/shared/components/layout/Navbar.tsx');
     const navContent = fs.readFileSync(navPath, 'utf-8');
     assert.ok(navContent.includes('id="top-hub-bar"'), 'Navbar must have id="top-hub-bar"');
   });
