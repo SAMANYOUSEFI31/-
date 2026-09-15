@@ -8,7 +8,7 @@ import { soundFX } from '../../utils/audioEffects';
 import { haptics } from '../../utils/haptics';
 import { useBodyScrollLock } from '../../shared/hooks/useBodyScrollLock';
 import { getDeterministicCourtVerdict } from '../../engine/deterministicSensei';
-import { CompactEmptyCycleState } from '../../components/CompactEmptyCycleState';
+import { CompactEmptyCycleState } from '../cycles/CompactEmptyCycleState';
 import { 
   Archive, 
   Search, 

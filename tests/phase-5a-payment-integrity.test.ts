@@ -26,7 +26,7 @@ import {
   setPaymentAdapterOverride,
   ProviderNeutralSimulatorAdapter
 } from '../server/payment/adapter.js';
-import { validateAuthoritativePaymentResponse } from '../src/utils/paymentValidation.js';
+import { validateAuthoritativePaymentResponse } from '../src/features/payment/paymentValidation.js';
 
 describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', () => {
   let server: http.Server;
@@ -1986,7 +1986,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
   describe('Corrective Pass Suite D: Fake Gateway Removal', () => {
     it('D01. Production UI does not collect card number', async () => {
       const fs = await import('node:fs/promises');
-      const content = await fs.readFile('./src/components/PaymentModal.tsx', 'utf-8');
+      const content = await fs.readFile('./src/features/payment/PaymentModal.tsx', 'utf-8');
       
       assert.equal(content.includes('شماره کارت ۱۶ رقمی'), false);
       assert.equal(content.includes('cardNumber'), false);
@@ -1995,7 +1995,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
 
     it('D02. Production UI does not collect CVV2', async () => {
       const fs = await import('node:fs/promises');
-      const content = await fs.readFile('./src/components/PaymentModal.tsx', 'utf-8');
+      const content = await fs.readFile('./src/features/payment/PaymentModal.tsx', 'utf-8');
 
       assert.equal(content.includes('cvv2'), false);
       assert.equal(content.includes('CVV2'), false);
@@ -2003,7 +2003,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
 
     it('D03. Production UI does not collect banking OTP', async () => {
       const fs = await import('node:fs/promises');
-      const content = await fs.readFile('./src/components/PaymentModal.tsx', 'utf-8');
+      const content = await fs.readFile('./src/features/payment/PaymentModal.tsx', 'utf-8');
 
       assert.equal(content.includes('دریافت رمز پویا'), false);
       assert.equal(content.includes('otpCode'), false);
@@ -2012,7 +2012,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
 
     it('D04. UI does not claim a specific Provider before selection', async () => {
       const fs = await import('node:fs/promises');
-      const content = await fs.readFile('./src/components/PaymentModal.tsx', 'utf-8');
+      const content = await fs.readFile('./src/features/payment/PaymentModal.tsx', 'utf-8');
 
       assert.equal(content.includes('زرین‌پال'), false);
       assert.equal(content.includes('شاپرک'), false);
@@ -2021,7 +2021,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
 
     it('D05. Development simulation uses no realistic banking credentials', async () => {
       const fs = await import('node:fs/promises');
-      const content = await fs.readFile('./src/components/PaymentModal.tsx', 'utf-8');
+      const content = await fs.readFile('./src/features/payment/PaymentModal.tsx', 'utf-8');
 
       // The simulator only displays metadata (package title, amount, authority) and a single confirm button
       assert.ok(content.includes('شبیه‌ساز پرداخت (محیط توسعه)'));

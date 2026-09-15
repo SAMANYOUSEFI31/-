@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { 
   TOUR_STEPS, 
-} from '../src/components/FirstRunTour';
+} from '../src/features/tour/FirstRunTour';
 import { 
   getScopedTourSeenKey,
   TOUR_SEEN_KEY,
@@ -81,7 +81,7 @@ describe('Phase 1B: First-Run Coach Marks on Battlefield', () => {
   });
 
   it('2. Target elements actually exist in BattlefieldView and Navbar DOM markup', () => {
-    const bfPath = path.resolve(process.cwd(), 'src/components/BattlefieldView.tsx');
+    const bfPath = path.resolve(process.cwd(), 'src/features/battlefield/BattlefieldView.tsx');
     const bfContent = fs.readFileSync(bfPath, 'utf-8');
 
     assert.ok(bfContent.includes('id="battlefield-foundation-section"'), 'BattlefieldView must have battlefield-foundation-section');
@@ -119,7 +119,7 @@ describe('Phase 1B: First-Run Coach Marks on Battlefield', () => {
   });
 
   it('4. FirstRunTour component strictly follows non-blocking ergonomics and accessibility', () => {
-    const tourPath = path.resolve(process.cwd(), 'src/components/FirstRunTour.tsx');
+    const tourPath = path.resolve(process.cwd(), 'src/features/tour/FirstRunTour.tsx');
     const tourContent = fs.readFileSync(tourPath, 'utf-8');
 
     // Never block habits rule: container and SVG spotlight must be pointer-events-none

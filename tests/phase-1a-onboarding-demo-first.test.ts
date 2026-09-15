@@ -82,7 +82,7 @@ describe('Phase 1A: Demo-First TTV & Compact Empty State Contracts', () => {
   describe('3. Clean Architecture & Compact Empty State UI Contract', () => {
     it('ensures OnboardingWelcomeView is reduced to compact empty state with one sentence and single mastery CTA', async () => {
       const fs = await import('node:fs');
-      const fileContent = fs.readFileSync('src/components/OnboardingWelcomeView.tsx', 'utf-8');
+      const fileContent = fs.readFileSync('src/features/tour/OnboardingWelcomeView.tsx', 'utf-8');
 
       // Must have single sentence and mastery CTA
       assert.ok(fileContent.includes('هیچ چرخه فعالی وجود ندارد'), 'Must display compact heading');

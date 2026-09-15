@@ -51,7 +51,7 @@ describe('Discipline Rules and Special Mission Unification', () => {
   });
 
   it('4. DisciplineRulesModal uses unified BUSHIDO_SYSTEM_RULES and BUSHIDO_SPECIAL_MISSION_GUIDE', () => {
-    const filePath = path.resolve(process.cwd(), 'src/components/DisciplineRulesModal.tsx');
+    const filePath = path.resolve(process.cwd(), 'src/features/court/DisciplineRulesModal.tsx');
     const content = fs.readFileSync(filePath, 'utf-8');
 
     assert.ok(content.includes('BUSHIDO_SYSTEM_RULES'), 'DisciplineRulesModal should map BUSHIDO_SYSTEM_RULES');
@@ -59,7 +59,7 @@ describe('Discipline Rules and Special Mission Unification', () => {
   });
 
   it('5. BattlefieldView links daily special mission card with 90-day cycle targetTheme', () => {
-    const filePath = path.resolve(process.cwd(), 'src/components/BattlefieldView.tsx');
+    const filePath = path.resolve(process.cwd(), 'src/features/battlefield/BattlefieldView.tsx');
     const content = fs.readFileSync(filePath, 'utf-8');
 
     assert.ok(content.includes('battlefield-special-mission-card'), 'BattlefieldView should have battlefield-special-mission-card');
@@ -67,7 +67,7 @@ describe('Discipline Rules and Special Mission Unification', () => {
   });
 
   it('6. CreateCycleModal describes targetTheme as the 90-day goal basis for the daily special mission', () => {
-    const filePath = path.resolve(process.cwd(), 'src/components/CreateCycleModal.tsx');
+    const filePath = path.resolve(process.cwd(), 'src/features/cycles/CreateCycleModal.tsx');
     const content = fs.readFileSync(filePath, 'utf-8');
 
     assert.ok(content.includes('هدف و میثاق ۹۰ روزه چرخه (ماموریت ویژه روزانه)'), 'CreateCycleModal should explicitly label the 90-day goal for special mission');

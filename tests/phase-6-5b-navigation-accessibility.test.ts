@@ -5,7 +5,7 @@ import path from 'node:path';
 import { handleEscapeKey } from '../src/shared/hooks/useModalAccessibility';
 
 describe('Phase 6.5B: Application Navigation & Accessibility Verification', () => {
-  const resetModalPath = path.join(process.cwd(), 'src/components/ResetConfirmationModal.tsx');
+  const resetModalPath = path.join(process.cwd(), 'src/features/cycles/ResetConfirmationModal.tsx');
   const navbarPath = path.join(process.cwd(), 'src/shared/components/layout/Navbar.tsx');
   const appPath = path.join(process.cwd(), 'src/App.tsx');
   const indexCssPath = path.join(process.cwd(), 'src/index.css');

@@ -6,7 +6,7 @@ import { handleEscapeKey, shouldBlockEscape, trapTabKey } from '../src/shared/ho
 import { PLANS } from '../src/config/plans';
 
 describe('Phase 6.5C: Payment Modal Accessibility Verification', () => {
-  const paymentModalPath = path.join(process.cwd(), 'src/components/PaymentModal.tsx');
+  const paymentModalPath = path.join(process.cwd(), 'src/features/payment/PaymentModal.tsx');
   const paymentModalContent = fs.readFileSync(paymentModalPath, 'utf8');
 
   describe('1. Dialog Semantics & Modal Accessibility Hook Contract', () => {

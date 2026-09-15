@@ -365,7 +365,7 @@ describe('Phase 6.5A: Modal Accessibility & Cycle Overlap Invariant Verification
 
   describe('Modal Accessibility Implementation Audit in Codebase', () => {
     it('verifies CreateCycleModal has dialog semantics, aria-modal, aria-describedby, and focus management', () => {
-      const filePath = path.resolve('src/components/CreateCycleModal.tsx');
+      const filePath = path.resolve('src/features/cycles/CreateCycleModal.tsx');
       const content = fs.readFileSync(filePath, 'utf-8');
 
       assert.ok(content.includes('role="dialog"'), 'CreateCycleModal must have role="dialog"');
@@ -378,7 +378,7 @@ describe('Phase 6.5A: Modal Accessibility & Cycle Overlap Invariant Verification
     });
 
     it('verifies AutopsyModal has dialog semantics, live region, busy state, and focus management', () => {
-      const filePath = path.resolve('src/components/AutopsyModal.tsx');
+      const filePath = path.resolve('src/features/autopsy/AutopsyModal.tsx');
       const content = fs.readFileSync(filePath, 'utf-8');
 
       assert.ok(content.includes('role="dialog"'), 'AutopsyModal must have role="dialog"');
@@ -391,7 +391,7 @@ describe('Phase 6.5A: Modal Accessibility & Cycle Overlap Invariant Verification
     });
 
     it('verifies AuthModal has dialog semantics, tabs semantics, roving tabIndex, keydown handling, field-specific aria-invalid, and password toggle', () => {
-      const filePath = path.resolve('src/components/AuthModal.tsx');
+      const filePath = path.resolve('src/features/auth/AuthModal.tsx');
       const content = fs.readFileSync(filePath, 'utf-8');
 
       assert.ok(content.includes('role="dialog"'), 'AuthModal must have role="dialog"');

@@ -68,7 +68,7 @@ import {
 import {
   deriveUnresolvedDebtLogs,
   convertVirtualDebtLogForMutation
-} from './utils/debtAutopsyUtils';
+} from './features/autopsy/debtAutopsyUtils';
 import { reconcileBootState } from './utils/syncReconciliation';
 import { emitSyncDiagnostic } from './utils/syncDiagnostics';
 import { 
@@ -92,15 +92,15 @@ import {
   executeLogoutDuringImpersonation
 } from './utils/impersonationUtils';
 import { Navbar } from './shared/components/layout/Navbar';
-import { BattlefieldView } from './components/BattlefieldView';
+import { BattlefieldView } from './features/battlefield/BattlefieldView';
 import { ViewLoadingSkeleton } from './shared/components/feedback/ViewLoadingSkeleton';
-import { AutopsyModal } from './components/AutopsyModal';
-import { PaymentModal } from './components/PaymentModal';
-import { AuthModal } from './components/AuthModal';
-import { CreateCycleModal } from './components/CreateCycleModal';
-import { DisciplineRulesModal } from './components/DisciplineRulesModal';
-import { ResetConfirmationModal } from './components/ResetConfirmationModal';
-import { FirstRunTour } from './components/FirstRunTour';
+import { AutopsyModal } from './features/autopsy/AutopsyModal';
+import { PaymentModal } from './features/payment/PaymentModal';
+import { AuthModal } from './features/auth/AuthModal';
+import { CreateCycleModal } from './features/cycles/CreateCycleModal';
+import { DisciplineRulesModal } from './features/court/DisciplineRulesModal';
+import { ResetConfirmationModal } from './features/cycles/ResetConfirmationModal';
+import { FirstRunTour } from './features/tour/FirstRunTour';
 import { PwaInstallBanner } from './shared/components/pwa/PwaInstallBanner';
 import { IosInstallTip } from './shared/components/pwa/IosInstallTip';
 import { isTourSeen, markTourSeen, resetTourSeen, markFirstValueAchieved } from './utils/storageUtils';
@@ -114,7 +114,7 @@ import './styles/tokens.css';
 
 // Lazy load secondary heavy views to minimize initial bundle size and optimize startup performance
 const CycleDashboardView = React.lazy(() => 
-  import('./components/CycleDashboardView').then(m => ({ default: m.CycleDashboardView }))
+  import('./features/dashboard/CycleDashboardView').then(m => ({ default: m.CycleDashboardView }))
 );
 const ArchivesView = React.lazy(() => 
   import('./features/archives/ArchivesView').then(m => ({ default: m.ArchivesView }))
@@ -123,7 +123,7 @@ const ProfileSettingsView = React.lazy(() =>
   import('./features/profile/ProfileSettingsView').then(m => ({ default: m.ProfileSettingsView }))
 );
 const AdminView = React.lazy(() => 
-  import('./components/AdminView').then(m => ({ default: m.AdminView }))
+  import('./features/admin/AdminView').then(m => ({ default: m.AdminView }))
 );
 
 export default function App() {

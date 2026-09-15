@@ -302,7 +302,7 @@ describe('Payment & Subscription Verification Idempotency Suite (Phase 2A.1 Unit
       path.resolve(process.cwd(), 'server/db/index.ts'),
       path.resolve(process.cwd(), 'server.ts'),
       path.resolve(process.cwd(), 'src/types.ts'),
-      path.resolve(process.cwd(), 'src/components/AdminView.tsx')
+      path.resolve(process.cwd(), 'src/features/admin/AdminView.tsx')
     ];
 
     // Obsolete status patterns to detect

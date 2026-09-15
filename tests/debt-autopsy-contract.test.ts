@@ -7,7 +7,7 @@ import {
   isVirtualDebtPlaceholder,
   convertVirtualDebtLogForMutation,
   deriveUnresolvedDebtLogs
-} from '../src/utils/debtAutopsyUtils.js';
+} from '../src/features/autopsy/debtAutopsyUtils.js';
 import {
   prepareDirectLogPayload,
   applyOptimisticLogUpdate

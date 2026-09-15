@@ -1,8 +1,2 @@
-export { 
-  CompactEmptyCycleState, 
-  OnboardingWelcomeView,
-  type CompactEmptyCycleStateProps,
-  type OnboardingWelcomeViewProps 
-} from './OnboardingWelcomeView';
-
-export { default } from './OnboardingWelcomeView';
+export * from '../features/cycles/CompactEmptyCycleState';
+export { default } from '../features/cycles/CompactEmptyCycleState';
