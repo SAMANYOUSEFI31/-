@@ -21,6 +21,11 @@ export interface ResolvedRoute {
   isKnown: boolean;
 }
 
+export interface RouterHistoryState {
+  tab: string;
+  inApp?: boolean;
+}
+
 /**
  * Normalizes a raw pathname: removes query parameters, hash fragments,
  * collapses trailing slashes, and lowercases for deterministic matching.
@@ -121,4 +126,15 @@ export function getPathForTab(tab: string): string {
     default:
       return '/battlefield';
   }
+}
+
+/**
+ * Determines whether navigating to a target tab should push a new history entry.
+ * Returns true if the target tab represents a navigation change from the current active tab/path,
+ * and false if the user is already on that tab (preventing redundant history spam).
+ */
+export function shouldPushTab(currentPath: string, nextTab: string): boolean {
+  const currentTab = resolveTabFromPath(currentPath).tab;
+  const targetCanonicalTab = resolveTabFromPath(getPathForTab(nextTab)).tab;
+  return currentTab !== targetCanonicalTab;
 }

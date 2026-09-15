@@ -108,7 +108,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useBodyScrollLock } from './utils/useBodyScrollLock';
 import { Toast, ToastItem, ToastType } from './components/Toast';
 import { toPersianDigits } from './utils/numberUtils';
-import { resolveTabFromPath, getPathForTab, normalizePathname } from './utils/routerUtils';
+import { resolveTabFromPath, getPathForTab, normalizePathname, shouldPushTab } from './utils/routerUtils';
 import { RotateCcw, Eye, ShieldCheck } from 'lucide-react';
 import './styles/tokens.css';
 
@@ -170,29 +170,35 @@ export default function App() {
     const replace = options?.replace ?? false;
     const targetPath = getPathForTab(nextTab);
     if (typeof window !== 'undefined') {
-      const currentNorm = normalizePathname(window.location.pathname);
-      const targetNorm = normalizePathname(targetPath);
-      const isAlreadyOnPath = currentNorm === targetNorm || (currentNorm === '/' && targetNorm === '/battlefield');
-      if (!isAlreadyOnPath) {
+      const needsPush = shouldPushTab(window.location.pathname, nextTab);
+      if (needsPush || replace) {
+        const historyState = { tab: nextTab, inApp: true };
         if (replace) {
-          window.history.replaceState({ tab: nextTab }, '', targetPath);
+          window.history.replaceState(historyState, '', targetPath);
         } else {
-          window.history.pushState({ tab: nextTab }, '', targetPath);
+          window.history.pushState(historyState, '', targetPath);
         }
       }
     }
     setActiveTab(nextTab);
   }, []);
 
-  // Router popstate synchronization for browser back/forward buttons and swipe-back navigation
+  // Phase R1B: Router popstate synchronization for browser back/forward buttons and mobile edge-swipe back
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const handlePopState = () => {
       const resolved = resolveTabFromPath(window.location.pathname);
       if (!resolved.isKnown) {
-        window.history.replaceState({ tab: resolved.tab }, '', resolved.canonicalPath);
+        window.history.replaceState({ tab: resolved.tab, inApp: true }, '', resolved.canonicalPath);
       }
+      // When user triggers browser Back to switch sections, dismiss open modals cleanly
+      setIsPaymentModalOpen(false);
+      setIsAuthModalOpen(false);
+      setIsCreateCycleModalOpen(false);
+      setIsDisciplineRulesOpen(false);
+      setIsResetConfirmOpen(false);
+      setAutopsyTargetLog(null);
       setActiveTab(resolved.tab);
     };
 
@@ -200,13 +206,14 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Router hydration: if landing on an unknown URL, replace with /battlefield so URL matches view
+  // Phase R1B: Initial load uses replace so the first history entry is clean without creating an extra history item
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const resolved = resolveTabFromPath(window.location.pathname);
-    if (!resolved.isKnown) {
-      window.history.replaceState({ tab: 'battlefield' }, '', '/battlefield');
-    }
+    const cleanPath = resolved.isKnown 
+      ? (window.location.pathname === '/' ? '/' : resolved.canonicalPath) 
+      : '/battlefield';
+    window.history.replaceState({ tab: resolved.tab, inApp: true }, '', cleanPath);
   }, []);
   const [autopsyTargetLog, setAutopsyTargetLog] = useState<DailyLog | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);

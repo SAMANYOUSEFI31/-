@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { 
   normalizePathname, 
   resolveTabFromPath, 
-  getPathForTab 
+  getPathForTab,
+  shouldPushTab,
+  RouterHistoryState
 } from '../src/utils/routerUtils.js';
 
 describe('Client Router: Phase R1A Route Resolution & History Invariants', () => {
@@ -124,6 +126,138 @@ describe('Client Router: Phase R1A Route Resolution & History Invariants', () =>
       assert.equal(getPathForTab('court'), '/archives');
       assert.equal(getPathForTab('admin'), '/admin');
       assert.equal(getPathForTab('unknown'), '/battlefield');
+    });
+  });
+
+  describe('4. Phase R1B: Back Stack Navigation & History Push Invariants', () => {
+    it('shouldPushTab returns true when navigating across distinct tabs', () => {
+      assert.equal(shouldPushTab('/', 'dashboard'), true);
+      assert.equal(shouldPushTab('/battlefield', 'dashboard'), true);
+      assert.equal(shouldPushTab('/dashboard', 'profile'), true);
+      assert.equal(shouldPushTab('/more', 'archives'), true);
+      assert.equal(shouldPushTab('/archives', 'admin'), true);
+      assert.equal(shouldPushTab('/admin', 'battlefield'), true);
+    });
+
+    it('shouldPushTab returns false when re-clicking the currently active tab or alias', () => {
+      // Battlefield variations
+      assert.equal(shouldPushTab('/', 'battlefield'), false);
+      assert.equal(shouldPushTab('/battlefield', 'battlefield'), false);
+
+      // Dashboard variations
+      assert.equal(shouldPushTab('/dashboard', 'dashboard'), false);
+      assert.equal(shouldPushTab('/cycle', 'dashboard'), false);
+      assert.equal(shouldPushTab('/dashboard', 'cycle'), false);
+
+      // More / Profile variations
+      assert.equal(shouldPushTab('/more', 'profile'), false);
+      assert.equal(shouldPushTab('/profile', 'more'), false);
+      assert.equal(shouldPushTab('/settings', 'profile'), false);
+
+      // Archives variations
+      assert.equal(shouldPushTab('/archives', 'archives'), false);
+      assert.equal(shouldPushTab('/more/archives', 'archives'), false);
+      assert.equal(shouldPushTab('/database', 'archives'), false);
+    });
+
+    it('simulates in-app history stack for Battlefield -> Dashboard -> More -> Back -> Back', () => {
+      interface HistoryEntry {
+        path: string;
+        state: RouterHistoryState;
+      }
+      const historyStack: HistoryEntry[] = [];
+      let currentIndex = -1;
+
+      const push = (tab: string) => {
+        const path = getPathForTab(tab);
+        const state: RouterHistoryState = { tab, inApp: true };
+        // If we navigated back and then push, discard forward history
+        historyStack.splice(currentIndex + 1);
+        historyStack.push({ path, state });
+        currentIndex = historyStack.length - 1;
+      };
+
+      const replace = (tab: string, path: string) => {
+        const state: RouterHistoryState = { tab, inApp: true };
+        if (historyStack.length === 0) {
+          historyStack.push({ path, state });
+          currentIndex = 0;
+        } else {
+          historyStack[currentIndex] = { path, state };
+        }
+      };
+
+      // 1. Initial page load at / (Battlefield) uses replaceState
+      replace('battlefield', '/');
+      assert.equal(historyStack.length, 1);
+      assert.equal(historyStack[currentIndex].path, '/');
+      assert.equal(historyStack[currentIndex].state.tab, 'battlefield');
+
+      // 2. User clicks Dashboard: uses pushState
+      assert.equal(shouldPushTab(historyStack[currentIndex].path, 'dashboard'), true);
+      push('dashboard');
+      assert.equal(historyStack.length, 2);
+      assert.equal(currentIndex, 1);
+      assert.equal(historyStack[currentIndex].path, '/dashboard');
+      assert.equal(historyStack[currentIndex].state.tab, 'dashboard');
+
+      // 3. User clicks More: uses pushState
+      assert.equal(shouldPushTab(historyStack[currentIndex].path, 'profile'), true);
+      push('profile');
+      assert.equal(historyStack.length, 3);
+      assert.equal(currentIndex, 2);
+      assert.equal(historyStack[currentIndex].path, '/more');
+      assert.equal(historyStack[currentIndex].state.tab, 'profile');
+
+      // 4. User presses browser Back: pops to Dashboard
+      currentIndex -= 1;
+      const backEntry1 = historyStack[currentIndex];
+      const resolvedBack1 = resolveTabFromPath(backEntry1.path);
+      assert.equal(resolvedBack1.tab, 'dashboard');
+      assert.equal(backEntry1.path, '/dashboard');
+
+      // 5. User presses browser Back again: pops to Battlefield
+      currentIndex -= 1;
+      const backEntry2 = historyStack[currentIndex];
+      const resolvedBack2 = resolveTabFromPath(backEntry2.path);
+      assert.equal(resolvedBack2.tab, 'battlefield');
+      assert.equal(backEntry2.path, '/');
+
+      // 6. User presses browser Back a 3rd time: stack has no prior in-app entry
+      const canGoBackInApp = currentIndex > 0;
+      assert.equal(canGoBackInApp, false, 'Should allow browser default leave without trapping');
+    });
+
+    it('simulates deep link to /dashboard: Back once leaves without trapping', () => {
+      interface HistoryEntry {
+        path: string;
+        state: RouterHistoryState;
+      }
+      const historyStack: HistoryEntry[] = [];
+      let currentIndex = -1;
+
+      const replace = (tab: string, path: string) => {
+        const state: RouterHistoryState = { tab, inApp: true };
+        if (historyStack.length === 0) {
+          historyStack.push({ path, state });
+          currentIndex = 0;
+        } else {
+          historyStack[currentIndex] = { path, state };
+        }
+      };
+
+      // 1. Initial deep link to /dashboard uses replaceState
+      const resolved = resolveTabFromPath('/dashboard');
+      assert.equal(resolved.tab, 'dashboard');
+      replace(resolved.tab, resolved.canonicalPath);
+
+      // Stack length is 1
+      assert.equal(historyStack.length, 1);
+      assert.equal(currentIndex, 0);
+
+      // Pressing back once means there are no prior in-app entries
+      const canGoBackInApp = currentIndex > 0;
+      assert.equal(canGoBackInApp, false, 'Deep link Back once leaves the app or goes to prior external page');
     });
   });
 });
