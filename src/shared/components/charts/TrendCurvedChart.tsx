@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { toPersianDigits, formatPersianToman } from '../../../utils/numberUtils';
+import { toPersianDigits, formatPersianToman } from '../../utils/numberUtils';
 import { Crown, Users, TrendingUp, Sparkles, CreditCard, Flame } from 'lucide-react';
 
 export interface AnalyticsBucket {

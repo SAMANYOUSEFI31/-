@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { DailyLog, Cycle, CycleMetrics } from '../../../types';
 import { FOUNDATION_HABITS } from '../../../engine/bushidoCalculations';
-import { toPersianDigits } from '../../../utils/numberUtils';
+import { toPersianDigits } from '../../utils/numberUtils';
 import { 
   Sun, 
   Dumbbell, 

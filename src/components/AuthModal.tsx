@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { UserProfile } from '../types';
-import { toPersianDigits } from '../utils/numberUtils';
+import { toPersianDigits } from '../shared/utils/numberUtils';
 import { haptics } from '../utils/haptics';
 import { useBodyScrollLock } from '../shared/hooks/useBodyScrollLock';
 import { useModalAccessibility } from '../shared/hooks/useModalAccessibility';

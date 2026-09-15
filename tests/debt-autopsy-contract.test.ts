@@ -12,7 +12,7 @@ import {
   prepareDirectLogPayload,
   applyOptimisticLogUpdate
 } from '../src/utils/directMutationUtils.js';
-import { addDaysToDate } from '../src/utils/dateUtils.js';
+import { addDaysToDate } from '../src/shared/utils/dateUtils.js';
 
 describe('Debt Autopsy Flow & Invariants Verification', () => {
   const sampleCycle: Cycle = {

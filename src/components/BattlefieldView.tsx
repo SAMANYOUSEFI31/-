@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import { DailyLog, Cycle, CycleMetrics, HabitKey } from '../types';
 import { FOUNDATION_HABITS, computeDailyProperties } from '../engine/bushidoCalculations';
-import { formatPersianDate, getLogicalTodayDate, addDaysToDate, getRelativeDateLabel } from '../utils/dateUtils';
-import { toPersianDigits } from '../utils/numberUtils';
+import { formatPersianDate, getLogicalTodayDate, addDaysToDate, getRelativeDateLabel } from '../shared/utils/dateUtils';
+import { toPersianDigits } from '../shared/utils/numberUtils';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
 import { safeGetLocalStorage, safeSetLocalStorage } from '../utils/storageUtils';

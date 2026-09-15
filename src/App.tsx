@@ -10,8 +10,8 @@ import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { Cycle, DailyLog, SystemSettings, UserProfile, AdminUserItem, OfflineQueueItem } from './types';
 import { createInitialSystemState, GUEST_USER_PROFILE } from './data/initialData';
 import { computeCycleMetrics, createEmptyCycleMetrics, computeDailyProperties } from './engine/bushidoCalculations';
-import { getLogicalTodayDate, addDaysToDate } from './utils/dateUtils';
-import { applyAccentTheme } from './utils/themeUtils';
+import { getLogicalTodayDate, addDaysToDate } from './shared/utils/dateUtils';
+import { applyAccentTheme } from './shared/utils/themeUtils';
 import { 
   loadStoredSystemState, 
   saveSystemStateDebounced, 
@@ -107,7 +107,7 @@ import { isTourSeen, markTourSeen, resetTourSeen, markFirstValueAchieved } from 
 import { ErrorBoundary } from './shared/components/feedback/ErrorBoundary';
 import { useBodyScrollLock } from './shared/hooks/useBodyScrollLock';
 import { Toast, ToastItem, ToastType } from './shared/components/feedback/Toast';
-import { toPersianDigits } from './utils/numberUtils';
+import { toPersianDigits } from './shared/utils/numberUtils';
 import { resolveTabFromPath, getPathForTab, normalizePathname, shouldPushTab } from './utils/routerUtils';
 import { RotateCcw, Eye, ShieldCheck } from 'lucide-react';
 import './styles/tokens.css';

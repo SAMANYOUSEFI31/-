@@ -1,8 +1,8 @@
 import React, { useState, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Cycle, CycleMetrics, DailyLog } from '../types';
-import { addDaysToDate, getLogicalTodayDate, formatPersianDate } from '../utils/dateUtils';
-import { toPersianDigits } from '../utils/numberUtils';
+import { addDaysToDate, getLogicalTodayDate, formatPersianDate } from '../shared/utils/dateUtils';
+import { toPersianDigits } from '../shared/utils/numberUtils';
 import { ResponsiveSubTabBar, SubTabItem } from '../shared/components/layout/ResponsiveSubTabBar';
 import { ChartLoadingFallback } from '../shared/components/charts/ChartLoadingFallback';
 import { CompactEmptyCycleState } from './CompactEmptyCycleState';

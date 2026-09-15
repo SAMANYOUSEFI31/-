@@ -1,5 +1,5 @@
 import { Cycle } from '../types';
-import { addDaysToDate } from './dateUtils';
+import { addDaysToDate } from '../shared/utils/dateUtils';
 
 /**
  * Validates whether a proposed cycle date range overlaps with any existing non-demo cycle.

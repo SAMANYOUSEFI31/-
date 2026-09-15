@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { DailyLog, FailureReason, FailureTime } from '../types';
-import { formatPersianDate } from '../utils/dateUtils';
+import { formatPersianDate } from '../shared/utils/dateUtils';
 import { FOUNDATION_HABITS } from '../engine/bushidoCalculations';
 import { getDeterministicAutopsy } from '../engine/deterministicSensei';
-import { toPersianDigits } from '../utils/numberUtils';
+import { toPersianDigits } from '../shared/utils/numberUtils';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
 import { useBodyScrollLock } from '../shared/hooks/useBodyScrollLock';

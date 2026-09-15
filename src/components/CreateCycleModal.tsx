@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Cycle } from '../types';
-import { getLogicalTodayDate, addDaysToDate, formatPersianDate } from '../utils/dateUtils';
-import { toPersianDigits } from '../utils/numberUtils';
+import { getLogicalTodayDate, addDaysToDate, formatPersianDate } from '../shared/utils/dateUtils';
+import { toPersianDigits } from '../shared/utils/numberUtils';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
 import { useBodyScrollLock } from '../shared/hooks/useBodyScrollLock';

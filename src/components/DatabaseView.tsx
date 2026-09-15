@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { DailyLog, Cycle, CycleMetrics, SystemSettings, UserProfile } from '../types';
 import { computeDailyProperties, FOUNDATION_HABITS } from '../engine/bushidoCalculations';
-import { formatPersianDate, getLogicalTodayDate } from '../utils/dateUtils';
-import { toPersianDigits } from '../utils/numberUtils';
+import { formatPersianDate, getLogicalTodayDate } from '../shared/utils/dateUtils';
+import { toPersianDigits } from '../shared/utils/numberUtils';
 import { soundFX } from '../utils/audioEffects';
 import { useBodyScrollLock } from '../shared/hooks/useBodyScrollLock';
 import { buildExportPayload } from '../utils/storageUtils';

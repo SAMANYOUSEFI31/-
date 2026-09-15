@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Cycle, CycleMetrics, DailyLog, CycleVerdict } from '../types';
 import { soundFX } from '../utils/audioEffects';
 import { haptics } from '../utils/haptics';
-import { toPersianDigits } from '../utils/numberUtils';
+import { toPersianDigits } from '../shared/utils/numberUtils';
 import { getDeterministicCourtVerdict } from '../engine/deterministicSensei';
 import { 
   Gavel, 

@@ -1,5 +1,5 @@
 import { Cycle, DailyLog, SystemSettings, UserProfile } from '../types';
-import { addDaysToDate, formatDateISO, getLogicalTodayDate } from '../utils/dateUtils';
+import { addDaysToDate, formatDateISO, getLogicalTodayDate } from '../shared/utils/dateUtils';
 
 export const GUEST_USER_PROFILE: UserProfile = {
   id: '',

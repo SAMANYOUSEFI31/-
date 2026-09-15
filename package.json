@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "prisma generate && prisma db push && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "prisma generate && (prisma db push || true) && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "db:push": "prisma db push",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
@@ -14,14 +14,14 @@
     "test": "NODE_ENV=test tsx --test \"tests/**/*.test.ts\""
   },
   "dependencies": {
-    "@prisma/client": "^6.4.0",
+    "@prisma/client": "6.4.0",
     "dotenv": "^17.2.3",
     "esbuild": "^0.25.0",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
-    "prisma": "^6.19.3",
+    "prisma": "6.4.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "zod": "^3.24.2"

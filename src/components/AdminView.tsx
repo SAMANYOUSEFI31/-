@@ -6,8 +6,8 @@ import {
   UserProfile,
   AdminSubTab
 } from '../types';
-import { toPersianDigits, formatPersianToman } from '../utils/numberUtils';
-import { formatPersianDate } from '../utils/dateUtils';
+import { toPersianDigits, formatPersianToman } from '../shared/utils/numberUtils';
+import { formatPersianDate } from '../shared/utils/dateUtils';
 import { soundFX } from '../utils/audioEffects';
 import { safeGetLocalStorage } from '../utils/storageUtils';
 import { ResponsiveSubTabBar, SubTabItem } from '../shared/components/layout/ResponsiveSubTabBar';

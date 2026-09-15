@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'motion/react';
 import { Cycle, CycleMetrics, SystemSettings, UserProfile } from '../../../types';
-import { toPersianDigits } from '../../../utils/numberUtils';
+import { toPersianDigits } from '../../utils/numberUtils';
 import { haptics } from '../../../utils/haptics';
 import { soundFX } from '../../../utils/audioEffects';
 import { 

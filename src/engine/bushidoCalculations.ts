@@ -9,8 +9,8 @@ import {
   DayStatusType, 
   CycleStatusType 
 } from '../types';
-import { addDaysToDate, daysBetween, getLogicalTodayDate } from '../utils/dateUtils';
-import { toPersianDigits } from '../utils/numberUtils';
+import { addDaysToDate, daysBetween, getLogicalTodayDate } from '../shared/utils/dateUtils';
+import { toPersianDigits } from '../shared/utils/numberUtils';
 
 export const FOUNDATION_HABITS: HabitDef[] = [
   {

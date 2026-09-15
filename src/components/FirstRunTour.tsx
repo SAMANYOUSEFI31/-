@@ -10,7 +10,7 @@ import {
   Check, 
   X 
 } from 'lucide-react';
-import { toPersianDigits } from '../utils/numberUtils';
+import { toPersianDigits } from '../shared/utils/numberUtils';
 
 export interface TourStep {
   id: string;

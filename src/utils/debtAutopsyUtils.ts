@@ -1,5 +1,5 @@
 import { Cycle, DailyLog } from '../types.js';
-import { addDaysToDate } from './dateUtils.js';
+import { addDaysToDate } from '../shared/utils/dateUtils.js';
 import { computeDailyProperties } from '../engine/bushidoCalculations.js';
 
 export interface DebtCandidateDateRange {

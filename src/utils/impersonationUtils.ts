@@ -15,7 +15,7 @@ import {
   safeRemoveSessionStorage,
   transitionAccountState
 } from './storageUtils';
-import { toPersianDigits } from './numberUtils';
+import { toPersianDigits } from '../shared/utils/numberUtils';
 import type { SystemState, UserSubscriptionTier } from '../types';
 
 export const IMPERSONATOR_TOKEN_KEY = 'bushido_impersonator_token';

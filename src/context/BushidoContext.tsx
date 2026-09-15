@@ -33,9 +33,9 @@ import {
 } from '../types';
 import { createInitialSystemState, GUEST_USER_PROFILE } from '../data/initialData';
 import { computeCycleMetrics } from '../engine/bushidoCalculations';
-import { getLogicalTodayDate, addDaysToDate } from '../utils/dateUtils';
-import { applyAccentTheme } from '../utils/themeUtils';
-import { toPersianDigits } from '../utils/numberUtils';
+import { getLogicalTodayDate, addDaysToDate } from '../shared/utils/dateUtils';
+import { applyAccentTheme } from '../shared/utils/themeUtils';
+import { toPersianDigits } from '../shared/utils/numberUtils';
 import { 
   loadStoredSystemState, 
   saveSystemStateDebounced, 
