@@ -1,1 +1,1 @@
-export * from '../features/battlefield/BattlefieldView';
+export { BattlefieldView } from '../features/battlefield/BattlefieldView';

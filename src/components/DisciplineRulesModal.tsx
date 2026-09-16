@@ -1,1 +1,1 @@
-export * from '../features/court/DisciplineRulesModal';
+export { DisciplineRulesModal } from '../features/court/DisciplineRulesModal';

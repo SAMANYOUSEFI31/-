@@ -1,1 +1,1 @@
-export * from '../features/court/BushidoCourtView';
+export { BushidoCourtView } from '../features/court/BushidoCourtView';

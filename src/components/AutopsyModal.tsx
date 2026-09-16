@@ -1,1 +1,1 @@
-export * from '../features/autopsy/AutopsyModal';
+export { AutopsyModal } from '../features/autopsy/AutopsyModal';

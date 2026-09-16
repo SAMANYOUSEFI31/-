@@ -1,1 +1,1 @@
-export * from '../features/archives/ArchivesView';
+export { ArchivesView } from '../features/archives/ArchivesView';

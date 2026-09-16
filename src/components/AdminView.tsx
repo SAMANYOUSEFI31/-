@@ -1,1 +1,1 @@
-export * from '../features/admin/AdminView';
+export { AdminView } from '../features/admin/AdminView';

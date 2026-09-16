@@ -1,1 +1,1 @@
-export * from '../features/tour/FirstRunTour';
+export { FirstRunTour } from '../features/tour/FirstRunTour';

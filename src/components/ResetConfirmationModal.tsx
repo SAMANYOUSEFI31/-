@@ -1,1 +1,1 @@
-export * from '../features/cycles/ResetConfirmationModal';
+export { ResetConfirmationModal } from '../features/cycles/ResetConfirmationModal';

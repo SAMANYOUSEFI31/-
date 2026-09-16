@@ -1,2 +1,1 @@
-export * from '../features/tour/OnboardingWelcomeView';
-export { default } from '../features/tour/OnboardingWelcomeView';
+export { OnboardingWelcomeView } from '../features/tour/OnboardingWelcomeView';

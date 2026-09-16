@@ -1,1 +1,1 @@
-export * from '../features/payment/PaymentModal';
+export { PaymentModal } from '../features/payment/PaymentModal';

@@ -1,1 +1,1 @@
-export * from '../features/profile/ProfileSettingsView';
+export { ProfileSettingsView } from '../features/profile/ProfileSettingsView';

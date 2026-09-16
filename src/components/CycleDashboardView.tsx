@@ -1,1 +1,1 @@
-export * from '../features/dashboard/CycleDashboardView';
+export { CycleDashboardView } from '../features/dashboard/CycleDashboardView';

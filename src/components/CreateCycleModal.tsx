@@ -1,1 +1,1 @@
-export * from '../features/cycles/CreateCycleModal';
+export { CreateCycleModal } from '../features/cycles/CreateCycleModal';

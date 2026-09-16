@@ -1,1 +1,1 @@
-export * from '../features/auth/AuthModal';
+export { AuthModal } from '../features/auth/AuthModal';
