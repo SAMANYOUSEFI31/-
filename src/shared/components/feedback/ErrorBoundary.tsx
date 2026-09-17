@@ -104,7 +104,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="w-full sm:flex-1 py-3 px-4 radius-component bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-subtle transition cursor-pointer active:scale-[0.98] touch-manipulation focus-ring-tactical"
+                className="btn-contract-mastery w-full sm:flex-1 py-3 px-4 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-subtle touch-manipulation focus-ring-tactical"
                 title="بارگذاری مجدد بدون دستکاری و حذف داده‌های ثبت‌شده"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -114,7 +114,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleResetLocal}
-                className="w-full sm:w-auto py-3 px-4 radius-component surface-z2 hover:surface-z3 border-standard text-role-secondary hover:text-role-primary font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] touch-manipulation focus-ring-tactical"
+                className="btn-contract-secondary w-full sm:w-auto py-3 px-4 text-xs font-bold flex items-center justify-center gap-2 shadow-subtle touch-manipulation focus-ring-tactical"
                 title="پاکسازی کش محلی مرورگر و بازنشانی وضعیت اولیه"
               >
                 <RotateCcw className="w-3.5 h-3.5" />

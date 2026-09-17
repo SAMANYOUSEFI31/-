@@ -154,7 +154,7 @@ export const BushidoCourtView: React.FC<BushidoCourtViewProps> = ({
           <button
             onClick={handleGenerateVerdict}
             disabled={isGenerating || hasDebt}
-            className="w-full sm:w-auto bg-amber hover:brightness-110 active:scale-[0.98] disabled:opacity-50 text-[var(--color-canvas-root)] font-black text-xs sm:text-sm px-6 py-3.5 radius-card flex items-center justify-center gap-2 transition-all shadow-subtle cursor-pointer shrink-0 focus-ring-tactical"
+            className="btn-contract-mastery w-full sm:w-auto font-black text-xs sm:text-sm px-6 py-3.5 radius-card flex items-center justify-center gap-2 shadow-subtle shrink-0 focus-ring-tactical"
           >
             {isGenerating ? (
               <>
@@ -163,7 +163,7 @@ export const BushidoCourtView: React.FC<BushidoCourtViewProps> = ({
               </>
             ) : (
               <>
-                <Scroll className="w-4 h-4 text-black" />
+                <Scroll className="w-4 h-4" />
                 صدور حکم نهایی دیوان
               </>
             )}
@@ -261,9 +261,9 @@ export const BushidoCourtView: React.FC<BushidoCourtViewProps> = ({
             <div className="pt-2 flex justify-end">
               <button
                 onClick={handleSealAndArchive}
-                className="bg-emerald hover:brightness-110 text-[var(--color-canvas-root)] font-bold text-xs sm:text-sm px-6 py-2.5 radius-card flex items-center gap-2 transition cursor-pointer shadow-subtle focus-ring-tactical"
+                className="btn-contract-primary font-bold text-xs sm:text-sm px-6 py-2.5 radius-card flex items-center gap-2 shadow-subtle focus-ring-tactical"
               >
-                <CheckCircle2 className="w-4 h-4 text-[var(--color-canvas-root)]" />
+                <CheckCircle2 className="w-4 h-4" />
                 تایید گزارش، ممهور کردن و بایگانی چرخه
               </button>
             </div>

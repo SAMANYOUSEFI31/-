@@ -388,7 +388,7 @@ export const FirstRunTour: React.FC<FirstRunTourProps> = ({
                   id="first-run-tour-prev-btn"
                   type="button"
                   onClick={handlePrev}
-                  className="surface-z2 border-standard text-role-secondary hover:text-role-primary px-2.5 py-1.5 radius-component text-xs font-medium cursor-pointer transition-colors whitespace-nowrap"
+                  className="btn-contract-secondary px-2.5 py-1.5 text-xs font-medium whitespace-nowrap"
                 >
                   قبلی
                 </button>
@@ -399,7 +399,7 @@ export const FirstRunTour: React.FC<FirstRunTourProps> = ({
                 id="first-run-tour-next-btn"
                 type="button"
                 onClick={handleNext}
-                className="bg-crimson hover:brightness-110 text-role-primary font-bold radius-component px-3.5 py-1.5 text-xs sm:text-sm active:scale-95 transition-all shadow-subtle cursor-pointer whitespace-nowrap focus-ring-tactical inline-flex items-center gap-1.5"
+                className="btn-contract-primary font-bold px-3.5 py-1.5 text-xs sm:text-sm shadow-subtle whitespace-nowrap focus-ring-tactical inline-flex items-center gap-1.5"
               >
                 {isLastStep ? (
                   <>

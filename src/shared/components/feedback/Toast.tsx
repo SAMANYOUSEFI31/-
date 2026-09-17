@@ -82,7 +82,7 @@ export const Toast: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
                       toast.action?.onClick();
                       onDismiss(toast.id);
                     }}
-                    className="px-2.5 py-1 text-xs font-black bg-amber text-canvas-root radius-component hover:brightness-110 shrink-0 whitespace-nowrap cursor-pointer transition active:scale-95 focus-ring-tactical"
+                    className="btn-contract-mastery px-2.5 py-1 text-xs font-black shrink-0 whitespace-nowrap focus-ring-tactical"
                   >
                     {toast.action.label}
                   </button>
