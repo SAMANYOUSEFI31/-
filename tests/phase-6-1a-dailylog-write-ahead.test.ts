@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  executeDirectDailyLogMutation
+  executeDirectDailyLogMutation,
+  applyOptimisticLogUpdate,
+  rollbackOptimisticLogUpdate
 } from '../src/utils/directMutationUtils.js';
 import {
   getOfflineQueue,
@@ -673,5 +675,127 @@ test('Phase 6.1A DailyLog Write-Ahead Durability & Lifecycle Contracts', async (
       assert.ok(result.queueItemId, 'Result must contain queueItemId');
       assert.equal(capturedBody.clientOperationId, result.queueItemId);
     }
+  });
+
+  // =========================================================================
+  // CONTRACT 15: Offline Queue Invariant - Zero Dispatch When Offline
+  // =========================================================================
+  await t.test('offline queue invariant: directly enqueues mutation with QUEUED_OFFLINE and preserves queue FIFO order', async () => {
+    try {
+      Object.defineProperty(globalThis.navigator, 'onLine', {
+        value: false,
+        configurable: true,
+        writable: true
+      });
+    } catch {}
+
+    let fetchAttempted = false;
+    const mockFetch = (async () => {
+      fetchAttempted = true;
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    const logDay1: DailyLog = { ...baseLog, date: '1403-12-01', id: 'log-1' };
+    const logDay2: DailyLog = { ...baseLog, date: '1403-12-02', id: 'log-2' };
+
+    const res1 = await executeDirectDailyLogMutation({
+      updatedLog: logDay1,
+      existingLog: logDay1,
+      ownerId: userId,
+      authToken: 'token_offline',
+      activeCycleId: 'cycle_test_61a',
+      fetchFn: mockFetch
+    });
+
+    const res2 = await executeDirectDailyLogMutation({
+      updatedLog: logDay2,
+      existingLog: logDay2,
+      ownerId: userId,
+      authToken: 'token_offline',
+      activeCycleId: 'cycle_test_61a',
+      fetchFn: mockFetch
+    });
+
+    assert.equal(fetchAttempted, false, 'Fetch must never be called while navigator is offline');
+    assert.equal(res1.status, 'QUEUED_OFFLINE');
+    assert.equal(res2.status, 'QUEUED_OFFLINE');
+
+    const queue = getOfflineQueue(userId);
+    assert.equal(queue.length, 2, 'Both mutations must be stored durably in offline queue');
+    assert.equal(queue[0].payload.date, '1403-12-01', 'First mutation must occupy head of queue (FIFO)');
+    assert.equal(queue[1].payload.date, '1403-12-02', 'Second mutation must follow in queue (FIFO)');
+    assert.equal(queue[0].ownerId, userId);
+    assert.equal(queue[1].ownerId, userId);
+  });
+
+  // =========================================================================
+  // CONTRACT 16: Optimistic Update Snapshot & Rollback Invariants
+  // =========================================================================
+  await t.test('optimistic update captures confirmed snapshot with isSynced: false and rolls back cleanly', () => {
+    const confirmedLog: DailyLog = {
+      ...baseLog,
+      completedHabitIds: ['h1'],
+      isSynced: true
+    };
+    const currentLogs = [confirmedLog];
+
+    // 1. Optimistic apply
+    const modifiedLog: DailyLog = {
+      ...confirmedLog,
+      completedHabitIds: ['h1', 'h2'],
+      workout: true
+    };
+    const { nextLogs, previousConfirmedSnapshot } = applyOptimisticLogUpdate(currentLogs, modifiedLog);
+
+    assert.equal(nextLogs.length, 1);
+    assert.equal(nextLogs[0].isSynced, false, 'Optimistic entity must have isSynced: false');
+    assert.deepEqual(nextLogs[0].completedHabitIds, ['h1', 'h2']);
+    assert.ok(previousConfirmedSnapshot, 'Must capture snapshot');
+    assert.equal(previousConfirmedSnapshot!.isSynced, true, 'Captured snapshot must retain confirmed status');
+    assert.deepEqual(previousConfirmedSnapshot!.completedHabitIds, ['h1']);
+
+    // 2. Rollback to confirmed snapshot
+    const rolledBack = rollbackOptimisticLogUpdate(nextLogs, confirmedLog.date, previousConfirmedSnapshot);
+    assert.equal(rolledBack.length, 1);
+    assert.equal(rolledBack[0].isSynced, true, 'Restored entity must have isSynced: true');
+    assert.deepEqual(rolledBack[0].completedHabitIds, ['h1']);
+
+    // 3. Rollback when no previous snapshot existed (new log insertion rejected)
+    const newOptimisticLog: DailyLog = {
+      ...baseLog,
+      date: '1403-12-25',
+      id: 'log-new-day',
+      isSynced: false
+    };
+    const { nextLogs: logsWithNew } = applyOptimisticLogUpdate(currentLogs, newOptimisticLog);
+    assert.equal(logsWithNew.length, 2);
+
+    const rolledBackNew = rollbackOptimisticLogUpdate(logsWithNew, '1403-12-25', null);
+    assert.equal(rolledBackNew.length, 1, 'Rejected new entry must be completely removed from currentLogs');
+    assert.equal(rolledBackNew[0].date, confirmedLog.date);
+  });
+
+  // =========================================================================
+  // CONTRACT 17: Network Disconnect / Fetch Error Retains Queue Item
+  // =========================================================================
+  await t.test('network error preserves write-ahead queue item for future replay', async () => {
+    const networkErrorFetch = (async () => {
+      throw new TypeError('Failed to fetch: network disconnected');
+    }) as any;
+
+    const result = await executeDirectDailyLogMutation({
+      updatedLog: baseLog,
+      existingLog: baseLog,
+      ownerId: userId,
+      authToken: 'test_token_valid',
+      activeCycleId: 'cycle_test_61a',
+      fetchFn: networkErrorFetch
+    });
+
+    assert.equal(result.status, 'NETWORK_ERROR');
+    const queue = getOfflineQueue(userId);
+    assert.equal(queue.length, 1, 'Queue item must NOT be removed when network fetch throws');
+    assert.equal(queue[0].payload.date, baseLog.date);
+    assert.equal(queue[0].type, 'UPDATE_LOG');
   });
 });

@@ -331,4 +331,114 @@ describe('Client Router: Phase R1A Route Resolution & History Invariants', () =>
       );
     });
   });
+
+  describe('5. Battlefield / Dashboard / More Path Mapping & PWA Back Loop Invariants', () => {
+    it('enforces strict canonical mapping for core tabs: battlefield, dashboard, more', () => {
+      // Direct tab to canonical path
+      assert.equal(getPathForTab('battlefield'), '/battlefield');
+      assert.equal(getPathForTab('dashboard'), '/dashboard');
+      assert.equal(getPathForTab('more'), '/more');
+
+      // Canonical aliases
+      assert.equal(getPathForTab('cycle'), '/dashboard');
+      assert.equal(getPathForTab('profile'), '/more');
+      assert.equal(getPathForTab('settings'), '/more');
+
+      // Direct path to tab resolution
+      const bRes = resolveTabFromPath('/battlefield');
+      assert.equal(bRes.tab, 'battlefield');
+      assert.equal(bRes.canonicalPath, '/battlefield');
+      assert.equal(bRes.isKnown, true);
+
+      const dRes = resolveTabFromPath('/dashboard');
+      assert.equal(dRes.tab, 'dashboard');
+      assert.equal(dRes.canonicalPath, '/dashboard');
+      assert.equal(dRes.isKnown, true);
+
+      const mRes = resolveTabFromPath('/more');
+      assert.equal(mRes.tab, 'profile');
+      assert.equal(mRes.canonicalPath, '/more');
+      assert.equal(mRes.isKnown, true);
+    });
+
+    it('canonicalizes query params, hashes, trailing slashes, and uppercase variations for core tabs', () => {
+      const bDirty = resolveTabFromPath('/BATTLEFIELD/?mode=focus#today');
+      assert.equal(bDirty.tab, 'battlefield');
+      assert.equal(bDirty.canonicalPath, '/battlefield');
+      assert.equal(bDirty.isKnown, true);
+
+      const dDirty = resolveTabFromPath('/DASHBOARD///?chart=spline#kpi');
+      assert.equal(dDirty.tab, 'dashboard');
+      assert.equal(dDirty.canonicalPath, '/dashboard');
+      assert.equal(dDirty.isKnown, true);
+
+      const mDirty = resolveTabFromPath('/MORE/?theme=dark#settings');
+      assert.equal(mDirty.tab, 'profile');
+      assert.equal(mDirty.canonicalPath, '/more');
+      assert.equal(mDirty.isKnown, true);
+    });
+
+    it('shouldPushTab correctly distinguishes transitions across battlefield, dashboard, and more', () => {
+      // Transitions between different tabs push history
+      assert.equal(shouldPushTab('/battlefield', 'dashboard'), true);
+      assert.equal(shouldPushTab('/dashboard', 'profile'), true);
+      assert.equal(shouldPushTab('/more', 'battlefield'), true);
+      assert.equal(shouldPushTab('/more', 'dashboard'), true);
+      assert.equal(shouldPushTab('/dashboard', 'battlefield'), true);
+
+      // Re-clicking active tab or alias does NOT push history
+      assert.equal(shouldPushTab('/battlefield', 'battlefield'), false);
+      assert.equal(shouldPushTab('/', 'battlefield'), false);
+      assert.equal(shouldPushTab('/dashboard', 'dashboard'), false);
+      assert.equal(shouldPushTab('/dashboard', 'cycle'), false);
+      assert.equal(shouldPushTab('/more', 'more'), false);
+      assert.equal(shouldPushTab('/more', 'profile'), false);
+      assert.equal(shouldPushTab('/more', 'settings'), false);
+    });
+
+    it('simulates full bi-directional browser history traversal across battlefield -> dashboard -> more', () => {
+      const stack: { path: string; tab: string }[] = [];
+      let pointer = -1;
+
+      const navigate = (tab: string) => {
+        const currentPath = pointer >= 0 ? stack[pointer].path : '';
+        if (shouldPushTab(currentPath, tab)) {
+          pointer++;
+          stack.splice(pointer);
+          stack.push({ path: getPathForTab(tab), tab });
+        }
+      };
+
+      // Step 1: initial load at battlefield
+      pointer = 0;
+      stack.push({ path: '/battlefield', tab: 'battlefield' });
+      assert.equal(resolveTabFromPath(stack[pointer].path).tab, 'battlefield');
+
+      // Step 2: navigate to dashboard
+      navigate('dashboard');
+      assert.equal(pointer, 1);
+      assert.equal(stack[pointer].path, '/dashboard');
+      assert.equal(resolveTabFromPath(stack[pointer].path).tab, 'dashboard');
+
+      // Step 3: navigate to more
+      navigate('profile');
+      assert.equal(pointer, 2);
+      assert.equal(stack[pointer].path, '/more');
+      assert.equal(resolveTabFromPath(stack[pointer].path).tab, 'profile');
+
+      // Step 4: press Back button in browser (popstate to dashboard)
+      pointer--;
+      assert.equal(pointer, 1);
+      const back1 = resolveTabFromPath(stack[pointer].path);
+      assert.equal(back1.tab, 'dashboard');
+      assert.equal(back1.canonicalPath, '/dashboard');
+
+      // Step 5: press Back button again (popstate to battlefield)
+      pointer--;
+      assert.equal(pointer, 0);
+      const back2 = resolveTabFromPath(stack[pointer].path);
+      assert.equal(back2.tab, 'battlefield');
+      assert.equal(back2.canonicalPath, '/battlefield');
+    });
+  });
 });

@@ -6,6 +6,7 @@ import {
   STORAGE_KEY, 
   DEMO_CONSUMED_KEY, 
   getScopedStorageKey,
+  getScopedDemoConsumedKey,
   resolveBackendSyncDecision 
 } from '../src/utils/storageUtils.js';
 
@@ -271,6 +272,99 @@ describe('Bushido Storage & Seed Preservation', () => {
       assert.equal(decision.nextLogs, null);
       assert.equal(decision.shouldMarkDemoConsumed, false);
       assert.equal(decision.nextActiveCycleId, null);
+    });
+  });
+
+  describe('Demo Consumed & Zero Phantom Cycle Resurrection Invariants', () => {
+    it('permanently prevents demo re-seeding when user deletes cycles and demo consumed key is set', () => {
+      const testUserId = 'user-zero-cycle-check';
+      const scopedKey = getScopedStorageKey(testUserId);
+      const scopedDemoKey = getScopedDemoConsumedKey(testUserId);
+
+      // User has deleted their cycles, leaving an explicitly empty array and setting demo consumed key
+      storageMock[scopedDemoKey] = 'true';
+      storageMock[scopedKey] = JSON.stringify({
+        cycles: [],
+        logs: [],
+        settings: {
+          id: 'system-main',
+          platformName: 'Bushido Discipline OS',
+          centralEngineName: 'موتور مرکزی',
+          allTimeMaxStreak: 5,
+          allTimeMaxScore: 10,
+          allTimeMaxStandardDays: 3,
+          nightOwlCutoffHour: 4
+        },
+        userProfile: {
+          id: testUserId,
+          name: 'کاربر بدون چرخه',
+          email: 'zero@bushido.local',
+          phoneNumber: '',
+          tier: 'free',
+          isVip: false,
+          isAdmin: false,
+          activeCycleLimit: 1
+        }
+      });
+
+      const reloaded = loadStoredSystemState(testUserId);
+      assert.equal(reloaded.cycles.length, 0, 'Must NOT resurrect demo cycle-1');
+      assert.equal(reloaded.logs.length, 0, 'Must NOT resurrect demo logs');
+      assert.equal(reloaded.userProfile.id, testUserId);
+      assert.equal(reloaded.settings.allTimeMaxStreak, 5, 'Must preserve existing stats');
+    });
+
+    it('scoped demo consumption: User A consumed demo does not affect User B onboarding state', () => {
+      const userA = 'user-a-consumed';
+      const userB = 'user-b-fresh';
+
+      storageMock[getScopedDemoConsumedKey(userA)] = 'true';
+      storageMock[getScopedStorageKey(userA)] = JSON.stringify({
+        cycles: [],
+        logs: [],
+        userProfile: { id: userA, name: 'User A' }
+      });
+
+      // User A loads with zero cycles
+      const stateA = loadStoredSystemState(userA);
+      assert.equal(stateA.cycles.length, 0);
+
+      // User B has no stored data and no demo consumed key; falls back safely to empty state for auth user
+      const stateB = loadStoredSystemState(userB);
+      assert.equal(stateB.userProfile.id, userB);
+      assert.equal(stateB.cycles.length, 0);
+
+      // Guest without consumed demo gets initial onboarding seed
+      const guestState = loadStoredSystemState(null);
+      assert.equal(guestState.cycles.length, 1);
+      assert.equal(guestState.cycles[0].id, 'cycle-1');
+      assert.equal(guestState.logs.length, 25);
+    });
+
+    it('resolveBackendSyncDecision with empty API and consumed demo explicitly returns empty cycles array, not null', () => {
+      const decision = resolveBackendSyncDecision({
+        apiCycles: [],
+        apiLogs: [],
+        isDemoConsumed: true
+      });
+
+      assert.ok(Array.isArray(decision.nextCycles), 'nextCycles must be an explicit array');
+      assert.equal(decision.nextCycles!.length, 0, 'nextCycles must be empty array');
+      assert.ok(Array.isArray(decision.nextLogs), 'nextLogs must be an explicit array');
+      assert.equal(decision.nextLogs!.length, 0, 'nextLogs must be empty array');
+      assert.equal(decision.shouldMarkDemoConsumed, false);
+      assert.equal(decision.nextActiveCycleId, null);
+    });
+
+    it('multiple consecutive reloads of consumed-demo empty state remain zero-cycle idempotently', () => {
+      storageMock[DEMO_CONSUMED_KEY] = 'true';
+      delete storageMock[STORAGE_KEY];
+
+      for (let i = 0; i < 5; i++) {
+        const state = loadStoredSystemState();
+        assert.equal(state.cycles.length, 0, `Run ${i + 1}: cycles must remain 0`);
+        assert.equal(state.logs.length, 0, `Run ${i + 1}: logs must remain 0`);
+      }
     });
   });
 });
