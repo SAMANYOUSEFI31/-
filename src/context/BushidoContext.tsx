@@ -837,12 +837,12 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       });
       if (!res.ok) {
         enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
-        showAppToast('تغییرات نمایه در صف آفلاین ذخیره شد و پس از اتصال به سرور همگام می‌شود.');
+        showAppToast('الان اینترنت در دسترس نیست. تغییرات نمایه روی دستگاه ثبت شد و پس از اتصال فرستاده می‌شود.');
       }
     } catch (e) {
       console.warn('Failed to sync user profile:', e);
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
-      showAppToast('تغییرات نمایه در دستگاه ذخیره شد و با برقراری مجدد اینترنت به سرور ارسال خواهد شد.');
+      showAppToast('ارسال به سرور انجام نشد؛ تغییرات نمایه روی دستگاه ذخیره است و پس از اتصال فرستاده می‌شود.');
     }
   }, [authToken, systemState.userProfile?.id]);
 

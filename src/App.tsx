@@ -362,15 +362,15 @@ export default function App() {
     const unreplayable = getUnreplayableQueueItems(ownerId);
     if (unreplayable.length > 0) {
       showAppToastRef.current(
-        `تعداد ${toPersianDigits(unreplayable.length)} مورد از تغییرات آفلاین به سرور ارسال نشد. جهت بازنشانی صف و همگام‌سازی مجدد، «تعمیر همگام‌سازی» را انتخاب کنید یا به ثبت آفلاین ادامه دهید.`,
+        `${toPersianDigits(unreplayable.length)} مورد هنوز به سرور نرسیده است. داده‌ها روی دستگاه محفوظ است؛ با «تلاش مجدد» دوباره می‌فرستیم.`,
         'warning',
         8000,
         {
-          label: 'تعمیر همگام‌سازی',
+          label: 'تلاش مجدد',
           onClick: () => {
-            const { clearedCount } = clearFailedQueueItems(ownerId);
+            clearFailedQueueItems(ownerId);
             showAppToastRef.current(
-              `صف همگام‌سازی بازنشانی شد (${toPersianDigits(clearedCount)} مورد قدیمی بایگانی گردید). در حال تلاش مجدد...`,
+              'در حال تلاش مجدد برای ارسال تغییرات به سرور...',
               'success',
               3000
             );
@@ -400,24 +400,12 @@ export default function App() {
   }, []);
 
   const handleAppSyncResult = useCallback((outcome: SyncRunOutcome) => {
-    if (
-      outcome.status === 'COMPLETED' &&
-      outcome.syncedCount > 0 &&
-      !outcome.stoppedDueToAccountChange &&
-      !outcome.stoppedDueToLockLoss &&
-      !outcome.stoppedDueToAuth
-    ) {
-      showAppToastRef.current(
-        `همگام‌سازی ابری با موفقیت انجام شد (${toPersianDigits(outcome.syncedCount)} تغییر ذخیره شد).`,
-        'success'
-      );
-    }
-
+    // Successful background sync/replay and routine visibility refetch stay silent
     if (outcome.failedCount > 0) {
       checkAndOfferQueueRepair(activeAccountRef.current);
     } else if (outcome.status === 'FAILED') {
       showAppToastRef.current(
-        'همگام‌سازی با سرور به دلیل اختلال ارتباط انجام نشد؛ داده‌ها در دستگاه محفوظ است. اتصال اینترنت را بررسی کنید یا دوباره تلاش فرمایید.',
+        'ارسال به سرور انجام نشد؛ داده روی دستگاه محفوظ است. بعد از اتصال دوباره تلاش کنید.',
         'warning',
         7000,
         {
@@ -429,11 +417,11 @@ export default function App() {
       );
     } else if (outcome.status === 'SKIPPED_OFFLINE' && outcome.triggers.includes('MANUAL_FORCE')) {
       showAppToastRef.current(
-        'دستگاه در وضعیت آفلاین است؛ امکان ارسال تغییرات وجود ندارد. اتصال اینترنت را بررسی کنید یا در حالت آفلاین ادامه دهید.',
+        'الان اینترنت در دسترس نیست. داده‌ها روی دستگاه محفوظ است و بعد از اتصال ارسال می‌شود.',
         'info',
         6000,
         {
-          label: 'بررسی مجدد',
+          label: 'تلاش مجدد',
           onClick: () => {
             requestSyncRef.current?.('MANUAL_FORCE', outcome.ownerId, undefined, true);
           }
@@ -839,7 +827,7 @@ export default function App() {
               logs: nextLogs
             };
           });
-          showAppToast(result.messageFa || 'خطا در ذخیره‌سازی محلی. تغییرات اعمال نشد.', 'warning');
+          showAppToast(result.messageFa || 'ذخیره روی دستگاه انجام نشد. لطفاً دوباره تلاش کنید.', 'warning');
         }
         return;
       }
@@ -1002,7 +990,7 @@ export default function App() {
           cycles: rollbackOptimisticCycleUpdate(prev.cycles, updatedCycle.id, previousConfirmedSnapshot)
         };
       });
-      showAppToast('نسخه معتبر چرخه یافت نشد. همگام‌سازی مجدد با سرور انجام می‌شود.', 'warning');
+      showAppToast('اطلاعات چرخه با سرور یکسان نبود؛ در حال دریافت آخرین وضعیت از سرور...', 'warning');
       requestSync('MANUAL_FORCE', ownerId, authToken, true);
       return;
     }
@@ -1165,13 +1153,13 @@ export default function App() {
       if (previousActiveCycleId === cycleId) {
         setActiveCycleId(cycleId);
       }
-      showAppToast('نسخه معتبر چرخه برای حذف یافت نشد. همگام‌سازی مجدد با سرور انجام می‌شود.', 'warning');
+      showAppToast('اطلاعات چرخه با سرور یکسان نبود؛ در حال دریافت آخرین وضعیت از سرور...', 'warning');
       requestSync('MANUAL_FORCE', ownerId, authToken, true);
       return;
     }
 
     if (result.status === 'QUEUED_OFFLINE') {
-      showAppToast('حذف چرخه در صف آفلاین ذخیره شد و پس از اتصال به سرور اعمال خواهد شد.', 'info');
+      showAppToast('الان اینترنت در دسترس نیست. حذف چرخه روی دستگاه ثبت شد و پس از اتصال فرستاده می‌شود.', 'info');
       return;
     }
 
@@ -1203,7 +1191,7 @@ export default function App() {
       if (previousActiveCycleId === cycleId) {
         setActiveCycleId(cycleId);
       }
-      showAppToast(result.conflictDetails.messageFa || 'حذف چرخه به دلیل تغییر در دستگاه دیگر رد شد. داده‌های چرخه بازگردانی شدند.', 'error');
+      showAppToast(result.conflictDetails.messageFa || 'حذف چرخه به دلیل تغییر در دستگاه دیگر انجام نشد؛ اطلاعات چرخه بازگردانده شد.', 'error');
       requestSync('NETWORK_ONLINE', ownerId, authToken, true);
       return;
     }
@@ -1237,7 +1225,7 @@ export default function App() {
     }
 
     if (result.status === 'RATE_LIMITED' || result.status === 'SERVER_RETRYABLE' || result.status === 'NETWORK_ERROR') {
-      showAppToast('درخواست حذف چرخه ذخیره شد و پس از رفع اختلال شبکه به سرور ارسال می‌شود.', 'info');
+      showAppToast('ارسال به سرور انجام نشد؛ حذف چرخه روی دستگاه ذخیره است و پس از برقراری ارتباط فرستاده می‌شود.', 'info');
       return;
     }
   }, [authToken, activeCycleId, systemState.cycles, systemState.logs, systemState.userProfile?.id, showAppToast, requestSync]);
@@ -1305,12 +1293,12 @@ export default function App() {
         requestSync('NETWORK_ONLINE', ownerId, authToken, true);
       } else {
         enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
-        showAppToast('تغییرات نمایه در صف آفلاین ذخیره شد و پس از اتصال به سرور همگام می‌شود.', 'info');
+        showAppToast('الان اینترنت در دسترس نیست. تغییرات نمایه روی دستگاه ثبت شد و پس از اتصال فرستاده می‌شود.', 'info');
       }
     } catch (e) {
       console.warn('Failed to sync user profile:', e);
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
-      showAppToast('تغییرات نمایه در دستگاه ذخیره شد و با برقراری مجدد اینترنت به سرور ارسال خواهد شد.', 'info');
+      showAppToast('ارسال به سرور انجام نشد؛ تغییرات نمایه روی دستگاه ذخیره است و پس از اتصال فرستاده می‌شود.', 'info');
     }
   }, [authToken, systemState.userProfile, showAppToast, requestSync]);
 
@@ -1409,7 +1397,7 @@ export default function App() {
     }
 
     if (result.status === 'QUEUED_OFFLINE') {
-      showAppToast('چرخه جدید در صف آفلاین ذخیره شد و پس از اتصال به سرور همگام می‌شود.', 'info');
+      showAppToast('الان اینترنت در دسترس نیست. چرخه جدید روی دستگاه ثبت شد و پس از اتصال فرستاده می‌شود.', 'info');
       return;
     }
 
@@ -1459,7 +1447,7 @@ export default function App() {
     }
 
     if (result.status === 'RATE_LIMITED' || result.status === 'SERVER_RETRYABLE' || result.status === 'NETWORK_ERROR') {
-      showAppToast('چرخه ایجاد شد و پس از رفع اختلال ارتباط با سرور، همگام‌سازی تکمیل می‌شود.', 'info');
+      showAppToast('ارسال به سرور انجام نشد؛ چرخه جدید روی دستگاه ذخیره است و پس از اتصال فرستاده می‌شود.', 'info');
       return;
     }
   }, [authToken, cycleMetrics?.pureStreak, systemState.userProfile?.id, systemState.cycles, systemState.logs, activeCycleId, selectedDate, activeTab, showAppToast, requestSync]);
@@ -1557,7 +1545,7 @@ export default function App() {
       }
     } catch (e) {
       console.error('Quick login error:', e);
-      showAppToast('ارتباط با سرور برای ورود سریع برقرار نشد؛ لطفاً اتصال اینترنت را بررسی کرده و مجدداً تلاش نمایید.', 'error');
+      showAppToast('ارتباط با سرور برقرار نشد؛ لطفاً اینترنت را بررسی کرده و دوباره تلاش کنید.', 'error');
     }
   };
 
@@ -1607,7 +1595,7 @@ export default function App() {
       }
     } catch (e) {
       console.error('Impersonate user error:', e);
-      showAppToast('امکان دریافت اطلاعات کاربر از سرور میسر نشد؛ لطفاً اتصال اینترنت را بررسی کرده و دوباره تلاش فرمایید.', 'error');
+      showAppToast('دریافت اطلاعات از سرور انجام نشد؛ لطفاً اینترنت را بررسی کرده و دوباره تلاش کنید.', 'error');
     }
   };
 
