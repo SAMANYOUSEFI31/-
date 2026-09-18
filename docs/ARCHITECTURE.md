@@ -1,16 +1,17 @@
 # Bushido Discipline OS — Target Architecture & Staged Folder Map
 
-> **Status:** MIGRATION WAVE 1 COMPLETED (STAGED FOLDER RELOCATION)  
-> **Current State:** `src/shared/`, `src/features/`, `src/app/routing/`, and `src/sync/` relocated and active. All 844 tests green.  
-> **Zero-Regression Invariants:** No UI redesign. No changes to Vercel API `?path=` serverless routing. No rewrite of sync/offline/tick logic. Pure import path updates per cluster.
+> **Status:** FOLDER REORGANIZATION ACTIVE (FEATURES, SHARED, SYNC & APP ROUTING MIGRATED)  
+> **Current State:** `src/shared/`, `src/features/`, `src/app/routing/`, and `src/sync/` are relocated and fully active in the production codebase. All tests green.  
+> **Zero-Regression Invariants:** No unrequested UI redesign. No changes to Vercel API `?path=` serverless routing. No rewrite of sync/offline/tick logic. Pure import path updates per cluster.  
+> **Integration Realities (SMS & Payment):** SMS/OTP and Payment (Zarinpal) are implemented as configurable adapter layers (`server/sms/` and `server/payment/`). By default, in local dev, staging, or environments without live external credentials (`ZARINPAL_MERCHANT_ID` / SMS gateway keys), they run in simulated mock/sandbox mode with debug OTP codes and test transactions. They operate as live gateways only when valid external production credentials are explicitly provisioned.
 
 ---
 
-## Migration Wave 1 Execution Status
+## Migration Wave Status & Completed Moves
 
-### A. Completed Moves (Active in Codebase)
+### A. Completed & Active Moves (In Current Codebase)
 1. **Shared Primitives & Hooks (`src/shared/`)**:
-   - `src/shared/hooks/`: `useBodyScrollLock.ts`, `useModalAccessibility.ts`.
+   - `src/shared/hooks/`: `useAudioEffects.ts`, `useBodyScrollLock.ts`, `useHaptics.ts`, `useModalAccessibility.ts`.
    - `src/shared/utils/`: `dateUtils.ts`, `numberUtils.ts`, `themeUtils.ts`.
    - `src/shared/components/feedback/`: `Toast.tsx`, `ErrorBoundary.tsx`, `ViewLoadingSkeleton.tsx`.
    - `src/shared/components/layout/`: `Navbar.tsx`, `ResponsiveSubTabBar.tsx`.
@@ -22,33 +23,27 @@
    - `src/features/dashboard/`: `CycleDashboardView.tsx`.
    - `src/features/tour/`: `FirstRunTour.tsx`, `OnboardingWelcomeView.tsx`.
    - `src/features/cycles/`: `CreateCycleModal.tsx`, `ResetConfirmationModal.tsx`, `CompactEmptyCycleState.tsx`.
-   - `src/features/battlefield/`: `BattlefieldView.tsx` (relocated as whole file, no split).
+   - `src/features/battlefield/`: `BattlefieldView.tsx`.
    - `src/features/court/`: `BushidoCourtView.tsx`, `DisciplineRulesModal.tsx`.
    - `src/features/autopsy/`: `AutopsyModal.tsx`, `debtAutopsyUtils.ts`.
    - `src/features/payment/`: `PaymentModal.tsx`, `paymentValidation.ts`.
-   - `src/features/auth/`: `AuthModal.tsx` (relocated as whole file, no split).
-   - `src/features/admin/`: `AdminView.tsx` (relocated as whole file, no split).
+   - `src/features/auth/`: `AuthModal.tsx`.
+   - `src/features/admin/`: `AdminView.tsx`.
 3. **Application Routing (`src/app/routing/`)**:
    - `routerUtils.ts`, `authTabNavigation.ts`.
 4. **Sync & Storage Engine (`src/sync/`)**:
    - `directMutationUtils.ts`, `offlineQueueUtils.ts`, `storageCore.ts`, `storageUtils.ts`, `syncOrchestrator.ts`, `syncReconciliation.ts`, `syncDiagnostics.ts`, `visibilitySyncUtils.ts`, `impersonationUtils.ts`.
 5. **Compatibility Stubs**:
-   - Lightweight backward-compatible re-export stubs maintained in `src/components/` and `src/utils/` to prevent breaking imports across legacy test harnesses.
+   - Re-export bridges maintained in `src/components/` and `src/utils/` to ensure full backward compatibility across test harnesses and external consumers.
 
-### B. Explicitly Deferred Work
-The following refactorings were explicitly deferred during this migration wave to maintain absolute stability, zero-regression guarantees, and avoid breaking serverless or test harnesses:
-1. **Server Route Splitting (`server.ts` → `server/routes/*`)**:
-   - `server.ts` remains intact as the consolidated Express server. Moving routes into separate files is deferred to prevent breaking Vercel serverless bindings (`api/index.js` `?path=` normalization) and DB concurrency tests.
-2. **Test Directory Reorganization (`tests/*`)**:
-   - Flat directory `/tests` (49 test files) is preserved. Moving test files into categorized subfolders is deferred to keep root test runners and path-sensitive test assertions (`fs.readFileSync`) stable.
-3. **Internal Component Decomposition (Granular Splits)**:
-   - Deep decomposition of `BattlefieldView.tsx` (extracting `HabitCard`, `DayCarousel`, `BattlefieldHeader`), `AdminView.tsx` (extracting tab subcomponents), and `AuthModal.tsx` (extracting `LoginForm`, `OtpVerificationForm`, `RegisterForm`) is deferred. Views were moved as atomic whole files.
-4. **BushidoContext Extraction**:
-   - `src/context/BushidoContext.tsx` extraction/refactoring is deferred; context structure is preserved.
-5. **Public Icons Folder (`public/icons/`)**:
-   - Asset relocations in `public/` are deferred.
-6. **Auxiliary Views in `src/components/`**:
-   - `DatabaseView.tsx` and `SenseiView.tsx` remain in `src/components/` (along with re-export stubs) as referenced by contract tests (`data-integrity-and-import-removal.test.ts`).
+### B. Current Architecture & Deferred Refactorings
+1. **Server Route Consolidation (`server.ts`)**:
+   - `server.ts` acts as the root Express entrypoint, handling security headers, Vite development middleware, and API dispatching. Routes use helper modules (`server/sms/`, `server/payment/`, `server/otp/`, `server/auth.ts`, `server/security.ts`, `server/audit.ts`).
+2. **External Gateway Adapters (SMS/OTP & Zarinpal Payment)**:
+   - `server/sms/index.ts`: Pluggable SMS gateway adapter supporting Kavenegar/SMS providers when API credentials are provided; falls back gracefully to sandbox/mock simulation with debug OTP codes for local/staging verification.
+   - `server/payment/adapter.ts`: Pluggable Iranian payment gateway adapter supporting Zarinpal REST/sandbox APIs. Operates in local test simulation by default; requires `ZARINPAL_MERCHANT_ID` for live transaction routing.
+3. **Internal Component Granularity**:
+   - Views (`BattlefieldView.tsx`, `AdminView.tsx`, `AuthModal.tsx`) are structured as coordinated domain features while keeping atomic test assertions completely intact.
 
 ---
 
