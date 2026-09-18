@@ -108,3 +108,14 @@ npm start
 - `/archives` (یا `/more/archives` و مسیرهای میراثی `/database`): کارنامه عملکرد و بایگانی چرخه‌های پیشین.
 - `/admin`: کنسول مدیریت ارشد سامانه (تحلیل‌های رشد، کاربران و اشتراک‌ها).
 
+---
+
+## ۷. اسناد تکمیلی و راهنماهای مرجع معماری و طراحی (Architecture & Design System References)
+
+- **معماری سیستم و نقشه استقرار پوشه‌ها**: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+- **سیستم طراحی بوشیدو و توکن‌های بصری (Design System SSOT)**: [`DESIGN_SYSTEM.md`](./DESIGN_SYSTEM.md)
+- **منشور اصول مهندسی، بنچ‌مارک‌های تعاملی و ارگونومی لمسی (Benchmarks & A11y Contract)**: [`BENCHMARKS.md`](./BENCHMARKS.md)
+- **موتور محاسبات، فرمول‌ها و تحلیل‌های ادمین**: [`ADMIN_METRICS_AND_LOGIC.md`](./ADMIN_METRICS_AND_LOGIC.md)
+- **مسیریابی API و قوانین سرور**: [`docs/API_ROUTING.md`](./docs/API_ROUTING.md)
+
+
