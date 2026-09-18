@@ -362,18 +362,13 @@ export default function App() {
     const unreplayable = getUnreplayableQueueItems(ownerId);
     if (unreplayable.length > 0) {
       showAppToastRef.current(
-        `${toPersianDigits(unreplayable.length)} مورد هنوز به سرور نرسیده است. داده‌ها روی دستگاه محفوظ است؛ با «تلاش مجدد» دوباره می‌فرستیم.`,
+        `${toPersianDigits(unreplayable.length)} مورد روی این دستگاه مانده و به سرور نرسیده است.`,
         'warning',
         8000,
         {
           label: 'تلاش مجدد',
           onClick: () => {
             clearFailedQueueItems(ownerId);
-            showAppToastRef.current(
-              'در حال تلاش مجدد برای ارسال تغییرات به سرور...',
-              'success',
-              3000
-            );
             requestSyncRef.current?.('MANUAL_FORCE', ownerId, undefined, true);
           }
         }
@@ -405,7 +400,7 @@ export default function App() {
       checkAndOfferQueueRepair(activeAccountRef.current);
     } else if (outcome.status === 'FAILED') {
       showAppToastRef.current(
-        'ارسال به سرور انجام نشد؛ داده روی دستگاه محفوظ است. بعد از اتصال دوباره تلاش کنید.',
+        'ارسال به سرور انجام نشد؛ اطلاعات روی این دستگاه ذخیره است.',
         'warning',
         7000,
         {
@@ -417,7 +412,7 @@ export default function App() {
       );
     } else if (outcome.status === 'SKIPPED_OFFLINE' && outcome.triggers.includes('MANUAL_FORCE')) {
       showAppToastRef.current(
-        'الان اینترنت در دسترس نیست. داده‌ها روی دستگاه محفوظ است و بعد از اتصال ارسال می‌شود.',
+        'دستگاه آفلاین است؛ اطلاعات اینجا ذخیره می‌ماند.',
         'info',
         6000,
         {
@@ -827,7 +822,7 @@ export default function App() {
               logs: nextLogs
             };
           });
-          showAppToast(result.messageFa || 'ذخیره روی دستگاه انجام نشد. لطفاً دوباره تلاش کنید.', 'warning');
+          showAppToast(result.messageFa || 'ذخیره روی این دستگاه انجام نشد. لطفاً دوباره تلاش کنید.', 'warning');
         }
         return;
       }
@@ -990,7 +985,7 @@ export default function App() {
           cycles: rollbackOptimisticCycleUpdate(prev.cycles, updatedCycle.id, previousConfirmedSnapshot)
         };
       });
-      showAppToast('اطلاعات چرخه با سرور یکسان نبود؛ در حال دریافت آخرین وضعیت از سرور...', 'warning');
+      showAppToast('اطلاعات چرخه تغییر کرده بود؛ در حال دریافت آخرین وضعیت...', 'warning');
       requestSync('MANUAL_FORCE', ownerId, authToken, true);
       return;
     }
@@ -1153,13 +1148,13 @@ export default function App() {
       if (previousActiveCycleId === cycleId) {
         setActiveCycleId(cycleId);
       }
-      showAppToast('اطلاعات چرخه با سرور یکسان نبود؛ در حال دریافت آخرین وضعیت از سرور...', 'warning');
+      showAppToast('اطلاعات چرخه تغییر کرده بود؛ در حال دریافت آخرین وضعیت...', 'warning');
       requestSync('MANUAL_FORCE', ownerId, authToken, true);
       return;
     }
 
     if (result.status === 'QUEUED_OFFLINE') {
-      showAppToast('الان اینترنت در دسترس نیست. حذف چرخه روی دستگاه ثبت شد و پس از اتصال فرستاده می‌شود.', 'info');
+      showAppToast('اینترنت در دسترس نیست؛ حذف چرخه روی دستگاه ثبت شد.', 'info');
       return;
     }
 
@@ -1191,7 +1186,7 @@ export default function App() {
       if (previousActiveCycleId === cycleId) {
         setActiveCycleId(cycleId);
       }
-      showAppToast(result.conflictDetails.messageFa || 'حذف چرخه به دلیل تغییر در دستگاه دیگر انجام نشد؛ اطلاعات چرخه بازگردانده شد.', 'error');
+      showAppToast(result.conflictDetails.messageFa || 'این چرخه در دستگاه دیگری تغییر کرده بود؛ اطلاعات آن بازگردانده شد.', 'error');
       requestSync('NETWORK_ONLINE', ownerId, authToken, true);
       return;
     }
@@ -1225,7 +1220,7 @@ export default function App() {
     }
 
     if (result.status === 'RATE_LIMITED' || result.status === 'SERVER_RETRYABLE' || result.status === 'NETWORK_ERROR') {
-      showAppToast('ارسال به سرور انجام نشد؛ حذف چرخه روی دستگاه ذخیره است و پس از برقراری ارتباط فرستاده می‌شود.', 'info');
+      showAppToast('ارسال به سرور انجام نشد؛ حذف چرخه روی دستگاه ذخیره مانده است.', 'info');
       return;
     }
   }, [authToken, activeCycleId, systemState.cycles, systemState.logs, systemState.userProfile?.id, showAppToast, requestSync]);
@@ -1293,12 +1288,12 @@ export default function App() {
         requestSync('NETWORK_ONLINE', ownerId, authToken, true);
       } else {
         enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
-        showAppToast('الان اینترنت در دسترس نیست. تغییرات نمایه روی دستگاه ثبت شد و پس از اتصال فرستاده می‌شود.', 'info');
+        showAppToast('اینترنت در دسترس نیست؛ تغییرات نمایه روی دستگاه ذخیره شد.', 'info');
       }
     } catch (e) {
       console.warn('Failed to sync user profile:', e);
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
-      showAppToast('ارسال به سرور انجام نشد؛ تغییرات نمایه روی دستگاه ذخیره است و پس از اتصال فرستاده می‌شود.', 'info');
+      showAppToast('ارسال به سرور انجام نشد؛ تغییرات نمایه روی دستگاه ذخیره مانده است.', 'info');
     }
   }, [authToken, systemState.userProfile, showAppToast, requestSync]);
 
@@ -1397,7 +1392,7 @@ export default function App() {
     }
 
     if (result.status === 'QUEUED_OFFLINE') {
-      showAppToast('الان اینترنت در دسترس نیست. چرخه جدید روی دستگاه ثبت شد و پس از اتصال فرستاده می‌شود.', 'info');
+      showAppToast('اینترنت در دسترس نیست؛ چرخه جدید روی دستگاه ذخیره شد.', 'info');
       return;
     }
 
@@ -1447,7 +1442,7 @@ export default function App() {
     }
 
     if (result.status === 'RATE_LIMITED' || result.status === 'SERVER_RETRYABLE' || result.status === 'NETWORK_ERROR') {
-      showAppToast('ارسال به سرور انجام نشد؛ چرخه جدید روی دستگاه ذخیره است و پس از اتصال فرستاده می‌شود.', 'info');
+      showAppToast('ارسال به سرور انجام نشد؛ چرخه جدید روی دستگاه ذخیره مانده است.', 'info');
       return;
     }
   }, [authToken, cycleMetrics?.pureStreak, systemState.userProfile?.id, systemState.cycles, systemState.logs, activeCycleId, selectedDate, activeTab, showAppToast, requestSync]);
@@ -1472,7 +1467,7 @@ export default function App() {
       showAppToast('فایل پشتیبان داده‌ها با موفقیت ایجاد و دانلود شد.', 'success');
     } catch (err) {
       console.error('Export error:', err);
-      showAppToast('ایجاد فایل پشتیبان ناموفق بود؛ لطفاً دسترسی مرورگر را بررسی کرده و مجدداً تلاش فرمایید.', 'error');
+      showAppToast('ایجاد فایل پشتیبان ناموفق بود؛ لطفاً دسترسی مرورگر را بررسی کرده و دوباره تلاش کنید.', 'error');
     }
   };
 
@@ -1545,7 +1540,7 @@ export default function App() {
       }
     } catch (e) {
       console.error('Quick login error:', e);
-      showAppToast('ارتباط با سرور برقرار نشد؛ لطفاً اینترنت را بررسی کرده و دوباره تلاش کنید.', 'error');
+      showAppToast('ارتباط با سرور برقرار نشد؛ لطفاً اتصال اینترنت را بررسی کنید.', 'error');
     }
   };
 
@@ -1595,7 +1590,7 @@ export default function App() {
       }
     } catch (e) {
       console.error('Impersonate user error:', e);
-      showAppToast('دریافت اطلاعات از سرور انجام نشد؛ لطفاً اینترنت را بررسی کرده و دوباره تلاش کنید.', 'error');
+      showAppToast('دریافت اطلاعات از سرور انجام نشد؛ لطفاً اتصال اینترنت را بررسی کنید.', 'error');
     }
   };
 

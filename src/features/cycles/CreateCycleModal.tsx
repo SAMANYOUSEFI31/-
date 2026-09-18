@@ -261,7 +261,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="btn-contract-mastery px-6 py-2.5 min-h-[44px] radius-component text-xs font-black shadow-subtle flex items-center gap-1.5 touch-manipulation focus-ring-tactical"
+                className="btn-contract-primary px-6 py-2.5 min-h-[44px] radius-component text-xs font-bold shadow-subtle flex items-center gap-1.5 touch-manipulation focus-ring-tactical"
               >
                 <Sparkles className="w-4 h-4" />
                 <span>آغاز چرخه نبرد</span>

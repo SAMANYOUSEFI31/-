@@ -80,15 +80,15 @@ describe('Phase 1A: Demo-First TTV & Compact Empty State Contracts', () => {
   });
 
   describe('3. Clean Architecture & Compact Empty State UI Contract', () => {
-    it('ensures OnboardingWelcomeView is reduced to compact empty state with one sentence and single mastery CTA', async () => {
+    it('ensures OnboardingWelcomeView is reduced to compact empty state with one sentence and single primary CTA', async () => {
       const fs = await import('node:fs');
       const fileContent = fs.readFileSync('src/features/tour/OnboardingWelcomeView.tsx', 'utf-8');
 
-      // Must have single sentence and mastery CTA
+      // Must have single sentence and primary CTA
       assert.ok(fileContent.includes('هیچ چرخه فعالی وجود ندارد'), 'Must display compact heading');
       assert.ok(fileContent.includes('برای آغاز مسیر انضباط و ثبت روزانه ارکان بوشیدو، اولین چرخه ۹۰ روزه نبرد خود را بسازید.'), 'Must display single dignified sentence');
-      assert.ok(fileContent.includes('btn-contract-mastery'), 'Must use existing btn-contract-mastery token');
-      assert.ok(fileContent.includes('تعریف اولین چرخه نبرد'), 'Must have single mastery CTA');
+      assert.ok(fileContent.includes('btn-contract-primary'), 'Must use btn-contract-primary token');
+      assert.ok(fileContent.includes('تعریف اولین چرخه نبرد'), 'Must have single primary CTA');
 
       // Must NOT contain old multi-section manifesto wall
       assert.ok(!fileContent.includes('مسیر گام‌به‌گام پیروزی در سامانه بوشیدو'), 'Must not contain 3 pillars manifesto');

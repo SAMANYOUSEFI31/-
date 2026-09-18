@@ -413,7 +413,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                             setConfirmDeleteCycleId(null);
                             onOpenNewCycleModal();
                           }}
-                          className="btn-contract-mastery w-full py-2.5 min-h-[44px] px-3 radius-component text-xs font-black flex items-center justify-center gap-1.5 shadow-subtle touch-manipulation focus-ring-tactical"
+                          className="btn-contract-primary w-full py-2.5 min-h-[44px] px-3 radius-component text-xs font-bold flex items-center justify-center gap-1.5 shadow-subtle touch-manipulation focus-ring-tactical"
                         >
                           <Plus className="w-4 h-4" />
                           <span>+ تعریف چرخه جدید ۹۰ روزه</span>

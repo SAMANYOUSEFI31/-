@@ -185,7 +185,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                   </button>
                   <button
                     type="submit"
-                    className="btn-contract-mastery px-5 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle"
+                    className="btn-contract-primary font-bold px-5 py-2 radius-component text-xs flex items-center gap-1.5 shadow-subtle"
                   >
                     <Plus className="w-4 h-4" />
                     <span>ایجاد چرخه نبرد</span>
@@ -516,7 +516,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               className="btn-contract-secondary text-xs font-bold px-3 py-2 radius-component flex items-center justify-center gap-1.5 whitespace-nowrap shadow-subtle"
               title="تعریف چرخه ۹۰ روزه جدید"
             >
-              <Plus className="w-3.5 h-3.5 text-amber shrink-0" />
+              <Plus className="w-3.5 h-3.5 text-role-secondary shrink-0" />
               <span>تعریف چرخه جدید</span>
             </button>
           </div>
@@ -1236,7 +1236,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="btn-contract-mastery px-5 py-2 radius-component text-xs font-black shadow-subtle"
+                  className="btn-contract-primary font-bold px-5 py-2 radius-component text-xs shadow-subtle"
                 >
                   ایجاد و شروع چرخه
                 </button>

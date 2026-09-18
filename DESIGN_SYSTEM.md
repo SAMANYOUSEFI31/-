@@ -559,7 +559,7 @@ $$\text{Disabled} > \text{Loading} > \text{Active} > \text{Focus Visible} > \tex
       * **دکمه ضربدر بستن در موبایل:** `id="battlefield-demo-dismiss-mobile"`, دکمه `sm:hidden text-role-secondary hover:text-role-primary p-1.5 radius-control border-standard surface-z1 hover:surface-z2 cursor-pointer shrink-0 inline-flex items-center justify-center` حاوی `id="battlefield-demo-dismiss-mobile-icon-wrap"` با `<X className="w-4 h-4" />`
     * **کانتینر روایت سناریو:** `id="battlefield-demo-narrative-container"` حاوی `id="battlefield-demo-narrative-text"` (`text-[11px] text-role-secondary leading-relaxed`)
 * **خوشه اقدامات و اکشن‌ها:** `id="battlefield-demo-actions-cluster"`, کلاس `flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--color-border-subtle)]`
-  * **دکمه اقدام شروع چرخه واقعی:** `id="battlefield-demo-create-cycle-btn"`, دکمه `w-full sm:w-auto bg-amber hover:brightness-110 text-[var(--color-canvas-root)] font-black text-xs px-4 py-2 radius-control cursor-pointer active:scale-95 shadow-subtle inline-flex items-center justify-center gap-1.5` حاوی `id="battlefield-demo-create-cycle-icon-wrap"` (`<Sparkles className="w-3.5 h-3.5" />`) و `id="battlefield-demo-create-cycle-text"` («شروع چرخه واقعی»)
+  * **دکمه اقدام شروع چرخه واقعی:** `id="battlefield-demo-create-cycle-btn"`, دکمه با قرارداد اصلی `btn-contract-primary` (`w-full sm:w-auto font-black text-xs px-4 py-2 radius-component shadow-subtle inline-flex items-center justify-center gap-1.5`) حاوی `id="battlefield-demo-create-cycle-icon-wrap"` (`<Sparkles className="w-3.5 h-3.5" />`) و `id="battlefield-demo-create-cycle-text"` («شروع چرخه واقعی»)
   * **دکمه ضربدر بستن در دسکتاپ:** `id="battlefield-demo-dismiss-desktop"`, دکمه `hidden sm:inline-flex text-role-secondary hover:text-role-primary p-2 radius-control border-standard surface-z1 hover:surface-z2 cursor-pointer items-center justify-center` حاوی `id="battlefield-demo-dismiss-desktop-icon-wrap"` با `<X className="w-3.5 h-3.5" />`
 
 ### ۲. پنل ناوبری تاریخ و کات‌آف شبانه (`#battlefield-date-navigator`):
@@ -693,12 +693,12 @@ $$\text{Disabled} > \text{Loading} > \text{Active} > \text{Focus Visible} > \tex
 برای ایجاد نظم کامل در رفتارهای تعاملی و پرهیز از تداخل رنگ‌های بصری، توکن‌های دکمه‌ها در قراردادهای ساختاریافته در `tokens.css` تعریف شده‌اند:
 
 1. **`btn-contract-primary` (اقدامات اصلی و دیسیپلین سرخ):**
-   - پس‌زمینه زرشکی دیسیپلین (`--color-accent-primary`), متن سفید، هاور تیره/روشن شونده و مقیاس لمسی ۹۸٪ در حالت فشرده.
-   - کاربرد: تعهدات اصلی، ثبت‌های حساس، بستن بدهی‌ها و اقدامات مستقیم دیسیپلین (مانند «تایید خروج از بایگانی»، «ثبت ماموریت»).
+   - پس‌زمینه زرشکی دیسیپلین (`--color-accent-primary`), متن سفید خالص با کنتراست کامل، هاور تیره/روشن شونده و مقیاس لمسی ۹۸٪ در حالت فشرده.
+   - کاربرد: تعهدات اصلی، ثبت‌های حساس، تسویه بدهی‌ها، اقدامات مستقیم دیسیپلین (مانند «تایید خروج از بایگانی»، «ثبت ماموریت») و **«تعریف / آغاز چرخه ۹۰ روزه نبرد» در تمامی مبادی ورودی سیستم (Create / Define 90-Day Cycle CTAs)**.
 
 2. **`btn-contract-mastery` (کمال ۱۰/۱۰، ارتقای VIP و کمال‌گرایی سامورایی):**
-   - پس‌زمینه کهربایی (`--color-accent-amber`), متن تیره کنواس (`#09090b`), فیلتر روشنایی در هاور.
-   - کاربرد: اقدامات شتاب‌دهنده، خرید و فعال‌سازی اشتراک VIP، شروع چرخه جدید و تأیید نهایی ارتقا.
+   - پس‌زمینه کهربایی زرین (`--color-accent-amber`), متن تیره کنواس (`#09090b`), فیلتر روشنایی در هاور.
+   - کاربرد: **صرفاً و منحصراً** برای اقدامات ۴ قلمرو استادی بوشیدو شامل ثبت/ارزیابی کمال ۱۰/۱۰، ماموریت‌های ویژه شتاب‌دهنده استادی، خرید و فعال‌سازی اشتراک VIP و تحلیل‌های قضاوتی سنسی هوش مصنوعی — **اکیداً نه برای تعریف چرخه‌های عمومی**.
 
 3. **`btn-contract-secondary` (اقدامات ثانویه روی سطوح برآمده):**
    - پس‌زمینه سطحی اینر (`--color-card-inner`), بوردر ظریف (`--color-border-subtle`), متن اصلی.
@@ -723,6 +723,11 @@ $$\text{Disabled} > \text{Loading} > \text{Active} > \text{Focus Visible} > \tex
 ### ۸. قانون کمیابی دکمه اصلی و تفکیک خطر از رنگ برند (Primary Scarcity & Danger Separation Rule)
 - **کمیابی دکمه اصلی (Primary Scarcity):** در هر ویو یا مودال حداکثر **یک** دکمه با قرارداد `btn-contract-primary` (سرخ توپر برند) مجاز است. اکشن‌های ناوبری، پرش تاریخی، جابه‌جایی صفحات و اکشن‌های ثانویه باید اکیداً از `btn-contract-secondary` یا `btn-contract-ghost` استفاده کنند.
 - **تفکیک اکشن‌های خطر از رنگ سرخ برند (Danger vs Brand Separation):** تریگرهای پاک‌سازی داده، بازنشانی، خروج یا اقدامات مخرب هرگز نباید از `btn-contract-primary` استفاده کنند؛ این اکشن‌ها باید از `btn-contract-danger-subtle` (برای تریگرهای سطحی) یا `btn-contract-danger` (صرفاً برای تایید نهایی در مودال) بهره ببرند.
+
+### ۹. یکپارچگی CTA تعریف چرخه و انحصار توکن استادی (Cycle-Create Unification & Mastery Scarcity)
+- **یکپارچگی نیلسن در تعریف چرخه (Nielsen CTA Consistency):** یک اقدام معین کاربر («تعریف / آغاز چرخه ۹۰ روزه») در تمامی مبادی ورودی سامانه (دراپ‌داون چرخه نوبار، مودال ساخت چرخه، وضعیت خالی کارزار، بنر نمونه دمو، و تالار بایگانی‌ها) منحصراً و بدون استثنا از قرارداد دکمه یکسان `btn-contract-primary` (زرشکی برند با فونت بولد و آیکون سفید با کنتراست کامل) پیروی می‌کند.
+- **کمیابی معنایی رنگ کهربایی (Semantic Color Scarcity):** توکن `btn-contract-mastery` (کهربایی زرین) منحصراً برای ۴ حوزه استادی بوشیدو (ارزیابی کمال ۱۰/۱۰، ارتقای اشتراک VIP، قضاوت سنسی هوش مصنوعی و دستاوردهای اعلای دیسیپلین) رزرو شده است و برای اقدامات عمومی آغاز چرخه مصرف نمی‌شود.
+- **انصراف و رد (Cancel / Dismiss):** دکمه‌های انصراف یا بستن در تمامی این جریان‌ها طبق استاندارد در وضعیت `btn-contract-secondary` یا `btn-contract-ghost` باقی می‌مانند.
 
 ---
 

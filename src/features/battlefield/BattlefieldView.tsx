@@ -528,7 +528,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 id="battlefield-demo-create-cycle-btn"
                 type="button"
                 onClick={onOpenCreateCycle}
-                className="btn-contract-mastery w-full sm:w-auto font-black text-xs px-4 py-2 radius-component shadow-subtle whitespace-nowrap focus-ring-tactical text-center inline-flex items-center justify-center gap-1.5"
+                className="btn-contract-primary w-full sm:w-auto font-black text-xs px-4 py-2 radius-component shadow-subtle whitespace-nowrap focus-ring-tactical text-center inline-flex items-center justify-center gap-1.5"
               >
                 <span id="battlefield-demo-create-cycle-icon-wrap" className="inline-flex items-center justify-center">
                   <Sparkles className="w-3.5 h-3.5" />
