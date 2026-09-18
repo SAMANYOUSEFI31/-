@@ -82,7 +82,7 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
               <h2 id="discipline-rules-title" className="font-bold text-sm sm:text-base md:text-lg text-role-primary flex items-center gap-1.5 truncate">
                 آیین‌نامه و ۵ قانون دیسیپلین بوشیدو
               </h2>
-              <p id="discipline-rules-description" className="text-[11px] sm:text-xs text-role-secondary truncate">
+              <p id="discipline-rules-description" className="text-micro text-role-secondary truncate">
                 استانداردهای غیرقابل مذاکره برای تسلط بر اراده و حفظ زنجیره استمرار
               </p>
             </div>
@@ -116,7 +116,7 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
               <span className="text-xs font-bold text-role-primary">
                 شرح و استانداردهای ۵ پایه انضباطی:
               </span>
-              <span className="text-[11px] text-role-muted">
+              <span className="text-micro text-role-muted">
                 (روی هر ستون ضربه بزنید)
               </span>
             </div>
@@ -142,12 +142,12 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-mono text-role-muted">#{toPersianDigits(index + 1)}</span>
+                          <span className="text-micro font-mono text-role-muted">#{toPersianDigits(index + 1)}</span>
                           <h3 className="text-xs sm:text-sm font-bold text-role-primary truncate">
                             {item.titleFa}
                           </h3>
                         </div>
-                        <p className="text-[11px] text-role-secondary truncate mt-0.5">
+                        <p className="text-micro text-role-secondary truncate mt-0.5">
                           {item.subtitleFa}
                         </p>
                       </div>
@@ -162,24 +162,24 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
                     <div className="px-3.5 sm:px-4 pb-4 pt-1 space-y-3 text-xs border-t border-standard animate-in fade-in motion-reduce:animate-none">
                       {/* Standard */}
                       <div className="surface-z3 p-3 radius-component space-y-1">
-                        <span className="font-bold text-emerald text-[11px] block">معیار استاندارد اجرا:</span>
+                        <span className="font-bold text-emerald text-micro block">معیار استاندارد اجرا:</span>
                         <p className="text-role-secondary leading-relaxed">{item.dailyStandard}</p>
                       </div>
 
                       {/* Why it matters */}
                       <div className="surface-z3 p-3 radius-component space-y-1">
-                        <span className="font-bold text-amber text-[11px] block">چرا حیاتی است؟</span>
+                        <span className="font-bold text-amber text-micro block">چرا حیاتی است؟</span>
                         <p className="text-role-secondary leading-relaxed">{item.whyItMatters}</p>
                       </div>
 
                       {/* Traps and Tactical advice */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <div className="surface-z3 p-3 radius-component space-y-1">
-                          <span className="font-bold text-rose text-[11px] block">دام‌های رایج:</span>
+                          <span className="font-bold text-rose text-micro block">دام‌های رایج:</span>
                           <p className="text-role-secondary leading-relaxed">{item.commonPitfalls}</p>
                         </div>
                         <div className="surface-z3 p-3 radius-component space-y-1">
-                          <span className="font-bold text-blue text-[11px] block">قانون تاکتیکی پیروزی:</span>
+                          <span className="font-bold text-blue text-micro block">قانون تاکتیکی پیروزی:</span>
                           <p className="text-role-secondary leading-relaxed">{item.tacticalAdvice}</p>
                         </div>
                       </div>
@@ -199,14 +199,14 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
                   {BUSHIDO_SPECIAL_MISSION_GUIDE.title}
                 </h3>
               </div>
-              <span className="bg-amber-subtle border border-amber-subtle text-amber text-[10px] sm:text-[11px] font-bold px-2 py-0.5 radius-capsule whitespace-nowrap">
+              <span className="bg-amber-subtle border border-amber-subtle text-amber text-micro font-bold px-2 py-0.5 radius-capsule whitespace-nowrap">
                 +{toPersianDigits(2)} امتیاز تسلط
               </span>
             </div>
             <p className="text-xs text-role-secondary leading-relaxed">
               {BUSHIDO_SPECIAL_MISSION_GUIDE.howItWorks}
             </p>
-            <div className="surface-z3 p-2.5 radius-component text-[11px] text-role-secondary leading-relaxed">
+            <div className="surface-z3 p-2.5 radius-component text-micro text-role-secondary leading-relaxed">
               <span className="font-bold text-role-primary block mb-0.5">معیار ثبت:</span>
               {BUSHIDO_SPECIAL_MISSION_GUIDE.criteria}
             </div>
@@ -240,11 +240,11 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
                           <IconComp className={`w-4 h-4 ${iconColor} shrink-0`} />
                           <span className="text-xs font-bold text-role-primary truncate">{rule.title}</span>
                         </div>
-                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 radius-capsule border whitespace-nowrap shrink-0 ${colorClass}`}>
+                        <span className={`text-micro font-mono font-bold px-1.5 py-0.5 radius-capsule border whitespace-nowrap shrink-0 ${colorClass}`}>
                           {rule.badge}
                         </span>
                       </div>
-                      <p className="text-[11px] text-role-secondary leading-relaxed">
+                      <p className="text-micro text-role-secondary leading-relaxed">
                         {rule.description}
                       </p>
                     </div>

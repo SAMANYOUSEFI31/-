@@ -296,7 +296,7 @@ export const FirstRunTour: React.FC<FirstRunTourProps> = ({
             width: `${targetRect.width + 12}px`,
             height: `${targetRect.height + 12}px`,
           }}
-          className="pointer-events-none z-45 border-2 border-amber/70 radius-modal shadow-[0_0_25px_rgba(251,191,36,0.18)] transition-all duration-300 ease-out"
+          className="pointer-events-none z-45 border-2 border-crimson/70 radius-modal shadow-[0_0_25px_rgba(225,29,72,0.18)] transition-all duration-300 ease-out"
           aria-hidden="true"
         />
       )}
@@ -321,14 +321,14 @@ export const FirstRunTour: React.FC<FirstRunTourProps> = ({
           {/* Card Header */}
           <div className="flex items-center justify-between gap-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 radius-component surface-z2 border-standard flex items-center justify-center text-amber shrink-0">
-                <StepIcon className="w-4 h-4 text-amber" />
+              <div className="w-8 h-8 radius-component surface-z2 border-standard flex items-center justify-center text-crimson shrink-0">
+                <StepIcon className="w-4 h-4 text-crimson" />
               </div>
               <div className="min-w-0">
                 <h3 id="first-run-tour-title" className="text-xs sm:text-sm font-bold text-role-primary truncate">
                   {step.title}
                 </h3>
-                <span className="text-[10px] text-amber font-mono font-bold bg-amber-subtle border border-amber-subtle px-1.5 py-0.2 radius-capsule inline-block mt-0.5">
+                <span className="text-[10px] text-crimson font-mono font-bold bg-crimson-subtle border border-crimson-subtle px-1.5 py-0.2 radius-capsule inline-block mt-0.5">
                   {step.badge}
                 </span>
               </div>
@@ -342,7 +342,7 @@ export const FirstRunTour: React.FC<FirstRunTourProps> = ({
                 id="first-run-tour-close-btn"
                 type="button"
                 onClick={onSkip}
-                className="w-6 h-6 radius-component flex items-center justify-center text-role-muted hover:text-role-primary hover:surface-z2 transition-colors cursor-pointer"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] -my-2.5 -ml-2.5 radius-component flex items-center justify-center text-role-muted hover:text-role-primary hover:surface-z2 transition-colors cursor-pointer touch-manipulation focus-ring-tactical"
                 title="بستن راهنما"
                 aria-label="بستن راهنما"
               >
@@ -374,7 +374,7 @@ export const FirstRunTour: React.FC<FirstRunTourProps> = ({
                   key={idx}
                   className={`radius-capsule transition-all duration-300 ${
                     idx === currentStepIndex 
-                      ? 'w-4 h-1.5 bg-amber' 
+                      ? 'w-4 h-1.5 bg-crimson' 
                       : 'w-1.5 h-1.5 surface-z3 border-standard'
                   }`}
                 />

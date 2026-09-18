@@ -226,7 +226,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
               <h1 className="text-base sm:text-lg font-black text-role-primary">
                 مرکز تنظیمات و خدمات سامورایی
               </h1>
-              <p className="text-[11px] sm:text-xs text-role-secondary mt-0.5 leading-relaxed">
+              <p className="text-micro text-role-secondary mt-0.5 leading-relaxed">
                 مدیریت حساب، اشتراک VIP، راهنمای عادات، پشتیبانی و پایگاه داده
               </p>
             </div>
@@ -276,7 +276,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                     <h3 className="text-sm sm:text-base font-bold text-role-primary">
                       پروفایل و اشتراک سامورایی
                     </h3>
-                    <p className="text-[11px] sm:text-xs text-role-secondary mt-0.5 leading-relaxed">
+                    <p className="text-micro text-role-secondary mt-0.5 leading-relaxed">
                       مشخصات هویتی و وضعیت فعال بودن قابلیت‌های ویژه
                     </p>
                   </div>
@@ -332,7 +332,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                   )}
 
                   {!userProfile.isVip && (
-                    <p className="text-[11px] text-role-secondary leading-relaxed surface-z3 p-3 radius-component text-right mt-2">
+                    <p className="text-micro text-role-secondary leading-relaxed surface-z3 p-3 radius-component text-right mt-2">
                       با فعال‌سازی اشتراک VIP، امکان ایجاد چرخه‌های نامحدود و دسترسی به تحلیل‌های سنتسی فعال می‌شود.
                     </p>
                   )}
@@ -424,7 +424,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                     <h3 className="text-sm sm:text-base font-bold text-role-primary">
                       تنظیمات و پیکربندی سامانه
                     </h3>
-                    <p className="text-[11px] sm:text-xs text-role-secondary mt-0.5 leading-relaxed">
+                    <p className="text-micro text-role-secondary mt-0.5 leading-relaxed">
                       شخصی‌سازی مهلت کات‌آف شبانه، خروجی داده‌ها و نگهداری پایگاه داده
                     </p>
                   </div>
@@ -440,7 +440,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                       <h4 className="text-xs sm:text-sm font-bold text-role-primary">
                         مهلت پایانی شبانه (مرز کات‌آف)
                       </h4>
-                      <p className="text-[11px] text-role-secondary mt-0.5">
+                      <p className="text-micro text-role-secondary mt-0.5">
                         ثبت عادات تا پیش از این ساعت برای روز قبل محاسبه می‌شود.
                       </p>
                     </div>
@@ -484,7 +484,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                       <h4 className="text-xs sm:text-sm font-bold text-role-primary">
                         خروجی و نگهداری داده‌ها
                       </h4>
-                      <p className="text-[11px] text-role-secondary mt-0.5">
+                      <p className="text-micro text-role-secondary mt-0.5">
                         دریافت خروجی استاندارد JSON برای نگهداری نسخه شخصی و انتقال داده‌ها
                       </p>
                     </div>
@@ -507,12 +507,12 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                         </div>
                         <div className="space-y-0.5 min-w-0 flex-1">
                           <span className="font-bold text-xs sm:text-sm text-role-primary block">دریافت خروجی داده‌ها (JSON)</span>
-                          <p className="text-[11px] text-role-secondary leading-relaxed text-right">
+                          <p className="text-micro text-role-secondary leading-relaxed text-right">
                             دریافت نسخه پشتیبان و خروجی ساختاریافته از سوابق، چرخه‌ها و لاگ‌های نبرد
                           </p>
                         </div>
                       </div>
-                      <span className="text-[10px] font-mono surface-z2 px-2.5 py-1 radius-capsule text-role-muted group-hover:text-role-secondary transition-colors shrink-0 select-none pointer-events-none">
+                      <span className="text-micro font-mono surface-z2 px-2.5 py-1 radius-capsule text-role-muted group-hover:text-role-secondary transition-colors shrink-0 select-none pointer-events-none">
                         JSON
                       </span>
                     </button>
@@ -529,7 +529,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                       <h4 className="font-bold text-xs sm:text-sm text-debt">
                         بازنشانی کل داده‌های سامانه
                       </h4>
-                      <p className="text-[11px] text-role-secondary leading-relaxed">
+                      <p className="text-micro text-role-secondary leading-relaxed">
                         تمام لاگ‌ها و سوابق پاک شده و سامانه به وضعیت اولیه بازمی‌گردد.
                       </p>
                     </div>
@@ -560,7 +560,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                     <h3 className="text-sm sm:text-base font-bold text-role-primary">
                       فلسفه و استانداردهای ۵ پایه انضباطی
                     </h3>
-                    <p className="text-[11px] sm:text-xs text-role-secondary mt-0.5 leading-relaxed">
+                    <p className="text-micro text-role-secondary mt-0.5 leading-relaxed">
                       راهنمای دقیق منظور سیستم از هر عادت، دام‌های رایج و تاکتیک‌های پیروزی
                     </p>
                   </div>
@@ -598,7 +598,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                               <h4 className="text-xs sm:text-sm font-bold text-role-primary">
                                 {item.titleFa}
                               </h4>
-                              <p className="text-[11px] text-role-secondary leading-relaxed">
+                              <p className="text-micro text-role-secondary leading-relaxed">
                                 {item.subtitleFa}
                               </p>
                             </div>
@@ -612,23 +612,23 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                         {isExpanded && (
                           <div className="px-4 pb-4 pt-1 space-y-3 text-xs border-t border-subtle">
                             <div className="surface-z3 p-3 radius-component space-y-1">
-                              <span className="font-bold text-amber text-[11px] block">چرا حیاتی است؟</span>
+                              <span className="font-bold text-amber text-micro block">چرا حیاتی است؟</span>
                               <p className="text-role-secondary leading-relaxed text-right">{item.whyItMatters}</p>
                             </div>
 
                             <div className="surface-z3 p-3 radius-component space-y-1">
-                              <span className="font-bold text-emerald text-[11px] block">معیار استاندارد اجرا:</span>
+                              <span className="font-bold text-emerald text-micro block">معیار استاندارد اجرا:</span>
                               <p className="text-role-secondary leading-relaxed text-right">{item.dailyStandard}</p>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                               <div className="surface-z3 p-3 radius-component space-y-1">
-                                <span className="font-bold text-rose text-[11px] block">دام‌های رایج:</span>
+                                <span className="font-bold text-rose text-micro block">دام‌های رایج:</span>
                                 <p className="text-role-secondary leading-relaxed text-right">{item.commonPitfalls}</p>
                               </div>
 
                               <div className="surface-z3 p-3 radius-component space-y-1">
-                                <span className="font-bold text-blue text-[11px] block">تاکتیک و راهکار:</span>
+                                <span className="font-bold text-blue text-micro block">تاکتیک و راهکار:</span>
                                 <p className="text-role-secondary leading-relaxed text-right">{item.tacticalAdvice}</p>
                               </div>
                             </div>
@@ -651,11 +651,11 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                       <h3 className="text-sm sm:text-base font-bold text-role-primary">
                         {BUSHIDO_SPECIAL_MISSION_GUIDE.title}
                       </h3>
-                      <span className="bg-amber-subtle border border-amber-subtle text-amber text-[10px] sm:text-xs font-bold px-2 py-0.5 radius-capsule whitespace-nowrap">
+                      <span className="bg-amber-subtle border border-amber-subtle text-amber text-micro font-bold px-2 py-0.5 radius-capsule whitespace-nowrap">
                         +{toPersianDigits(2)} امتیاز تسلط
                       </span>
                     </div>
-                    <p className="text-[11px] sm:text-xs text-role-secondary mt-0.5 leading-relaxed">
+                    <p className="text-micro text-role-secondary mt-0.5 leading-relaxed">
                       {BUSHIDO_SPECIAL_MISSION_GUIDE.subtitle}
                     </p>
                   </div>
@@ -668,13 +668,13 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     <div className="surface-z3 p-3 radius-component space-y-1">
-                      <span className="font-bold text-amber text-[11px] block">معیار ثبت ماموریت:</span>
+                      <span className="font-bold text-amber text-micro block">معیار ثبت ماموریت:</span>
                       <p className="text-xs text-role-secondary leading-relaxed text-right">
                         {BUSHIDO_SPECIAL_MISSION_GUIDE.criteria}
                       </p>
                     </div>
                     <div className="surface-z3 p-3 radius-component space-y-1">
-                      <span className="font-bold text-blue text-[11px] block">تاکتیک نبرد:</span>
+                      <span className="font-bold text-blue text-micro block">تاکتیک نبرد:</span>
                       <p className="text-xs text-role-secondary leading-relaxed text-right">
                         {BUSHIDO_SPECIAL_MISSION_GUIDE.tacticalTip}
                       </p>
@@ -693,7 +693,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                     <h3 className="text-sm sm:text-base font-bold text-role-primary">
                       قوانین چهارگانه حاکم بر ثبت، امتیاز و زنجیره
                     </h3>
-                    <p className="text-[11px] sm:text-xs text-role-secondary mt-0.5 leading-relaxed">
+                    <p className="text-micro text-role-secondary mt-0.5 leading-relaxed">
                       اصول قطعی و غیرقابل تغییر سامانه برای ارزیابی روزانه، زنجیره استمرار و حل بدهی
                     </p>
                   </div>
@@ -728,7 +728,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                                 {rule.title}
                               </h4>
                             </div>
-                            <span className={`text-[10px] sm:text-[11px] font-mono font-bold px-2 py-0.5 radius-capsule border whitespace-nowrap shrink-0 ${colorClass}`}>
+                            <span className={`text-micro font-mono font-bold px-2 py-0.5 radius-capsule border whitespace-nowrap shrink-0 ${colorClass}`}>
                               {rule.badge}
                             </span>
                           </div>
@@ -775,7 +775,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                     <h4 className="text-xs sm:text-sm font-bold text-role-primary">
                       نصب روی دستگاه / صفحه اصلی
                     </h4>
-                    <p className="text-[11px] sm:text-xs text-role-secondary leading-relaxed">
+                    <p className="text-micro text-role-secondary leading-relaxed">
                       برای استفاده تمام‌صفحه، دسترسی سریع و اجرای روان‌تر آفلاین بدون کادر مرورگر:
                     </p>
                   </div>
@@ -786,11 +786,11 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                   <div id="guide-android-install-item" className="surface-z2 border-standard radius-component p-3 space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-role-primary">اندروید (Android)</span>
-                      <span className="text-[10px] font-mono surface-z1 px-1.5 py-0.5 radius-capsule text-role-muted border border-zinc-800 select-none">
+                      <span className="text-micro font-mono surface-z1 px-1.5 py-0.5 radius-capsule text-role-muted border border-zinc-800 select-none">
                         Chrome
                       </span>
                     </div>
-                    <p className="text-[11px] sm:text-xs text-role-secondary leading-relaxed">
+                    <p className="text-micro text-role-secondary leading-relaxed">
                       در صورت نمایش پیشنهاد نصب درون سامانه، آن را تایید کنید؛ در غیر این صورت از منوی مرورگر (مانند Chrome) گزینه «نصب برنامه» (Install app) یا «افزودن به صفحه اصلی» (Add to Home screen) را بزنید.
                     </p>
                   </div>
@@ -799,11 +799,11 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                   <div id="guide-ios-install-backup-card" className="surface-z2 border-standard radius-component p-3 space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-role-primary">آیفون و آیپد (iOS)</span>
-                      <span className="text-[10px] font-mono surface-z1 px-1.5 py-0.5 radius-capsule text-role-muted border border-zinc-800 select-none">
+                      <span className="text-micro font-mono surface-z1 px-1.5 py-0.5 radius-capsule text-role-muted border border-zinc-800 select-none">
                         Safari
                       </span>
                     </div>
-                    <p className="text-[11px] sm:text-xs text-role-secondary leading-relaxed">
+                    <p className="text-micro text-role-secondary leading-relaxed">
                       در مرورگر Safari دکمه اشتراک‌گذاری (Share) در نوار ابزار را لمس کرده و گزینه «افزودن به صفحه اصلی» (Add to Home Screen) را برای افزودن به صفحه اصلی در آیفون انتخاب کنید.
                     </p>
                   </div>
@@ -812,11 +812,11 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                   <div id="guide-desktop-install-item" className="surface-z2 border-standard radius-component p-3 space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-role-primary">ویندوز و رایانه (Desktop)</span>
-                      <span className="text-[10px] font-mono surface-z1 px-1.5 py-0.5 radius-capsule text-role-muted border border-zinc-800 select-none">
+                      <span className="text-micro font-mono surface-z1 px-1.5 py-0.5 radius-capsule text-role-muted border border-zinc-800 select-none">
                         Chrome / Edge
                       </span>
                     </div>
-                    <p className="text-[11px] sm:text-xs text-role-secondary leading-relaxed">
+                    <p className="text-micro text-role-secondary leading-relaxed">
                       در مرورگر Chrome یا Edge روی آیکون نصب در نوار آدرس کلیک کنید، یا از منوی مرورگر گزینه «نصب برنامه» (Install app) را برگزینید.
                     </p>
                   </div>
@@ -837,7 +837,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                     <h3 className="text-sm sm:text-base font-bold text-role-primary">
                       ارتباط با پشتیبانی و جامعه بوشیدو
                     </h3>
-                    <p className="text-[11px] sm:text-xs text-role-secondary mt-0.5 leading-relaxed">
+                    <p className="text-micro text-role-secondary mt-0.5 leading-relaxed">
                       دریافت راهنمایی، گزارش مشکلات یا ارتباط مستقیم با تیم توسعه
                     </p>
                   </div>
@@ -875,12 +875,12 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
                             </h4>
                           </div>
 
-                          <span className="text-[10px] font-mono text-role-muted surface-z3 px-2.5 py-0.5 radius-capsule shrink-0 select-none pointer-events-none">
+                          <span className="text-micro font-mono text-role-muted surface-z3 px-2.5 py-0.5 radius-capsule shrink-0 select-none pointer-events-none">
                             {ch.channel}
                           </span>
                         </div>
 
-                        <p className="text-[11px] text-role-secondary leading-relaxed text-right">
+                        <p className="text-micro text-role-secondary leading-relaxed text-right">
                           {ch.description}
                         </p>
                       </div>

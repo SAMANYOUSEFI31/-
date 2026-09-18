@@ -492,7 +492,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   <span id="battlefield-demo-title" className="font-bold text-role-primary text-xs sm:text-sm">
                     <span id="battlefield-demo-title-text">پیش‌نمایش داده‌های شبیه‌سازی‌شده (Demo Seed)</span>
                   </span>
-                  <span id="battlefield-demo-badge" className="text-[10px] bg-amber-subtle text-amber border border-amber-subtle px-2 py-0.5 radius-micro font-mono font-bold select-none pointer-events-none inline-flex items-center">
+                  <span id="battlefield-demo-badge" className="text-micro bg-amber-subtle text-amber border border-amber-subtle px-2 py-0.5 radius-micro font-mono font-bold select-none pointer-events-none inline-flex items-center">
                     <span id="battlefield-demo-badge-text">۲۴ روز نمونه</span>
                   </span>
                 </div>
@@ -502,7 +502,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                   id="battlefield-demo-dismiss-mobile"
                   type="button"
                   onClick={dismissDemoBanner}
-                  className="sm:hidden text-role-secondary hover:text-role-primary hover:surface-z2 p-1.5 radius-control transition cursor-pointer shrink-0 focus-ring-tactical -mt-1 -ml-1 inline-flex items-center justify-center"
+                  className="sm:hidden text-role-secondary hover:text-role-primary hover:surface-z2 w-11 h-11 min-w-[44px] min-h-[44px] -mt-2.5 -ml-2.5 radius-control transition cursor-pointer shrink-0 focus-ring-tactical touch-manipulation inline-flex items-center justify-center"
                   title="بستن اعلان"
                   aria-label="بستن اعلان"
                 >
@@ -514,7 +514,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
 
               {/* Narrative Text Container */}
               <div id="battlefield-demo-narrative-container">
-                <p id="battlefield-demo-narrative-text" className="text-[11px] text-role-secondary leading-relaxed">
+                <p id="battlefield-demo-narrative-text" className="text-micro text-role-secondary leading-relaxed">
                   شما در حال بررسی سناریوی نمایشی بوشیدو هستید. جهت شروع پیشرفت واقعی، می‌توانید چرخه اختصاصی جدیدی آغاز کنید.
                 </p>
               </div>
@@ -542,7 +542,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
               id="battlefield-demo-dismiss-desktop"
               type="button"
               onClick={dismissDemoBanner}
-              className="hidden sm:inline-flex text-role-secondary hover:text-role-primary hover:surface-z2 p-2 radius-control transition cursor-pointer focus-ring-tactical items-center justify-center"
+              className="hidden sm:inline-flex text-role-secondary hover:text-role-primary hover:surface-z2 w-11 h-11 min-w-[44px] min-h-[44px] radius-control transition cursor-pointer focus-ring-tactical touch-manipulation items-center justify-center"
               title="بستن اعلان"
               aria-label="بستن اعلان"
             >
@@ -581,7 +581,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
           {/* Center Date Text Container (Clean Minimalist Typography, Neutral APCA-Compliant) */}
           <div id="battlefield-date-center-col" className="flex-1 min-w-0 text-center px-1 flex flex-col items-center justify-center space-y-0.5">
             {/* Relative day indicator pill */}
-            <div id="battlefield-relative-date-badge" className="text-[11px] sm:text-xs text-role-secondary font-semibold inline-flex items-center justify-center">
+            <div id="battlefield-relative-date-badge" className="text-micro text-role-secondary font-semibold inline-flex items-center justify-center">
               <span id="battlefield-relative-date-label" className="whitespace-nowrap">
                 {getRelativeDateLabel(selectedDate, logicalToday)}
               </span>
@@ -614,7 +614,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
         </div>
 
         {/* Dedicated Cutoff Sub-Bar (Centered with seamless layout & telemetry entity badge) */}
-        <div id="battlefield-cutoff-sub-bar" className="pt-1 sm:pt-1.5 flex items-center justify-center text-[10px] sm:text-[11px]">
+        <div id="battlefield-cutoff-sub-bar" className="pt-1 sm:pt-1.5 flex items-center justify-center text-micro">
           {/* Centered Nightly Cutoff Box with Standard Telemetry Badge Entity */}
           <div 
             id="battlefield-cutoff-badge"
@@ -635,7 +635,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
       {!hasSeenSwipeHint && (
         <div 
           id="battlefield-swipe-hint"
-          className="flex items-center justify-between gap-2 px-3 py-1.5 surface-z1 radius-component text-[10px] text-role-secondary select-none sm:hidden -my-1 animate-in fade-in slide-in-from-top-1"
+          className="flex items-center justify-between gap-2 px-3 py-1.5 surface-z1 radius-component text-micro text-role-secondary select-none sm:hidden -my-1 animate-in fade-in slide-in-from-top-1"
         >
           <div id="battlefield-swipe-hint-content" className="flex items-center gap-1.5">
             <span id="battlefield-swipe-hint-arrows" className="text-role-muted font-mono">‹ ›</span>
@@ -645,8 +645,9 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
             id="battlefield-swipe-hint-dismiss-btn"
             type="button"
             onClick={dismissSwipeHint}
-            className="text-role-secondary hover:text-role-primary p-0.5 radius-micro cursor-pointer shrink-0 focus-ring-tactical"
+            className="text-role-secondary hover:text-role-primary hover:surface-z2 w-11 h-11 min-w-[44px] min-h-[44px] -my-2.5 -ml-2.5 radius-control cursor-pointer shrink-0 focus-ring-tactical touch-manipulation inline-flex items-center justify-center"
             title="بستن راهنما"
+            aria-label="بستن راهنما"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -681,7 +682,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                         {getRelativeDateLabel(selectedDate, logicalToday)}
                       </h3>
                     </div>
-                    <p className="text-[11px] sm:text-xs text-role-secondary leading-relaxed">
+                    <p className="text-micro text-role-secondary leading-relaxed">
                       ثبت عملکردها صرفاً در روز موعود فعال خواهد شد. تمرکز دیسیپلین بر فتح روز جاری است.
                     </p>
                   </div>
@@ -742,7 +743,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                     <h3 className="text-xs sm:text-sm font-bold text-purple">
                        این چرخه بایگانی شده است (فقط‌خواندنی)
                     </h3>
-                    <span className="text-[10px] bg-purple-subtle text-purple px-2 py-0.5 radius-control font-bold">
+                    <span className="text-micro bg-purple-subtle text-purple px-2 py-0.5 radius-control font-bold">
                       سوابق قفل‌شده
                     </span>
                   </div>
@@ -766,7 +767,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                     <h3 className="text-xs sm:text-sm font-bold text-debt">
                       قفل دیسیپلین و رفتار (Behavior Lock)
                     </h3>
-                    <span className="text-[10px] bg-debt-subtle text-debt px-2 py-0.5 radius-control font-bold">
+                    <span className="text-micro bg-debt-subtle text-debt px-2 py-0.5 radius-control font-bold">
                       {toPersianDigits(unresolvedPastLogs.length)} روز بدهی باز
                     </span>
                   </div>
@@ -807,7 +808,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                     <span id="battlefield-habits-count-current" className="font-bold text-role-primary">{toPersianDigits(computed.habitsCount)}</span>
                     <span id="battlefield-habits-count-separator" className="text-role-muted">از</span>
                     <span id="battlefield-habits-count-total" className="font-bold text-role-secondary">{toPersianDigits(5)}</span>
-                    <span id="battlefield-habits-count-unit" className="text-role-muted text-[10px]">پایه</span>
+                    <span id="battlefield-habits-count-unit" className="text-role-muted text-micro">پایه</span>
                   </div>
 
                   {/* Streak Vitality Badge */}
@@ -858,7 +859,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 className="entity-metric-card-nested w-full max-w-[260px] mx-auto md:max-w-none md:w-[220px] aspect-[1.618/1] sm:aspect-auto shrink-0 p-3.5 sm:p-4 flex flex-col items-center justify-center gap-2.5 text-center shadow-subtle"
               >
                 {/* Score Header Label */}
-                <div id="battlefield-score-header" className="text-[11px] sm:text-xs text-role-secondary font-medium flex items-center justify-center gap-1.5 whitespace-nowrap select-none pointer-events-none">
+                <div id="battlefield-score-header" className="text-micro text-role-secondary font-medium flex items-center justify-center gap-1.5 whitespace-nowrap select-none pointer-events-none">
                   <span id="battlefield-score-header-label">امتیاز ارزش روز</span>
                 </div>
                 
@@ -975,7 +976,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <Swords className="w-4 h-4 text-role-secondary shrink-0" />
                 <span>۵ رکن تعهد فونداسیون</span>
               </h3>
-              <div id="battlefield-foundation-requirement-badge" className="inline-flex items-center gap-1 text-[11px] sm:text-xs text-role-muted font-medium select-none pointer-events-none">
+              <div id="battlefield-foundation-requirement-badge" className="inline-flex items-center gap-1 text-micro text-role-muted font-medium select-none pointer-events-none">
                 <span>شرط روز استاندارد:</span>
                 <span className="text-role-secondary font-mono font-bold">{toPersianDigits(8)} از {toPersianDigits(10)}</span>
               </div>
@@ -1009,7 +1010,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                         <div className="font-bold text-xs sm:text-sm text-role-primary flex items-center gap-1.5 leading-snug">
                           <span className="truncate">{h.titleFa}</span>
                         </div>
-                        <p className="text-[11px] text-role-secondary leading-relaxed text-right">
+                        <p className="text-micro text-role-secondary leading-relaxed text-right">
                           {h.subtitleFa}
                         </p>
                       </div>
@@ -1035,7 +1036,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <Rocket className="w-4 h-4 text-role-secondary shrink-0" />
                 <span>ماموریت شتاب‌دهنده روز</span>
               </h4>
-              <div id="battlefield-special-mission-reward-badge" className="inline-flex items-center gap-1 text-[11px] sm:text-xs text-role-muted font-medium select-none pointer-events-none">
+              <div id="battlefield-special-mission-reward-badge" className="inline-flex items-center gap-1 text-micro text-role-muted font-medium select-none pointer-events-none">
                 <span>پاداش کمال:</span>
                 <span className="text-amber font-mono font-bold">+{toPersianDigits(2)} امتیاز</span>
               </div>
@@ -1063,11 +1064,11 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm text-role-primary leading-snug">
                     <span>ماموریت ویژه روز</span>
-                    <span className="text-[10px] text-amber font-mono font-bold bg-amber-subtle border border-amber-subtle px-1.5 py-0.5 radius-capsule whitespace-nowrap">
+                    <span className="text-micro text-amber font-mono font-bold bg-amber-subtle border border-amber-subtle px-1.5 py-0.5 radius-capsule whitespace-nowrap">
                       +{toPersianDigits(2)} امتیاز تسلط
                     </span>
                   </div>
-                  <p className="text-[11px] text-role-secondary leading-relaxed text-right">
+                  <p className="text-micro text-role-secondary leading-relaxed text-right">
                     {currentCycle?.targetTheme
                       ? (currentActiveLog.specialMission
                           ? `اقدام روزانه در راستای هدف چرخه «${currentCycle.targetTheme}» ثبت شد.`
@@ -1129,7 +1130,7 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                         ? `پرونده کالبدشکافی مختومه: ${cleanFailureReason}` 
                         : (isToday ? 'ثبت کالبدشکافی یا توقف شخصی (اختیاری)' : 'کالبدشکافی و تسویه بدهی رفتاری')}
                     </h4>
-                    <p className="text-[11px] text-role-secondary leading-relaxed text-right">
+                    <p className="text-micro text-role-secondary leading-relaxed text-right">
                       {cleanFailureReason === 'دلایل شخصی'
                         ? 'این روز به دلیل موجه متوقف شده و زنجیره شما بدون جریمه حفظ گردیده است.'
                         : hasFailureReason
@@ -1169,13 +1170,13 @@ const BattlefieldViewComponent: React.FC<BattlefieldViewProps> = ({
                 <FileText className="w-3.5 h-3.5 text-role-muted" />
                 <span>یادداشت و شفاف‌سازی روزانه</span>
               </label>
-              <div id="battlefield-notes-status-badge" className="flex items-center gap-2 text-[11px]">
+              <div id="battlefield-notes-status-badge" className="flex items-center gap-2 text-micro">
                 {isFuture ? (
-                  <span className="text-role-muted text-[11px]">
+                  <span className="text-role-muted text-micro">
                     در روز موعود فعال می‌شود
                   </span>
                 ) : isCycleArchived ? (
-                  <span className="text-purple text-[11px] font-medium">
+                  <span className="text-purple text-micro font-medium">
                     بایگانی (فقط‌خواندنی)
                   </span>
                 ) : (

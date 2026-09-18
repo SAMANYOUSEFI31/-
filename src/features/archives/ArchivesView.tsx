@@ -150,7 +150,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                     value={newTitle}
                     onChange={e => setNewTitle(e.target.value)}
                     required
-                    className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary focus:outline-none focus:border-amber transition"
+                    className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary focus:outline-none focus:border-focus-ring focus-ring-neutral transition"
                   />
                 </div>
 
@@ -161,7 +161,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                     value={newStartDate}
                     onChange={e => setNewStartDate(e.target.value)}
                     required
-                    className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary font-mono focus:outline-none focus:border-amber transition"
+                    className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary font-mono focus:outline-none focus:border-focus-ring focus-ring-neutral transition"
                   />
                 </div>
 
@@ -171,7 +171,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                     value={newTheme}
                     onChange={e => setNewTheme(e.target.value)}
                     rows={2}
-                    className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary focus:outline-none focus:border-amber transition resize-none"
+                    className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary focus:outline-none focus:border-focus-ring focus-ring-neutral transition resize-none"
                   />
                 </div>
 
@@ -479,21 +479,21 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                   دادگاه بوشیدو و کارنامه چرخه
                 </h2>
                 {currentCycle.isArchived ? (
-                  <span className="surface-z2 border-standard text-role-secondary text-[10px] px-2.5 py-0.5 radius-badge font-bold flex items-center gap-1 select-none pointer-events-none cursor-default shrink-0">
+                  <span className="surface-z2 border-standard text-role-secondary text-micro px-2.5 py-0.5 radius-badge font-bold flex items-center gap-1 select-none pointer-events-none cursor-default shrink-0">
                     <Lock className="w-3 h-3 text-role-muted" />
                     بایگانی‌شده
                   </span>
                 ) : verdict ? (
-                  <span className="bg-emerald-subtle border border-emerald-subtle text-emerald text-[10px] px-2.5 py-0.5 radius-badge font-bold select-none pointer-events-none cursor-default shrink-0">
+                  <span className="bg-emerald-subtle border border-emerald-subtle text-emerald text-micro px-2.5 py-0.5 radius-badge font-bold select-none pointer-events-none cursor-default shrink-0">
                     حکم صادر شده
                   </span>
                 ) : (
-                  <span className="surface-z2 border-standard text-role-secondary text-[10px] px-2.5 py-0.5 radius-badge font-bold select-none pointer-events-none cursor-default shrink-0">
+                  <span className="surface-z2 border-standard text-role-secondary text-micro px-2.5 py-0.5 radius-badge font-bold select-none pointer-events-none cursor-default shrink-0">
                     در جریان ارزیابی
                   </span>
                 )}
               </div>
-              <p className="text-[11px] sm:text-xs text-role-secondary mt-0.5 leading-relaxed">
+              <p className="text-micro text-role-secondary mt-0.5 leading-relaxed">
                 ارزیابی عملکرد ۹۰ روزه بر مبنای انضباط و ثبات تعهد
               </p>
             </div>
@@ -527,7 +527,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
           <div className="flex items-center gap-2 text-role-secondary min-w-0">
             <PackageCheck className="w-4 h-4 text-role-muted shrink-0" />
             <div className="space-y-0.5 min-w-0">
-              <p className="text-[11px] text-role-secondary truncate">
+              <p className="text-micro text-role-secondary truncate">
                 {currentCycle.isArchived 
                   ? 'این چرخه در بایگانی رسمی قفل شده است.' 
                   : is90DaysFinished 
@@ -543,7 +543,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                 onClick={handleOpenArchiveModal}
                 disabled={!canArchive}
                 title={!canArchive ? 'شرایط بایگانی: اتمام ۹۰ روز، تسویه بدهی‌ها و صدور حکم دادگاه' : 'بایگانی و قفل رسمی این چرخه'}
-                className="btn-contract-secondary px-3 py-1.5 radius-control font-bold flex items-center gap-1.5 text-[11px] whitespace-nowrap"
+                className="btn-contract-secondary px-3 py-1.5 radius-control font-bold flex items-center gap-1.5 text-micro whitespace-nowrap"
               >
                 <Archive className="w-3.5 h-3.5 text-role-muted" />
                 <span>بایگانی چرخه</span>
@@ -551,7 +551,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
             ) : (
               <button
                 onClick={handleOpenUnarchiveModal}
-                className="btn-contract-secondary px-3 py-1.5 radius-control font-bold flex items-center gap-1.5 text-[11px] whitespace-nowrap shadow-subtle"
+                className="btn-contract-secondary px-3 py-1.5 radius-control font-bold flex items-center gap-1.5 text-micro whitespace-nowrap shadow-subtle"
               >
                 <Unlock className="w-3.5 h-3.5 text-role-secondary" />
                 <span>خروج از بایگانی</span>
@@ -561,7 +561,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
             {onDeleteCycle && (
               <button
                 onClick={handleDeleteCurrentCycle}
-                className="btn-contract-danger-subtle px-2.5 py-1.5 radius-control font-bold flex items-center gap-1 text-[11px] whitespace-nowrap focus-ring-tactical"
+                className="btn-contract-danger-subtle px-2.5 py-1.5 radius-control font-bold flex items-center gap-1 text-micro whitespace-nowrap focus-ring-tactical"
                 title="حذف این چرخه"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -595,11 +595,11 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                     <h4 className="text-xs sm:text-sm font-black text-role-primary leading-snug">
                       {verdict.verdict}
                     </h4>
-                    <span className="text-[10px] bg-amber-subtle text-amber border border-amber-subtle px-2 py-0.5 radius-control font-mono shrink-0 whitespace-nowrap">
+                    <span className="text-micro bg-amber-subtle text-amber border border-amber-subtle px-2 py-0.5 radius-control font-mono shrink-0 whitespace-nowrap">
                       مهر دادگاه بوشیدو
                     </span>
                   </div>
-                  <p className="text-[11px] sm:text-xs text-role-secondary leading-relaxed">
+                  <p className="text-micro text-role-secondary leading-relaxed">
                     {verdict.senseiNotes}
                   </p>
                 </div>
@@ -645,7 +645,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                       </h5>
                       <ul className="space-y-1.5">
                         {verdict.strengths.map((s, idx) => (
-                          <li key={idx} className="text-[11px] text-role-secondary flex items-start gap-1.5">
+                          <li key={idx} className="text-micro text-role-secondary flex items-start gap-1.5">
                             <span className="text-emerald font-bold">•</span>
                             <span>{s}</span>
                           </li>
@@ -661,7 +661,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                       </h5>
                       <ul className="space-y-1.5">
                         {verdict.weaknesses.map((w, idx) => (
-                          <li key={idx} className="text-[11px] text-role-secondary flex items-start gap-1.5">
+                          <li key={idx} className="text-micro text-role-secondary flex items-start gap-1.5">
                             <span className="text-debt font-bold">•</span>
                             <span>{w}</span>
                           </li>
@@ -677,7 +677,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                         <span className="text-xs font-bold text-role-primary block mb-0.5">
                           استراتژی پیشنهادی برای چرخه بعدی:
                         </span>
-                        <p className="text-[11px] text-role-secondary leading-relaxed">
+                        <p className="text-micro text-role-secondary leading-relaxed">
                           {verdict.tacticalPlanForNextCycle}
                         </p>
                       </div>
@@ -693,7 +693,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
             <h4 className="text-xs sm:text-sm font-bold text-role-primary">
               هنوز حکمی برای این چرخه صادر نشده است
             </h4>
-            <p className="text-[11px] text-role-secondary max-w-sm mx-auto">
+            <p className="text-micro text-role-secondary max-w-sm mx-auto">
               با کلیک روی «صدور حکم دادگاه»، کارنامه رسمی و تحلیل نقاط قوت/ضعف چرخه صادر می‌شود.
             </p>
           </div>
@@ -712,14 +712,15 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="جستجو در روز، تاریخ، امتیاز، وضعیت، عادات، علت شکست..."
-              className="w-full surface-z0 border-standard radius-component pr-9 pl-8 py-2 text-xs text-role-primary placeholder:text-role-muted focus:outline-none focus:border-[var(--color-input-border-focus)] focus-ring-neutral transition"
+              className="w-full surface-z0 border-standard radius-component pr-9 pl-9 py-2 text-xs text-role-primary placeholder:text-role-muted focus:outline-none focus:border-[var(--color-input-border-focus)] focus-ring-neutral transition"
             />
             {search.length > 0 && (
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="absolute left-2.5 top-2.5 text-role-muted hover:text-role-primary transition cursor-pointer p-0.5"
+                className="absolute inset-y-0 left-0 w-9 flex items-center justify-center text-role-muted hover:text-role-primary transition cursor-pointer touch-manipulation focus-ring-tactical"
                 title="پاک کردن جستجو"
+                aria-label="پاک کردن جستجو"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -757,7 +758,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
         </div>
 
         {/* Count summary & 7-Day View Notice */}
-        <div className="px-1 text-[11px] text-role-secondary flex items-center justify-between">
+        <div className="px-1 text-micro text-role-secondary flex items-center justify-between">
           <span>
             {search.trim() || statusFilter !== 'all' || showAllLogs || filteredLogs.length <= 7
               ? `نمایش ${toPersianDigits(filteredLogs.length)} رکورد در این چرخه`
@@ -770,7 +771,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                 soundFX.playCheck();
                 setShowAllLogs(true);
               }}
-              className="text-amber hover:brightness-110 font-bold inline-flex items-center gap-1 cursor-pointer transition text-[11px]"
+              className="text-amber hover:brightness-110 font-bold inline-flex items-center gap-1 cursor-pointer transition text-micro"
             >
               <span>نمایش همه ({toPersianDigits(filteredLogs.length)})</span>
               <ChevronDown className="w-3.5 h-3.5" />
@@ -809,14 +810,14 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                         <span className="whitespace-nowrap sm:hidden">{formatPersianDate(l.date, { short: true })}</span>
                         <span className="whitespace-nowrap hidden sm:inline">{formatPersianDate(l.date, { withWeekday: true })}</span>
                         {isToday && (
-                          <span className="bg-rose-subtle text-rose text-[10px] px-1.5 py-0.5 radius-badge font-bold whitespace-nowrap">
+                          <span className="bg-rose-subtle text-rose text-micro px-1.5 py-0.5 radius-badge font-bold whitespace-nowrap">
                             امروز
                           </span>
                         )}
                       </button>
 
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span className={`font-bold text-[11px] font-mono surface-z0 px-2 py-0.5 radius-control border-standard shrink-0 whitespace-nowrap ${
+                        <span className={`font-bold text-micro font-mono surface-z0 px-2 py-0.5 radius-control border-standard shrink-0 whitespace-nowrap ${
                           computed.score === 10
                             ? 'text-amber font-black'
                             : computed.isStandard
@@ -828,7 +829,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                           {toPersianDigits(computed.score)} / ۱۰
                         </span>
 
-                        <span className={`h-6 px-2 radius-control text-[10px] font-bold border inline-flex items-center gap-1 shadow-subtle select-none pointer-events-none cursor-default shrink-0 whitespace-nowrap ${
+                        <span className={`h-6 px-2 radius-control text-micro font-bold border inline-flex items-center gap-1 shadow-subtle select-none pointer-events-none cursor-default shrink-0 whitespace-nowrap ${
                           computed.statusType === 'standard'
                             ? 'bg-emerald-subtle border-emerald-subtle text-emerald'
                             : computed.statusType === 'personal_frozen'
@@ -853,7 +854,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
 
                     {/* Habits & Special Mission Row */}
                     <div className="surface-z0 p-2 radius-component border-standard flex items-center justify-between flex-wrap gap-2">
-                      <span className="text-[10px] text-role-secondary font-bold">۵ پایه و ماموریت:</span>
+                      <span className="text-micro text-role-secondary font-bold">۵ پایه و ماموریت:</span>
                       <div className="flex items-center gap-1">
                         {[
                           { k: 'wakeUp', title: 'سحرخیزی', done: l.wakeUp },
@@ -864,7 +865,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                         ].map(h => (
                           <div
                             key={h.k}
-                            className={`w-5 h-5 radius-control flex items-center justify-center text-[9px] font-bold ${
+                            className={`w-5 h-5 radius-control flex items-center justify-center text-micro font-bold ${
                               h.done
                                 ? 'bg-emerald-subtle text-emerald border border-emerald-subtle'
                                 : 'surface-z2 text-role-muted border-standard'
@@ -878,7 +879,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                         <span className="w-[1px] h-3.5 surface-z3 mx-0.5"></span>
 
                         <div
-                          className={`w-6 h-5 radius-control flex items-center justify-center text-[9px] font-bold ${
+                          className={`w-6 h-5 radius-control flex items-center justify-center text-micro font-bold ${
                             l.specialMission
                               ? 'bg-amber-subtle text-amber border border-amber-subtle shadow-subtle'
                               : 'surface-z2 text-role-muted border-standard'
@@ -892,7 +893,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
 
                     {/* Failure / Autopsy details (Strict Ghost Elements Cleanse) */}
                     {((l.failureReason && l.failureReason.trim() !== '') || (l.countermeasure && l.countermeasure.trim() !== '') || (l.autopsyNotes && l.autopsyNotes.trim() !== '')) && (
-                      <div className="surface-z0 p-2 radius-component border-standard space-y-1 text-[11px]">
+                      <div className="surface-z0 p-2 radius-component border-standard space-y-1 text-micro">
                         {l.failureReason && l.failureReason.trim() !== '' && (
                           <div className="text-debt">
                             <span className="font-bold text-role-secondary">ریشه شکست: </span>
@@ -1004,7 +1005,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                             <Calendar className="w-3.5 h-3.5 text-role-muted shrink-0" />
                             <span>{formatPersianDate(l.date, { short: true })}</span>
                             {isToday && (
-                              <span className="text-[10px] bg-rose-subtle text-rose px-1.5 py-0.5 radius-badge font-sans">
+                              <span className="text-micro bg-rose-subtle text-rose px-1.5 py-0.5 radius-badge font-sans">
                                 امروز
                               </span>
                             )}
@@ -1024,7 +1025,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                               <span
                                 key={h.k}
                                 title={`${h.title}: ${h.done ? 'انجام شد' : 'انجام نشد'}`}
-                                className={`w-5 h-5 radius-control flex items-center justify-center text-[10px] font-bold ${
+                                className={`w-5 h-5 radius-control flex items-center justify-center text-micro font-bold ${
                                   h.done 
                                     ? 'bg-emerald-subtle text-emerald border border-emerald-subtle' 
                                     : 'surface-z2 text-role-muted border-standard'
@@ -1041,14 +1042,14 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                           {l.specialMission ? (
                             <span 
                               title="ماموریت ویژه: انجام شد (+۲ امتیاز اضافه)"
-                              className="w-5 h-5 radius-control bg-amber-subtle text-amber border border-amber-subtle inline-flex items-center justify-center font-bold text-[10px] shadow-subtle mx-auto"
+                              className="w-5 h-5 radius-control bg-amber-subtle text-amber border border-amber-subtle inline-flex items-center justify-center font-bold text-micro shadow-subtle mx-auto"
                             >
                               ✓
                             </span>
                           ) : (
                             <span 
                               title="ماموریت ویژه: انجام نشد"
-                              className="w-5 h-5 radius-control surface-z2 text-role-muted border-standard inline-flex items-center justify-center text-[10px] font-bold mx-auto"
+                              className="w-5 h-5 radius-control surface-z2 text-role-muted border-standard inline-flex items-center justify-center text-micro font-bold mx-auto"
                             >
                               ×
                             </span>
@@ -1071,7 +1072,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                         {/* Status Badge */}
                         <td className="p-3.5 whitespace-nowrap align-middle text-center">
                           <div className="flex items-center justify-center">
-                            <span className={`w-28 h-7 justify-center px-2 py-0.5 radius-control text-[11px] font-bold border inline-flex items-center gap-1.5 shadow-subtle text-center select-none pointer-events-none cursor-default ${
+                            <span className={`w-28 h-7 justify-center px-2 py-0.5 radius-control text-micro font-bold border inline-flex items-center gap-1.5 shadow-subtle text-center select-none pointer-events-none cursor-default ${
                               computed.statusType === 'standard'
                                 ? 'bg-emerald-subtle border-emerald-subtle text-emerald'
                                 : computed.statusType === 'personal_frozen'
@@ -1102,7 +1103,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                                 {l.failureReason.trim()}
                               </p>
                               {l.failureTime && l.failureTime.trim() !== '' && (
-                                <div className="inline-flex items-center gap-1 text-[10px] surface-z2 px-2 py-0.5 radius-badge border-standard text-role-muted font-mono">
+                                <div className="inline-flex items-center gap-1 text-micro surface-z2 px-2 py-0.5 radius-badge border-standard text-role-muted font-mono">
                                   <Clock className="w-3 h-3 text-role-muted" />
                                   <span>زمان: {toPersianDigits(l.failureTime.trim())}</span>
                                 </div>
@@ -1200,7 +1201,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
                   required
-                  className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary focus:outline-none focus:border-amber transition"
+                  className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary focus:outline-none focus:border-focus-ring focus-ring-neutral transition"
                 />
               </div>
 
@@ -1211,7 +1212,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                   value={newStartDate}
                   onChange={e => setNewStartDate(e.target.value)}
                   required
-                  className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary font-mono focus:outline-none focus:border-amber transition"
+                  className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary font-mono focus:outline-none focus:border-focus-ring focus-ring-neutral transition"
                 />
               </div>
 
@@ -1221,7 +1222,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                   value={newTheme}
                   onChange={e => setNewTheme(e.target.value)}
                   rows={2}
-                  className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary focus:outline-none focus:border-amber transition resize-none"
+                  className="w-full surface-z0 border-standard radius-component p-2.5 text-xs text-role-primary focus:outline-none focus:border-focus-ring focus-ring-neutral transition resize-none"
                 />
               </div>
 

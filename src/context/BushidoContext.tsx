@@ -769,27 +769,32 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       return;
     }
 
-    const result = await replayAccountOfflineQueue({
-      activeAccountId: ownerId,
-      authToken: currentToken,
-      getCurrentActiveAccountId: () => activeAccountRef.current,
-      onItemSuccess: (item) => {
-        if (item.type === 'UPDATE_LOG') {
-          setSystemState(prev => ({
-            ...prev,
-            logs: prev.logs.map(l => l.date === item.payload.date ? { ...l, isSynced: true } : l)
-          }));
-        } else if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
-          setSystemState(prev => ({
-            ...prev,
-            cycles: prev.cycles.map(c => c.id === item.payload.id ? { ...c, isSynced: true } : c)
-          }));
+    try {
+      const result = await replayAccountOfflineQueue({
+        activeAccountId: ownerId,
+        authToken: currentToken,
+        getCurrentActiveAccountId: () => activeAccountRef.current,
+        onItemSuccess: (item) => {
+          if (item.type === 'UPDATE_LOG') {
+            setSystemState(prev => ({
+              ...prev,
+              logs: prev.logs.map(l => l.date === item.payload.date ? { ...l, isSynced: true } : l)
+            }));
+          } else if (item.type === 'UPDATE_CYCLE' || item.type === 'CREATE_CYCLE') {
+            setSystemState(prev => ({
+              ...prev,
+              cycles: prev.cycles.map(c => c.id === item.payload.id ? { ...c, isSynced: true } : c)
+            }));
+          }
         }
-      }
-    });
+      });
 
-    if (result.syncedCount > 0) {
-      showAppToast(`همگام‌سازی ابری با موفقیت انجام شد (${toPersianDigits(result.syncedCount)} تغییر ذخیره شد).`);
+      if (result.syncedCount > 0) {
+        showAppToast(`همگام‌سازی ابری با موفقیت انجام شد (${toPersianDigits(result.syncedCount)} تغییر ذخیره شد).`);
+      }
+    } catch (err) {
+      console.warn('Sync offline data error:', err);
+      showAppToast('همگام‌سازی با سرور به دلیل اختلال ارتباط انجام نشد؛ داده‌ها در حافظه دستگاه محفوظ است.');
     }
   }, [authToken, systemState.userProfile?.id, showAppToast]);
 
@@ -832,10 +837,12 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       });
       if (!res.ok) {
         enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
+        showAppToast('تغییرات نمایه در صف آفلاین ذخیره شد و پس از اتصال به سرور همگام می‌شود.');
       }
     } catch (e) {
       console.warn('Failed to sync user profile:', e);
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
+      showAppToast('تغییرات نمایه در دستگاه ذخیره شد و با برقراری مجدد اینترنت به سرور ارسال خواهد شد.');
     }
   }, [authToken, systemState.userProfile?.id]);
 
@@ -1113,7 +1120,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
           // Explicit binding: Replay impersonated user queue with impersonated token
           syncOfflineDataToServer(data.user.id, data.token);
         } else {
-          showAppToast('خطا در دریافت اطلاعات شبیه‌سازی کاربر');
+          showAppToast('امکان دریافت اطلاعات شبیه‌سازی کاربر میسر نشد؛ لطفاً اتصال اینترنت را بررسی کنید.');
         }
       } else {
         const errorMsg = await parseApiError(res);
@@ -1121,7 +1128,7 @@ export const BushidoProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
     } catch (e) {
       console.error('Impersonate user error:', e);
-      showAppToast('خطا در برقراری ارتباط با سرور');
+      showAppToast('ارتباط با سرور برقرار نشد؛ لطفاً اتصال اینترنت خود را بررسی کرده و مجدداً تلاش نمایید.');
     }
   }, [authToken, systemState, showAppToast, syncOfflineDataToServer]);
 

@@ -34,9 +34,9 @@ export const CompactEmptyCycleState: React.FC<CompactEmptyCycleStateProps> = ({
       >
         <div 
           id="compact-empty-cycle-icon-box"
-          className="w-12 h-12 radius-component surface-z2 border-standard flex items-center justify-center text-amber mx-auto shadow-subtle"
+          className="w-12 h-12 radius-component surface-z2 border-standard flex items-center justify-center text-crimson mx-auto shadow-subtle"
         >
-          <Swords className="w-6 h-6 text-amber" />
+          <Swords className="w-6 h-6 text-crimson" />
         </div>
 
         <div id="compact-empty-cycle-content" className="space-y-2">
@@ -59,9 +59,9 @@ export const CompactEmptyCycleState: React.FC<CompactEmptyCycleStateProps> = ({
             id="compact-empty-cycle-create-btn"
             type="button"
             onClick={onOpenCreateCycle}
-            className="btn-contract-mastery w-full sm:w-auto font-black text-xs sm:text-sm px-6 py-3 radius-component shadow-subtle whitespace-nowrap focus-ring-tactical inline-flex items-center justify-center gap-2 cursor-pointer"
+            className="btn-contract-primary w-full sm:w-auto font-black text-xs sm:text-sm px-6 py-3 radius-component shadow-subtle whitespace-nowrap focus-ring-tactical inline-flex items-center justify-center gap-2 cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-canvas-root" />
+            <Sparkles className="w-4 h-4 text-white" />
             <span>{buttonText}</span>
           </button>
           {secondaryAction && (

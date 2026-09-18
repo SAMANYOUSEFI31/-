@@ -120,11 +120,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           setPaymentError('درگاه پرداخت پیکربندی نشده است.');
         }
       } else {
-        setPaymentError(data.messageFa || data.message || 'خطا در برقراری ارتباط با درگاه پرداخت.');
+        setPaymentError(data.messageFa || data.message || 'ارتباط با درگاه پرداخت برقرار نشد؛ لطفاً اتصال اینترنت را بررسی کرده و دوباره تلاش فرمایید.');
       }
     } catch (err) {
       console.error('Payment request error:', err);
-      setPaymentError('عدم دسترسی به سرور پرداخت. لطفاً اتصال اینترنت خود را بررسی فرمایید.');
+      setPaymentError('عدم دسترسی به سرور پرداخت؛ لطفاً اتصال اینترنت خود را بررسی کرده و مجدداً تلاش نمایید.');
     } finally {
       setIsLoading(false);
     }
@@ -184,7 +184,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       haptics.masterySuccess();
     } catch (err) {
       console.error('Verify error:', err);
-      setPaymentError('خطا در ارتباط با سرور تایید پرداخت. لطفاً دوباره تلاش فرمایید.');
+      setPaymentError('ارتباط با سرور تایید پرداخت برقرار نشد؛ لطفاً اتصال اینترنت را بررسی کرده و دوباره تلاش فرمایید.');
       haptics.warningAlert();
     } finally {
       setIsLoading(false);
@@ -241,7 +241,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <h2 id="payment-modal-title" className="text-sm sm:text-lg md:text-xl font-black text-role-primary flex items-center gap-2">
                     ارتقا به اشتراک «سامورایی ویژه VIP»
                   </h2>
-                  <p id="payment-modal-desc" className="text-[10px] sm:text-xs text-role-secondary mt-0.5">
+                  <p id="payment-modal-desc" className="text-micro text-role-secondary mt-0.5">
                     فعال‌سازی تمامی ابزارهای مهندسی دیسیپلین، آنالیز و صدور گواهینامه
                   </p>
                 </div>
@@ -281,7 +281,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       }`}
                     >
                       {plan.isPopular && (
-                        <div className="absolute -top-3 left-4 bg-amber text-canvas-root text-[10px] font-black px-2.5 py-0.5 radius-badge shadow-subtle">
+                        <div className="absolute -top-3 left-4 bg-amber text-canvas-root text-micro font-black px-2.5 py-0.5 radius-badge shadow-subtle">
                           {plan.badgeFa}
                         </div>
                       )}
@@ -303,7 +303,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                           <span className="text-xs text-role-secondary">تومان</span>
                         </div>
 
-                        <ul className="space-y-1.5 sm:space-y-2 pt-1 text-[11px] sm:text-xs text-role-secondary">
+                        <ul className="space-y-1.5 sm:space-y-2 pt-1 text-micro text-role-secondary">
                           {plan.features.map((feat, i) => (
                             <li key={i} className="flex items-start gap-1.5 sm:gap-2">
                               <Check className="w-3.5 h-3.5 text-emerald shrink-0 mt-0.5" />
@@ -321,9 +321,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <div className="surface-z2 radius-card p-3 sm:p-4 flex items-center justify-between text-xs text-role-secondary">
                 <div className="flex items-center gap-2">
                   <Lock className="w-4 h-4 text-emerald shrink-0" aria-hidden="true" />
-                  <span className="text-[11px] sm:text-xs">پرداخت امن از طریق درگاه رسمی بانکی</span>
+                  <span className="text-micro">پرداخت امن از طریق درگاه رسمی بانکی</span>
                 </div>
-                <span className="text-[10px] sm:text-[11px] text-role-muted shrink-0">
+                <span className="text-micro text-role-muted shrink-0">
                   تضمین اصالت دیوان
                 </span>
               </div>
@@ -387,11 +387,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     <h3 id="payment-simulator-title" className="text-sm sm:base font-bold text-role-primary">
                       شبیه‌ساز پرداخت (محیط توسعه)
                     </h3>
-                    <span className="text-[10px] bg-amber-subtle text-amber border border-amber-subtle px-2 py-0.5 radius-badge font-mono">
+                    <span className="text-micro bg-amber-subtle text-amber border border-amber-subtle px-2 py-0.5 radius-badge font-mono">
                       DEV ONLY
                     </span>
                   </div>
-                  <p id="payment-simulator-desc" className="text-[11px] text-role-secondary mt-0.5">
+                  <p id="payment-simulator-desc" className="text-micro text-role-secondary mt-0.5">
                     تست فنی تایید تراکنش و صدور اشتراک، بدون ورود داده‌های حساس بانکی
                   </p>
                 </div>
@@ -420,7 +420,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-role-secondary">شناسه تراکنش دیوان:</span>
-                  <span dir="ltr" className="font-mono text-amber text-[11px] break-all">{authority}</span>
+                  <span dir="ltr" className="font-mono text-amber text-micro break-all">{authority}</span>
                 </div>
               </div>
 

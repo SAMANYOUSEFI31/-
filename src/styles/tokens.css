@@ -19,12 +19,15 @@
   --color-card-floating: #1c1c21;      /* Floating Modals, Sheets & Menus (Level 3 - Z3) */
 
   /* =========================================================================
-   * 2. BORDERS & DIVIDERS (1px Single Subtle Line - Anti-Wireframing)
+   * 2. BORDERS & FOCUS RINGS (Neutral High-Contrast Focus - WCAG AA APCA)
    * ========================================================================= */
   --color-border-subtle: #27272a;      /* Standard 1px Subtle Border */
   --color-border-hover: #3f3f46;       /* Hover State Borders */
   --color-border-active: #52525b;      /* Active State / Focus Borders */
   --color-border-muted: #1c1c20;       /* Muted Internal Dividers */
+  --color-focus-ring: #52525b;         /* Dignified Neutral Focus Ring Border (Zinc 600/500 - APCA Lc > 45, WCAG > 3:1 on dark obsidian canvas #09090b) */
+  --color-focus-ring-rgb: 82, 82, 91;
+  --color-focus-ring-subtle: rgba(82, 82, 91, 0.25);
 
   /* =========================================================================
    * 3. SEMANTIC ACCENT PALETTE (Exclusive Semantic Ownership)
@@ -870,6 +873,21 @@
 
 .font-en {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+/* Responsive Micro & Caption Typography Utilities (Mobile: 12px, sm/Desktop: 13px) */
+.text-micro,
+.text-caption {
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+}
+
+@media (min-width: 640px) {
+  .text-micro,
+  .text-caption {
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+  }
 }
 
 /* PWA Safe-Area Spacing Utilities */

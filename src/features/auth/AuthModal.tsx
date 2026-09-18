@@ -37,6 +37,14 @@ interface AuthModalProps {
 
 type AuthErrorField = 'phone' | 'password' | 'otp' | 'newPassword' | null;
 
+const getReadableAuthErrorMessage = (err: any, fallbackMessage: string): string => {
+  const rawMsg = err?.message || '';
+  if (/failed to fetch|networkerror|network error|offline|timeout|abort/i.test(rawMsg)) {
+    return 'ارتباط با سرور برقرار نشد؛ لطفاً اتصال اینترنت خود را بررسی کرده و مجدداً تلاش فرمایید.';
+  }
+  return rawMsg || fallbackMessage;
+};
+
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
@@ -204,7 +212,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onClose();
     } catch (err: any) {
       haptics.warningAlert();
-      setErrorMessage(err.message || 'خطا در ورود به حساب.');
+      setErrorMessage(getReadableAuthErrorMessage(err, 'ورود به حساب کاربری انجام نشد؛ لطفاً اتصال اینترنت را بررسی کرده و دوباره تلاش فرمایید.'));
       setErrorField(null);
     } finally {
       setIsLoading(false);
@@ -252,7 +260,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setRegisterStep('verify');
     } catch (err: any) {
       haptics.warningAlert();
-      setErrorMessage(err.message || 'خطا در ارسال کد تایید.');
+      setErrorMessage(getReadableAuthErrorMessage(err, 'ارسال کد تایید پیامکی انجام نشد؛ لطفاً اتصال اینترنت را بررسی کرده و مجدداً تلاش نمایید.'));
       setErrorField(null);
     } finally {
       setIsLoading(false);
@@ -317,7 +325,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onClose();
     } catch (err: any) {
       haptics.warningAlert();
-      setErrorMessage(err.message || 'خطا در ثبت‌نام کاربر.');
+      setErrorMessage(getReadableAuthErrorMessage(err, 'ثبت‌نام انجام نشد؛ لطفاً اتصال اینترنت را بررسی کرده و دوباره امتحان کنید.'));
       setErrorField(null);
     } finally {
       setIsLoading(false);
@@ -365,7 +373,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setForgotStep('reset');
     } catch (err: any) {
       haptics.warningAlert();
-      setErrorMessage(err.message || 'خطا در ارسال کد تایید.');
+      setErrorMessage(getReadableAuthErrorMessage(err, 'ارسال کد بازیابی انجام نشد؛ لطفاً اتصال اینترنت را بررسی کرده و دوباره تلاش نمایید.'));
       setErrorField(null);
     } finally {
       setIsLoading(false);
@@ -428,7 +436,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onClose();
     } catch (err: any) {
       haptics.warningAlert();
-      setErrorMessage(err.message || 'خطا در تغییر رمز عبور.');
+      setErrorMessage(getReadableAuthErrorMessage(err, 'تغییر رمز عبور انجام نشد؛ لطفاً اتصال اینترنت را بررسی کرده و مجدداً تلاش فرمایید.'));
       setErrorField(null);
     } finally {
       setIsLoading(false);
@@ -467,7 +475,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onClose();
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'خطا در ورود سریع.');
+      setErrorMessage(getReadableAuthErrorMessage(err, 'ورود سریع به حساب انجام نشد؛ لطفاً اتصال اینترنت را بررسی کرده و دوباره تلاش کنید.'));
       setErrorField(null);
     } finally {
       setIsLoading(false);
@@ -509,7 +517,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <h2 id="auth-title" className="text-sm sm:text-base font-black text-role-primary truncate">
                 {currentUser?.id ? 'پروفایل و حساب کاربری' : 'مرام‌نامه رزمندگان بوشیدو'}
               </h2>
-              <p id="auth-description" className="text-[11px] sm:text-xs text-role-secondary truncate">
+              <p id="auth-description" className="text-micro text-role-secondary truncate">
                 احراز هویت پیامکی امن، ورود با شماره موبایل و رمز عبور
               </p>
             </div>
@@ -606,12 +614,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
 
                   {currentUser.isVip ? (
-                    <span className="bg-amber-subtle text-amber text-[11px] font-black px-2.5 py-1 radius-component flex items-center gap-1">
+                    <span className="bg-amber-subtle text-amber text-micro font-black px-2.5 py-1 radius-component flex items-center gap-1">
                       <Crown className="w-3.5 h-3.5 text-amber" />
                       VIP
                     </span>
                   ) : (
-                    <span className="surface-z3 text-role-secondary text-[11px] px-2.5 py-1 radius-control">
+                    <span className="surface-z3 text-role-secondary text-micro px-2.5 py-1 radius-control">
                       رایگان
                     </span>
                   )}
@@ -619,14 +627,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 <div className="pt-2 border-t border-subtle grid grid-cols-2 gap-2 text-xs">
                   <div className="surface-z3 radius-component p-2.5 text-center">
-                    <span className="text-[10px] text-role-muted block mb-0.5">وضعیت پایگاه داده</span>
+                    <span className="text-micro text-role-muted block mb-0.5">وضعیت پایگاه داده</span>
                     <span className="text-emerald font-bold flex items-center justify-center gap-1">
                       <Database className="w-3.5 h-3.5 text-emerald" />
                       دیتابیس ابری
                     </span>
                   </div>
                   <div className="surface-z3 radius-component p-2.5 text-center">
-                    <span className="text-[10px] text-role-muted block mb-0.5">سطح دسترسی</span>
+                    <span className="text-micro text-role-muted block mb-0.5">سطح دسترسی</span>
                     <span className="text-amber font-bold">
                       {currentUser.isAdmin ? 'فرمانده ارشد (مدیر)' : (currentUser.isVip ? 'سامورایی ویژه VIP' : 'کاربر عادی')}
                     </span>
@@ -660,12 +668,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <input
                           id="auth-login-phone"
                           type="tel"
+                          autoComplete="tel"
                           value={phoneNumber}
                           onChange={e => setPhoneNumber(e.target.value)}
                           placeholder="۰۹۱۲۳۴۵۶۷۸۹"
                           aria-invalid={errorField === 'phone'}
                           aria-describedby={errorMessage ? "auth-login-error" : undefined}
-                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition tracking-wider text-left font-mono"
+                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-focus-ring focus-ring-neutral transition tracking-wider text-left font-mono"
                           dir="ltr"
                           autoFocus
                         />
@@ -683,7 +692,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             switchTab('forgot');
                             setForgotStep('request');
                           }}
-                          className="text-[11px] text-amber hover:underline cursor-pointer whitespace-nowrap"
+                          className="text-micro text-amber hover:underline cursor-pointer whitespace-nowrap"
                         >
                           فراموشی رمز عبور؟
                         </button>
@@ -692,12 +701,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <input
                           id="auth-login-password"
                           type={showPassword ? 'text' : 'password'}
+                          autoComplete="current-password"
                           value={password}
                           onChange={e => setPassword(e.target.value)}
                           placeholder="رمز عبور خود را وارد نمایید"
                           aria-invalid={errorField === 'password'}
                           aria-describedby={errorMessage ? "auth-login-error" : undefined}
-                          className="w-full surface-z2 border-standard radius-card pl-11 pr-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition"
+                          className="w-full surface-z2 border-standard radius-card pl-11 pr-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-focus-ring focus-ring-neutral transition"
                           dir="ltr"
                         />
                         <button
@@ -763,16 +773,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <input
                           id="auth-register-phone"
                           type="tel"
+                          autoComplete="tel"
                           value={phoneNumber}
                           onChange={e => setPhoneNumber(e.target.value)}
                           placeholder="۰۹۱۲۳۴۵۶۷۸۹"
                           aria-invalid={errorField === 'phone'}
                           aria-describedby={errorMessage ? "auth-register-error" : undefined}
-                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition tracking-wider text-left font-mono"
+                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-focus-ring focus-ring-neutral transition tracking-wider text-left font-mono"
                           dir="ltr"
                           autoFocus
                         />
-                        <p className="text-[11px] text-role-muted mt-1 leading-relaxed">
+                        <p className="text-micro text-role-muted mt-1 leading-relaxed">
                           مالکیت شماره از طریق کد پیامکی ۵ رقمی راستی‌آزمایی خواهد شد.
                         </p>
                       </div>
@@ -787,7 +798,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           value={name}
                           onChange={e => setName(e.target.value)}
                           placeholder="مثال: سهراب یا نام شما"
-                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition"
+                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-focus-ring focus-ring-neutral transition"
                         />
                       </div>
 
@@ -840,7 +851,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                               setErrorMessage('');
                               setErrorField(null);
                             }}
-                            className="text-[11px] text-amber underline hover:brightness-110 cursor-pointer whitespace-nowrap"
+                            className="text-micro text-amber underline hover:brightness-110 cursor-pointer whitespace-nowrap"
                           >
                             تغییر شماره
                           </button>
@@ -849,7 +860,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           {toPersianDigits(phoneNumber)}
                         </span>
                         {debugOtp && (
-                          <div className="mt-2 pt-2 border-t border-amber-subtle flex items-center justify-between text-[11px]">
+                          <div className="mt-2 pt-2 border-t border-amber-subtle flex items-center justify-between text-micro">
                             <span className="text-amber/80">کد تایید پیامکی (محیط آزمایشی):</span>
                             <span className="font-mono font-black text-amber surface-z2 px-2 py-0.5 radius-badge">
                               {toPersianDigits(debugOtp)}
@@ -864,7 +875,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             کد تایید ۵ رقمی
                           </label>
                           {resendCooldown > 0 ? (
-                            <span role="status" aria-live="polite" className="text-[11px] text-role-muted font-mono">
+                            <span role="status" aria-live="polite" className="text-micro text-role-muted font-mono">
                               ارسال مجدد تا {toPersianDigits(resendCooldown)} ثانیه
                             </span>
                           ) : (
@@ -872,7 +883,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                               type="button"
                               onClick={() => handleRegisterRequestOtp()}
                               disabled={isLoading}
-                              className="text-[11px] text-amber hover:underline cursor-pointer whitespace-nowrap"
+                              className="text-micro text-amber hover:underline cursor-pointer whitespace-nowrap"
                             >
                               ارسال مجدد کد
                             </button>
@@ -887,7 +898,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           placeholder="_____ "
                           aria-invalid={errorField === 'otp'}
                           aria-describedby={errorMessage ? "auth-register-verify-error" : undefined}
-                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-center text-lg tracking-[0.4em] font-mono text-amber placeholder:text-role-muted focus:outline-none focus:border-amber transition"
+                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-center text-lg tracking-[0.4em] font-mono text-amber placeholder:text-role-muted focus:outline-none focus:border-focus-ring focus-ring-neutral transition"
                           dir="ltr"
                           autoFocus
                         />
@@ -901,12 +912,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           <input
                             id="auth-register-password"
                             type={showPassword ? 'text' : 'password'}
+                            autoComplete="new-password"
                             value={password}
                             onChange={e => setPassword(e.target.value)}
                             placeholder="رمز عبور دلخواه خود را تعیین کنید"
                             aria-invalid={errorField === 'password'}
                             aria-describedby={errorMessage ? "auth-register-verify-error" : undefined}
-                            className="w-full surface-z2 border-standard radius-card pl-11 pr-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition"
+                            className="w-full surface-z2 border-standard radius-card pl-11 pr-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-focus-ring focus-ring-neutral transition"
                             dir="ltr"
                           />
                           <button
@@ -974,12 +986,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <input
                           id="auth-forgot-phone"
                           type="tel"
+                          autoComplete="tel"
                           value={phoneNumber}
                           onChange={e => setPhoneNumber(e.target.value)}
                           placeholder="۰۹۱۲۳۴۵۶۷۸۹"
                           aria-invalid={errorField === 'phone'}
                           aria-describedby={errorMessage ? "auth-forgot-error" : undefined}
-                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition tracking-wider text-left font-mono"
+                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-focus-ring focus-ring-neutral transition tracking-wider text-left font-mono"
                           dir="ltr"
                           autoFocus
                         />
@@ -1034,7 +1047,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                               setErrorField(null);
                               setErrorMessage('');
                             }}
-                            className="text-[11px] text-amber underline hover:brightness-110 cursor-pointer whitespace-nowrap"
+                            className="text-micro text-amber underline hover:brightness-110 cursor-pointer whitespace-nowrap"
                           >
                             تغییر شماره
                           </button>
@@ -1043,7 +1056,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           {toPersianDigits(phoneNumber)}
                         </span>
                         {debugOtp && (
-                          <div className="mt-2 pt-2 border-t border-amber-subtle flex items-center justify-between text-[11px]">
+                          <div className="mt-2 pt-2 border-t border-amber-subtle flex items-center justify-between text-micro">
                             <span className="text-amber/80">کد تایید آزمایشی:</span>
                             <span className="font-mono font-black text-amber surface-z2 px-2 py-0.5 radius-badge">
                               {toPersianDigits(debugOtp)}
@@ -1058,7 +1071,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             کد تایید ۵ رقمی
                           </label>
                           {resendCooldown > 0 ? (
-                            <span role="status" aria-live="polite" className="text-[11px] text-role-muted font-mono">
+                            <span role="status" aria-live="polite" className="text-micro text-role-muted font-mono">
                               ارسال مجدد تا {toPersianDigits(resendCooldown)} ثانیه
                             </span>
                           ) : (
@@ -1066,7 +1079,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                               type="button"
                               onClick={() => handleForgotRequestOtp()}
                               disabled={isLoading}
-                              className="text-[11px] text-amber hover:underline cursor-pointer whitespace-nowrap"
+                              className="text-micro text-amber hover:underline cursor-pointer whitespace-nowrap"
                             >
                               ارسال مجدد کد
                             </button>
@@ -1081,7 +1094,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           placeholder="_____ "
                           aria-invalid={errorField === 'otp'}
                           aria-describedby={errorMessage ? "auth-forgot-reset-error" : undefined}
-                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-center text-lg tracking-[0.4em] font-mono text-amber placeholder:text-role-muted focus:outline-none focus:border-amber transition"
+                          className="w-full surface-z2 border-standard radius-card px-4 py-3 text-center text-lg tracking-[0.4em] font-mono text-amber placeholder:text-role-muted focus:outline-none focus:border-focus-ring focus-ring-neutral transition"
                           dir="ltr"
                           autoFocus
                         />
@@ -1095,12 +1108,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           <input
                             id="auth-forgot-new-password"
                             type={showNewPassword ? 'text' : 'password'}
+                            autoComplete="new-password"
                             value={newPassword}
                             onChange={e => setNewPassword(e.target.value)}
                             placeholder="رمز عبور جدید را وارد کنید"
                             aria-invalid={errorField === 'newPassword'}
                             aria-describedby={errorMessage ? "auth-forgot-reset-error" : undefined}
-                            className="w-full surface-z2 border-standard radius-card pl-11 pr-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-amber transition"
+                            className="w-full surface-z2 border-standard radius-card pl-11 pr-4 py-3 text-sm text-role-primary placeholder:text-role-muted focus:outline-none focus:border-focus-ring focus-ring-neutral transition"
                             dir="ltr"
                           />
                           <button
@@ -1151,7 +1165,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {/* Secret Admin/Dev Mode: Only visible if unlocked via 5-click easter egg & passcode */}
               {showSecretDev && (
                 <div className="pt-4 border-t border-amber-subtle space-y-3 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="text-[11px] text-amber font-bold flex items-center justify-between">
+                  <div className="text-micro text-amber font-bold flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <Lock className="w-3.5 h-3.5 text-amber" />
                       دسترسی مدیریت و توسعه:
@@ -1164,7 +1178,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           localStorage.setItem('bushido_secret_dev_mode', 'false');
                         } catch {}
                       }}
-                      className="btn-contract-secondary text-[10px] px-2 py-0.5 radius-badge whitespace-nowrap"
+                      className="btn-contract-secondary text-micro px-2 py-0.5 radius-badge whitespace-nowrap"
                     >
                       مخفی‌سازی
                     </button>
@@ -1181,7 +1195,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <ShieldCheck className="w-3.5 h-3.5 text-white" />
                         <span>ورود به عنوان مدیر</span>
                       </div>
-                      <span className="text-[10px] text-zinc-300 block mt-0.5">فرمانده ارشد (09375454050)</span>
+                      <span className="text-micro text-zinc-300 block mt-0.5">فرمانده ارشد (09375454050)</span>
                     </button>
 
                     <button
@@ -1194,7 +1208,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <User className="w-3.5 h-3.5 text-amber" />
                         <span>ورود کاربر تستی</span>
                       </div>
-                      <span className="text-[10px] text-role-muted block mt-0.5">مشاهده از دید کاربر</span>
+                      <span className="text-micro text-role-muted block mt-0.5">مشاهده از دید کاربر</span>
                     </button>
                   </div>
                 </div>

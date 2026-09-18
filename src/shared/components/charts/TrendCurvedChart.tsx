@@ -2,6 +2,8 @@ import React, { useState, useRef, useMemo } from 'react';
 import { toPersianDigits, formatPersianToman } from '../../utils/numberUtils';
 import { Crown, Users, TrendingUp, Sparkles, CreditCard, Flame } from 'lucide-react';
 
+const AMBER_HEX = '#fbbf24';
+
 export interface AnalyticsBucket {
   key: string;
   label: string;
@@ -176,7 +178,7 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
               <h3 className="font-black text-xs sm:text-sm text-role-primary">
                 روند مقایسه‌ای و پیوسته جذب و تبدیل به VIP
               </h3>
-              <p className="text-[11px] text-role-secondary mt-0.5">
+              <p className="text-micro text-role-secondary mt-0.5">
                 جریان پیوسته تغییرات حجم ورودی و نرخ تبدیل سامورایی‌ها در {timeRangeLabel}
               </p>
             </div>
@@ -187,11 +189,11 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
         <div className="flex items-center gap-3 text-xs">
           <div className="flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control">
             <span className="w-2.5 h-2.5 radius-full bg-zinc-200 shadow-sm" />
-            <span className="text-role-primary font-medium text-[11px]">ثبت‌نام جدید</span>
+            <span className="text-role-primary font-medium text-micro">ثبت‌نام جدید</span>
           </div>
           <div className="flex items-center gap-1.5 surface-z2 px-2.5 py-1 radius-control">
             <span className="w-2.5 h-2.5 radius-full bg-amber shadow-sm" />
-            <span className="text-amber font-bold text-[11px]">تبدیل سامورایی VIP</span>
+            <span className="text-amber font-bold text-micro">تبدیل سامورایی VIP</span>
           </div>
         </div>
       </div>
@@ -199,7 +201,7 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
       {/* Integrated Macro Metric Badges (Replaces the 4 duplicate bulky cards) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         <div className="surface-z2 radius-component p-3 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[11px] text-role-secondary">
+          <div className="flex items-center justify-between text-micro text-role-secondary">
             <span>ثبت‌نام در بازه</span>
             <Users className="w-3.5 h-3.5 text-zinc-400" />
           </div>
@@ -207,12 +209,12 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
             <span className="text-xl font-black text-role-primary font-mono">
               {toPersianDigits(windowSignups)}
             </span>
-            <span className="text-[10px] text-role-muted">کاربر جدید</span>
+            <span className="text-micro text-role-muted">کاربر جدید</span>
           </div>
         </div>
 
         <div className="surface-z2 radius-component p-3 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[11px] text-role-secondary">
+          <div className="flex items-center justify-between text-micro text-role-secondary">
             <span>تبدیل به VIP</span>
             <Crown className="w-3.5 h-3.5 text-amber" />
           </div>
@@ -220,14 +222,14 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
             <span className="text-xl font-black text-amber font-mono">
               {toPersianDigits(windowVips)}
             </span>
-            <span className="text-[10px] text-amber/80 font-bold">
+            <span className="text-micro text-amber/80 font-bold">
               ({toPersianDigits(windowConversionRate)}٪ تبدیل)
             </span>
           </div>
         </div>
 
         <div className="surface-z2 radius-component p-3 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[11px] text-role-secondary">
+          <div className="flex items-center justify-between text-micro text-role-secondary">
             <span>درآمد تحقق‌یافته</span>
             <CreditCard className="w-3.5 h-3.5 text-emerald" />
           </div>
@@ -239,7 +241,7 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
         </div>
 
         <div className="surface-z2 radius-component p-3 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[11px] text-role-secondary">
+          <div className="flex items-center justify-between text-micro text-role-secondary">
             <span>کاربران فعال نبرد</span>
             <Flame className="w-3.5 h-3.5 text-orange" />
           </div>
@@ -247,7 +249,7 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
             <span className="text-xl font-black text-orange font-mono">
               {toPersianDigits(windowActiveUsers)}
             </span>
-            <span className="text-[10px] text-role-muted">جنگجوی فعال</span>
+            <span className="text-micro text-role-muted">جنگجوی فعال</span>
           </div>
         </div>
       </div>
@@ -272,9 +274,9 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
             </linearGradient>
 
             <linearGradient id="gradient-vip" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.38" />
-              <stop offset="85%" stopColor="#fbbf24" stopOpacity="0.04" />
-              <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
+              <stop offset="0%" stopColor={AMBER_HEX} stopOpacity="0.38" />
+              <stop offset="85%" stopColor={AMBER_HEX} stopOpacity="0.04" />
+              <stop offset="100%" stopColor={AMBER_HEX} stopOpacity="0" />
             </linearGradient>
 
             <filter id="glow-amber" x="-20%" y="-20%" width="140%" height="140%">
@@ -345,7 +347,7 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
             <path
               d={vipLinePath}
               fill="none"
-              stroke="#fbbf24"
+              stroke={AMBER_HEX}
               strokeWidth="3"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -384,7 +386,7 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
                 cx={vipPoints[hoveredIndex]?.x}
                 cy={vipPoints[hoveredIndex]?.y}
                 r="7"
-                fill="#fbbf24"
+                fill={AMBER_HEX}
                 stroke="#18181b"
                 strokeWidth="2.5"
                 filter="url(#glow-amber)"
@@ -413,7 +415,7 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
                 key={b.key}
                 x={x}
                 y={baselineY + 20}
-                fill={isHovered ? '#fbbf24' : '#a1a1aa'}
+                fill={isHovered ? AMBER_HEX : '#a1a1aa'}
                 fontSize={isHovered ? '11' : '10'}
                 fontWeight={isHovered ? 'bold' : 'normal'}
                 textAnchor="middle"
@@ -439,13 +441,13 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
             <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-zinc-800/60 font-bold text-role-primary">
               <span>{activeBucket.label}</span>
               {activeBucket.subLabel && (
-                <span className="text-[10px] text-role-muted font-mono font-normal">
+                <span className="text-micro text-role-muted font-mono font-normal">
                   {activeBucket.subLabel}
                 </span>
               )}
             </div>
 
-            <div className="space-y-1 text-[11px]">
+            <div className="space-y-1 text-micro">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-role-secondary">
                   <span className="w-2 h-2 radius-full bg-zinc-300" />
@@ -466,7 +468,7 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
                 </span>
               </div>
 
-              <div className="flex items-center justify-between pt-1 text-role-muted text-[10px]">
+              <div className="flex items-center justify-between pt-1 text-role-muted text-micro">
                 <span>نرخ تبدیل این مقطع:</span>
                 <span className="font-mono font-bold text-emerald">
                   {toPersianDigits(activeBucket.conversionRate || 0)}٪
@@ -488,7 +490,7 @@ export const TrendCurvedChart: React.FC<TrendCurvedChartProps> = ({
             <strong className="text-role-primary">{formatPersianToman(windowAOV)}</strong> ثبت گردیده است.
           </span>
         </div>
-        <span className="text-[11px] text-role-muted font-mono shrink-0">
+        <span className="text-micro text-role-muted font-mono shrink-0">
           مبنا: تقویم هجری شمسی و لاگ‌های دیتابیس
         </span>
       </div>

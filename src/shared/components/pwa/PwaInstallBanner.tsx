@@ -182,7 +182,7 @@ export const PwaInstallBanner: React.FC<PwaInstallBannerProps> = ({
                 <button
                   type="button"
                   onClick={handleDismiss}
-                  className="text-zinc-400 hover:text-zinc-200 p-1 radius-control transition-colors focus-ring-tactical"
+                  className="text-zinc-400 hover:text-zinc-200 hover:surface-z2 w-11 h-11 min-w-[44px] min-h-[44px] -my-2.5 -ml-2.5 inline-flex items-center justify-center radius-control transition-colors focus-ring-tactical cursor-pointer touch-manipulation"
                   aria-label="بستن پیام نصب"
                 >
                   <X className="w-3.5 h-3.5" aria-hidden="true" />

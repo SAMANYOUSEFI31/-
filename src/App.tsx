@@ -362,7 +362,7 @@ export default function App() {
     const unreplayable = getUnreplayableQueueItems(ownerId);
     if (unreplayable.length > 0) {
       showAppToastRef.current(
-        `تعداد ${toPersianDigits(unreplayable.length)} تغییر آفلاین قدیمی با سرور همگام نشدند.`,
+        `تعداد ${toPersianDigits(unreplayable.length)} مورد از تغییرات آفلاین به سرور ارسال نشد. جهت بازنشانی صف و همگام‌سازی مجدد، «تعمیر همگام‌سازی» را انتخاب کنید یا به ثبت آفلاین ادامه دهید.`,
         'warning',
         8000,
         {
@@ -370,7 +370,7 @@ export default function App() {
           onClick: () => {
             const { clearedCount } = clearFailedQueueItems(ownerId);
             showAppToastRef.current(
-              `همگام‌سازی تعمیر شد (${toPersianDigits(clearedCount)} مورد قدیمی بایگانی شدند).`,
+              `صف همگام‌سازی بازنشانی شد (${toPersianDigits(clearedCount)} مورد قدیمی بایگانی گردید). در حال تلاش مجدد...`,
               'success',
               3000
             );
@@ -415,6 +415,30 @@ export default function App() {
 
     if (outcome.failedCount > 0) {
       checkAndOfferQueueRepair(activeAccountRef.current);
+    } else if (outcome.status === 'FAILED') {
+      showAppToastRef.current(
+        'همگام‌سازی با سرور به دلیل اختلال ارتباط انجام نشد؛ داده‌ها در دستگاه محفوظ است. اتصال اینترنت را بررسی کنید یا دوباره تلاش فرمایید.',
+        'warning',
+        7000,
+        {
+          label: 'تلاش مجدد',
+          onClick: () => {
+            requestSyncRef.current?.('MANUAL_FORCE', outcome.ownerId, undefined, true);
+          }
+        }
+      );
+    } else if (outcome.status === 'SKIPPED_OFFLINE' && outcome.triggers.includes('MANUAL_FORCE')) {
+      showAppToastRef.current(
+        'دستگاه در وضعیت آفلاین است؛ امکان ارسال تغییرات وجود ندارد. اتصال اینترنت را بررسی کنید یا در حالت آفلاین ادامه دهید.',
+        'info',
+        6000,
+        {
+          label: 'بررسی مجدد',
+          onClick: () => {
+            requestSyncRef.current?.('MANUAL_FORCE', outcome.ownerId, undefined, true);
+          }
+        }
+      );
     }
   }, [checkAndOfferQueueRepair]);
 
@@ -1281,10 +1305,12 @@ export default function App() {
         requestSync('NETWORK_ONLINE', ownerId, authToken, true);
       } else {
         enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
+        showAppToast('تغییرات نمایه در صف آفلاین ذخیره شد و پس از اتصال به سرور همگام می‌شود.', 'info');
       }
     } catch (e) {
       console.warn('Failed to sync user profile:', e);
       enqueueOfflineMutation(ownerId, { type: 'UPDATE_PROFILE', payload: updatedProfile });
+      showAppToast('تغییرات نمایه در دستگاه ذخیره شد و با برقراری مجدد اینترنت به سرور ارسال خواهد شد.', 'info');
     }
   }, [authToken, systemState.userProfile, showAppToast, requestSync]);
 
@@ -1446,14 +1472,20 @@ export default function App() {
   }, []);
 
   const handleExportData = () => {
-    const data = buildExportPayload(systemState);
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bushido-discipline-backup-${logicalToday}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const data = buildExportPayload(systemState);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bushido-discipline-backup-${logicalToday}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showAppToast('فایل پشتیبان داده‌ها با موفقیت ایجاد و دانلود شد.', 'success');
+    } catch (err) {
+      console.error('Export error:', err);
+      showAppToast('ایجاد فایل پشتیبان ناموفق بود؛ لطفاً دسترسی مرورگر را بررسی کرده و مجدداً تلاش فرمایید.', 'error');
+    }
   };
 
   const handleResetData = () => {
@@ -1525,7 +1557,7 @@ export default function App() {
       }
     } catch (e) {
       console.error('Quick login error:', e);
-      showAppToast('خطا در برقراری ارتباط با سرور', 'error');
+      showAppToast('ارتباط با سرور برای ورود سریع برقرار نشد؛ لطفاً اتصال اینترنت را بررسی کرده و مجدداً تلاش نمایید.', 'error');
     }
   };
 
@@ -1575,7 +1607,7 @@ export default function App() {
       }
     } catch (e) {
       console.error('Impersonate user error:', e);
-      showAppToast('خطا در برقراری ارتباط با سرور');
+      showAppToast('امکان دریافت اطلاعات کاربر از سرور میسر نشد؛ لطفاً اتصال اینترنت را بررسی کرده و دوباره تلاش فرمایید.', 'error');
     }
   };
 

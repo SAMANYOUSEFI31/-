@@ -91,7 +91,7 @@ export const Toast: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
                 <button
                   type="button"
                   onClick={() => onDismiss(toast.id)}
-                  className="w-8 h-8 sm:w-11 sm:h-11 min-w-[36px] min-h-[36px] radius-control surface-z2 hover:surface-z3 text-role-secondary hover:text-role-primary flex items-center justify-center shrink-0 transition cursor-pointer touch-manipulation focus-ring-tactical"
+                  className="w-11 h-11 min-w-[44px] min-h-[44px] radius-control surface-z2 hover:surface-z3 text-role-secondary hover:text-role-primary flex items-center justify-center shrink-0 transition cursor-pointer touch-manipulation focus-ring-tactical"
                   title="بستن اعلان"
                   aria-label="بستن اعلان"
                 >
