@@ -45,15 +45,25 @@ export function setPrismaState(client: any, available: boolean): void {
  * In dev/test: local file / memory persistence is acceptable.
  */
 export function isDatabaseReady(): boolean {
+  if (isProduction()) {
+    return Boolean(isPrismaAvailable && prisma);
+  }
   return true;
 }
 
 /**
  * Asserts that database persistence is available in the current environment.
- * Operates seamlessly with Prisma when connected, or falls back to in-memory store.
+ * Throws sanitized 503 SERVICE_UNAVAILABLE error in production if Prisma is down.
  */
 export function assertPersistenceAvailable(operationName?: string): void {
-  // Graceful fallback to in-memory store if Prisma is unavailable
+  if (isProduction() && (!isPrismaAvailable || !prisma)) {
+    const err: any = new Error(
+      `Database persistence unavailable in production${operationName ? ` (${operationName})` : ''}. Authoritative PostgreSQL datasource required.`
+    );
+    err.code = 'SERVICE_UNAVAILABLE';
+    err.statusCode = 503;
+    throw err;
+  }
 }
 
 export async function ensurePrismaAdmin(): Promise<void> {
@@ -162,9 +172,14 @@ export async function initializeDatabase(): Promise<void> {
   // Fallback handling
   if (!isPrismaAvailable) {
     setPrismaState(null, false);
-    console.log('[Database] Running in self-hosted persistent file/memory database mode.');
+    if (isProduction()) {
+      // In production: NEVER silently fall back to memory or local JSON storage.
+      throw new Error('Production database initialization failed: PostgreSQL datasource required.');
+    }
     try { baseLoadLocalStore(); } catch {}
-    baseEnsureDefaultAdminAndUsers();
+    if (allowTestShortcuts()) {
+      baseEnsureDefaultAdminAndUsers();
+    }
   }
 }
 
@@ -179,14 +194,29 @@ export async function closeDatabase(): Promise<void> {
 
 // Local store persistence with production protection
 export function saveLocalStore(): void {
+  if (isProduction()) {
+    return;
+  }
   return baseSaveLocalStore();
 }
 
 export function loadLocalStore() {
+  if (isProduction() && !isPrismaAvailable) {
+    return {
+      users: [],
+      cycles: [],
+      dailyLogs: [],
+      otpCodes: [],
+      subscriptions: []
+    };
+  }
   return baseLoadLocalStore();
 }
 
 export function ensureDefaultAdminAndUsers(): void {
+  if (isProduction()) {
+    return;
+  }
   return baseEnsureDefaultAdminAndUsers();
 }
 
