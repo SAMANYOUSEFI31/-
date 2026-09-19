@@ -162,7 +162,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
                   }}
                   placeholder="مثال: چرخه اول — تسلط بر سحرخیزی و کار عمیق"
                   required
-                  className="w-full surface-z2 border-standard focus:border-standard focus-ring-tactical radius-component p-3 text-xs sm:text-sm text-role-primary focus:outline-none transition-colors"
+                  className="w-full surface-z2 border-standard focus:border-standard focus-ring-neutral radius-component p-3 text-xs sm:text-sm text-role-primary focus:outline-none transition-colors"
                 />
               </div>
 
@@ -183,7 +183,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
                       if (overlapError) setOverlapError(null);
                     }}
                     required
-                    className={`w-full surface-z2 border ${overlapError ? 'border-debt' : 'border-standard'} focus:border-standard focus-ring-tactical radius-component p-2.5 text-xs sm:text-sm text-role-primary font-mono focus:outline-none transition-colors text-right`}
+                    className={`w-full surface-z2 border ${overlapError ? 'border-debt' : 'border-standard'} focus:border-standard focus-ring-neutral radius-component p-2.5 text-xs sm:text-sm text-role-primary font-mono focus:outline-none transition-colors text-right`}
                   />
                   <span id="create-cycle-start-date-helper" className="text-[10px] text-role-muted mt-1 block">
                     معادل: {formatPersianDate(startDate)}
@@ -225,7 +225,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
                   onChange={e => setTargetTheme(e.target.value)}
                   rows={2}
                   placeholder="مثال: تسلط بر سحرخیزی، ۱۰۰ ساعت کار عمیق تخصصی و اتمام پروژه اصلی"
-                  className="w-full surface-z2 border-standard focus:border-standard focus-ring-tactical radius-component p-3 text-xs sm:text-sm text-role-primary focus:outline-none transition-colors resize-none leading-relaxed"
+                  className="w-full surface-z2 border-standard focus:border-standard focus-ring-neutral radius-component p-3 text-xs sm:text-sm text-role-primary focus:outline-none transition-colors resize-none leading-relaxed"
                 />
                 <span className="text-[11px] text-role-muted mt-1 block leading-relaxed">
                   یک هدف کلیدی برای این ۹۰ روز تعیین کنید؛ هر روزی که اقدامی در جهت تحقق این هدف انجام دهید، تیک «ماموریت ویژه روز» را ثبت می‌کنید.
