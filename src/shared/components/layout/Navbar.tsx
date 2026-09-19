@@ -4,6 +4,7 @@ import { Cycle, CycleMetrics, SystemSettings, UserProfile } from '../../../types
 import { toPersianDigits } from '../../utils/numberUtils';
 import { haptics } from '../../../utils/haptics';
 import { soundFX } from '../../../utils/audioEffects';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { 
   Swords, 
   LayoutDashboard, 
@@ -58,6 +59,9 @@ const NavbarComponent: React.FC<NavbarProps> = ({
   const [isCycleDropdownOpen, setIsCycleDropdownOpen] = useState(false);
   const [confirmDeleteCycleId, setConfirmDeleteCycleId] = useState<string | null>(null);
   const [showStreakInfo, setShowStreakInfo] = useState(false);
+
+  useBodyScrollLock(showStreakInfo);
+
   const cycleDropdownButtonRef = useRef<HTMLButtonElement>(null);
   const cycleDropdownPanelRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);

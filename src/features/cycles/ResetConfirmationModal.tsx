@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useBodyScrollLock } from '../../shared/hooks/useBodyScrollLock';
 import { useModalAccessibility } from '../../shared/hooks/useModalAccessibility';
 import { RotateCcw, AlertTriangle } from 'lucide-react';
 
@@ -24,6 +25,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   onClose,
   onConfirm
 }) => {
+  useBodyScrollLock(isOpen);
+
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
 
   const { containerRef } = useModalAccessibility<HTMLDivElement>({
