@@ -908,7 +908,7 @@
   max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 1.5rem)) !important;
 }
 
-/* Custom Tactical Scrollbars */
+/* Custom Tactical Scrollbars (Desktop / Fine pointer default) */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -925,6 +925,54 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-border-hover);
+}
+
+/* Explicit utility class for hiding scrollbars on any targeted element */
+.no-scrollbar {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+/* Hide scrollbar visuals on mobile & touch devices while keeping full touch/programmatic scroll functionality */
+@media (max-width: 1023px), (pointer: coarse) {
+  html {
+    scrollbar-gutter: auto;
+  }
+
+  html,
+  body,
+  #root,
+  *,
+  *::before,
+  *::after {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  ::-webkit-scrollbar,
+  *::-webkit-scrollbar,
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  #root::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+    background: transparent !important;
+  }
+
+  ::-webkit-scrollbar-thumb,
+  *::-webkit-scrollbar-thumb,
+  ::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-track {
+    background: transparent !important;
+    display: none !important;
+  }
 }
 
 /* =========================================================================
