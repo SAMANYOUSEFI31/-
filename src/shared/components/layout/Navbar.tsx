@@ -575,7 +575,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
       {/* Streak Info Modal */}
       {showStreakInfo && (
         <div 
-          className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex items-center justify-center p-3 sm:p-4 pt-safe pb-safe overscroll-contain overflow-y-auto"
+          className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex items-center justify-center p-3 sm:p-4 pt-safe overscroll-contain overflow-y-auto modal-overlay-resilient"
           dir="rtl"
         >
           <div 
@@ -584,7 +584,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             aria-labelledby="streak-info-modal-title"
             aria-describedby="streak-info-modal-desc"
             tabIndex={-1}
-            className="surface-z3 border-standard radius-modal w-full max-w-sm p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast relative my-auto focus:outline-none"
+            className="surface-z3 border-standard radius-modal w-full max-w-sm p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast relative my-auto focus:outline-none modal-dialog-resilient flex flex-col overflow-hidden"
           >
             <button 
               type="button"
@@ -595,8 +595,8 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="flex flex-col items-center justify-center text-center space-y-3 pb-1">
-              <div className="w-12 h-12 radius-component bg-orange-subtle flex items-center justify-center border border-orange-subtle shadow-subtle">
+            <div className="flex flex-col items-center justify-center text-center space-y-3 pb-1 overflow-y-auto overscroll-contain flex-1 min-h-0">
+              <div className="w-12 h-12 radius-component bg-orange-subtle flex items-center justify-center border border-orange-subtle shadow-subtle shrink-0">
                 <Flame className="w-6 h-6 text-orange fill-current animate-flame-flicker" />
               </div>
               <h3 id="streak-info-modal-title" className="font-bold text-base text-role-primary">
@@ -609,7 +609,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             <button 
               type="button"
               onClick={() => setShowStreakInfo(false)}
-              className="btn-contract-primary w-full min-h-[44px] radius-component font-bold text-xs sm:text-sm shadow-subtle focus-ring-tactical touch-manipulation"
+              className="btn-contract-primary w-full min-h-[44px] radius-component font-bold text-xs sm:text-sm shadow-subtle focus-ring-tactical touch-manipulation shrink-0"
             >
               متوجه شدم
             </button>

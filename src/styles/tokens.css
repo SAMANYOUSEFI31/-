@@ -277,14 +277,19 @@
 
 /* Virtual Keyboard Resilience Container for Modals & Interactive Overlays */
 .modal-overlay-resilient {
+  max-height: 100vh !important;
   max-height: 100dvh !important;
   max-height: 100svh !important;
-  padding-bottom: max(var(--safe-area-bottom), var(--keyboard-inset-bottom)) !important;
+  padding-bottom: max(var(--safe-area-bottom), var(--keyboard-inset-bottom), 0.5rem) !important;
   scroll-padding-bottom: max(var(--safe-area-bottom), var(--keyboard-inset-bottom), 1.5rem) !important;
+  overscroll-behavior: contain !important;
 }
 
 .modal-dialog-resilient {
-  max-height: min(92dvh, calc(100dvh - var(--safe-area-top) - max(var(--safe-area-bottom), var(--keyboard-inset-bottom)) - 1rem)) !important;
+  max-height: 90vh !important;
+  max-height: min(92dvh, 92svh, calc(100dvh - var(--safe-area-top) - max(var(--safe-area-bottom), var(--keyboard-inset-bottom)) - 1rem)) !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 /* Surface Pseudo-Class State Utilities (Technical Gap Fix) */

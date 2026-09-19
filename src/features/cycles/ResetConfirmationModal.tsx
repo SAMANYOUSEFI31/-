@@ -50,9 +50,10 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
         aria-labelledby="reset-confirmation-title"
         aria-describedby="reset-confirmation-description"
         tabIndex={-1}
-        className="surface-z3 border border-debt-subtle/40 radius-modal w-full max-w-md p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast modal-dialog-resilient my-auto focus:outline-none"
+        className="surface-z3 border border-debt-subtle/40 radius-modal w-full max-w-md shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast modal-dialog-resilient my-auto focus:outline-none flex flex-col overflow-hidden"
       >
-        <div className="flex items-center gap-3">
+        {/* Header */}
+        <div className="p-5 sm:p-6 border-b border-standard flex items-center gap-3 shrink-0">
           <div className="w-12 h-12 radius-component bg-debt-subtle border border-debt-subtle flex items-center justify-center text-debt shrink-0">
             <RotateCcw className="w-6 h-6" />
           </div>
@@ -67,14 +68,18 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
           </div>
         </div>
 
-        <p
-          id="reset-confirmation-description"
-          className="text-xs text-role-secondary leading-relaxed surface-z2 border-standard radius-card p-4 text-right"
-        >
-          آیا از بازنشانی کلیه داده‌ها، لاگ‌ها و چرخه‌ها به اطلاعات نمونه اولیه سیستم بوشیدو اطمینان دارید؟ تمام تغییرات ثبت‌شده محلی پاک خواهند شد.
-        </p>
+        {/* Scrollable Body */}
+        <div className="p-5 sm:p-6 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-4">
+          <p
+            id="reset-confirmation-description"
+            className="text-xs text-role-secondary leading-relaxed surface-z2 border-standard radius-card p-4 text-right"
+          >
+            آیا از بازنشانی کلیه داده‌ها، لاگ‌ها و چرخه‌ها به اطلاعات نمونه اولیه سیستم بوشیدو اطمینان دارید؟ تمام تغییرات ثبت‌شده محلی پاک خواهند شد.
+          </p>
+        </div>
 
-        <div className="flex items-center justify-start gap-2.5 pt-2">
+        {/* Action Footer */}
+        <div className="p-4 sm:p-5 border-t border-standard surface-z3 flex items-center justify-start gap-2.5 shrink-0">
           <button
             ref={cancelButtonRef}
             type="button"

@@ -258,6 +258,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </button>
             </div>
 
+            {/* Scrollable Body */}
             <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto overscroll-contain flex-1 min-h-0">
               {/* Plan Cards as accessible Radio Group */}
               <div 
@@ -339,37 +340,37 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <span>{paymentError}</span>
                 </div>
               )}
+            </div>
 
-              {/* Action Button */}
-              <div className="flex items-center justify-start gap-2.5 sm:gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  disabled={isLoading}
-                  className="btn-contract-secondary px-4 py-2.5 sm:px-5 sm:py-2.5 min-h-[44px] radius-card text-xs font-semibold touch-manipulation focus-ring-tactical"
-                >
-                  انصراف
-                </button>
+            {/* Pinned Action Footer */}
+            <div className="p-4 sm:p-6 surface-z2 border-t border-standard flex items-center justify-start gap-2.5 sm:gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isLoading}
+                className="btn-contract-secondary px-4 py-2.5 sm:px-5 sm:py-2.5 min-h-[44px] radius-card text-xs font-semibold touch-manipulation focus-ring-tactical"
+              >
+                انصراف
+              </button>
 
-                <button
-                  type="button"
-                  onClick={handleStartPayment}
-                  disabled={isLoading}
-                  className="btn-contract-mastery text-xs sm:text-sm px-5 py-2.5 sm:px-6 sm:py-3 min-h-[44px] radius-card flex items-center gap-2 shadow-subtle focus-ring-tactical"
-                >
-                  {isLoading ? (
-                    <span className="flex items-center gap-2" aria-live="polite">
-                      <Loader2 className={`w-4 h-4 ${shouldReduceMotion ? '' : 'animate-spin'}`} aria-hidden="true" />
-                      <span>در حال اتصال به درگاه...</span>
-                    </span>
-                  ) : (
-                    <>
-                      <CreditCard className="w-4 h-4" aria-hidden="true" />
-                      <span>پرداخت آنلاین {selectedPlan.formattedPrice} تومان</span>
-                    </>
-                  )}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleStartPayment}
+                disabled={isLoading}
+                className="btn-contract-mastery text-xs sm:text-sm px-5 py-2.5 sm:px-6 sm:py-3 min-h-[44px] radius-card flex items-center gap-2 shadow-subtle focus-ring-tactical"
+              >
+                {isLoading ? (
+                  <span className="flex items-center gap-2" aria-live="polite">
+                    <Loader2 className={`w-4 h-4 ${shouldReduceMotion ? '' : 'animate-spin'}`} aria-hidden="true" />
+                    <span>در حال اتصال به درگاه...</span>
+                  </span>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4" aria-hidden="true" />
+                    <span>پرداخت آنلاین {selectedPlan.formattedPrice} تومان</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
@@ -410,7 +411,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
 
             {/* Simulator Content */}
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1 min-h-0">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto overscroll-contain flex-1 min-h-0">
               <div className="surface-z2 border-standard radius-card p-4 sm:p-5 space-y-3">
                 <div className="flex items-center justify-between text-xs border-b border-standard pb-2.5">
                   <span className="text-role-secondary">بسته انتخابی:</span>
@@ -442,37 +443,37 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <span>{paymentError}</span>
                 </div>
               )}
+            </div>
 
-              {/* Actions */}
-              <div className="flex items-center justify-start gap-2.5 sm:gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setStep('plans')}
-                  disabled={isLoading}
-                  className="btn-contract-secondary px-4 py-2.5 min-h-[44px] radius-card text-xs font-semibold focus-ring-tactical touch-manipulation"
-                >
-                  انصراف و بازگشت
-                </button>
+            {/* Pinned Actions Footer */}
+            <div className="p-4 sm:p-6 surface-z2 border-t border-standard flex items-center justify-start gap-2.5 sm:gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setStep('plans')}
+                disabled={isLoading}
+                className="btn-contract-secondary px-4 py-2.5 min-h-[44px] radius-card text-xs font-semibold focus-ring-tactical touch-manipulation"
+              >
+                انصراف و بازگشت
+              </button>
 
-                <button
-                  type="button"
-                  onClick={handleVerifyPayment}
-                  disabled={isLoading}
-                  className="btn-contract-mastery text-xs sm:text-sm px-6 py-2.5 min-h-[44px] radius-component flex items-center gap-2 shadow-subtle focus-ring-tactical touch-manipulation"
-                >
-                  {isLoading ? (
-                    <span className="flex items-center gap-2" aria-live="polite">
-                      <Loader2 className={`w-4 h-4 ${shouldReduceMotion ? '' : 'animate-spin'}`} aria-hidden="true" />
-                      <span>در حال تایید با سرور...</span>
-                    </span>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
-                      <span>تایید پرداخت شبیه‌سازی‌شده</span>
-                    </>
-                  )}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleVerifyPayment}
+                disabled={isLoading}
+                className="btn-contract-mastery text-xs sm:text-sm px-6 py-2.5 min-h-[44px] radius-component flex items-center gap-2 shadow-subtle focus-ring-tactical touch-manipulation"
+              >
+                {isLoading ? (
+                  <span className="flex items-center gap-2" aria-live="polite">
+                    <Loader2 className={`w-4 h-4 ${shouldReduceMotion ? '' : 'animate-spin'}`} aria-hidden="true" />
+                    <span>در حال تایید با سرور...</span>
+                  </span>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                    <span>تایید پرداخت شبیه‌سازی‌شده</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
@@ -482,7 +483,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <div 
             role="status" 
             aria-live="polite" 
-            className="p-6 sm:p-8 text-center space-y-5 sm:space-y-6 overflow-y-auto flex-1"
+            className="p-6 sm:p-8 text-center space-y-5 sm:space-y-6 overflow-y-auto overscroll-contain flex-1 min-h-0"
           >
             <div className="w-16 h-16 sm:w-20 sm:h-20 radius-card bg-emerald-subtle text-emerald border border-emerald-subtle flex items-center justify-center mx-auto shadow-subtle">
               <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" aria-hidden="true" />
