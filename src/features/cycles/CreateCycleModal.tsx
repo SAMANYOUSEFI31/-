@@ -107,7 +107,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="btn-contract-ghost absolute top-3 sm:top-4 left-3 sm:left-4 w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center radius-component touch-manipulation focus-ring-tactical"
+            className="btn-contract-ghost absolute top-3 sm:top-4 left-3 sm:left-4 w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center radius-component shrink-0 touch-manipulation focus-ring-tactical"
             title="بستن"
             aria-label="بستن"
           >

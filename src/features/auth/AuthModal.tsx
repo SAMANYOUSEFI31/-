@@ -525,7 +525,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="btn-contract-ghost w-11 h-11 min-w-[44px] min-h-[44px] radius-component border border-standard flex items-center justify-center shrink-0 touch-manipulation focus-ring-tactical"
+            className="btn-contract-ghost w-11 h-11 min-w-[44px] min-h-[44px] radius-component flex items-center justify-center shrink-0 touch-manipulation focus-ring-tactical"
+            title="بستن"
             aria-label="بستن"
           >
             <X className="w-5 h-5" />
