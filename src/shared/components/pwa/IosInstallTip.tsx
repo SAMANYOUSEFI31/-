@@ -83,25 +83,25 @@ export const IosInstallTip: React.FC<IosInstallTipProps> = ({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.98 }}
           transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed bottom-20 sm:bottom-24 lg:bottom-6 right-3 left-3 sm:right-6 sm:left-auto sm:max-w-md z-40 bg-[#121215] border border-zinc-800 radius-card p-3.5 sm:p-4 shadow-xl shadow-black/60 pointer-events-auto select-none"
+          className="fixed bottom-20 sm:bottom-24 lg:bottom-6 right-3 left-3 sm:right-6 sm:left-auto sm:max-w-md z-40 surface-z1 border-standard radius-card p-3.5 sm:p-4 shadow-xl shadow-black/60 pointer-events-auto select-none"
           dir="rtl"
         >
           <div className="flex items-start gap-3">
             {/* Level 4 Neutral Icon Container */}
-            <div className="w-9 h-9 shrink-0 radius-component bg-zinc-800/80 border border-zinc-700/50 flex items-center justify-center text-zinc-200">
-              <Share className="w-4 h-4 text-zinc-200" aria-hidden="true" />
+            <div className="w-9 h-9 shrink-0 radius-component surface-z2 border-standard flex items-center justify-center text-role-secondary">
+              <Share className="w-4 h-4 text-role-secondary" aria-hidden="true" />
             </div>
 
             {/* Content Area */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <h4 className="text-xs sm:text-sm font-bold text-zinc-100 leading-tight">
+                <h4 className="text-xs sm:text-sm font-bold text-role-primary leading-tight">
                   افزودن بوشیدو به صفحه اصلی (iOS)
                 </h4>
                 <button
                   type="button"
                   onClick={handleDismiss}
-                  className="text-zinc-400 hover:text-zinc-200 hover:surface-z2 w-11 h-11 min-w-[44px] min-h-[44px] -my-2.5 -ml-2.5 inline-flex items-center justify-center radius-control transition-colors focus-ring-tactical cursor-pointer touch-manipulation"
+                  className="text-role-muted hover:text-role-primary hover:surface-z2 w-11 h-11 min-w-[44px] min-h-[44px] -my-2.5 -ml-2.5 inline-flex items-center justify-center radius-control transition-colors focus-ring-tactical cursor-pointer touch-manipulation"
                   aria-label="بستن راهنما"
                 >
                   <X className="w-3.5 h-3.5" aria-hidden="true" />
@@ -109,22 +109,22 @@ export const IosInstallTip: React.FC<IosInstallTipProps> = ({
               </div>
 
               {/* Short Persian Steps (honest guidance, not a fake install prompt) */}
-              <div className="mt-2 space-y-1.5 text-[11px] sm:text-xs text-zinc-300 leading-relaxed text-right">
-                <p className="text-zinc-400">
+              <div className="mt-2 space-y-1.5 text-[11px] sm:text-xs text-role-secondary leading-relaxed text-right">
+                <p className="text-role-muted">
                   برای استفاده تمام‌صفحه و دسترسی بدون حاشیه مرورگر:
                 </p>
-                <ol className="space-y-1 text-zinc-300 list-none p-0 m-0">
+                <ol className="space-y-1 text-role-secondary list-none p-0 m-0">
                   <li className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 shrink-0" aria-hidden="true" />
-                    <span>در صورت لزوم، سامانه را در مرورگر <strong className="text-zinc-200 font-semibold">Safari</strong> باز کنید.</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-text-muted shrink-0" aria-hidden="true" />
+                    <span>در صورت لزوم، سامانه را در مرورگر <strong className="text-role-primary font-semibold">Safari</strong> باز کنید.</span>
                   </li>
                   <li className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 shrink-0" aria-hidden="true" />
-                    <span>دکمه <strong className="text-zinc-200 font-semibold">اشتراک‌گذاری (Share)</strong> در نوار ابزار را لمس کنید.</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-text-muted shrink-0" aria-hidden="true" />
+                    <span>دکمه <strong className="text-role-primary font-semibold">اشتراک‌گذاری (Share)</strong> در نوار ابزار را لمس کنید.</span>
                   </li>
                   <li className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 shrink-0" aria-hidden="true" />
-                    <span>گزینه <strong className="text-zinc-200 font-semibold">«افزودن به صفحه اصلی» (Add to Home Screen)</strong> را بزنید.</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-text-muted shrink-0" aria-hidden="true" />
+                    <span>گزینه <strong className="text-role-primary font-semibold">«افزودن به صفحه اصلی» (Add to Home Screen)</strong> را بزنید.</span>
                   </li>
                 </ol>
               </div>

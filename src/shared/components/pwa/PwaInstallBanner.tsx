@@ -164,32 +164,32 @@ export const PwaInstallBanner: React.FC<PwaInstallBannerProps> = ({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.98 }}
           transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed bottom-20 sm:bottom-24 lg:bottom-6 right-3 left-3 sm:right-6 sm:left-auto sm:max-w-md z-40 bg-[#121215] border border-zinc-800 radius-card p-3.5 sm:p-4 shadow-xl shadow-black/60 pointer-events-auto select-none"
+          className="fixed bottom-20 sm:bottom-24 lg:bottom-6 right-3 left-3 sm:right-6 sm:left-auto sm:max-w-md z-40 surface-z1 border-standard radius-card p-3.5 sm:p-4 shadow-xl shadow-black/60 pointer-events-auto select-none"
           dir="rtl"
         >
           <div className="flex items-start gap-3">
             {/* Level 4 Neutral Icon Container */}
-            <div className="w-9 h-9 shrink-0 radius-component bg-zinc-800/80 border border-zinc-700/50 flex items-center justify-center text-zinc-200">
-              <Smartphone className="w-4 h-4 text-zinc-200" aria-hidden="true" />
+            <div className="w-9 h-9 shrink-0 radius-component surface-z2 border-standard flex items-center justify-center text-role-secondary">
+              <Smartphone className="w-4 h-4 text-role-secondary" aria-hidden="true" />
             </div>
 
             {/* Content Area */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <h4 className="text-xs sm:text-sm font-bold text-zinc-100 leading-tight">
+                <h4 className="text-xs sm:text-sm font-bold text-role-primary leading-tight">
                   افزودن به صفحه اصلی
                 </h4>
                 <button
                   type="button"
                   onClick={handleDismiss}
-                  className="text-zinc-400 hover:text-zinc-200 hover:surface-z2 w-11 h-11 min-w-[44px] min-h-[44px] -my-2.5 -ml-2.5 inline-flex items-center justify-center radius-control transition-colors focus-ring-tactical cursor-pointer touch-manipulation"
+                  className="text-role-muted hover:text-role-primary hover:surface-z2 w-11 h-11 min-w-[44px] min-h-[44px] -my-2.5 -ml-2.5 inline-flex items-center justify-center radius-control transition-colors focus-ring-tactical cursor-pointer touch-manipulation"
                   aria-label="بستن پیام نصب"
                 >
                   <X className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </div>
 
-              <p className="text-[11px] sm:text-xs text-zinc-400 leading-relaxed mt-1 text-right">
+              <p className="text-[11px] sm:text-xs text-role-secondary leading-relaxed mt-1 text-right">
                 برای تمرکز پیوسته، عملکرد سریع‌تر و دسترسی مستقیم به میدان نبرد، بوشیدو را نصب کنید.
               </p>
 
@@ -207,7 +207,7 @@ export const PwaInstallBanner: React.FC<PwaInstallBannerProps> = ({
                 <button
                   type="button"
                   onClick={handleDismiss}
-                  className="btn-contract-ghost text-xs px-3 py-1.5 text-zinc-400 hover:text-zinc-200 whitespace-nowrap inline-flex items-center justify-center focus-ring-tactical touch-manipulation"
+                  className="btn-contract-ghost text-xs px-3 py-1.5 whitespace-nowrap inline-flex items-center justify-center focus-ring-tactical touch-manipulation"
                 >
                   بعداً
                 </button>

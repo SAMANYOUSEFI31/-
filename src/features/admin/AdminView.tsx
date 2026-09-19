@@ -970,8 +970,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
                         }}
                         className={`px-2.5 py-1 text-xs font-bold radius-component transition-colors cursor-pointer ${
                           analyticsTimeRange === t.id
-                            ? 'bg-zinc-200 text-zinc-950 shadow-subtle'
-                            : 'text-role-secondary hover:text-role-primary'
+                            ? 'btn-contract-secondary text-role-primary shadow-subtle'
+                            : 'btn-contract-ghost text-role-secondary hover:text-role-primary'
                         }`}
                       >
                         {t.label}
@@ -1030,7 +1030,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                       <span className="font-mono font-bold text-role-primary">{toPersianDigits(users.length)} (۱۰۰٪)</span>
                     </div>
                     <div className="w-full h-2 surface-z2 radius-component overflow-hidden">
-                      <div className="h-full bg-zinc-400 w-full" />
+                      <div className="h-full bg-role-secondary w-full" />
                     </div>
                   </div>
 
