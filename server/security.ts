@@ -115,6 +115,10 @@ const PBKDF2_KEYLEN = 64;
 const PBKDF2_DIGEST = 'sha512';
 const SALT_BYTE_SIZE = 16;
 
+/** Dummy PBKDF2 hash used to mitigate timing-based user enumeration when a user account does not exist */
+export const DUMMY_PASSWORD_HASH =
+  '0123456789abcdef0123456789abcdef:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
 /** هش رمز — خروجی: salt:hash */
 export function hashPassword(password: string): string {
   if (!password || typeof password !== 'string') {

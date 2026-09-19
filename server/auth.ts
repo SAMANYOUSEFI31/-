@@ -20,6 +20,7 @@ import {
   isMockOtpEnabled,
   isMockPaymentEnabled,
   getSecurityCapabilities,
+  DUMMY_PASSWORD_HASH,
   type SecurityCapabilities
 } from './security';
 
@@ -29,6 +30,7 @@ export {
   isSuperAdminIdentifier,
   hashPassword,
   verifyPassword,
+  DUMMY_PASSWORD_HASH,
   SUPER_ADMIN_PHONE,
   SUPER_ADMIN_EMAIL,
   SUPER_ADMIN_PASS,

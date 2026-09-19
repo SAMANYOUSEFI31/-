@@ -61,6 +61,7 @@ import {
   isSuperAdminIdentifier,
   hashPassword,
   verifyPassword,
+  DUMMY_PASSWORD_HASH,
   allowTestShortcuts,
   isProduction,
   isQuickLoginEnabled,
@@ -499,18 +500,14 @@ app.post('/api/auth/login', validateBody(loginSchema), async (req, res, next) =>
     }
 
     const user = await findUserByPhoneNumber(canonicalPhone);
-    if (!user) {
-      return res.status(401).json({
-        code: 'USER_NOT_FOUND',
-        messageFa: 'حساب کاربری یافت نشد. لطفاً ابتدا ثبت‌نام فرمایید.'
-      });
-    }
+    const isMatch = user && user.passwordHash
+      ? verifyPassword(password, user.passwordHash)
+      : (verifyPassword(password, DUMMY_PASSWORD_HASH), false);
 
-    const isMatch = await verifyPassword(password, user.passwordHash || '');
-    if (!isMatch) {
+    if (!user || !isMatch) {
       return res.status(401).json({
         code: 'INVALID_CREDENTIALS',
-        messageFa: 'رمز عبور وارد شده نادرست است.'
+        messageFa: 'شماره موبایل یا رمز عبور نادرست است.'
       });
     }
 

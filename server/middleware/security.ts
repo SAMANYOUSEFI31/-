@@ -32,7 +32,7 @@ export function createRateLimiter(options: { windowMs: number; max: number; mess
   return (req: Request, res: Response, next: NextFunction): void => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown-ip';
         const identifier =
-      (req.body && (req.body.identifier || req.body.username || req.body.phone || req.body.email)) ||
+      (req.body && (req.body.phoneNumber || req.body.identifier || req.body.username || req.body.phone || req.body.email)) ||
       (req.user && ((req.user as any).userId || (req.user as any).id)) ||
       '';
 

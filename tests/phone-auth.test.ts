@@ -663,6 +663,48 @@ describe('Phase 2B: Phone-First Authentication Final Closure Suite', () => {
       assert.equal(res.status, 400);
     });
 
+    it('login with unknown phone and wrong password return identical generic error without user enumeration', async () => {
+      // 1. Ensure user exists
+      await createUser({
+        phoneNumber: '09127776655',
+        passwordHash: hashPassword('RealSecretPass123!')
+      });
+
+      // 2. Unknown phone number attempt
+      const unknownPhoneRes = await fetch(`${baseUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: '09128880011',
+          password: 'RandomPassword123!'
+        })
+      });
+      assert.equal(unknownPhoneRes.status, 401);
+      const unknownBody = await unknownPhoneRes.json();
+      assert.equal(unknownBody.code, 'INVALID_CREDENTIALS');
+      assert.equal(unknownBody.messageFa, 'شماره موبایل یا رمز عبور نادرست است.');
+      assert.notEqual(unknownBody.code, 'USER_NOT_FOUND', 'Must never expose USER_NOT_FOUND on login');
+
+      // 3. Known phone number with wrong password attempt
+      const wrongPassRes = await fetch(`${baseUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: '09127776655',
+          password: 'WrongPassword123!'
+        })
+      });
+      assert.equal(wrongPassRes.status, 401);
+      const wrongPassBody = await wrongPassRes.json();
+      assert.equal(wrongPassBody.code, 'INVALID_CREDENTIALS');
+      assert.equal(wrongPassBody.messageFa, 'شماره موبایل یا رمز عبور نادرست است.');
+
+      // 4. Invariant: Status, code, and messageFa are strictly indistinguishable
+      assert.equal(unknownPhoneRes.status, wrongPassRes.status);
+      assert.equal(unknownBody.code, wrongPassBody.code);
+      assert.equal(unknownBody.messageFa, wrongPassBody.messageFa);
+    });
+
     it('registration OTP cannot reset a password', async () => {
       // Create user
       await createUser({
