@@ -340,7 +340,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               )}
 
               {/* Action Button */}
-              <div className="flex items-center justify-end gap-2.5 sm:gap-3 pt-2">
+              <div className="flex items-center justify-start gap-2.5 sm:gap-3 pt-2">
                 <button
                   type="button"
                   onClick={onClose}
@@ -442,7 +442,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               )}
 
               {/* Actions */}
-              <div className="flex items-center justify-between gap-3 pt-2">
+              <div className="flex items-center justify-start gap-2.5 sm:gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setStep('plans')}

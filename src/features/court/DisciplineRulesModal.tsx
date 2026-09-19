@@ -256,7 +256,7 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
         </div>
 
         {/* Sticky Modal Footer */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 surface-z3 border-t border-standard flex items-center justify-end shrink-0 sticky bottom-0 z-20 backdrop-blur-md">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 surface-z3 border-t border-standard flex items-center justify-start gap-2.5 sm:gap-3 shrink-0 sticky bottom-0 z-20 backdrop-blur-md">
           <button
             type="button"
             onClick={onClose}

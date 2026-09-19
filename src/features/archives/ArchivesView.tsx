@@ -175,7 +175,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                   />
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-standard">
+                <div className="flex items-center justify-start gap-2 pt-3 border-t border-standard">
                   <button
                     type="button"
                     onClick={() => setShowNewCycleModal(false)}
@@ -1226,7 +1226,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-standard">
+              <div className="flex items-center justify-start gap-2 pt-3 border-t border-standard">
                 <button
                   type="button"
                   onClick={() => setShowNewCycleModal(false)}
@@ -1268,7 +1268,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               آیا از انتقال چرخه <strong className="text-amber">«{currentCycle.title}»</strong> به بایگانی رسمی اطمینان دارید؟
             </p>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-start gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowArchiveConfirmModal(false)}
@@ -1311,7 +1311,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               آیا مایلید چرخه <strong className="text-amber">«{currentCycle.title}»</strong> را از حالت بایگانی خارج کنید تا بتوانید مجدداً روزها را ثبت یا ویرایش نمایید؟
             </p>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-start gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowUnarchiveConfirmModal(false)}
@@ -1354,7 +1354,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
               آیا از حذف کامل <strong className="text-amber">«{currentCycle.title}»</strong> و تمام لاگ‌ها و سوابق آن اطمینان دارید؟
             </p>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-start gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirmModal(false)}

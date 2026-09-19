@@ -74,7 +74,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
           آیا از بازنشانی کلیه داده‌ها، لاگ‌ها و چرخه‌ها به اطلاعات نمونه اولیه سیستم بوشیدو اطمینان دارید؟ تمام تغییرات ثبت‌شده محلی پاک خواهند شد.
         </p>
 
-        <div className="flex items-center justify-end gap-2.5 pt-2">
+        <div className="flex items-center justify-start gap-2.5 pt-2">
           <button
             ref={cancelButtonRef}
             type="button"

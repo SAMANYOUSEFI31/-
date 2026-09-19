@@ -251,7 +251,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-standard">
+            <div className="flex items-center justify-start gap-2.5 pt-3 border-t border-standard">
               <button
                 type="button"
                 onClick={onClose}
