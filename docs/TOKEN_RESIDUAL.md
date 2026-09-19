@@ -7,15 +7,14 @@ Under **GOVERNANCE LOCK PHASE 3**, comprehensive automated re-scans and static a
 
 All residual P0 (critical defects, inline color/border bindings, invalid classes) and P1 (non-standard bracket variables) items have been systematically resolved into semantic token utility classes. Permissible dynamic layout calculations and Persian optical micro-typography calibrations are documented and cataloged as **Accepted Debt / Intentional Design**.
 
-### Final Audit Summary Statistics
-| Category | Total Occurrences | Status | Action Taken in Phase 3 |
-| :--- | :--- | :--- | :--- |
-| **Raw Tailwind Color Palettes** (`zinc-*`, `emerald-400`, `red-500`, `slate-*`, etc.) | **0** | Clean (100% Tokenized) | Preserved / Fully Tokenized |
-| **Arbitrary Hex in `className`** (`bg-[#...]`, `text-[#...]`) | **0** | Clean (100% Tokenized) | Preserved / Fully Tokenized |
-| **Inline Color / Border / Background Styles** | **0** | Clean (100% Tokenized) | Replaced with semantic token classes |
-| **Invalid Utility Classes** (`bg-amber/20` slash opacity) | **0** | Clean (100% Tokenized) | Replaced with `.hover:bg-amber-subtle` |
-| **Dynamic Layout Inline Styles** (Width %, Grid repeat) | **5** | **Accepted Debt (P3)** | Allowed runtime calculations (Dynamic progress bars & CSS Grid columns) |
-| **Persian Optical Typography Sizing** (`text-[10px]`, `text-[11px]`) | **192** | **Accepted Design Intent** | Maintained for dense RTL micro-typography hierarchy without wrapping |
+### Current Audit Summary & Known Debt
+| Category | Status | Notes / Scope |
+| :--- | :--- | :--- |
+| **Core View Semantic Tokenization** (`Battlefield`, `Dashboard`, `Navbar`, `Modals`, etc.) | **High Compliance** | Core user journey views consume semantic tokens (`surface-z*`, `text-role-*`, `text-emerald`, `text-orange`, `text-amber`, `text-crimson`). |
+| **PWA Install Components Debt** (`PwaInstallBanner.tsx`, `IosInstallTip.tsx`) | **Known Debt (Pending Tokenization)** | May still use raw zinc/hex utility classes until refactored into the unified token system. |
+| **Admin Surfaces Debt** (`AdminView.tsx` & sub-modules) | **Known Debt (Pending Tokenization)** | Specialized administrative views and legacy telemetry widgets may retain raw zinc/slate/hex styles. |
+| **Dynamic Layout Inline Styles** (Width %, Grid repeat) | **Accepted Debt (P3)** | Allowed runtime calculations (Dynamic progress bars & CSS Grid columns). |
+| **Persian Optical Typography Sizing** (`text-[10px]`, `text-[11px]`) | **Accepted Design Intent** | Maintained for dense RTL micro-typography hierarchy without wrapping. |
 
 ---
 
@@ -77,11 +76,10 @@ All residual P0 (critical defects, inline color/border bindings, invalid classes
 
 ---
 
-## 4. Final Governance Closure Verdict
-- **Phase 3 Token Verification & Residual Closure Status**: **COMPLETE**
-- **0** raw Tailwind numbered color palettes in `src/`
-- **0** arbitrary hex color classes in `src/`
-- **0** inline color/border/background styles in `src/`
-- **0** invalid utility class declarations in `src/`
-- **5** dynamic dimension/grid calculations cataloged as Accepted Debt
-- **100%** compliance with Governance Lock constraints (no UI/layout redesigns)
+## 4. Current Governance Status & Known Debt
+- **Core Views Semantic Tokenization**: Highly unified across primary user workflows.
+- **Known Technical Debt (Accepted / Pending Refactor)**:
+  - **PWA Components**: `PwaInstallBanner.tsx`, `IosInstallTip.tsx` retain some raw Tailwind zinc/hex styling.
+  - **Admin Surfaces**: Selected tabs and widgets in `AdminView.tsx` retain raw palette classes pending administrative tokenization.
+  - **Dynamic Layout Calculations**: 5 dynamic dimension/grid calculations cataloged as Accepted Debt.
+- **Governance Lock Rule**: Maintain strict semantic tokenization for all core views, and progressively tokenize remaining auxiliary surfaces without regressions.
