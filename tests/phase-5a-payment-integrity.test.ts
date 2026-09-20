@@ -1460,6 +1460,7 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
   describe('Corrective Pass Suite B: Absolute Production Simulator Isolation', () => {
     const originalEnv = process.env.NODE_ENV;
     const originalShortcuts = process.env.ALLOW_TEST_SHORTCUTS;
+    const originalJwtSecret = process.env.JWT_SECRET;
 
     afterEach(() => {
       process.env.NODE_ENV = originalEnv;
@@ -1467,6 +1468,11 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
         process.env.ALLOW_TEST_SHORTCUTS = originalShortcuts;
       } else {
         delete process.env.ALLOW_TEST_SHORTCUTS;
+      }
+      if (originalJwtSecret !== undefined) {
+        process.env.JWT_SECRET = originalJwtSecret;
+      } else {
+        delete process.env.JWT_SECRET;
       }
       setPaymentAdapterOverride(null);
     });
@@ -1528,13 +1534,23 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
     it('B05. Production payment request returns PAYMENT_UNAVAILABLE without a real Provider', async () => {
       process.env.NODE_ENV = 'production';
       process.env.ALLOW_TEST_SHORTCUTS = 'true';
+      process.env.JWT_SECRET = 'a-super-secret-production-key-that-is-at-least-32-chars!';
       setPaymentAdapterOverride(null);
+
+      const prodToken = generateToken({
+        userId: userAId,
+        phoneNumber: '09121111111',
+        isVip: false,
+        tier: 'ronin_free',
+        isAdmin: false,
+        tokenVersion: 0
+      });
 
       const res = await fetch(`${baseUrl}/api/payment/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${userAToken}`
+          Authorization: `Bearer ${prodToken}`
         },
         body: JSON.stringify({ planId: 'samurai_90days' })
       });
@@ -1592,14 +1608,24 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
     it('B09. Intentional JSON test facilities cannot activate simulated Production payment', async () => {
       process.env.NODE_ENV = 'production';
       process.env.ALLOW_TEST_SHORTCUTS = 'true';
+      process.env.JWT_SECRET = 'a-super-secret-production-key-that-is-at-least-32-chars!';
       setPaymentAdapterOverride(null);
+
+      const prodToken = generateToken({
+        userId: userAId,
+        phoneNumber: '09121111111',
+        isVip: false,
+        tier: 'ronin_free',
+        isAdmin: false,
+        tokenVersion: 0
+      });
 
       // Attempting to initiate payment via request endpoint in production fails closed
       const res = await fetch(`${baseUrl}/api/payment/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${userAToken}`
+          Authorization: `Bearer ${prodToken}`
         },
         body: JSON.stringify({
           planId: 'samurai_90days',

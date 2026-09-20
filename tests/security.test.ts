@@ -50,12 +50,16 @@ describe('Bushido Security & Environment Separation Matrix', () => {
 
   describe('Environment Capability Matrix & Fail-Closed Behavior', () => {
     const origNodeEnv = process.env.NODE_ENV;
+    const origAppEnv = process.env.APP_ENV;
     const origAllow = process.env.ALLOW_TEST_SHORTCUTS;
     const origOtpDebug = process.env.ENABLE_OTP_DEBUG;
     const origQuickLogin = process.env.ENABLE_QUICK_LOGIN;
 
     const restoreEnv = () => {
       process.env.NODE_ENV = origNodeEnv;
+      if (origAppEnv !== undefined) process.env.APP_ENV = origAppEnv;
+      else delete process.env.APP_ENV;
+
       if (origAllow !== undefined) process.env.ALLOW_TEST_SHORTCUTS = origAllow;
       else delete process.env.ALLOW_TEST_SHORTCUTS;
 
@@ -92,14 +96,40 @@ describe('Bushido Security & Environment Separation Matrix', () => {
       }
     });
 
-    it('Scenario 2: Production with ALLOW_TEST_SHORTCUTS=true (Private Vercel Test) -> Shortcuts Allowed', () => {
+    it('Scenario 2: Production with ALLOW_TEST_SHORTCUTS=true -> Shortcuts Strictly Blocked (Fail-Closed)', () => {
       try {
         process.env.NODE_ENV = 'production';
+        delete process.env.APP_ENV;
         process.env.ALLOW_TEST_SHORTCUTS = 'true';
         delete process.env.ENABLE_OTP_DEBUG;
         delete process.env.ENABLE_QUICK_LOGIN;
 
         assert.equal(isProduction(), true);
+        assert.equal(allowTestShortcuts(), false);
+        assert.equal(isQuickLoginEnabled(), false);
+        assert.equal(isOtpDebugEnabled(), false);
+        assert.equal(isMockOtpEnabled(), false);
+        assert.equal(isMockPaymentEnabled(), false);
+
+        const caps = getSecurityCapabilities();
+        assert.equal(caps.isProduction, true);
+        assert.equal(caps.testShortcutsEnabled, false);
+        assert.equal(caps.quickLoginEnabled, false);
+        assert.equal(caps.mockOtpEnabled, false);
+        assert.equal(caps.mockPaymentEnabled, false);
+      } finally {
+        restoreEnv();
+      }
+    });
+
+    it('Scenario 2b: Staging with ALLOW_TEST_SHORTCUTS=true -> Shortcuts Allowed', () => {
+      try {
+        process.env.APP_ENV = 'staging';
+        process.env.ALLOW_TEST_SHORTCUTS = 'true';
+        delete process.env.ENABLE_OTP_DEBUG;
+        delete process.env.ENABLE_QUICK_LOGIN;
+
+        assert.equal(isProduction(), false);
         assert.equal(allowTestShortcuts(), true);
         assert.equal(isQuickLoginEnabled(), true);
         assert.equal(isOtpDebugEnabled(), false);
@@ -107,7 +137,7 @@ describe('Bushido Security & Environment Separation Matrix', () => {
         assert.equal(isMockPaymentEnabled(), true);
 
         const caps = getSecurityCapabilities();
-        assert.equal(caps.isProduction, true);
+        assert.equal(caps.isProduction, false);
         assert.equal(caps.testShortcutsEnabled, true);
         assert.equal(caps.quickLoginEnabled, true);
         assert.equal(caps.mockOtpEnabled, true);
@@ -117,9 +147,23 @@ describe('Bushido Security & Environment Separation Matrix', () => {
       }
     });
 
-    it('Scenario 3: Production with ALLOW_TEST_SHORTCUTS=true AND ENABLE_OTP_DEBUG=true -> OTP Debug Enabled', () => {
+    it('Scenario 3: Production with ALLOW_TEST_SHORTCUTS=true AND ENABLE_OTP_DEBUG=true -> OTP Debug Strictly Blocked', () => {
       try {
         process.env.NODE_ENV = 'production';
+        delete process.env.APP_ENV;
+        process.env.ALLOW_TEST_SHORTCUTS = 'true';
+        process.env.ENABLE_OTP_DEBUG = 'true';
+
+        assert.equal(allowTestShortcuts(), false);
+        assert.equal(isOtpDebugEnabled(), false);
+      } finally {
+        restoreEnv();
+      }
+    });
+
+    it('Scenario 3b: Staging with ALLOW_TEST_SHORTCUTS=true AND ENABLE_OTP_DEBUG=true -> OTP Debug Enabled', () => {
+      try {
+        process.env.APP_ENV = 'staging';
         process.env.ALLOW_TEST_SHORTCUTS = 'true';
         process.env.ENABLE_OTP_DEBUG = 'true';
 

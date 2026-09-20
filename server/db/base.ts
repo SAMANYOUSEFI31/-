@@ -5,9 +5,14 @@ import {
   SUPER_ADMIN_EMAIL,
   SUPER_ADMIN_PASS,
   SUPER_ADMIN_NAME,
+  getSuperAdminPhone,
+  getSuperAdminEmail,
+  getSuperAdminPass,
+  getSuperAdminName,
   isSuperAdminIdentifier,
   hashPassword,
-  allowTestShortcuts
+  allowTestShortcuts,
+  isProduction
 } from '../security.js';
 
 // Prisma client state management (shared across all db modules)
@@ -449,33 +454,42 @@ export function seedUserData(userId: string): { cycle: DBCycle; logs: DBDailyLog
 // Initialize Default Admin & Test Users
 // -------------------------------------------------------------
 export function ensureDefaultAdminAndUsers() {
+  if (isProduction()) {
+    return;
+  }
+
   const nowStr = new Date().toISOString();
   const nextYearStr = new Date(Date.now() + 365 * 86400000).toISOString();
 
-  // بدون رمز ادمین معتبر در env، seed ادمین انجام نشود
-  if (!SUPER_ADMIN_PASS || String(SUPER_ADMIN_PASS).trim().length < 8) {
+  const superAdminPass = getSuperAdminPass();
+  const superAdminPhone = getSuperAdminPhone();
+  const superAdminEmail = getSuperAdminEmail();
+  const superAdminName = getSuperAdminName();
+
+  // بدون رمز ادمین معتبر، seed ادمین انجام نشود
+  if (!superAdminPass || String(superAdminPass).trim().length < 8) {
     console.warn('[Database] SUPER_ADMIN_PASS خالی یا کوتاه است؛ seed ادمین انجام نشد.');
   }
 
   const adminHashedPass =
-    SUPER_ADMIN_PASS && String(SUPER_ADMIN_PASS).trim().length >= 8
-      ? hashPassword(SUPER_ADMIN_PASS)
+    superAdminPass && String(superAdminPass).trim().length >= 8
+      ? hashPassword(superAdminPass)
       : null;
 
-  // 1. Master Admin فقط وقتی SUPER_ADMIN_PASS تنظیم شده باشد
+  // 1. Master Admin فقط وقتی superAdminPass تنظیم شده باشد
   const existingAdmin = memoryStore.users.find(
     (u) =>
       u.id === 'admin-master-001' ||
-      u.phoneNumber === SUPER_ADMIN_PHONE ||
-      u.email === SUPER_ADMIN_EMAIL
+      (superAdminPhone && u.phoneNumber === superAdminPhone) ||
+      (superAdminEmail && u.email === superAdminEmail)
   );
 
   if (adminHashedPass && !existingAdmin) {
     const adminUser: DBUser = {
       id: 'admin-master-001',
-      email: SUPER_ADMIN_EMAIL || null,
-      phoneNumber: SUPER_ADMIN_PHONE || null,
-      name: SUPER_ADMIN_NAME,
+      email: superAdminEmail || null,
+      phoneNumber: superAdminPhone || null,
+      name: superAdminName,
       passwordHash: adminHashedPass,
       tier: 'vip_samurai',
       isVip: true,
@@ -491,9 +505,9 @@ export function ensureDefaultAdminAndUsers() {
     memoryStore.users.unshift(adminUser);
   } else if (adminHashedPass && existingAdmin) {
     existingAdmin.id = 'admin-master-001';
-    if (SUPER_ADMIN_PHONE) existingAdmin.phoneNumber = SUPER_ADMIN_PHONE;
-    if (SUPER_ADMIN_EMAIL) existingAdmin.email = SUPER_ADMIN_EMAIL;
-    existingAdmin.name = SUPER_ADMIN_NAME;
+    if (superAdminPhone) existingAdmin.phoneNumber = superAdminPhone;
+    if (superAdminEmail) existingAdmin.email = superAdminEmail;
+    existingAdmin.name = superAdminName;
     existingAdmin.passwordHash = adminHashedPass;
     existingAdmin.isAdmin = true;
     existingAdmin.isVip = true;
