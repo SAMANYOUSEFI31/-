@@ -1,31 +1,59 @@
 # Project Reality Report
 
+## Status Block
+
+- **Document status**: Working Snapshot [Reported deployment context]
+- **Purpose**: Descriptive extraction of the observed repository state [Reported deployment context]
+- **Authority**: Non-normative and subject to independent audit [Reported deployment context]
+- **Evidence boundary**: Claims must be traceable to repository files or captured command output [Reported deployment context]
+- **Last reviewed commit**: `not-a-git-repo` (Git metadata directory `.git` is absent in working container) [Verified from captured command output]
+- *Notice*: This document is a descriptive working snapshot and is not a formal audit, roadmap, implementation plan, or normative source of truth.
+
+---
+
+## Evidence Quality System
+
+The assertions and statements in this report use the following evidence classifications:
+
+- **[Verified from code]**: Extracted directly from committed source code files (`.ts`, `.tsx`, `.js`, etc.).
+- **[Verified from committed configuration]**: Derived directly from committed configuration manifests (`package.json`, `tsconfig.json`, `prisma/schema.prisma`, `vercel.json`, `capacitor.config.json`, `.env.example`).
+- **[Verified from captured command output]**: Direct output and exit code obtained from executing a command in the environment during this session.
+- **[Reported deployment context]**: Operational, infrastructure, or environmental context reported for the current project phase.
+- **[Unverified]**: A claim or assumption not directly demonstrated by code, configuration, or captured tool execution.
+- **[Contradictory]**: Conflicting statements or diverging implementations discovered across files or environments.
+
+---
+
 ## 1. Tech Stack
 
-- **Runtime Environment**: Node.js (v22+ ESM native with CommonJS bundling support)
-- **Frontend Framework**: React 19 (`react@19.0.1`, `react-dom@19.0.1`)
-- **Language**: TypeScript (`typescript@~5.8.2`) with strict mode enabled (`tsconfig.json`)
-- **Frontend Build Tool**: Vite 6 (`vite@^6.2.3`), `@vitejs/plugin-react@^4.3.4`
-- **Backend Bundler**: esbuild (`esbuild@^0.25.0`) targeting Node.js CommonJS (`dist/server.cjs`)
-- **Styling & CSS**: Tailwind CSS v4 (`tailwindcss@^4.0.0`, `@tailwindcss/vite@^4.0.0`, `autoprefixer@^10.4.21`) and CSS design tokens (`src/styles/tokens.css`)
-- **UI & Iconography**: Lucide React (`lucide-react@^0.546.0`)
-- **Motion & Animations**: Motion (`motion@^12.23.24`)
-- **Server Framework**: Express 4 (`express@^4.21.2`, `@types/express@^4.17.21`)
-- **Server Runner**: tsx (`tsx@^4.21.0`) for development execution
-- **Database ORM**: Prisma ORM (`prisma@6.4.0`, `@prisma/client@6.4.0`)
-- **Database Engine Target**: PostgreSQL (Neon, Supabase, Vercel Postgres, Google Cloud SQL)
-- **Validation Library**: Zod (`zod@^3.24.2`)
-- **Security & Cryptography**: jsonwebtoken (`jsonwebtoken@^9.0.2`), Node.js native `crypto` module (PBKDF2 SHA-512, timingSafeEqual, randomBytes)
-- **Environment Configuration**: dotenv (`dotenv@^17.2.3`)
-- **Client Routing**: Custom zero-dependency HTML5 History API router (`src/app/routing/routerUtils.ts`)
-- **PWA Capabilities**: Service Worker (`public/sw.js`), Web App Manifest (`public/manifest.json`), install prompt handlers
-- **Hybrid Mobile Configuration**: Capacitor (`capacitor.config.json`), GitHub Actions Android APK pipeline (`.github/workflows/build-apk.yml`)
-- **Serverless Hosting Adapter**: Vercel serverless entry point (`api/index.js`, `vercel.json`)
-- **Test Runner**: Node.js built-in test runner (`tsx --test "tests/**/*.test.ts"`)
+- **Runtime Environment**:
+  - Required Node.js version: Not explicitly pinned in the repository (no `engines` declaration in `package.json`) [Verified from committed configuration]
+  - Observed agent runtime: `v22.23.2` via `node -v` (Exit code: `0`) [Verified from captured command output]
+- **Frontend Framework**: React 19 (`react@19.0.1`, `react-dom@19.0.1`) [Verified from committed configuration]
+- **Language**: TypeScript (`typescript@~5.8.2`) [Verified from committed configuration]
+- **Frontend Build Tool**: Vite 6 (`vite@^6.2.3`), `@vitejs/plugin-react@^4.3.4` [Verified from committed configuration]
+- **Backend Bundler**: esbuild (`esbuild@^0.25.0`) targeting Node.js CommonJS (`dist/server.cjs`) [Verified from committed configuration]
+- **Styling & CSS**: Tailwind CSS v4 (`tailwindcss@^4.0.0`, `@tailwindcss/vite@^4.0.0`, `autoprefixer@^10.4.21`) and CSS design tokens (`src/styles/tokens.css`) [Verified from committed configuration]
+- **UI & Iconography**: Lucide React (`lucide-react@^0.546.0`) [Verified from committed configuration]
+- **Motion & Animations**: Motion (`motion@^12.23.24`) [Verified from committed configuration]
+- **Server Framework**: Express 4 (`express@^4.21.2`, `@types/express@^4.17.21`) [Verified from committed configuration]
+- **Server Runner**: tsx (`tsx@^4.21.0`) for development execution [Verified from committed configuration]
+- **Database ORM**: Prisma ORM (`prisma@6.4.0`, `@prisma/client@6.4.0`) [Verified from committed configuration]
+- **Database Target Engine**: PostgreSQL configured via `provider = "postgresql"` in `prisma/schema.prisma` [Verified from committed configuration]
+- **Validation Library**: Zod (`zod@^3.24.2`) [Verified from committed configuration]
+- **Security & Cryptography**: jsonwebtoken (`jsonwebtoken@^9.0.2`), Node.js native `crypto` module (PBKDF2 SHA-512, timingSafeEqual, createHmac SHA-256) [Verified from committed configuration] [Verified from code]
+- **Environment Configuration**: dotenv (`dotenv@^17.2.3`) [Verified from committed configuration]
+- **Client Routing**: Custom zero-dependency HTML5 History API router (`src/app/routing/routerUtils.ts`) [Verified from code]
+- **PWA Capabilities**: Service Worker (`public/sw.js`), Web App Manifest (`public/manifest.json`), install banner components [Verified from code]
+- **Hybrid Mobile Configuration**: Capacitor (`capacitor.config.json`), GitHub Actions Android APK pipeline (`.github/workflows/build-apk.yml`) [Verified from committed configuration]
+- **Serverless Hosting Adapter**: Vercel serverless entry point (`api/index.js`, `vercel.json`) [Verified from committed configuration]
+- **Test Runner**: Node.js built-in test runner executed via `tsx --test "tests/**/*.test.ts"` [Verified from committed configuration]
 
 ---
 
 ## 2. Folder Structure
+
+Extracted from the repository filesystem [Verified from code]:
 
 ```
 /
@@ -55,8 +83,6 @@
 │   ├── MASTER_TOKENIZATION_AND_STATE_AUDIT.md
 │   ├── TOKEN_INVENTORY_BATTLEFIELD.md
 │   ├── TOKEN_RESIDUAL.md
-│   ├── audits/
-│   │   └── phase1-baseline-audit.md
 │   └── reports/
 │       └── project-reality-report.md
 ├── index.html
@@ -242,7 +268,7 @@
 │   │   └── visibilitySyncUtils.ts
 │   └── vite-env.d.ts
 ├── tests/
-│   └── (43 automated test suites)
+│   └── (43 automated test files)
 ├── tsconfig.json
 ├── vercel.json
 └── vite.config.ts
@@ -252,97 +278,97 @@
 
 ## 3. Route Map
 
-The application utilizes a custom History API routing mechanism (`src/app/routing/routerUtils.ts`) integrated with browser state and popstate listeners in `src/App.tsx`.
+Managed on the client via `src/app/routing/routerUtils.ts` and `src/App.tsx` [Verified from code]:
 
-### Canonical Client Routes
-- `/` or `/battlefield`: Battlefield View (Default landing screen, daily habit tracking, score gauge, active day controls)
-- `/dashboard`: Cycle Dashboard / Command Center (Cycle KPIs, 90-day tactical heatmap, habit fidelity matrix, curved trend spline)
-- `/more`: More / Profile Settings Shell (Profile information, night-owl cutoff hour, VIP membership status, Telegram links, export/reset)
-- `/archives`: Archives & Historical Ledger (All past cycles, autopsy records, archived cycle verdicts)
-- `/admin`: Administration Panel (Admin-only view: analytics, user management, impersonation, subscription audits)
+### Canonical Shell Routes
+- `/` or `/battlefield`: Battlefield View (Daily habit execution, 10-segment score gauge, active day controls)
+- `/dashboard`: Cycle Dashboard (Cycle statistics, 90-day heatmap, fidelity matrix, curved trend chart)
+- `/more`: More & Settings (User profile, night-owl cutoff hour, VIP membership status, Telegram links, export/reset)
+- `/archives`: Archives & Historical Records (Completed cycles, autopsy cases, court verdicts)
+- `/admin`: Administration Panel (Metrics dashboard, user directory, impersonation, subscription audit)
 
-### Path Aliases & Normalization
-- `/cycle` maps to `/dashboard`
-- `/profile` and `/settings` map to `/more`
-- `/more/archives`, `/database`, and `/court` map to `/archives`
-- Any unmatched or unrecognized pathname normalizes and redirects to `/battlefield`
+### Normalizations & Aliases
+- `/cycle` normalizes to `/dashboard`
+- `/profile` and `/settings` normalize to `/more`
+- `/more/archives`, `/database`, and `/court` normalize to `/archives`
+- Any unmapped path falls back to `/battlefield`
 
-### Client Modal Dialog Routes (State-Driven Overlays)
-- `AuthModal`: Login, Register via SMS OTP, Password Reset via SMS OTP
-- `AutopsyModal`: Debt autopsy, root failure analysis, psychological trap identification
-- `PaymentModal`: VIP upgrade, plan selection, gateway simulation/redirection
-- `CreateCycleModal`: New cycle configuration (date ranges, target themes, rules)
-- `DisciplineRulesModal`: Bushido discipline rules and covenant explanation
-- `ResetConfirmationModal`: Cycle wipe and full account data reset confirmation
-- `FirstRunTour` & `OnboardingWelcomeView`: First-time user onboarding guided flow
+### State-Driven Overlay Views
+- `AuthModal`: Login, Register via SMS OTP, Password Reset
+- `AutopsyModal`: Debt autopsy and failure analysis
+- `PaymentModal`: VIP membership checkout and plans
+- `CreateCycleModal`: New cycle creation modal
+- `DisciplineRulesModal`: Bushido rules overview
+- `ResetConfirmationModal`: Cycle wipe / account reset
+- `FirstRunTour` / `OnboardingWelcomeView`: First-time user tour
 
 ---
 
 ## 4. API Map
 
-All backend endpoints are registered in `server.ts` and served under the `/api` prefix.
+All API endpoints are mounted on Express in `server.ts` under `/api` [Verified from code]:
 
-### System, Diagnostics & Probes
-- `GET /api` | `GET /api/`: API root directory and status metadata
-- `GET /api/health`: Healthcheck endpoint reporting server uptime, timestamp, and database status
-- `GET /api/ready` | `GET /api/readiness` | `GET /api/health/ready`: Readiness probe checking database connectivity
-- `GET /api/admin/diagnostics`: Deep diagnostic telemetry for database connectivity, table row counts, and environment flags (`adminMiddleware`)
-- `ALL /api/*`: Fallback handler returning structured JSON 404 for any unmatched API paths
+### System & Telemetry
+- `GET /api` | `GET /api/`: API root directory and status
+- `GET /api/health`: Healthcheck endpoint (uptime, timestamp, DB connection state)
+- `GET /api/ready` | `GET /api/readiness` | `GET /api/health/ready`: Readiness probes
+- `GET /api/admin/diagnostics`: Deep diagnostics endpoint (`adminMiddleware`)
+- `ALL /api/*`: Catch-all 404 JSON fallback handler
 
-### Authentication & Profile Management
-- `POST /api/auth/register/request-otp` | `POST /api/auth/register/send-otp`: Request registration OTP code for phone number (`validateBody(registerRequestOtpSchema)`)
-- `POST /api/auth/register/verify-otp` | `POST /api/auth/register`: Verify OTP and complete user account creation (`validateBody(registerVerifyOtpSchema)`)
-- `POST /api/auth/login`: Authenticate with phone/identifier and password (`validateBody(loginSchema)`)
-- `POST /api/auth/forgot-password`: Request password reset OTP code (`validateBody(forgotPasswordRequestOtpSchema)`)
-- `POST /api/auth/reset-password`: Reset password using verified OTP code (`validateBody(resetPasswordWithOtpSchema)`)
+### Authentication & Profile
+- `POST /api/auth/register/request-otp` | `POST /api/auth/register/send-otp`: Request registration OTP
+- `POST /api/auth/register/verify-otp` | `POST /api/auth/register`: Verify OTP and create user
+- `POST /api/auth/login`: Authenticate with phone/identifier and password
+- `POST /api/auth/forgot-password`: Request password reset OTP
+- `POST /api/auth/reset-password`: Reset password using verified OTP
 - `POST /api/auth/send-otp`: General OTP send endpoint
-- `POST /api/auth/verify-otp`: Deprecated general OTP endpoint (returns HTTP 410 Gone with redirect instructions)
-- `POST /api/auth/quick-login`: Development and test environment shortcut login (conditional on `ENABLE_QUICK_LOGIN` and `ALLOW_TEST_SHORTCUTS`)
-- `GET /api/auth/me`: Get current authenticated user session data (`authMiddleware`)
-- `PUT /api/auth/profile` | `PUT /api/user/profile`: Update user profile name, cutoff hour, or theme (`authMiddleware`, `validateBody(updateProfileSchema)`)
+- `POST /api/auth/verify-otp`: Deprecated general OTP endpoint (returns HTTP 410 Gone)
+- `POST /api/auth/quick-login`: Development shortcut login (`ENABLE_QUICK_LOGIN`, `ALLOW_TEST_SHORTCUTS`)
+- `GET /api/auth/me`: Current authenticated user session (`authMiddleware`)
+- `PUT /api/auth/profile` | `PUT /api/user/profile`: Update user profile (`authMiddleware`)
 
 ### Cycles Management
-- `GET /api/cycles`: List all cycles belonging to the authenticated user (`authMiddleware`)
-- `GET /api/cycles/:id`: Retrieve single cycle by ID (`authMiddleware`)
-- `POST /api/cycles`: Create a new cycle with concurrency revision token (`authMiddleware`, `validateBody(createCycleSchema)`)
-- `PUT /api/cycles/:id`: Update cycle metadata with revision token validation (`authMiddleware`, `validateBody(updateCycleSchema)`)
-- `PUT /api/cycles/:id/archive`: Archive an active cycle (`authMiddleware`)
-- `PUT /api/cycles/:id/restore`: Restore an archived cycle (`authMiddleware`)
-- `DELETE /api/cycles/:id`: Permanently delete a cycle and its associated logs (`authMiddleware`)
+- `GET /api/cycles`: Fetch user cycles (`authMiddleware`)
+- `GET /api/cycles/:id`: Fetch single cycle by ID (`authMiddleware`)
+- `POST /api/cycles`: Create a new cycle with revision token (`authMiddleware`)
+- `PUT /api/cycles/:id`: Update cycle with revision token check (`authMiddleware`)
+- `PUT /api/cycles/:id/archive`: Archive cycle (`authMiddleware`)
+- `PUT /api/cycles/:id/restore`: Restore archived cycle (`authMiddleware`)
+- `DELETE /api/cycles/:id`: Delete cycle (`authMiddleware`)
 
 ### Daily Logs Management
 - `GET /api/logs` | `GET /api/daily-logs`: Fetch daily logs, optionally filtered by `cycleId` (`authMiddleware`)
-- `GET /api/logs/:id` | `GET /api/daily-logs/:id`: Fetch single daily log by ID (`authMiddleware`)
-- `POST /api/logs` | `POST /api/logs/upsert` | `POST /api/daily-logs`: Upsert daily habit log with revision token and idempotent client operation ID (`authMiddleware`, `validateBody(upsertDailyLogSchema)`)
-- `PUT /api/logs/:id` | `PUT /api/daily-logs/:id`: Update existing daily log (`authMiddleware`, `validateBody(updateDailyLogSchema)`)
+- `GET /api/logs/:id` | `GET /api/daily-logs/:id`: Fetch single daily log (`authMiddleware`)
+- `POST /api/logs` | `POST /api/logs/upsert` | `POST /api/daily-logs`: Upsert daily log with revision check and client operation ID (`authMiddleware`)
+- `PUT /api/logs/:id` | `PUT /api/daily-logs/:id`: Update daily log (`authMiddleware`)
 - `DELETE /api/logs/:id` | `DELETE /api/daily-logs/:id`: Delete daily log (`authMiddleware`)
 
-### Deterministic AI & Evaluation Engine
-- `POST /api/ai/autopsy`: Analyze missed habits, determine psychological traps, and generate countermeasures (`authMiddleware`, `validateBody(autopsySchema)`)
-- `POST /api/ai/coach`: Generate deterministic coaching guidance based on discipline score percentage (`authMiddleware`)
-- `POST /api/ai/verdict`: Generate cycle evaluation verdict, grade, and notes (`authMiddleware`)
+### Deterministic AI Engine
+- `POST /api/ai/autopsy`: Psychological trap analysis and countermeasures (`authMiddleware`)
+- `POST /api/ai/coach`: Sensei coaching feedback based on discipline percentage (`authMiddleware`)
+- `POST /api/ai/verdict`: Cycle court verdict and grade evaluation (`authMiddleware`)
 
-### Subscription & Payments
-- `GET /api/plans` | `GET /api/payment/plans`: Public subscription plans configuration
-- `POST /api/payment/request`: Initiate payment request through payment adapter (`authMiddleware`, `validateBody(paymentRequestSchema)`)
-- `POST /api/payment/verify`: Verify completed payment transaction (`authMiddleware`, `validateBody(paymentVerifySchema)`)
-- `GET /api/user/subscriptions` | `GET /api/subscriptions/my`: Get authenticated user's payment and subscription history (`authMiddleware`)
+### Payments & Subscriptions
+- `GET /api/plans` | `GET /api/payment/plans`: Public subscription plans list
+- `POST /api/payment/request`: Create payment request via payment adapter (`authMiddleware`)
+- `POST /api/payment/verify`: Verify payment transaction (`authMiddleware`)
+- `GET /api/user/subscriptions` | `GET /api/subscriptions/my`: Get user payment history (`authMiddleware`)
 
 ### Admin Management Panel
-- `GET /api/admin/stats`: Aggregated platform statistics and KPIs (`adminMiddleware`)
-- `GET /api/admin/users`: User directory with pagination, search, and role filters (`adminMiddleware`)
-- `GET /api/admin/role`: Check requesting user's admin privilege status (`adminMiddleware`)
-- `PUT /api/admin/users/:id`: Modify user status, role, VIP dates, or password (`adminMiddleware`)
-- `POST /api/admin/users/create-test`: Create isolated test user account (`adminMiddleware`)
-- `POST /api/admin/impersonate`: Issue impersonated session token for target user (`adminMiddleware`)
-- `POST /api/admin/impersonate/exit` | `POST /api/admin/exit-impersonation`: Terminate active impersonation session
-- `GET /api/admin/subscriptions`: Audit all platform transactions and payment records (`adminMiddleware`)
+- `GET /api/admin/stats`: Aggregate system KPIs and counts (`adminMiddleware`)
+- `GET /api/admin/users`: User directory with pagination and filters (`adminMiddleware`)
+- `GET /api/admin/role`: Check current user admin privilege status (`adminMiddleware`)
+- `PUT /api/admin/users/:id`: Update user role, VIP status, or password (`adminMiddleware`)
+- `POST /api/admin/users/create-test`: Create test user account (`adminMiddleware`)
+- `POST /api/admin/impersonate`: Issue impersonated session token (`adminMiddleware`)
+- `POST /api/admin/impersonate/exit` | `POST /api/admin/exit-impersonation`: Terminate active impersonation
+- `GET /api/admin/subscriptions`: Audit platform subscription records (`adminMiddleware`)
 
 ---
 
 ## 5. Database Schema
 
-Defined in `prisma/schema.prisma` targeting PostgreSQL datasource `env("DATABASE_URL")`.
+Managed in `prisma/schema.prisma` targeting PostgreSQL (`provider = "postgresql"`, `url = env("DATABASE_URL")`) [Verified from committed configuration]:
 
 ### Enums
 - `UserRole`: `FREE`, `VIP`, `ADMIN`
@@ -351,326 +377,209 @@ Defined in `prisma/schema.prisma` targeting PostgreSQL datasource `env("DATABASE
 - `SubscriptionStatus`: `PENDING`, `SUCCESS`, `FAILED`
 
 ### Models
-
-#### 1. User
-- `id`: String (cuid, primary key)
-- `email`: String? (unique, indexed)
-- `phoneNumber`: String? (unique, indexed)
-- `name`: String?
-- `passwordHash`: String?
-- `role`: UserRole (default: `FREE`, indexed)
-- `tier`: String (default: `"ronin_free"`)
-- `isVip`: Boolean (default: `false`, indexed)
-- `vipSince`: DateTime?
-- `vipExpiresAt`: DateTime?
-- `paymentRefId`: String?
-- `isAdmin`: Boolean (default: `false`)
-- `tokenVersion`: Int (default: `0`)
-- `nightOwlCutoffHour`: Int (default: `4`)
-- `accentTheme`: String (default: `"amber"`)
-- Relations: `cycles` (Cycle[]), `dailyLogs` (DailyLog[]), `subscriptions` (Subscription[]), `otpCodes` (OtpCode[])
-- Timestamps: `createdAt` (DateTime), `updatedAt` (DateTime)
-
-#### 2. Cycle
-- `id`: String (cuid, primary key)
-- `userId`: String (indexed)
-- `title`: String
-- `startDate`: String (YYYY-MM-DD)
-- `endDate`: String (YYYY-MM-DD)
-- `targetTheme`: String?
-- `inheritedStreak`: Int (default: `0`)
-- `rules`: String[] (default: `[]`)
-- `isArchived`: Boolean (default: `false`)
-- `reportRead`: Boolean (default: `false`)
-- `verdict`: Json?
-- `revision`: Int (default: `1`)
-- Relations: `user` (User, cascade delete), `dailyLogs` (DailyLog[])
-- Indexes: `[userId]`, `[userId, isArchived]`, `[userId, startDate]`, `[id, userId, revision]`
-- Timestamps: `createdAt` (DateTime), `updatedAt` (DateTime)
-
-#### 3. DailyLog
-- `id`: String (cuid, primary key)
-- `userId`: String (indexed)
-- `cycleId`: String (indexed)
-- `date`: String (YYYY-MM-DD)
-- `status`: DayStatus (default: `STANDARD`)
-- `revision`: Int (default: `1`)
-- `wakeUp`: Boolean (default: `false`)
-- `workout`: Boolean (default: `false`)
-- `study`: Boolean (default: `false`)
-- `journal`: Boolean (default: `false`)
-- `hardTask`: Boolean (default: `false`)
-- `specialMission`: Boolean (default: `false`)
-- `failureReason`: String?
-- `failureTime`: String?
-- `autopsyNotes`: String?
-- `countermeasure`: String?
-- `aiFeedback`: String?
-- `notes`: String?
-- `lastClientOperationId`: String?
-- Relations: `user` (User, cascade delete), `cycle` (Cycle, cascade delete)
-- Unique constraints: `@@unique([cycleId, date])`, `@@unique([userId, date])`
-- Indexes: `[userId]`, `[cycleId]`, `[userId, date]`, `[userId, cycleId]`, `[id, userId, revision]`
-- Timestamps: `createdAt` (DateTime), `updatedAt` (DateTime)
-
-#### 4. OtpCode
-- `id`: String (cuid, primary key)
-- `identifier`: String (Canonical phone number: `09XXXXXXXXX`, indexed)
-- `purpose`: String (default: `"PHONE_REGISTRATION"`)
-- `codeHash`: String (SHA-256 hash)
-- `expiresAt`: DateTime
-- `verified`: Boolean (default: `false`)
-- `attempts`: Int (default: `0`)
-- `maxAttempts`: Int (default: `5`)
-- `lastSentAt`: DateTime (default: `now()`)
-- `consumedAt`: DateTime?
-- `userId`: String?
-- Relations: `user` (User?, cascade delete)
-- Indexes: `[identifier]`, `[identifier, verified]`, `[identifier, purpose]`, `[identifier, purpose, verified]`
-- Timestamps: `createdAt` (DateTime), `updatedAt` (DateTime)
-
-#### 5. Subscription
-- `id`: String (cuid, primary key)
-- `userId`: String (indexed)
-- `planId`: String
-- `amount`: Int
-- `authority`: String (unique, indexed)
-- `refId`: String?
-- `cardPan`: String?
-- `status`: SubscriptionStatus (default: `PENDING`)
-- `description`: String?
-- `expiresAt`: DateTime?
-- Relations: `user` (User, cascade delete)
-- Indexes: `[userId]`, `[authority]`, `[userId, status]`
-- Timestamps: `createdAt` (DateTime), `updatedAt` (DateTime)
+- **User**: `id` (cuid), `email` (unique), `phoneNumber` (unique), `name`, `passwordHash`, `role` (UserRole), `tier` (string), `isVip` (boolean), `vipSince` (DateTime), `vipExpiresAt` (DateTime), `paymentRefId` (string), `isAdmin` (boolean), `tokenVersion` (int), `nightOwlCutoffHour` (int), `accentTheme` (string), `cycles` (Cycle[]), `dailyLogs` (DailyLog[]), `subscriptions` (Subscription[]), `otpCodes` (OtpCode[]), `createdAt`, `updatedAt`.
+- **Cycle**: `id` (cuid), `userId` (FK User), `title`, `startDate`, `endDate`, `targetTheme`, `inheritedStreak`, `rules` (string[]), `isArchived`, `reportRead`, `verdict` (Json), `revision` (int), `dailyLogs` (DailyLog[]), `createdAt`, `updatedAt`.
+- **DailyLog**: `id` (cuid), `userId` (FK User), `cycleId` (FK Cycle), `date`, `status` (DayStatus), `revision` (int), `wakeUp` (boolean), `workout` (boolean), `study` (boolean), `journal` (boolean), `hardTask` (boolean), `specialMission` (boolean), `failureReason`, `failureTime`, `autopsyNotes`, `countermeasure`, `aiFeedback`, `notes`, `lastClientOperationId`, `createdAt`, `updatedAt`. (Unique on `[cycleId, date]` and `[userId, date]`).
+- **OtpCode**: `id` (cuid), `identifier`, `purpose`, `codeHash` (SHA-256 / HMAC-SHA256 string storage), `expiresAt`, `verified`, `attempts`, `maxAttempts`, `lastSentAt`, `consumedAt`, `userId` (FK User?), `createdAt`, `updatedAt`.
+- **Subscription**: `id` (cuid), `userId` (FK User), `planId`, `amount`, `authority` (unique), `refId`, `cardPan`, `status` (SubscriptionStatus), `description`, `expiresAt`, `createdAt`, `updatedAt`.
 
 ---
 
 ## 6. Authentication Flow
 
-### Phone/SMS OTP Registration
-1. **Client Request**: Client submits phone number to `POST /api/auth/register/request-otp`.
-2. **Canonicalization**: Server converts Persian/Arabic numerals to standard digits via `toEnglishDigits` and validates regex `^09\d{9}$`.
-3. **Throttling & Cooldown**: Server verifies minimum 60-second cooldown since `lastSentAt` and daily send quota.
-4. **Code Generation & Hash**: Generates 5-digit cryptographically random OTP. Code is stored as a SHA-256 hash in `OtpCode` table; plaintext code is never stored in DB.
-5. **SMS Dispatch**: Dispatches SMS via active `SmsProvider` (`MockSmsProvider` in dev/test; real provider or fail-closed in prod).
-6. **Verification & Creation**: Client submits phone number, 5-digit code, display name, and password to `POST /api/auth/register/verify-otp`.
-7. **Hash Comparison**: Server queries active unconsumed OTP, verifies attempts < `maxAttempts`, checks expiration (3 minutes), compares SHA-256 hash.
-8. **Password Hashing**: User password is encrypted with PBKDF2 (`salt:derivedHash`, 100,000 iterations, 64-byte key length, SHA-512).
-9. **User Record & Token Generation**: Creates user with default role `FREE` and `tokenVersion: 0`. Signs JWT containing `userId`, `phoneNumber`, `role`, `tier`, and `tokenVersion` (7-day expiration).
+Extracted from `server/otp/index.ts`, `server/auth.ts`, and `server/security.ts` [Verified from code]:
 
-### Password Login
-1. Client submits identifier (phone or email) and password to `POST /api/auth/login`.
-2. Server queries user by identifier. If user does not exist, server executes `verifyPassword` against `DUMMY_PASSWORD_HASH` to neutralize timing-based user enumeration attacks.
-3. Server executes timing-safe comparison (`crypto.timingSafeEqual`) on PBKDF2 derived hash.
-4. Returns user payload and signed JWT token.
-
-### Password Reset Flow
-1. Client requests OTP via `POST /api/auth/forgot-password` with identifier.
-2. Server generates OTP record with purpose `"PASSWORD_RESET"`.
-3. Client submits identifier, OTP code, and new password to `POST /api/auth/reset-password`.
-4. Upon verification, password is updated with a new PBKDF2 salt and hash.
-5. `tokenVersion` on user record is incremented by 1, instantly invalidating all previously issued tokens across all devices.
-
-### Development Quick Login
-- Enabled only when `ALLOW_TEST_SHORTCUTS=true` or `ENABLE_QUICK_LOGIN=true`.
-- Allows instant login to mock accounts (`test_user`, `ronin_free`, `super_admin`) without requiring SMS delivery.
-
-### Impersonation Flow
-1. Authenticated Admin requests `POST /api/admin/impersonate` with `targetUserId`.
-2. Server verifies admin privileges and logs event to audit storage (`server/audit.ts`).
-3. Server issues JWT with claims `isImpersonated: true` and `impersonatedBy: adminUserId`.
-4. Client stores admin recovery token in `sessionStorage` (`bushido_impersonator_token`) and uses target user's token.
-5. Server middleware explicitly checks `isImpersonated`: all admin routes reject impersonated tokens with HTTP 403 `IMPERSONATION_ACCESS_FORBIDDEN` to prevent privilege escalation.
-6. Admin returns to original session via `POST /api/admin/impersonate/exit`.
+- **Phone Canonicalization**: Persian/Arabic numerals are normalized to ASCII digits via `toEnglishDigits` and validated against regex `^09\d{9}$`.
+- **OTP Protection Architecture**:
+  - OTP codes are protected using **HMAC-SHA256** (`crypto.createHmac('sha256', secret)`).
+  - Keyed by `getJwtSecret()`.
+  - Bound to canonical phone number using the string template `${phoneNumber}:${code}`.
+  - Compared using `crypto.timingSafeEqual` over utf8 Buffers.
+- **Directly Verified OTP Controls** [Verified from code]:
+  - **60-second resend cooldown**: Enforced by comparing request timestamp with `lastSentAt` against `OTP_COOLDOWN_SECONDS` (60s).
+  - **180-second expiration**: Set by `OTP_EXPIRATION_SECONDS` (180s = 3 minutes).
+  - **Maximum 5 verification attempts**: `attempts` counter incremented on failure; blocked once `attempts >= maxAttempts` (5).
+  - **Purpose binding**: Validates `challenge.purpose === options.purpose` (e.g. `PHONE_REGISTRATION`, `PASSWORD_RESET`).
+  - **Challenge consumption**: Verified code marked with `consumedAt = new Date()` (or deleted) to prevent replay.
+  - **Cleanup following dispatch failure**: If SMS delivery fails, newly created OTP record is immediately deleted (`removeOtpRecord`).
+  - *Note on daily quota*: No daily send quota counter was found in the codebase.
+- **Password Hashing**: User passwords are encrypted with PBKDF2 (`salt:derivedHash`, 100,000 iterations, 64-byte key length, SHA-512) [Verified from code].
+- **Password Login Verification**: Uses `crypto.timingSafeEqual` on PBKDF2 derived hash. If the user does not exist, server verifies against a `DUMMY_PASSWORD_HASH` to neutralize timing enumeration [Verified from code].
+- **Session Tokens**: Issues 7-day signed JWT containing `userId`, `phoneNumber`, `role`, `tier`, and `tokenVersion` [Verified from code].
+- **Session Revocation**: `authMiddleware` checks `token.tokenVersion < user.tokenVersion`. If lower, rejects with `401 SESSION_REVOKED` [Verified from code].
+- **Admin Impersonation**: Admin issues impersonated JWT marked with `isImpersonated: true`. All admin-protected routes explicitly reject tokens where `isImpersonated === true` with HTTP 403 `IMPERSONATION_ACCESS_FORBIDDEN` [Verified from code].
 
 ---
 
 ## 7. Middleware Flow
 
-Incoming HTTP requests traverse the following pipeline in `server.ts`:
+Extracted from `server.ts` and `server/middleware/security.ts` [Verified from code]:
 
-```
-Incoming Request
-       │
-       ▼
-[1] Path Rewriter Middleware
-    (Normalizes x-forwarded-uri and path segments for serverless edge consistency)
-       │
-       ▼
-[2] Security Headers Middleware (setSecurityHeaders)
-    - Production: Strict HSTS, strict CSP (restricted script-src, frame-ancestors 'self', connect-src to self and Zarinpal), X-Frame-Options: SAMEORIGIN
-    - Dev / Test Shortcuts: Permissive CSP allowing frame-ancestors for AI Studio preview iframe
-    - Common: X-Content-Type-Options: nosniff, X-XSS-Protection: 1; mode=block, Referrer-Policy: strict-origin-when-cross-origin, removes X-Powered-By
-       │
-       ▼
-[3] Body Parser Middleware (express.json())
-       │
-       ▼
-[4] Health Bypass Check
-    (Passes /api/health and readiness probes without rate limiting or authentication)
-       │
-       ▼
-[5] Rate Limiting Middleware
-    - General API (/api): 100 requests per 1 minute window (apiRateLimiter)
-    - Auth Routes (/api/auth): 10 requests per 15 minute window (authRateLimiter)
-       │
-       ▼
-[6] Route Handler Pipeline
-    ├── Zod Request Validation (validateBody)
-    │   └── Returns HTTP 400 with Persian error message on schema failure
-    ├── Authentication (authMiddleware)
-    │   ├── Verifies Bearer JWT signature
-    │   ├── Verifies user existence in database
-    │   └── Enforces tokenVersion check (returns 401 SESSION_REVOKED if tokenVersion < user.tokenVersion)
-    ├── Role Protection (adminMiddleware / superAdminMiddleware)
-    │   ├── Enforces user.isAdmin === true or Super Admin identifier
-    │   └── Enforces defense-in-depth: rejects any token with isImpersonated === true (403)
-    └── Route Execution (Controllers & DB Transactions)
-       │
-       ▼
-[7] Static File & SPA Fallback (Production) / Vite Dev Middleware (Development)
-    (Serves static assets from dist/ and falls back unmatched GET requests to index.html)
-       │
-       ▼
-[8] Central Error Handling Middleware (errorHandler)
-    - Maps PreconditionRequiredError to HTTP 428
-    - Maps ConcurrencyConflictError to HTTP 409
-    - Maps ServiceUnavailableError to HTTP 503
-    - Censoring: Stack traces and internal error messages suppressed in production
-```
+1. **Path Rewriter**: Normalizes serverless forwarded URIs and preserves `/api` segments.
+2. **Security Headers (`setSecurityHeaders`)**:
+   - Production: Strict HSTS, CSP (`frame-ancestors 'self'`, connect-src to self and Zarinpal), `X-Frame-Options: SAMEORIGIN`.
+   - Dev / Test Shortcuts: Permissive CSP allowing preview iframe embeds.
+   - Common: `X-Content-Type-Options: nosniff`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, removes `X-Powered-By`.
+3. **Body Parser**: `express.json()`.
+4. **Health Check Bypass**: Bypasses rate limiting for `/api/health` and `/api/ready`.
+5. **Rate Limiting**:
+   - `apiRateLimiter`: 100 requests per 1 minute window on `/api`.
+   - `authRateLimiter`: 10 requests per 15 minute window on `/api/auth`.
+6. **Route Validation & Auth**:
+   - `validateBody(schema)`: Zod schema parsing.
+   - `authMiddleware`: JWT verification, DB user check, token version check.
+   - `adminMiddleware` / `superAdminMiddleware`: Role and super admin identifier verification, rejects impersonated tokens.
+7. **Static / SPA Serving**: Serves `dist/` and falls back non-API routes to `index.html` (in production) or mounts Vite dev middleware (in development).
+8. **Error Handler (`errorHandler`)**:
+   - Maps `PreconditionRequiredError` to HTTP 428.
+   - Maps `ConcurrencyConflictError` to HTTP 409.
+   - Maps `ServiceUnavailableError` to HTTP 503.
+   - Censoring: Suppresses stack traces and raw error messages in production.
 
 ---
 
 ## 8. Roles and Permissions
 
-### Role Matrix
+Extracted from `server/auth.ts` and `server/security.ts` [Verified from code]:
 
-| Capability / Resource | Guest / Anonymous | FREE (`ronin_free`) | VIP (`vip_samurai`) | ADMIN | SUPER_ADMIN (Commander) | Impersonated Session |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| View Battlefield UI | Yes (local/demo) | Yes | Yes | Yes | Yes | Yes |
-| Daily Habits Check | Yes (local) | Yes | Yes | Yes | Yes | Yes |
-| Sync to Database | No | Yes | Yes | Yes | Yes | Yes |
-| Cycles Creation | Local only | Standard (max 1 active) | Unlimited | Unlimited | Unlimited | Target User Quota |
-| Autopsy Analysis | Deterministic AI | Deterministic AI | Deterministic AI | Deterministic AI | Deterministic AI | Deterministic AI |
-| View Historical Archives | Local | Yes | Yes | Yes | Yes | Yes |
-| Access Admin Panel (`/admin`) | No | No | No | Yes | Yes | **Blocked (HTTP 403)** |
-| View System KPIs & Telemetry | No | No | No | Yes | Yes | **Blocked (HTTP 403)** |
-| Modify User Roles & VIP Dates | No | No | No | Yes | Yes | **Blocked (HTTP 403)** |
-| Initiate User Impersonation | No | No | No | Yes | Yes | **Blocked (HTTP 403)** |
-| Super Admin Root Endpoints | No | No | No | No | Yes | **Blocked (HTTP 403)** |
+- **Guest / Anonymous**: Local client state execution only. Cannot persist to cloud database.
+- **FREE (`ronin_free`)**: Standard daily logging, cycle tracking, autopsy analysis, sensei feedback. Limited to 1 active cycle.
+- **VIP (`vip_samurai`)**: Unlocks unlimited cycles, VIP badge, full history analytics.
+- **ADMIN**: Access to `/admin`, platform statistics, user management, role adjustments, impersonation, and transaction audits.
+- **SUPER_ADMIN**: Master commander identified by `SUPER_ADMIN_PHONE`, `SUPER_ADMIN_EMAIL`, or `SUPER_ADMIN_IDENTIFIER`. Root system privileges.
+- **Impersonated Session**: Operates in the target user's scope; hard-blocked from all `/api/admin/*` endpoints (HTTP 403).
 
 ---
 
-## 9. External Services
+## 9. External Services & Providers
 
-### 1. PostgreSQL Database
-- Connected through Prisma client.
-- Targets: Vercel Postgres, Neon, Supabase, Google Cloud SQL.
-- Connection string injected via `DATABASE_URL` / `POSTGRES_PRISMA_URL`.
+### Currently Configured or Observed
+- **PostgreSQL Database Target**: Configured via Prisma (`DATABASE_URL`, `POSTGRES_PRISMA_URL`) [Verified from committed configuration].
+- **Typography CDN**: Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) declared in `index.html` [Verified from code].
+- **Telegram Links**: Static community and support links to `t.me/BushidoSupport` and `t.me/BushidoDiscipline` in `src/data/moreTabData.ts` [Verified from code].
 
-### 2. SMS Gateway Service
-- Integrated via `SmsProvider` interface (`server/sms/index.ts`).
-- Current default: `MockSmsProvider` for dev/test environments (logs OTP codes to server console and maintains memory dispatch history).
-- Production behavior without configured gateway credentials: `FailClosedSmsProvider` returns `SMS_GATEWAY_UNCONFIGURED_IN_PRODUCTION`.
+### Current Deployment Context [Reported deployment context]
+- **Vercel**: Currently used for manual testing (`vercel.json`, `api/index.js`).
+- **Neon**: Currently used as the test PostgreSQL database via connection strings.
+- **SMS/OTP Provider**: Not yet live (runs `MockSmsProvider` in dev/test, fail-closed `FailClosedSmsProvider` in production).
+- **Payment Gateway**: Not yet live (runs `ProviderNeutralSimulatorAdapter` in dev/test, fails closed to `null` in production).
 
-### 3. Payment Gateway (Zarinpal)
-- Integrated via `PaymentGatewayAdapter` interface (`server/payment/adapter.ts`).
-- Current default: `ProviderNeutralSimulatorAdapter` for non-production environments (generates simulated authority and ref IDs).
-- Production behavior: `getPaymentAdapter()` returns `null` (fails closed) if a live provider adapter is not configured.
-- Content Security Policy permits connections to `api.zarinpal.com`, `payment.zarinpal.com`, and `sandbox.zarinpal.com`.
+### Structurally Possible [Verified from code]
+- **Generic PostgreSQL Providers**: Prisma client connects to any compliant PostgreSQL instance supporting SSL/pooled connection strings.
+- **Zarinpal**: Content Security Policy in `server/middleware/security.ts` includes `api.zarinpal.com`, `payment.zarinpal.com`, `sandbox.zarinpal.com`.
 
-### 4. CDN & Web Typography
-- Google Fonts: Preconnected and loaded via `fonts.googleapis.com` and `fonts.gstatic.com` in `index.html` for Vazirmatn, Plus Jakarta Sans, and JetBrains Mono.
-
-### 5. Community & Support Links
-- External support links pointed to Telegram channels: `https://t.me/BushidoSupport` and `https://t.me/BushidoDiscipline`.
+### Future Candidate [Reported deployment context]
+- **Liara**: A future deployment candidate, not current production.
 
 ---
 
 ## 10. Environment Variables Used
 
-### Defined in `.env.example`
+### Defined in `.env.example` [Verified from committed configuration]
 - `DATABASE_URL`: Primary PostgreSQL connection string used by Prisma.
 - `DIRECT_URL`: Unpooled PostgreSQL connection string used for migrations.
 - `POSTGRES_PRISMA_URL`: Alternative pooled database URL for Vercel Postgres.
 - `POSTGRES_URL_NON_POOLING`: Alternative unpooled direct URL for Vercel Postgres.
-- `JWT_SECRET`: Secret key used for signing and verifying JSON Web Tokens (mandatory ≥32 characters in production).
-- `ALLOW_TEST_SHORTCUTS`: Boolean flag (`"true"`) permitting test shortcuts, test accounts, and relaxed CSP in non-dev environments.
-- `ENABLE_QUICK_LOGIN`: Boolean flag (`"true"`/`"false"`) controlling availability of `/api/auth/quick-login`.
+- `JWT_SECRET`: Secret key used for signing and verifying JSON Web Tokens.
+- `ALLOW_TEST_SHORTCUTS`: Boolean flag permitting test shortcuts, test accounts, and relaxed CSP.
+- `ENABLE_QUICK_LOGIN`: Boolean flag controlling availability of `/api/auth/quick-login`.
 - `ENABLE_OTP_DEBUG`: Boolean flag exposing plain OTP codes in API responses for automated testing.
-- `SUPER_ADMIN_PHONE`: Canonical phone number identifying the Super Admin user.
+- `SUPER_ADMIN_PHONE`: Phone number identifying the Super Admin user.
 - `SUPER_ADMIN_EMAIL`: Email address identifying the Super Admin user.
 - `SUPER_ADMIN_IDENTIFIER`: Unified identifier for Super Admin identification.
 - `SUPER_ADMIN_PASS`: Default/seed password for Super Admin account.
 - `SUPER_ADMIN_NAME`: Display name for Super Admin user.
 - `ZARINPAL_MERCHANT_ID`: Merchant identifier for Zarinpal payment gateway integration.
 
-### Runtime Environment Variables Referenced in Code
+### Runtime Environment Variables Referenced in Code [Verified from code]
 - `NODE_ENV`: Runtime environment selector (`"production"`, `"development"`, `"test"`).
 - `POSTGRES_URL`, `POSTGRES_URL_POOLED`, `DATABASE_URL_POOLED`, `DATABASE_URL_UNPOOLED`: Fallback database URLs checked in `server/db/base.ts`.
-- `POSTGRES_HOST`, `PGHOST`, `POSTGRES_USER`, `PGUSER`, `POSTGRES_PASSWORD`, `PGPASSWORD`, `POSTGRES_DATABASE`, `PGDATABASE`, `POSTGRES_PORT`, `PGPORT`: Individual database parameters used to reconstruct connection URL in `server/db/base.ts`.
-- `ADMIN_PHONE`, `ADMIN_USERNAME`: Alternative identifier aliases checked in `server/security.ts`.
+- `POSTGRES_HOST`, `PGHOST`, `POSTGRES_USER`, `PGUSER`, `POSTGRES_PASSWORD`, `PGPASSWORD`, `POSTGRES_DATABASE`, `PGDATABASE`, `POSTGRES_PORT`, `PGPORT`: Individual database connection parameters in `server/db/base.ts`.
+- `ADMIN_PHONE`, `ADMIN_USERNAME`: Alternative identifier aliases in `server/security.ts`.
 - `VERCEL`, `VERCEL_ENV`, `NOW_REGION`: Deployment environment detection flags for Vercel serverless platform.
 - `AWS_LAMBDA_FUNCTION_NAME`: AWS Lambda serverless execution indicator.
-- `JEST_WORKER_ID`, `NODE_TEST_CONTEXT`: Test runner environment detection flags preventing server auto-start during test execution.
+- `JEST_WORKER_ID`, `NODE_TEST_CONTEXT`: Test runner environment detection flags.
 
 ---
 
 ## 11. Build Status
 
-- **Status**: Passing (`compile_applet` confirmed successful).
-- **Client Build**: Vite successfully bundles client assets into `dist/` (`index.html`, JavaScript modules, CSS assets).
-- **Server Build**: esbuild bundles `server.ts` into a CommonJS output (`dist/server.cjs`) with `--packages=external` and sourcemap generation.
-- **Prisma Generation**: `prisma generate` compiles the Prisma client matching `schema.prisma`.
+- **Status**: Verified [Verified from captured command output]
+- **Command**: `npm run build`
+- **Exit code**: `0`
+- **Captured Output**:
+  - `prisma generate`: `✔ Generated Prisma Client (v6.4.0) to ./node_modules/@prisma/client in 54ms`
+  - `vite build`: `dist/index.html 1.44 kB │ gzip: 0.69 kB`, `dist/assets/index-D_u001XU.css 41.30 kB │ gzip: 8.41 kB`, `dist/assets/index-CWG-j7rP.js 402.16 kB │ gzip: 120.14 kB`, built in 547ms
+  - `esbuild`: Bundled `server.ts` into `dist/server.cjs` (166.7kb) and `dist/server.cjs.map` (262.3kb) in 32ms
 
 ---
 
 ## 12. TypeScript Status
 
-- **Status**: Clean / 0 Errors.
-- **Verification Command**: `npm run lint` (`tsc --noEmit`).
-- **Configuration**: Strict mode enabled (`"strict": true`, `"noImplicitAny": true`, `"skipLibCheck": true` in `tsconfig.json`).
-- All server and client TypeScript source files compile with 0 type diagnostics.
+- **Configuration Behavior** [Verified from committed configuration]:
+  - `tsconfig.json` contains: `"target": "ES2022"`, `"module": "ESNext"`, `"moduleResolution": "bundler"`, `"include": ["src"]`.
+  - **Explicit strict mode is not configured**: `"strict": true` and `"noImplicitAny": true` are **not** present in `tsconfig.json`.
+  - **Inclusion Scope**: `tsconfig.json` currently includes `"src"` only.
+  - **Server and Test Coverage**: Server files (`server.ts`, `server/**/*.ts`) and tests (`tests/**/*.ts`) are not included in `tsconfig.json` `"include"`. Therefore, server and test TypeScript coverage by the lint command is not established.
+- **Command**: `npm run lint` (`tsc --noEmit`)
+- **Status**: Verified [Verified from captured command output]
+- **Exit code**: `0`
+- **Captured Output**: Clean exit with 0 diagnostics.
 
 ---
 
 ## 13. ESLint Status
 
-- **Status**: Not Installed / Not Configured.
-- `package.json` does not contain `eslint` or any `@eslint/*` or `@typescript-eslint/*` dependencies.
-- No `.eslintrc*` or `eslint.config.*` configuration file exists in the repository root.
-- The `npm run lint` script in `package.json` delegates directly to `tsc --noEmit`.
+- **Status**: Not Installed / Not Configured [Verified from committed configuration]
+- `package.json` contains no ESLint dependencies (`eslint`, `@eslint/*`, `@typescript-eslint/*`).
+- No ESLint configuration file exists in the repository root.
+- The `npm run lint` script maps strictly to `tsc --noEmit`.
 
 ---
 
-## 14. Known TODOs
+## 14. Test Status
 
-- **Total Active in Source Code**: 0.
-- Regex search across all production source files (`.ts`, `.tsx`, `.js`, `.mjs`, `.cjs`) returned 0 active `TODO` occurrences.
+- **Status**: Verified [Verified from captured command output]
+- **Command**: `npm test` (`tsx --test "tests/**/*.test.ts"`)
+- **Exit code**: `0`
+- **Captured Test Counts**:
+  - `# tests 885`
+  - `# suites 217`
+  - `# pass 885`
+  - `# fail 0`
+  - `# cancelled 0`
+  - `# skipped 0`
+  - `# todo 0`
+  - `# duration_ms 34322.478074`
 
 ---
 
-## 15. Known FIXMEs
+## 15. Known TODOs
 
-- **Total Active in Source Code**: 0.
-- Regex search across all production source files (`.ts`, `.tsx`, `.js`, `.mjs`, `.cjs`) returned 0 active `FIXME` occurrences.
+- **Total in Source Code**: 0 [Verified from captured command output via `grep -rnEI "TODO" --exclude-dir=node_modules --exclude-dir=dist .`].
 
 ---
 
-## 16. Current Risks Discovered
+## 16. Known FIXMEs
 
-1. **In-Memory Rate Limiter on Multi-Instance / Serverless**:
-   `rateLimitStore` in `server/middleware/security.ts` uses an in-process JavaScript `Map`. In a scaled, multi-container, or serverless deployment (such as Vercel serverless functions or horizontally autoscaled Cloud Run containers), rate limiting counters are not shared across instances and are reset upon instance termination or cold start.
+- **Total in Source Code**: 0 [Verified from captured command output via `grep -rnEI "FIXME" --exclude-dir=node_modules --exclude-dir=dist .`].
 
-2. **Production Fail-Closed on Unconfigured Payment Provider**:
-   `getPaymentAdapter()` in `server/payment/adapter.ts` strictly returns `null` in production unless an explicit live provider adapter is registered. In production environments where real Zarinpal gateway API calls are not yet wired to a production adapter, calling `/api/payment/request` fails closed with an unconfigured provider error.
+---
 
-3. **Production Fail-Closed on Unconfigured SMS Gateway**:
-   In production with `ALLOW_TEST_SHORTCUTS=false`, `MockSmsProvider` returns `SMS_GATEWAY_UNCONFIGURED_IN_PRODUCTION` because a live third-party SMS provider (e.g. Kavenegar, Ghasedak, etc.) is not wired into `server/sms/index.ts`.
+## 17. Current Risks Discovered
 
-4. **Dual Component / Bridge File Duplication**:
-   The repository contains mirrored component entries across two directory structures: `/src/components/*` and `/src/features/*` (for example, `src/components/AdminView.tsx` which re-exports from `src/features/admin/AdminView.tsx`), as well as duplicate utility files in `/src/utils/*` re-exporting from `/src/sync/*` and `/src/shared/utils/*`. While maintaining backwards compatibility, it maintains duplicate file handles across the project tree.
+1. **In-Memory Rate Limiter**:
+   - Description: `rateLimitStore` in `server/middleware/security.ts` uses an in-process JavaScript `Map`. In serverless or multi-instance configurations, counters are not shared across instances and reset on cold starts [Verified from code].
+   - Classification: Accepted temporary risk for the current Vercel manual-testing stage. Must be re-evaluated before public OTP/payment and horizontally scaled production.
 
-5. **Client Authentication Token Stored in Browser LocalStorage**:
-   The active JWT token is stored in client `localStorage` under the key `bushido_auth_token` (`src/sync/storageUtils.ts`). Any JavaScript code executing on the client origin has read access to this token, though this risk is mitigated by the Content Security Policy configured in `server/middleware/security.ts`.
+2. **Mock or Fail-Closed SMS and Payment Adapters**:
+   - Description: With live provider keys absent or unconfigured, `MockSmsProvider` / `ProviderNeutralSimulatorAdapter` are used in dev/test, and production fails closed (`SMS_GATEWAY_UNCONFIGURED_IN_PRODUCTION`, payment adapter returns `null`) [Verified from code].
+   - Classification: Expected current-state limitation, not a defect in the manual-testing stage. Production blocker before real launch.
+
+3. **Client-Side localStorage JWT**:
+   - Description: Active JWT token is persisted in browser `localStorage` under `bushido_auth_token` (`src/sync/storageUtils.ts`) [Verified from code].
+   - Classification: Security trade-off requiring a dedicated threat-model decision. (Content Security Policy is not declared a sufficient mitigation).
+
+4. **Transitional Compatibility Forwarding Files**:
+   - Description: Re-exporting bridge files exist across `/src/components/*` (mirroring `/src/features/*`) and `/src/utils/*` (mirroring `/src/sync/*` and `/src/shared/utils/*`) [Verified from code].
+   - Classification: Transitional architecture debt retained to preserve import compatibility without breaking active references.
