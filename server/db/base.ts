@@ -449,6 +449,10 @@ export function seedUserData(userId: string): { cycle: DBCycle; logs: DBDailyLog
 // Initialize Default Admin & Test Users
 // -------------------------------------------------------------
 export function ensureDefaultAdminAndUsers() {
+  if (!allowTestShortcuts()) {
+    return;
+  }
+
   const nowStr = new Date().toISOString();
   const nextYearStr = new Date(Date.now() + 365 * 86400000).toISOString();
 

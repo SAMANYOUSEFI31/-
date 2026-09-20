@@ -4,6 +4,7 @@ import { logImpersonationAudit } from './audit';
 import {
   generateToken,
   verifyToken,
+  getJwtSecret,
   isSuperAdminIdentifier,
   hashPassword,
   verifyPassword,
@@ -11,22 +12,26 @@ import {
   SUPER_ADMIN_EMAIL,
   SUPER_ADMIN_PASS,
   SUPER_ADMIN_NAME,
-  JWT_SECRET,
   allowTestShortcuts,
   parseStrictBoolean,
   isProduction,
+  isPublicProduction,
+  isStaging,
+  getAppEnvironment,
   isQuickLoginEnabled,
   isOtpDebugEnabled,
   isMockOtpEnabled,
   isMockPaymentEnabled,
   getSecurityCapabilities,
   DUMMY_PASSWORD_HASH,
-  type SecurityCapabilities
+  type SecurityCapabilities,
+  type AppEnvironment
 } from './security';
 
 export {
   generateToken,
   verifyToken,
+  getJwtSecret,
   isSuperAdminIdentifier,
   hashPassword,
   verifyPassword,
@@ -35,16 +40,19 @@ export {
   SUPER_ADMIN_EMAIL,
   SUPER_ADMIN_PASS,
   SUPER_ADMIN_NAME,
-  JWT_SECRET,
   allowTestShortcuts,
   parseStrictBoolean,
   isProduction,
+  isPublicProduction,
+  isStaging,
+  getAppEnvironment,
   isQuickLoginEnabled,
   isOtpDebugEnabled,
   isMockOtpEnabled,
   isMockPaymentEnabled,
   getSecurityCapabilities,
-  type SecurityCapabilities
+  type SecurityCapabilities,
+  type AppEnvironment
 };
 
 export * from './utils/phone';

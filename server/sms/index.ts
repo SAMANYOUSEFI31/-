@@ -1,4 +1,11 @@
-import { isProduction, allowTestShortcuts, isOtpDebugEnabled } from '../security.js';
+import {
+  isProduction,
+  isPublicProduction,
+  getAppEnvironment,
+  allowTestShortcuts,
+  isOtpDebugEnabled,
+  isMockOtpEnabled
+} from '../security.js';
 
 export const OTP_PURPOSES = {
   PHONE_REGISTRATION: 'PHONE_REGISTRATION',
@@ -61,12 +68,12 @@ export class MockSmsProvider implements SmsProvider {
   readonly name = 'mock_console_provider';
 
   async sendSms(options: SmsSendOptions): Promise<SmsSendResult> {
-    const isProd = isProduction();
-    const testAllowed = allowTestShortcuts();
+    const mockAllowed = isMockOtpEnabled();
+    const env = getAppEnvironment();
 
-    // If strictly in production and shortcuts are NOT allowed, and no live gateway is configured,
-    // we must fail-closed to prevent silent phantom registration.
-    if (isProd && !testAllowed) {
+    // In public production, invalid environment, or staging without explicit shortcuts: fail closed immediately.
+    // Raw OTP codes are NEVER logged or recorded by a mock provider in these environments.
+    if (!mockAllowed || env === 'production' || env === 'invalid') {
       return {
         success: false,
         provider: this.name,
@@ -85,17 +92,15 @@ export class MockSmsProvider implements SmsProvider {
 
     smsDispatchHistory.push(logEntry);
 
-    if (testAllowed || !isProd) {
-      const purposeFa =
-        options.purpose === 'PHONE_REGISTRATION'
-          ? 'ثبت‌نام شماره'
-          : options.purpose === 'PASSWORD_RESET'
-          ? 'بازیابی رمز عبور'
-          : 'احراز هویت';
-      console.log(
-        `[Bushido SMS Provider: ${this.name}] To: ${options.to} | Purpose: ${purposeFa} | Code: [ ${options.otpCode || 'N/A'} ]`
-      );
-    }
+    const purposeFa =
+      options.purpose === 'PHONE_REGISTRATION'
+        ? 'ثبت‌نام شماره'
+        : options.purpose === 'PASSWORD_RESET'
+        ? 'بازیابی رمز عبور'
+        : 'احراز هویت';
+    console.log(
+      `[Bushido SMS Provider: ${this.name}] To: ${options.to} | Purpose: ${purposeFa} | Code: [ ${options.otpCode || 'N/A'} ]`
+    );
 
     return {
       success: true,
@@ -126,6 +131,10 @@ export class FailClosedSmsProvider implements SmsProvider {
 let activeSmsProvider: SmsProvider = new MockSmsProvider();
 
 export function setSmsProvider(provider: SmsProvider): void {
+  // Guard: explicitly test/mock provider cannot bypass the public production boundary
+  if (isPublicProduction() && (provider instanceof MockSmsProvider || provider.name.includes('mock'))) {
+    return;
+  }
   activeSmsProvider = provider;
 }
 

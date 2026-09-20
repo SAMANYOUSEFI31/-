@@ -32,6 +32,8 @@ describe('Phase 5A: Provider-Neutral Payment Integrity Core Acceptance Suite', (
   let server: http.Server;
   let baseUrl = '';
 
+  process.env.JWT_SECRET = 'test-suite-secure-jwt-secret-key-32-chars-length';
+
   const userAId = 'user-warrior-alpha';
   const userBId = 'user-warrior-beta';
 

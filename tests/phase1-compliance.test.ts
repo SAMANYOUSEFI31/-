@@ -122,12 +122,12 @@ describe('Phase 1 Core Compliance & Acceptance Criteria Verification', () => {
       assert.equal(caps.otpDebugEnabled, false);
     });
 
-    it('enables test capabilities when ALLOW_TEST_SHORTCUTS is explicitly "true"', () => {
-      process.env.NODE_ENV = 'production';
+    it('enables test capabilities in staging when ALLOW_TEST_SHORTCUTS is explicitly "true"', () => {
+      process.env.APP_ENV = 'staging';
       process.env.ALLOW_TEST_SHORTCUTS = 'true';
 
       const caps = getSecurityCapabilities();
-      assert.equal(caps.isProduction, true);
+      assert.equal(caps.appEnvironment, 'staging');
       assert.equal(caps.testShortcutsEnabled, true);
       assert.equal(caps.quickLoginEnabled, true);
       assert.equal(caps.mockOtpEnabled, true);

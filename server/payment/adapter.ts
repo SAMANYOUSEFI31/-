@@ -18,7 +18,7 @@ import {
   PaymentVerificationResult,
   NormalizedPaymentError
 } from './types.js';
-import { isProduction } from '../security.js';
+import { isPublicProduction, getAppEnvironment, isMockPaymentEnabled } from '../security.js';
 
 export class ProviderNeutralSimulatorAdapter implements PaymentGatewayAdapter {
   public readonly name = 'Provider Neutral Dev Simulator';
@@ -88,12 +88,12 @@ let activeAdapterOverride: PaymentGatewayAdapter | null = null;
 
 /**
  * Set an explicit payment gateway adapter (restricted strictly to non-production testing environments).
- * In production, setting an adapter override is rejected/ignored regardless of ALLOW_TEST_SHORTCUTS.
+ * In public production or invalid environments, setting an adapter override is rejected/ignored regardless of ALLOW_TEST_SHORTCUTS.
  * Clearing the override (passing null) is always permitted for test cleanup.
  */
 export function setPaymentAdapterOverride(adapter: PaymentGatewayAdapter | null): void {
-  if (adapter !== null && isProduction()) {
-    // Fail closed: Never allow simulator/mock override in production regardless of shortcuts
+  if (adapter !== null && (isPublicProduction() || getAppEnvironment() === 'production' || getAppEnvironment() === 'invalid')) {
+    // Fail closed: Never allow simulator/mock override in production or invalid environment
     return;
   }
   activeAdapterOverride = adapter;
@@ -101,13 +101,19 @@ export function setPaymentAdapterOverride(adapter: PaymentGatewayAdapter | null)
 
 /**
  * Resolves the active payment gateway adapter based on environment.
- * In production, a simulator or test override must NEVER be returned,
+ * In public production or invalid environments, a simulator or test override must NEVER be returned,
  * and production without a configured real provider must return null.
- * ALLOW_TEST_SHORTCUTS=true must NEVER enable simulated payment in production.
+ * In staging, simulated payment is returned only when staging shortcuts are explicitly enabled.
  */
 export function getPaymentAdapter(): PaymentGatewayAdapter | null {
-  // Absolute production isolation: fail closed in production without a configured real provider
-  if (isProduction()) {
+  const env = getAppEnvironment();
+  // Absolute production and invalid environment isolation: fail closed
+  if (env === 'production' || env === 'invalid') {
+    return null;
+  }
+
+  // Staging isolation: fail closed unless staging shortcuts are explicitly enabled
+  if (env === 'staging' && !isMockPaymentEnabled()) {
     return null;
   }
 
@@ -115,6 +121,6 @@ export function getPaymentAdapter(): PaymentGatewayAdapter | null {
     return activeAdapterOverride;
   }
 
-  // Development / test simulator (never returned in production)
+  // Development / test simulator (or staging when shortcuts enabled)
   return new ProviderNeutralSimulatorAdapter();
 }

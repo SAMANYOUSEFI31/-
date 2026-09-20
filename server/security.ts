@@ -20,24 +20,80 @@ export function parseStrictBoolean(val?: string | null): boolean {
   return val.trim().toLowerCase() === 'true';
 }
 
-/** بررسی اینکه آیا محیط فعلی پروداکشن است */
+/**
+ * ساختار انواع محیط‌های اجرایی برنامه
+ */
+export type AppEnvironment = 'development' | 'test' | 'staging' | 'production' | 'invalid';
+
+/**
+ * تعیین محیط منطقی برنامه بر اساس متغیرهای APP_ENV و NODE_ENV
+ * قانون ارزیابی:
+ * ۱. اگر APP_ENV معتبر باشد، مقدار آن اعمال می‌شود.
+ * ۲. اگر APP_ENV غایب باشد:
+ *    - NODE_ENV=test -> test
+ *    - NODE_ENV=development -> development
+ *    - NODE_ENV=production -> production
+ *    - هر مقدار نامعتبر یا غایب دیگر در NODE_ENV -> development
+ * ۳. اگر APP_ENV مقدار نامعتبر داشته باشد -> invalid (Fail Closed)
+ */
+export function getAppEnvironment(): AppEnvironment {
+  const appEnvRaw = process.env.APP_ENV;
+  if (appEnvRaw !== undefined) {
+    const clean = appEnvRaw.trim().toLowerCase();
+    if (clean === 'development' || clean === 'test' || clean === 'staging' || clean === 'production') {
+      return clean;
+    }
+    return 'invalid';
+  }
+
+  const nodeEnv = (process.env.NODE_ENV || '').trim().toLowerCase();
+  if (nodeEnv === 'test') return 'test';
+  if (nodeEnv === 'development') return 'development';
+  if (nodeEnv === 'production') return 'production';
+  return 'development';
+}
+
+/** بررسی اینکه آیا محیط فعلی پروداکشن عمومی است */
+export function isPublicProduction(): boolean {
+  return getAppEnvironment() === 'production';
+}
+
+/** بررسی اینکه آیا محیط فعلی استیجینگ است */
+export function isStaging(): boolean {
+  return getAppEnvironment() === 'staging';
+}
+
+/** بررسی اینکه آیا محیط زمان‌اجرای نود/ویت پروداکشن است (جهت مدیریت فایل‌های استاتیک) */
 export function isProduction(): boolean {
   return (process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
 }
 
 /**
  * حالت تست و میانبرها:
- * در محیط توسعه/تست همیشه فعال است.
- * در محیط پروداکشن (مانند Vercel) صرفاً با ALLOW_TEST_SHORTCUTS=true فعال می‌گردد.
+ * - در پروداکشن عمومی و محیط‌های نامعتبر: همیشه غیرفعال (false) - متغیر ALLOW_TEST_SHORTCUTS هیچ تاثیری ندارد.
+ * - در استیجینگ: صرفاً با ALLOW_TEST_SHORTCUTS=true فعال می‌گردد.
+ * - در توسعه و تست: به‌طور پیش‌فرض فعال است.
  */
 export function allowTestShortcuts(): boolean {
-  if (!isProduction()) return true;
-  return parseStrictBoolean(process.env.ALLOW_TEST_SHORTCUTS);
+  const env = getAppEnvironment();
+  if (env === 'production' || env === 'invalid') {
+    return false;
+  }
+  if (env === 'staging') {
+    return parseStrictBoolean(process.env.ALLOW_TEST_SHORTCUTS);
+  }
+  return true;
 }
 
 /** بررسی فعال بودن قابلیت ورود سریع */
 export function isQuickLoginEnabled(): boolean {
-  if (!allowTestShortcuts()) return false;
+  const env = getAppEnvironment();
+  if (env === 'production' || env === 'invalid') {
+    return false;
+  }
+  if (!allowTestShortcuts()) {
+    return false;
+  }
   if (process.env.ENABLE_QUICK_LOGIN !== undefined) {
     return parseStrictBoolean(process.env.ENABLE_QUICK_LOGIN);
   }
@@ -46,23 +102,39 @@ export function isQuickLoginEnabled(): boolean {
 
 /** بررسی فعال بودن حالت دیباگ OTP */
 export function isOtpDebugEnabled(): boolean {
-  if (!allowTestShortcuts()) return false;
+  const env = getAppEnvironment();
+  if (env === 'production' || env === 'invalid') {
+    return false;
+  }
+  if (!allowTestShortcuts()) {
+    return false;
+  }
   return parseStrictBoolean(process.env.ENABLE_OTP_DEBUG);
 }
 
 /** بررسی فعال بودن OTP شبیه‌سازی‌شده (بدون درگاه پیامکی زنده) */
 export function isMockOtpEnabled(): boolean {
+  const env = getAppEnvironment();
+  if (env === 'production' || env === 'invalid') {
+    return false;
+  }
   return allowTestShortcuts();
 }
 
 /** بررسی فعال بودن پرداخت شبیه‌سازی‌شده (بدون درگاه زرین‌پال زنده) */
 export function isMockPaymentEnabled(): boolean {
+  const env = getAppEnvironment();
+  if (env === 'production' || env === 'invalid') {
+    return false;
+  }
   return allowTestShortcuts();
 }
 
 /** ساختار جامع قابلیت‌های امنیتی و محیطی سرور */
 export interface SecurityCapabilities {
+  appEnvironment: AppEnvironment;
   isProduction: boolean;
+  isPublicProduction: boolean;
   testShortcutsEnabled: boolean;
   quickLoginEnabled: boolean;
   otpDebugEnabled: boolean;
@@ -73,7 +145,9 @@ export interface SecurityCapabilities {
 /** دریافت وضعیت متمرکز تمامی قابلیت‌های امنیتی */
 export function getSecurityCapabilities(): SecurityCapabilities {
   return {
+    appEnvironment: getAppEnvironment(),
     isProduction: isProduction(),
+    isPublicProduction: isPublicProduction(),
     testShortcutsEnabled: allowTestShortcuts(),
     quickLoginEnabled: isQuickLoginEnabled(),
     otpDebugEnabled: isOtpDebugEnabled(),
@@ -84,29 +158,55 @@ export function getSecurityCapabilities(): SecurityCapabilities {
 
 export function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET?.trim();
-  const prod = isProduction();
-  const testAllowed = allowTestShortcuts();
+  const env = getAppEnvironment();
 
-  if (!secret) {
-    if (prod && !testAllowed) {
+  if (env === 'production') {
+    if (!secret) {
       throw new Error('FATAL: JWT_SECRET is required in production.');
     }
-    return 'dev-fallback-insecure-secret-key-change-in-production-32b';
+    if (secret.length < 32) {
+      throw new Error('FATAL: JWT_SECRET must be at least 32 characters in production.');
+    }
+    return secret;
   }
-  if (prod && secret.length < 32 && !testAllowed) {
-    throw new Error('FATAL: JWT_SECRET must be at least 32 characters.');
+
+  if (env === 'staging') {
+    if (!secret) {
+      throw new Error('FATAL: JWT_SECRET is required in staging.');
+    }
+    if (secret.length < 32) {
+      throw new Error('FATAL: JWT_SECRET must be at least 32 characters in staging.');
+    }
+    return secret;
+  }
+
+  if (env === 'invalid') {
+    if (!secret) {
+      throw new Error('FATAL: Invalid APP_ENV configuration and JWT_SECRET is missing.');
+    }
+    if (secret.length < 32) {
+      throw new Error('FATAL: JWT_SECRET must be at least 32 characters.');
+    }
+    return secret;
+  }
+
+  // Development and test
+  if (!secret) {
+    return 'dev-fallback-insecure-secret-key-change-in-production-32b';
   }
   return secret;
 }
 
 export function getSuperAdminIdentifier(): string {
+  const env = getAppEnvironment();
+  const isDevOrTest = env === 'development' || env === 'test';
   return (
     process.env.SUPER_ADMIN_IDENTIFIER ||
     process.env.ADMIN_PHONE ||
     process.env.ADMIN_USERNAME ||
     process.env.SUPER_ADMIN_PHONE ||
     process.env.SUPER_ADMIN_EMAIL ||
-    (allowTestShortcuts() ? 'admin' : '')
+    (isDevOrTest ? 'admin' : '')
   );
 }
 
@@ -176,11 +276,15 @@ export function isSuperAdminIdentifier(identifier?: string | null): boolean {
   return crypto.timingSafeEqual(a, b);
 }
 
-export const SUPER_ADMIN_PHONE = process.env.SUPER_ADMIN_PHONE || (allowTestShortcuts() ? '09120000000' : '');
-export const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || (allowTestShortcuts() ? 'admin@bushido.local' : '');
-export const SUPER_ADMIN_PASS = process.env.SUPER_ADMIN_PASS || (allowTestShortcuts() ? 'AdminPass123!' : '');
+export const SUPER_ADMIN_PHONE =
+  process.env.SUPER_ADMIN_PHONE ||
+  ((getAppEnvironment() === 'development' || getAppEnvironment() === 'test') ? '09120000000' : '');
+export const SUPER_ADMIN_EMAIL =
+  process.env.SUPER_ADMIN_EMAIL ||
+  ((getAppEnvironment() === 'development' || getAppEnvironment() === 'test') ? 'admin@bushido.local' : '');
+export const SUPER_ADMIN_PASS =
+  process.env.SUPER_ADMIN_PASS ||
+  ((getAppEnvironment() === 'development' || getAppEnvironment() === 'test') ? 'AdminPass123!' : '');
 export const SUPER_ADMIN_NAME = process.env.SUPER_ADMIN_NAME || 'فرمانده ارشد سامورایی';
 
-/** برای سازگاری با importهای قدیمی — دیگر در production مقدار ثابت ندارد */
-export const JWT_SECRET = process.env.JWT_SECRET || 'dev-fallback-insecure-secret-key-change-in-production-32b';
 
