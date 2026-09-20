@@ -74,6 +74,8 @@ import {
   apiRateLimiter,
   authRateLimiter,
   setSecurityHeaders,
+  requestIdMiddleware,
+  getRequestId,
   errorHandler
 } from './server/middleware/security.js';
 import {
@@ -105,6 +107,9 @@ const PORT = 3000;
 
 // Trust proxy required for Cloud Run / reverse proxies and IP-based rate limiting
 app.set('trust proxy', 1);
+
+// Request ID Middleware (Generates server-authoritative X-Request-ID for every request)
+app.use(requestIdMiddleware);
 
 // Vercel Serverless Gateway & Route Path Normalization
 // Preserves full /api/... path structure if serverless gateway passes forwarded URI

@@ -57,13 +57,33 @@
 
 ---
 
-## ۳. بررسی لاگ‌های سرور (Runtime Logs)
+## ۳. ردیابی خطاها و لاگ‌های ساختاریافته سرور (Operational Observability & Runtime Logs)
 
-کدهای لاگ با برچسب‌های استاندارد در خروجی کنسول ثبت می‌شوند:
-- `[Database] PostgreSQL connected via Prisma datasource`: اتصال موفق به Postgres.
-- `[Database] Running in self-hosted persistent file/memory database mode`: فعال بودن موتور پشتیبان محلی.
-- `[Bushido Auth]`: ثبت‌نام و نشست‌های کاربران.
-- `[RateLimit]`: مسدودسازی آی‌پی‌های ارسال‌کننده ریکوئست‌های بیش از حد مجاز.
+### شناسه ردیابی درخواست (`X-Request-ID`):
+- تمامی پاسخ‌های ارسالی سرور (موفق یا ناموفق) دارای هدر استاندارد `X-Request-ID` با یک مقدار UUID یکتا و غیرقابل دستکاری کلاینت هستند.
+- در صورت بروز خطای سمت کاربر یا دریافت گزارش خطا در استیجینگ/پروداکشن ورسل، مقدار هدر `X-Request-ID` را از تب Network یا پیام خطای کلاینت دریافت کنید.
+- در پنل **Vercel Runtime Logs**، شناسه `requestId` را جستجو کنید تا رویداد ساختاریافته مربوطه را بلافاصله بیابید.
+
+### فیلدهای ایمن رویدادهای خطای ۵۰۰ (`server_error`):
+هر خطای غیرمنتظره سرور به صورت یک خط JSON ساختاریافته ثبت می‌شود:
+```json
+{
+  "event": "server_error",
+  "requestId": "550e8400-e29b-41d4-a716-446655440000",
+  "method": "POST",
+  "path": "/api/cycles",
+  "statusCode": 500,
+  "errorCode": "INTERNAL_SERVER_ERROR",
+  "environment": "staging",
+  "timestamp": "2026-09-20T14:22:00.000Z",
+  "errorName": "DatabaseError",
+  "message": "An unexpected error occurred."
+}
+```
+
+### اصل مصونیت و عدم ثبت داده‌های حساس (Redaction Invariant):
+- بدنه درخواست‌ها (`request body`)، هدرهای کلاینت (`request headers`)، پارامترهای کوئری استرینگ (`query values`) و کوکی‌ها هرگز در لاگ‌ها ثبت نمی‌شوند.
+- کلیدهای احراز هویت (`Authorization`، توکن‌های JWT، کوکی‌ها)، کلمات عبور، کدهای OTP، مقادیر `JWT_SECRET`، آدرس‌های اتصال دیتابیس (`DATABASE_URL`) و اطلاعات پذیرنده پرداخت در صورت بروز در متن پیام خطا، به صورت خودکار با برچسب `[REDACTED]` جایگزین می‌شوند.
 
 ---
 

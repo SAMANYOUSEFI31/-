@@ -1,5 +1,43 @@
+import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
-import { isProduction, allowTestShortcuts } from '../security.js';
+import { getAppEnvironment, isProduction, isStaging, allowTestShortcuts } from '../security.js';
+
+declare global {
+  namespace Express {
+    interface Request {
+      id?: string;
+      requestId?: string;
+      inboundRequestId?: string;
+    }
+  }
+}
+
+/**
+ * Request ID Middleware
+ * Generates an authoritative, server-controlled unique request identifier.
+ * Attaches the identifier to the request and sets the X-Request-ID response header.
+ */
+export function requestIdMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const inbound = req.headers['x-request-id'];
+  if (typeof inbound === 'string' && inbound.trim()) {
+    req.inboundRequestId = inbound.trim();
+  }
+
+  const requestId = crypto.randomUUID();
+  req.id = requestId;
+  req.requestId = requestId;
+
+  res.setHeader('X-Request-ID', requestId);
+  next();
+}
+
+/**
+ * Safe accessor for request ID
+ */
+export function getRequestId(req?: Request | null): string {
+  if (!req) return '';
+  return req.requestId || req.id || '';
+}
 
 interface RateLimitEntry {
   count: number;
@@ -150,11 +188,76 @@ export class AppError extends Error {
 }
 
 /**
+ * Helper to sanitize error names for structured log output
+ */
+function sanitizeErrorName(rawName: any): string {
+  if (typeof rawName !== 'string' || !rawName.trim()) return 'Error';
+  return rawName.slice(0, 100).replace(/[^\w.-]/g, '_');
+}
+
+/**
+ * Helper to sanitize error messages according to environment policy
+ * In production: returns a generic safe message
+ * In dev/test/staging: redacts secrets, passwords, tokens, connection strings, and OTP codes
+ */
+function sanitizeErrorMessage(rawMessage: any, env: string): string {
+  if (env === 'production') {
+    return 'An internal server error occurred.';
+  }
+  if (typeof rawMessage !== 'string' || !rawMessage.trim()) {
+    return 'An unexpected error occurred.';
+  }
+
+  let sanitized = rawMessage;
+
+  // Redact known environment variables and secrets if present
+  const secretsToRedact = [
+    process.env.JWT_SECRET,
+    process.env.DATABASE_URL,
+    process.env.SUPER_ADMIN_PASS,
+    process.env.SUPER_ADMIN_PHONE,
+    process.env.SUPER_ADMIN_EMAIL,
+    process.env.ZARINPAL_MERCHANT_ID,
+    process.env.SMS_API_KEY,
+    process.env.ADMIN_PASS,
+    process.env.ADMIN_PHONE
+  ].filter((s): s is string => typeof s === 'string' && s.trim().length > 2);
+
+  for (const secret of secretsToRedact) {
+    sanitized = sanitized.split(secret).join('[REDACTED]');
+  }
+
+  // Redact Database connection URLs
+  sanitized = sanitized.replace(/(?:postgres(?:ql)?|mysql|mongodb|redis|sqlite):\/\/[^\s"']+/gi, '[REDACTED_DB_URL]');
+
+  // Redact Bearer tokens and JWTs
+  sanitized = sanitized.replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, 'Bearer [REDACTED_TOKEN]');
+  sanitized = sanitized.replace(/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+/g, '[REDACTED_JWT]');
+
+  // Redact key=value or header: value sensitive patterns
+  sanitized = sanitized.replace(/(?:password|pass|secret|token|authorization|cookie|apiKey|merchantId|otpCode|otp_code)\s*[:=]\s*([^\s,;]+)/gi, '$1=[REDACTED]');
+
+  // Redact labeled OTP / PIN digits
+  sanitized = sanitized.replace(/(?:otp|code|pin)\s*[:=]?\s*(\d{5,6})/gi, 'otp:[REDACTED_OTP]');
+
+  return sanitized;
+}
+
+/**
  * Unified API Error Handler Middleware (ErrorMap)
- * Item B4 & A9: Standard error response format and Stack Trace censoring in Production
+ * Item B4 & A9: Standard error response format and Stack Trace censoring in Production/Staging
+ * Emits correlated structured JSON logs for unexpected 5xx errors.
  */
 export function errorHandler(err: any, req: Request, res: Response, next: NextFunction): void {
   const isProd = isProduction();
+  const appEnv = getAppEnvironment();
+  const isStagingEnv = isStaging();
+  const suppressStack = isProd || isStagingEnv || appEnv === 'production' || appEnv === 'staging' || appEnv === 'invalid';
+
+  // Ensure X-Request-ID response header is preserved on error responses
+  if (!res.getHeader('X-Request-ID') && req.requestId) {
+    res.setHeader('X-Request-ID', req.requestId);
+  }
 
   if (err.name === 'PreconditionRequiredError' || err.code === 'PRECONDITION_REQUIRED') {
     res.status(err.statusCode || 428).json({
@@ -182,7 +285,7 @@ export function errorHandler(err: any, req: Request, res: Response, next: NextFu
     res.status(503).json({
       code: 'SERVICE_UNAVAILABLE',
       messageFa: err.messageFa || 'سرویس پایگاه داده در دسترس نیست. لطفاً دقایقی دیگر مجدداً تلاش نمایید.',
-      message: isProd ? 'Database persistence service is currently unavailable.' : (err.message || 'Database persistence service is currently unavailable.')
+      message: suppressStack ? 'Database persistence service is currently unavailable.' : (err.message || 'Database persistence service is currently unavailable.')
     });
     return;
   }
@@ -202,14 +305,14 @@ export function errorHandler(err: any, req: Request, res: Response, next: NextFu
     messageFa,
   };
 
-  if (!isProd) {
+  if (!suppressStack) {
     responseBody.message = err.message || 'An unexpected error occurred.';
     if (err.details !== undefined) {
       responseBody.details = err.details;
     }
     responseBody.stack = err.stack;
   } else {
-    // Suppress sensitive stack traces and internal errors in production
+    // Suppress sensitive stack traces and internal errors in production / staging
     if (statusCode < 500) {
       responseBody.message = err.message;
       if (err.details !== undefined) {
@@ -218,6 +321,25 @@ export function errorHandler(err: any, req: Request, res: Response, next: NextFu
     } else {
       responseBody.message = 'An internal server error occurred.';
     }
+  }
+
+  // Structured Server-Side Error Logging for unexpected 5xx errors
+  if (statusCode >= 500) {
+    const rawPath = (req.baseUrl ? req.baseUrl + req.path : req.path) || (req.originalUrl ? req.originalUrl.split('?')[0] : '') || '/';
+    const normalizedPath = rawPath.split('?')[0];
+    const structuredLog = {
+      event: 'server_error',
+      requestId: req.requestId || req.id || (res.getHeader('X-Request-ID') as string) || 'unknown',
+      method: req.method || 'UNKNOWN',
+      path: normalizedPath,
+      statusCode,
+      errorCode: code,
+      environment: appEnv,
+      timestamp: new Date().toISOString(),
+      errorName: sanitizeErrorName(err?.name),
+      message: sanitizeErrorMessage(err?.message, appEnv),
+    };
+    console.error(JSON.stringify(structuredLog));
   }
 
   res.status(statusCode).json(responseBody);
