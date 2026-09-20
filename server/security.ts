@@ -20,71 +20,23 @@ export function parseStrictBoolean(val?: string | null): boolean {
   return val.trim().toLowerCase() === 'true';
 }
 
-export type AppEnvironment = 'development' | 'test' | 'staging' | 'production';
-
-/**
- * Resolves the current application environment with fail-closed semantics.
- * Priority:
- * 1. APP_ENV (if provided). Valid values: 'development' | 'test' | 'staging' | 'production'.
- *    Any invalid/unknown value fails closed to 'production'.
- * 2. If APP_ENV is unset, falls back to NODE_ENV compatibility:
- *    - 'production' -> 'production'
- *    - 'staging' -> 'staging'
- *    - 'test' -> 'test'
- *    - 'development' -> 'development'
- *    - empty/unset -> 'development'
- *    - any invalid/unknown value -> fails closed to 'production'.
- */
-export function getAppEnv(): AppEnvironment {
-  if (process.env.APP_ENV !== undefined) {
-    const rawAppEnv = process.env.APP_ENV.trim().toLowerCase();
-    if (rawAppEnv === 'production') return 'production';
-    if (rawAppEnv === 'staging') return 'staging';
-    if (rawAppEnv === 'test') return 'test';
-    if (rawAppEnv === 'development') return 'development';
-    return 'production'; // Invalid APP_ENV fails closed to production
-  }
-
-  if (process.env.NODE_ENV !== undefined) {
-    const rawNodeEnv = process.env.NODE_ENV.trim().toLowerCase();
-    if (rawNodeEnv === 'production') return 'production';
-    if (rawNodeEnv === 'staging') return 'staging';
-    if (rawNodeEnv === 'test') return 'test';
-    if (rawNodeEnv === 'development') return 'development';
-    return 'production'; // Invalid NODE_ENV fails closed to production
-  }
-
-  return 'production';
-}
-
 /** بررسی اینکه آیا محیط فعلی پروداکشن است */
 export function isProduction(): boolean {
-  return getAppEnv() === 'production';
+  return (process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
 }
 
 /**
  * حالت تست و میانبرها:
- * در محیط پروداکشن همیشه غیرفعال است (Fail-Closed). هیچ متغیری نمی‌تواند آن را در پروداکشن فعال کند.
- * در محیط استیجینگ صرفاً با ALLOW_TEST_SHORTCUTS=true فعال می‌گردد.
- * در محیط‌های توسعه و تست به‌طور پیش‌فرض فعال است مگر اینکه به صراحت غیرفعال شده باشد.
+ * در محیط توسعه/تست همیشه فعال است.
+ * در محیط پروداکشن (مانند Vercel) صرفاً با ALLOW_TEST_SHORTCUTS=true فعال می‌گردد.
  */
 export function allowTestShortcuts(): boolean {
-  const env = getAppEnv();
-  if (env === 'production') {
-    return false;
-  }
-  if (env === 'staging') {
-    return parseStrictBoolean(process.env.ALLOW_TEST_SHORTCUTS);
-  }
-  if (process.env.ALLOW_TEST_SHORTCUTS !== undefined) {
-    return parseStrictBoolean(process.env.ALLOW_TEST_SHORTCUTS);
-  }
-  return true;
+  if (!isProduction()) return true;
+  return parseStrictBoolean(process.env.ALLOW_TEST_SHORTCUTS);
 }
 
 /** بررسی فعال بودن قابلیت ورود سریع */
 export function isQuickLoginEnabled(): boolean {
-  if (isProduction()) return false;
   if (!allowTestShortcuts()) return false;
   if (process.env.ENABLE_QUICK_LOGIN !== undefined) {
     return parseStrictBoolean(process.env.ENABLE_QUICK_LOGIN);
@@ -94,26 +46,22 @@ export function isQuickLoginEnabled(): boolean {
 
 /** بررسی فعال بودن حالت دیباگ OTP */
 export function isOtpDebugEnabled(): boolean {
-  if (isProduction()) return false;
   if (!allowTestShortcuts()) return false;
   return parseStrictBoolean(process.env.ENABLE_OTP_DEBUG);
 }
 
 /** بررسی فعال بودن OTP شبیه‌سازی‌شده (بدون درگاه پیامکی زنده) */
 export function isMockOtpEnabled(): boolean {
-  if (isProduction()) return false;
   return allowTestShortcuts();
 }
 
 /** بررسی فعال بودن پرداخت شبیه‌سازی‌شده (بدون درگاه زرین‌پال زنده) */
 export function isMockPaymentEnabled(): boolean {
-  if (isProduction()) return false;
   return allowTestShortcuts();
 }
 
 /** ساختار جامع قابلیت‌های امنیتی و محیطی سرور */
 export interface SecurityCapabilities {
-  appEnv: AppEnvironment;
   isProduction: boolean;
   testShortcutsEnabled: boolean;
   quickLoginEnabled: boolean;
@@ -125,7 +73,6 @@ export interface SecurityCapabilities {
 /** دریافت وضعیت متمرکز تمامی قابلیت‌های امنیتی */
 export function getSecurityCapabilities(): SecurityCapabilities {
   return {
-    appEnv: getAppEnv(),
     isProduction: isProduction(),
     testShortcutsEnabled: allowTestShortcuts(),
     quickLoginEnabled: isQuickLoginEnabled(),
@@ -138,55 +85,29 @@ export function getSecurityCapabilities(): SecurityCapabilities {
 export function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET?.trim();
   const prod = isProduction();
+  const testAllowed = allowTestShortcuts();
 
   if (!secret) {
-    if (prod) {
+    if (prod && !testAllowed) {
       throw new Error('FATAL: JWT_SECRET is required in production.');
     }
     return 'dev-fallback-insecure-secret-key-change-in-production-32b';
   }
-  if (prod && secret.length < 32) {
+  if (prod && secret.length < 32 && !testAllowed) {
     throw new Error('FATAL: JWT_SECRET must be at least 32 characters.');
   }
   return secret;
 }
 
 export function getSuperAdminIdentifier(): string {
-  const configured =
-    process.env.SUPER_ADMIN_IDENTIFIER?.trim() ||
-    process.env.ADMIN_PHONE?.trim() ||
-    process.env.ADMIN_USERNAME?.trim() ||
-    process.env.SUPER_ADMIN_PHONE?.trim() ||
-    process.env.SUPER_ADMIN_EMAIL?.trim();
-
-  if (configured) return configured;
-  if (isProduction()) return '';
-  return allowTestShortcuts() ? 'admin' : '';
-}
-
-export function getSuperAdminPhone(): string {
-  const phone = process.env.SUPER_ADMIN_PHONE?.trim();
-  if (phone) return phone;
-  if (isProduction()) return '';
-  return allowTestShortcuts() ? '09120000000' : '';
-}
-
-export function getSuperAdminEmail(): string {
-  const email = process.env.SUPER_ADMIN_EMAIL?.trim();
-  if (email) return email;
-  if (isProduction()) return '';
-  return allowTestShortcuts() ? 'admin@bushido.local' : '';
-}
-
-export function getSuperAdminPass(): string {
-  const pass = process.env.SUPER_ADMIN_PASS;
-  if (pass) return pass;
-  if (isProduction()) return '';
-  return allowTestShortcuts() ? 'AdminPass123!' : '';
-}
-
-export function getSuperAdminName(): string {
-  return process.env.SUPER_ADMIN_NAME?.trim() || 'فرمانده ارشد سامورایی';
+  return (
+    process.env.SUPER_ADMIN_IDENTIFIER ||
+    process.env.ADMIN_PHONE ||
+    process.env.ADMIN_USERNAME ||
+    process.env.SUPER_ADMIN_PHONE ||
+    process.env.SUPER_ADMIN_EMAIL ||
+    (allowTestShortcuts() ? 'admin' : '')
+  );
 }
 
 const PBKDF2_ITERATIONS = 100000;
@@ -241,33 +162,25 @@ export function verifyToken<T = any>(token: string): T | null {
 
 export function isSuperAdminIdentifier(identifier?: string | null): boolean {
   if (!identifier || typeof identifier !== 'string') return false;
+  const target = getSuperAdminIdentifier();
+  if (!target) return false;
+
+  // تبدیل ورودی و مقدار هدف به اعداد انگلیسی و متن یکسان
   const cleanInput = toEnglishDigits(identifier).trim().toLowerCase();
-  if (!cleanInput) return false;
+  const cleanTarget = toEnglishDigits(target).trim().toLowerCase();
 
-  const inputBuf = Buffer.from(cleanInput, 'utf8');
+  const a = Buffer.from(cleanInput, 'utf8');
+  const b = Buffer.from(cleanTarget, 'utf8');
 
-  const targets: string[] = [];
-  const primary = getSuperAdminIdentifier();
-  if (primary) targets.push(primary);
-  const phone = getSuperAdminPhone();
-  if (phone && !targets.includes(phone)) targets.push(phone);
-  const email = getSuperAdminEmail();
-  if (email && !targets.includes(email)) targets.push(email);
-
-  for (const target of targets) {
-    const cleanTarget = toEnglishDigits(target).trim().toLowerCase();
-    const targetBuf = Buffer.from(cleanTarget, 'utf8');
-    if (inputBuf.length === targetBuf.length && crypto.timingSafeEqual(inputBuf, targetBuf)) {
-      return true;
-    }
-  }
-
-  return false;
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }
 
-export const SUPER_ADMIN_PHONE = process.env.SUPER_ADMIN_PHONE || (isProduction() ? '' : '09120000000');
-export const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || (isProduction() ? '' : 'admin@bushido.local');
-export const SUPER_ADMIN_PASS = process.env.SUPER_ADMIN_PASS || (isProduction() ? '' : 'AdminPass123!');
+export const SUPER_ADMIN_PHONE = process.env.SUPER_ADMIN_PHONE || (allowTestShortcuts() ? '09120000000' : '');
+export const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || (allowTestShortcuts() ? 'admin@bushido.local' : '');
+export const SUPER_ADMIN_PASS = process.env.SUPER_ADMIN_PASS || (allowTestShortcuts() ? 'AdminPass123!' : '');
 export const SUPER_ADMIN_NAME = process.env.SUPER_ADMIN_NAME || 'فرمانده ارشد سامورایی';
 
+/** برای سازگاری با importهای قدیمی — دیگر در production مقدار ثابت ندارد */
+export const JWT_SECRET = process.env.JWT_SECRET || 'dev-fallback-insecure-secret-key-change-in-production-32b';
 

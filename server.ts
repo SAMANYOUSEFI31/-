@@ -58,10 +58,6 @@ import {
   SUPER_ADMIN_EMAIL,
   SUPER_ADMIN_PASS,
   SUPER_ADMIN_NAME,
-  getSuperAdminPhone,
-  getSuperAdminEmail,
-  getSuperAdminPass,
-  getSuperAdminName,
   isSuperAdminIdentifier,
   hashPassword,
   verifyPassword,
@@ -443,28 +439,22 @@ app.post('/api/auth/login', validateBody(loginSchema), async (req, res, next) =>
     // Check Super Admin Hardened Shortcut
     const isMaster = isSuperAdminIdentifier(cleanId);
     let isValidMasterPass = false;
-    const masterPass = getSuperAdminPass();
-    if (masterPass && masterPass.length >= 8 && typeof password === 'string') {
+    if (SUPER_ADMIN_PASS && SUPER_ADMIN_PASS.length >= 8 && typeof password === 'string') {
       const passBuf = Buffer.from(password, 'utf8');
-      const masterBuf = Buffer.from(masterPass, 'utf8');
+      const masterBuf = Buffer.from(SUPER_ADMIN_PASS, 'utf8');
       if (passBuf.length === masterBuf.length) {
         isValidMasterPass = crypto.timingSafeEqual(passBuf, masterBuf);
       }
     }
 
     if (isMaster && isValidMasterPass) {
-      const masterPhone = getSuperAdminPhone();
-      const masterEmail = getSuperAdminEmail();
-      let masterAdmin =
-        (await findUserById('admin-master-001')) ||
-        (masterPhone ? await findUserByIdentifier(masterPhone) : null) ||
-        (masterEmail ? await findUserByIdentifier(masterEmail) : null);
+      let masterAdmin = (await findUserById('admin-master-001')) || (await findUserByIdentifier(SUPER_ADMIN_PHONE)) || (await findUserByIdentifier(SUPER_ADMIN_EMAIL));
       if (!masterAdmin) {
-        const hashedPassword = await hashPassword(masterPass);
+        const hashedPassword = await hashPassword(SUPER_ADMIN_PASS);
         masterAdmin = await createUser({
-          email: masterEmail || undefined,
-          phoneNumber: masterPhone || undefined,
-          name: getSuperAdminName(),
+          email: SUPER_ADMIN_EMAIL,
+          phoneNumber: SUPER_ADMIN_PHONE,
+          name: SUPER_ADMIN_NAME,
           passwordHash: hashedPassword,
           tier: 'vip_samurai',
           isVip: true,
@@ -764,8 +754,7 @@ app.post('/api/auth/quick-login', async (req, res, next) => {
     if (userId) {
       user = await findUserById(userId);
     } else if (role === 'admin') {
-      const masterPhone = getSuperAdminPhone();
-      user = (await findUserById('admin-master-001')) || (masterPhone ? await findUserByIdentifier(masterPhone) : null);
+      user = (await findUserById('admin-master-001')) || (await findUserByIdentifier(SUPER_ADMIN_PHONE));
     } else if (role === 'test_user') {
       user = (await findUserById('test-user-001')) || (await findUserByIdentifier('test@bushido.app'));
     }
@@ -1546,10 +1535,8 @@ app.get('/api/subscriptions/my', authMiddleware, handleGetUserSubscriptions);
 
 function checkIsSuperAdminUser(user?: { email?: string | null; phoneNumber?: string | null } | null): boolean {
   if (!user) return false;
-  const masterPhone = getSuperAdminPhone();
-  const masterEmail = getSuperAdminEmail();
-  if (user.phoneNumber && (isSuperAdminIdentifier(user.phoneNumber) || (masterPhone && user.phoneNumber === masterPhone))) return true;
-  if (user.email && (isSuperAdminIdentifier(user.email) || (masterEmail && user.email === masterEmail))) return true;
+  if (user.phoneNumber && (isSuperAdminIdentifier(user.phoneNumber) || (SUPER_ADMIN_PHONE && user.phoneNumber === SUPER_ADMIN_PHONE))) return true;
+  if (user.email && (isSuperAdminIdentifier(user.email) || (SUPER_ADMIN_EMAIL && user.email === SUPER_ADMIN_EMAIL))) return true;
   return false;
 }
 
