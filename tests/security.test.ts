@@ -33,6 +33,11 @@ import {
   setPaymentAdapterOverride,
   ProviderNeutralSimulatorAdapter
 } from '../server/payment/adapter.js';
+import {
+  createOtpChallenge,
+  verifyOtpChallenge
+} from '../server/otp/index.js';
+import { memoryStore } from '../server/db/index.js';
 
 describe('Phase 2A: Production Safety Boundaries & Security Matrix', () => {
   describe('Persian / Arabic Digit Normalization', () => {
@@ -428,6 +433,139 @@ describe('Phase 2A: Production Safety Boundaries & Security Matrix', () => {
         assert.equal(isSuperAdminIdentifier(null), false);
       } finally {
         restoreEnv();
+      }
+    });
+  });
+
+  describe('OTP Debug Response Contract across Environments (Phase 2A Corrective)', () => {
+    const origEnv = { ...process.env };
+
+    const resetState = () => {
+      process.env = { ...origEnv };
+      memoryStore.otpCodes = [];
+      clearSmsHistory();
+      setSmsProvider(new MockSmsProvider());
+    };
+
+    it('Vercel Staging (NODE_ENV=production, APP_ENV=staging) returns generated 5-digit debugCode when authorized', async () => {
+      resetState();
+      try {
+        process.env.NODE_ENV = 'production';
+        process.env.APP_ENV = 'staging';
+        process.env.ALLOW_TEST_SHORTCUTS = 'true';
+        process.env.ENABLE_OTP_DEBUG = 'true';
+        process.env.JWT_SECRET = 'valid-staging-jwt-secret-with-minimum-32-characters!';
+
+        const res = await createOtpChallenge({
+          phoneNumber: '09123456789',
+          purpose: 'PHONE_REGISTRATION'
+        });
+
+        assert.equal(res.success, true);
+        if (res.success) {
+          assert.ok(res.debugCode, 'debugCode must exist on Vercel staging when authorized');
+          assert.equal(typeof res.debugCode, 'string');
+          assert.match(res.debugCode, /^\d{5}$/, 'debugCode must match exactly 5 ASCII digits');
+
+          // Ensure it is not a fixed universal code
+          const generatedCode = parseInt(res.debugCode, 10);
+          assert.ok(generatedCode >= 10000 && generatedCode <= 99999);
+
+          // Verification with debugCode succeeds
+          const verifyRes = await verifyOtpChallenge({
+            phoneNumber: '09123456789',
+            code: res.debugCode,
+            purpose: 'PHONE_REGISTRATION'
+          });
+          assert.equal(verifyRes.success, true);
+        }
+      } finally {
+        resetState();
+      }
+    });
+
+    it('Public Production (APP_ENV=production) NEVER returns debugCode, even with flags enabled', async () => {
+      resetState();
+      try {
+        process.env.NODE_ENV = 'production';
+        process.env.APP_ENV = 'production';
+        process.env.ALLOW_TEST_SHORTCUTS = 'true';
+        process.env.ENABLE_OTP_DEBUG = 'true';
+        process.env.JWT_SECRET = 'valid-production-jwt-secret-with-minimum-32-characters!';
+
+        // Under production, SMS dispatch to MockSmsProvider fails-closed
+        const res = await createOtpChallenge({
+          phoneNumber: '09123456789',
+          purpose: 'PHONE_REGISTRATION'
+        });
+
+        // Whether success or failure due to unconfigured SMS, debugCode MUST NOT be present
+        assert.equal('debugCode' in res && (res as any).debugCode, false, 'debugCode must never be returned in public production');
+      } finally {
+        resetState();
+      }
+    });
+
+    it('Staging without ENABLE_OTP_DEBUG (ENABLE_OTP_DEBUG=false or unset) does NOT return debugCode', async () => {
+      resetState();
+      try {
+        process.env.NODE_ENV = 'production';
+        process.env.APP_ENV = 'staging';
+        process.env.ALLOW_TEST_SHORTCUTS = 'true';
+        delete process.env.ENABLE_OTP_DEBUG;
+        process.env.JWT_SECRET = 'valid-staging-jwt-secret-with-minimum-32-characters!';
+
+        const res = await createOtpChallenge({
+          phoneNumber: '09123456789',
+          purpose: 'PHONE_REGISTRATION'
+        });
+
+        assert.equal(res.success, true);
+        if (res.success) {
+          assert.equal(res.debugCode, undefined, 'debugCode must be undefined when ENABLE_OTP_DEBUG is absent');
+        }
+      } finally {
+        resetState();
+      }
+    });
+
+    it('Staging without ALLOW_TEST_SHORTCUTS does NOT return debugCode', async () => {
+      resetState();
+      try {
+        process.env.NODE_ENV = 'production';
+        process.env.APP_ENV = 'staging';
+        delete process.env.ALLOW_TEST_SHORTCUTS;
+        process.env.ENABLE_OTP_DEBUG = 'true';
+        process.env.JWT_SECRET = 'valid-staging-jwt-secret-with-minimum-32-characters!';
+
+        const res = await createOtpChallenge({
+          phoneNumber: '09123456789',
+          purpose: 'PHONE_REGISTRATION'
+        });
+
+        assert.equal('debugCode' in res && (res as any).debugCode, false, 'debugCode must be absent when ALLOW_TEST_SHORTCUTS is not enabled');
+      } finally {
+        resetState();
+      }
+    });
+
+    it('Invalid explicit APP_ENV fails closed and does NOT return debugCode', async () => {
+      resetState();
+      try {
+        process.env.NODE_ENV = 'production';
+        process.env.APP_ENV = 'invalid_environment_name';
+        process.env.ALLOW_TEST_SHORTCUTS = 'true';
+        process.env.ENABLE_OTP_DEBUG = 'true';
+        process.env.JWT_SECRET = 'valid-staging-jwt-secret-with-minimum-32-characters!';
+
+        const res = await createOtpChallenge({
+          phoneNumber: '09123456789',
+          purpose: 'PHONE_REGISTRATION'
+        });
+
+        assert.equal('debugCode' in res && (res as any).debugCode, false, 'debugCode must be absent when APP_ENV is invalid');
+      } finally {
+        resetState();
       }
     });
   });

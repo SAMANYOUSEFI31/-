@@ -14,9 +14,7 @@ import { sendOtpSms, OTP_PURPOSES, type OtpPurposeType } from '../sms/index.js';
 import {
   getJwtSecret,
   toEnglishDigits,
-  isOtpDebugEnabled,
-  allowTestShortcuts,
-  isProduction
+  isOtpDebugEnabled
 } from '../security.js';
 
 export { OTP_PURPOSES };
@@ -171,8 +169,8 @@ export async function createOtpChallenge(
     cooldownSeconds: OTP_COOLDOWN_SECONDS
   };
 
-  // Public production must never log or return the raw OTP!
-  if (isOtpDebugEnabled() && allowTestShortcuts() && !isProduction()) {
+  // Return debugCode only when authorized by application security capability
+  if (isOtpDebugEnabled()) {
     result.debugCode = code;
   }
 
