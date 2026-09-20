@@ -18,6 +18,21 @@
 import { spawnSync } from "node:child_process";
 import { URL } from "node:url";
 import { PrismaClient } from "@prisma/client";
+import {
+  evaluatePreflightAssessment,
+  MigrationRecord,
+  ForeignKeyContract,
+  UniqueContract,
+  SchemaObjectsReport,
+  PreflightAssessmentInput,
+  PreflightAssessmentResult,
+  REQUIRED_TABLES,
+  REQUIRED_ENUMS,
+  REQUIRED_CRITICAL_COLUMNS,
+  REQUIRED_FOREIGN_KEYS,
+  REQUIRED_UNIQUE_CONTRACTS,
+  EXPECTED_INCREMENTAL_MIGRATIONS
+} from "./preflight-assessment";
 
 function sanitizeUrl(rawUrl: string): string {
   try {
@@ -38,7 +53,7 @@ function sanitizeText(text: string): string {
   );
 }
 
-interface PreflightReport {
+export interface DetailedPreflightReport {
   databaseIdentity: {
     targetUrlSanitized: string;
     databaseName: string;
@@ -50,11 +65,7 @@ interface PreflightReport {
   migrations: {
     migrationsTableExists: boolean;
     initialBaselineRecorded: boolean;
-    recordedMigrations: Array<{
-      migrationName: string;
-      finishedAt: Date | string | null;
-      appliedSteps: number;
-    }>;
+    recordedMigrations: MigrationRecord[];
     missingExpectedIncrementals: string[];
   };
   schemaIntegrity: {
@@ -62,60 +73,25 @@ interface PreflightReport {
     missingRequiredTables: string[];
     existingEnums: string[];
     missingRequiredEnums: string[];
-    verifiedForeignKeys: Array<{
-      table: string;
-      column: string;
-      foreignTable: string;
-      foreignColumn: string;
-      deleteRule: string;
-    }>;
+    verifiedForeignKeys: ForeignKeyContract[];
     missingForeignKeys: string[];
-    verifiedUniqueConstraints: string[];
+    verifiedUniqueContracts: Array<{ table: string; columns: string[] }>;
+    missingUniqueContracts: string[];
     criticalColumnsFound: string[];
     criticalColumnsMissing: string[];
   };
   schemaDrift: {
-    status: "ZERO_DRIFT" | "DRIFT_DETECTED" | "UNKNOWN_OR_ERROR";
+    status: "ZERO_DRIFT" | "DRIFT_DETECTED" | "VERIFICATION_ERROR";
     summary: string;
   };
-  baselineAdoption: {
-    applicable: boolean;
-    status: "APPLICABLE" | "ALREADY_BASELINED" | "BLOCKED";
-    reasons: string[];
-    recommendedAction: string;
-  };
-  humanReviewRequired: boolean;
+  assessment: PreflightAssessmentResult;
 }
 
-async function main() {
-  const args = process.argv.slice(2);
-  let rawUrl = process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL || "";
-
-  const urlArgIndex = args.indexOf("--url");
-  if (urlArgIndex !== -1 && args[urlArgIndex + 1]) {
-    rawUrl = args[urlArgIndex + 1];
-  }
-
-  if (!rawUrl) {
-    console.error("================================================================");
-    console.error("  READ-ONLY EXISTING-DATABASE PREFLIGHT INSPECTOR");
-    console.error("================================================================");
-    console.error("ERROR: No database URL provided.");
-    console.error("Usage:");
-    console.error("  npx tsx scripts/preflight-existing-database.ts --url <DATABASE_URL>");
-    console.error("  or set TARGET_DATABASE_URL=<DATABASE_URL>");
-    process.exit(1);
-  }
-
+export async function runPreflightInspection(rawUrl: string): Promise<DetailedPreflightReport> {
   const sanitizedTargetUrl = sanitizeUrl(rawUrl);
-
-  console.log("================================================================");
-  console.log("  READ-ONLY EXISTING-DATABASE PREFLIGHT INSPECTOR");
-  console.log("================================================================");
-  console.log(`[Read-Only Mode] Target: ${sanitizedTargetUrl}`);
-
   const parsedUrl = new URL(rawUrl);
   const hostname = parsedUrl.hostname.toLowerCase();
+
   let hostClassification: "local_loopback" | "private_network" | "remote_cloud" = "remote_cloud";
   if (["localhost", "127.0.0.1", "::1", "0.0.0.0"].includes(hostname)) {
     hostClassification = "local_loopback";
@@ -130,45 +106,6 @@ async function main() {
   const prisma = new PrismaClient({
     datasources: { db: { url: rawUrl } }
   });
-
-  const report: PreflightReport = {
-    databaseIdentity: {
-      targetUrlSanitized: sanitizedTargetUrl,
-      databaseName: parsedUrl.pathname.replace(/^\//, ""),
-      serverAddress: "unknown",
-      serverPort: parsedUrl.port || "5432",
-      serverVersion: "unknown",
-      hostClassification
-    },
-    migrations: {
-      migrationsTableExists: false,
-      initialBaselineRecorded: false,
-      recordedMigrations: [],
-      missingExpectedIncrementals: []
-    },
-    schemaIntegrity: {
-      existingTables: [],
-      missingRequiredTables: [],
-      existingEnums: [],
-      missingRequiredEnums: [],
-      verifiedForeignKeys: [],
-      missingForeignKeys: [],
-      verifiedUniqueConstraints: [],
-      criticalColumnsFound: [],
-      criticalColumnsMissing: []
-    },
-    schemaDrift: {
-      status: "UNKNOWN_OR_ERROR",
-      summary: ""
-    },
-    baselineAdoption: {
-      applicable: false,
-      status: "BLOCKED",
-      reasons: [],
-      recommendedAction: "Human review required before performing any migration."
-    },
-    humanReviewRequired: true
-  };
 
   try {
     // 1. Inspect Server & Database Identity (READ-ONLY)
@@ -185,54 +122,47 @@ async function main() {
         version();
     `);
 
-    if (dbIdentity && dbIdentity.length > 0) {
-      report.databaseIdentity.databaseName = dbIdentity[0].current_database;
-      report.databaseIdentity.serverAddress = dbIdentity[0].inet_server_addr || hostname;
-      report.databaseIdentity.serverPort = String(dbIdentity[0].inet_server_port || parsedUrl.port || 5432);
-      report.databaseIdentity.serverVersion = dbIdentity[0].version.split(" on ")[0];
-    }
+    const serverAddress = dbIdentity[0]?.inet_server_addr || hostname;
+    const serverPort = String(dbIdentity[0]?.inet_server_port || parsedUrl.port || 5432);
+    const serverVersion = dbIdentity[0]?.version ? dbIdentity[0].version.split(" on ")[0] : "unknown";
+    const databaseName = dbIdentity[0]?.current_database || parsedUrl.pathname.replace(/^\//, "");
 
-    // 2. Check for _prisma_migrations table (READ-ONLY)
+    // 2. Inspect _prisma_migrations table (READ-ONLY)
     const migrationTableCheck: Array<{ count: number }> = await prisma.$queryRawUnsafe(`
       SELECT count(*)::int as count
       FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name = '_prisma_migrations';
     `);
 
-    report.migrations.migrationsTableExists = (migrationTableCheck[0]?.count || 0) > 0;
+    const migrationsTableExists = (migrationTableCheck[0]?.count || 0) > 0;
+    let recordedMigrations: MigrationRecord[] = [];
 
-    if (report.migrations.migrationsTableExists) {
-      const recordedMigrations: Array<{
+    if (migrationsTableExists) {
+      const rawRecords: Array<{
+        id: string;
+        checksum: string;
         migration_name: string;
+        started_at: Date | null;
         finished_at: Date | null;
+        rolled_back_at: Date | null;
         applied_steps_count: number;
+        logs: string | null;
       }> = await prisma.$queryRawUnsafe(`
-        SELECT migration_name, finished_at, applied_steps_count
+        SELECT id, checksum, migration_name, started_at, finished_at, rolled_back_at, applied_steps_count, logs
         FROM _prisma_migrations
         ORDER BY started_at ASC;
       `);
 
-      report.migrations.recordedMigrations = recordedMigrations.map((m) => ({
-        migrationName: m.migration_name,
-        finishedAt: m.finished_at,
-        appliedSteps: m.applied_steps_count
+      recordedMigrations = rawRecords.map((r) => ({
+        id: r.id,
+        checksum: r.checksum,
+        migrationName: r.migration_name,
+        startedAt: r.started_at,
+        finishedAt: r.finished_at,
+        rolledBackAt: r.rolled_back_at,
+        appliedSteps: r.applied_steps_count,
+        logs: r.logs
       }));
-
-      report.migrations.initialBaselineRecorded = recordedMigrations.some(
-        (m) => m.migration_name === "20260901_initial_baseline" && m.finished_at !== null
-      );
-
-      const expectedIncrementals = [
-        "20260903_phase2b_otp_persistence",
-        "20260905_phase4_concurrency_tokens",
-        "20260905_phase4b_durable_idempotency"
-      ];
-
-      for (const inc of expectedIncrementals) {
-        if (!recordedMigrations.some((m) => m.migration_name === inc && m.finished_at !== null)) {
-          report.migrations.missingExpectedIncrementals.push(inc);
-        }
-      }
     }
 
     // 3. Inspect Tables (READ-ONLY)
@@ -241,11 +171,7 @@ async function main() {
       FROM information_schema.tables
       WHERE table_schema = 'public' AND table_type = 'BASE TABLE';
     `);
-    const tableNames = tables.map((t) => t.table_name);
-    report.schemaIntegrity.existingTables = tableNames;
-
-    const requiredTables = ["User", "Cycle", "DailyLog", "OtpCode", "Subscription"];
-    report.schemaIntegrity.missingRequiredTables = requiredTables.filter((t) => !tableNames.includes(t));
+    const existingTables = tables.map((t) => t.table_name);
 
     // 4. Inspect Enums (READ-ONLY)
     const enums: Array<{ typname: string }> = await prisma.$queryRawUnsafe(`
@@ -253,13 +179,17 @@ async function main() {
       FROM pg_type
       WHERE typname IN ('UserRole', 'UserTier', 'DayStatus', 'SubscriptionStatus');
     `);
-    const enumNames = enums.map((e) => e.typname);
-    report.schemaIntegrity.existingEnums = enumNames;
+    const existingEnums = enums.map((e) => e.typname);
 
-    const requiredEnums = ["UserRole", "UserTier", "DayStatus", "SubscriptionStatus"];
-    report.schemaIntegrity.missingRequiredEnums = requiredEnums.filter((e) => !enumNames.includes(e));
+    // 5. Inspect Columns (READ-ONLY)
+    const columns: Array<{ table_name: string; column_name: string }> = await prisma.$queryRawUnsafe(`
+      SELECT table_name, column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public';
+    `);
+    const existingColumns = columns.map((c) => ({ table: c.table_name, column: c.column_name }));
 
-    // 5. Inspect Foreign Keys (READ-ONLY)
+    // 6. Inspect Foreign Keys with CASCADE (READ-ONLY)
     interface ForeignKeyRow {
       table_name: string;
       column_name: string;
@@ -289,75 +219,64 @@ async function main() {
         AND tc.table_schema = 'public';
     `);
 
-    const expectedForeignKeys = [
-      { table: "Cycle", column: "userId", foreignTable: "User", foreignColumn: "id", deleteRule: "CASCADE" },
-      { table: "DailyLog", column: "userId", foreignTable: "User", foreignColumn: "id", deleteRule: "CASCADE" },
-      { table: "DailyLog", column: "cycleId", foreignTable: "Cycle", foreignColumn: "id", deleteRule: "CASCADE" },
-      { table: "OtpCode", column: "userId", foreignTable: "User", foreignColumn: "id", deleteRule: "CASCADE" },
-      { table: "Subscription", column: "userId", foreignTable: "User", foreignColumn: "id", deleteRule: "CASCADE" }
-    ];
-
-    for (const exp of expectedForeignKeys) {
+    const verifiedForeignKeys: ForeignKeyContract[] = [];
+    for (const req of REQUIRED_FOREIGN_KEYS) {
       const match = discoveredFks.find(
         (f) =>
-          f.table_name === exp.table &&
-          f.column_name === exp.column &&
-          f.foreign_table_name === exp.foreignTable &&
-          f.foreign_column_name === exp.foreignColumn
+          f.table_name === req.table &&
+          f.column_name === req.column &&
+          f.foreign_table_name === req.foreignTable &&
+          f.foreign_column_name === req.foreignColumn &&
+          f.delete_rule === req.deleteRule
       );
-
-      if (match && match.delete_rule === exp.deleteRule) {
-        report.schemaIntegrity.verifiedForeignKeys.push(exp);
-      } else {
-        report.schemaIntegrity.missingForeignKeys.push(
-          `${exp.table}.${exp.column} -> ${exp.foreignTable}.${exp.foreignColumn} [${exp.deleteRule}]`
-        );
+      if (match) {
+        verifiedForeignKeys.push(req);
       }
     }
 
-    // 6. Inspect Critical Columns (READ-ONLY)
-    const columns: Array<{ table_name: string; column_name: string }> = await prisma.$queryRawUnsafe(`
-      SELECT table_name, column_name
-      FROM information_schema.columns
-      WHERE table_schema = 'public';
+    // 7. Inspect Unique Contracts from pg_index catalog (READ-ONLY)
+    const uniqueIndexesRows: Array<{ table_name: string; column_names: string[] }> = await prisma.$queryRawUnsafe(`
+      SELECT
+        t.relname AS table_name,
+        i.relname AS index_name,
+        array_to_json(array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum))) AS column_names
+      FROM pg_index ix
+      JOIN pg_class t ON t.oid = ix.indrelid
+      JOIN pg_class i ON i.oid = ix.indexrelid
+      JOIN pg_namespace n ON n.oid = t.relnamespace
+      JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
+      WHERE n.nspname = 'public'
+        AND ix.indisunique = true
+        AND NOT ix.indisprimary
+      GROUP BY t.relname, i.relname;
     `);
 
-    const criticalChecks = [
-      { table: "User", column: "tokenVersion" },
-      { table: "Cycle", column: "revision" },
-      { table: "DailyLog", column: "revision" },
-      { table: "DailyLog", column: "lastClientOperationId" },
-      { table: "OtpCode", column: "purpose" },
-      { table: "Subscription", column: "authority" }
-    ];
-
-    for (const check of criticalChecks) {
-      const found = columns.some((c) => c.table_name === check.table && c.column_name === check.column);
-      if (found) {
-        report.schemaIntegrity.criticalColumnsFound.push(`${check.table}.${check.column}`);
-      } else {
-        report.schemaIntegrity.criticalColumnsMissing.push(`${check.table}.${check.column}`);
+    const verifiedUniqueContracts: Array<{ table: string; columns: string[] }> = [];
+    for (const req of REQUIRED_UNIQUE_CONTRACTS) {
+      const match = uniqueIndexesRows.find(
+        (u) =>
+          u.table_name === req.table &&
+          JSON.stringify(u.column_names) === JSON.stringify(req.columns)
+      );
+      if (match) {
+        verifiedUniqueContracts.push(req);
       }
     }
 
-    // 7. Inspect Unique Constraints (READ-ONLY)
-    const uniqueConstraints: Array<{ constraint_name: string; table_name: string }> = await prisma.$queryRawUnsafe(`
-      SELECT tc.constraint_name, tc.table_name
-      FROM information_schema.table_constraints tc
-      WHERE tc.table_schema = 'public' AND tc.constraint_type = 'UNIQUE';
-    `);
-    report.schemaIntegrity.verifiedUniqueConstraints = uniqueConstraints.map((u) => `${u.table_name}.${u.constraint_name}`);
+    // Disconnect Prisma before running drift process
+    await prisma.$disconnect();
 
-    // 8. Run Read-Only Schema Drift Check via prisma migrate diff (READ-ONLY)
+    // 8. Real Database Schema Drift Check via prisma migrate diff (READ-ONLY)
+    // Compares the actual target database datasource against prisma/schema.prisma datamodel
     const diffRes = spawnSync(
       "npx",
       [
         "prisma",
         "migrate",
         "diff",
-        "--from-schema-datamodel",
+        "--from-schema-datasource",
         "prisma/schema.prisma",
-        "--to-schema-datasource",
+        "--to-schema-datamodel",
         "prisma/schema.prisma",
         "--exit-code"
       ],
@@ -368,69 +287,140 @@ async function main() {
       }
     );
 
-    if (diffRes.status === 0) {
-      report.schemaDrift.status = "ZERO_DRIFT";
-      report.schemaDrift.summary = "Target database schema exactly matches prisma/schema.prisma (0 differences).";
+    let driftStatus: "ZERO_DRIFT" | "DRIFT_DETECTED" | "VERIFICATION_ERROR" = "VERIFICATION_ERROR";
+    let driftSummary = "";
+
+    if (diffRes.error) {
+      driftStatus = "VERIFICATION_ERROR";
+      driftSummary = sanitizeText(diffRes.error.message);
+    } else if (diffRes.status === 0) {
+      driftStatus = "ZERO_DRIFT";
+      driftSummary = "Target database schema exactly matches prisma/schema.prisma (0 differences).";
     } else if (diffRes.status === 2) {
-      report.schemaDrift.status = "DRIFT_DETECTED";
-      report.schemaDrift.summary = sanitizeText(diffRes.stdout || diffRes.stderr).trim();
+      driftStatus = "DRIFT_DETECTED";
+      driftSummary = sanitizeText(diffRes.stdout || diffRes.stderr).trim();
     } else {
-      report.schemaDrift.status = "UNKNOWN_OR_ERROR";
-      report.schemaDrift.summary = sanitizeText(diffRes.stderr || diffRes.stdout || "Prisma diff failed to execute.").trim();
+      driftStatus = "VERIFICATION_ERROR";
+      driftSummary = sanitizeText(
+        diffRes.stderr || diffRes.stdout || `Prisma diff process exited with code ${diffRes.status}`
+      ).trim();
     }
 
-    // 9. Evaluate Baseline Adoption Applicability
-    const tablesComplete = report.schemaIntegrity.missingRequiredTables.length === 0;
-    const fksComplete = report.schemaIntegrity.missingForeignKeys.length === 0;
-    const columnsComplete = report.schemaIntegrity.criticalColumnsMissing.length === 0;
-    const isZeroDrift = report.schemaDrift.status === "ZERO_DRIFT";
+    // 9. Pure Fail-Closed Assessment
+    const schemaObjectsReport: SchemaObjectsReport = {
+      tables: existingTables,
+      enums: existingEnums,
+      columns: existingColumns,
+      foreignKeys: discoveredFks.map((f) => ({
+        table: f.table_name,
+        column: f.column_name,
+        foreignTable: f.foreign_table_name,
+        foreignColumn: f.foreign_column_name,
+        deleteRule: f.delete_rule
+      })),
+      uniqueIndexes: uniqueIndexesRows.map((u) => ({
+        table: u.table_name,
+        columns: u.column_names
+      }))
+    };
 
-    if (report.migrations.initialBaselineRecorded) {
-      report.baselineAdoption.applicable = false;
-      report.baselineAdoption.status = "ALREADY_BASELINED";
-      report.baselineAdoption.reasons.push(
-        "Initial baseline migration (20260901_initial_baseline) is already recorded as applied in _prisma_migrations."
+    const assessmentInput: PreflightAssessmentInput = {
+      migrationsTableExists,
+      migrationRecords: recordedMigrations,
+      schemaObjects: schemaObjectsReport,
+      drift: {
+        status: driftStatus,
+        summary: driftSummary
+      }
+    };
+
+    const assessment = evaluatePreflightAssessment(assessmentInput);
+
+    const initialBaselineRecorded = recordedMigrations.some(
+      (m) => m.migrationName === "20260901_initial_baseline" && m.finishedAt !== null && m.rolledBackAt === null
+    );
+
+    const missingExpectedIncrementals: string[] = [];
+    for (const inc of EXPECTED_INCREMENTAL_MIGRATIONS) {
+      const match = recordedMigrations.find(
+        (m) => m.migrationName === inc && m.finishedAt !== null && m.rolledBackAt === null
       );
-      report.baselineAdoption.recommendedAction =
-        "No baseline adoption required. Run 'npm run db:migrate:deploy' if any subsequent migrations are pending.";
-    } else if (tablesComplete && fksComplete && columnsComplete && isZeroDrift) {
-      report.baselineAdoption.applicable = true;
-      report.baselineAdoption.status = "APPLICABLE";
-      report.baselineAdoption.reasons.push(
-        "Target database contains complete schema matching prisma/schema.prisma with zero drift, but 20260901_initial_baseline is not yet recorded in _prisma_migrations."
-      );
-      report.baselineAdoption.recommendedAction =
-        "BASELINE ADOPTION APPLICABLE: Operator may take verified restorable backup, obtain explicit approval, and execute: 'npx prisma migrate resolve --applied 20260901_initial_baseline', followed by 'npm run db:migrate:deploy'.";
-    } else {
-      report.baselineAdoption.applicable = false;
-      report.baselineAdoption.status = "BLOCKED";
-      if (!tablesComplete) {
-        report.baselineAdoption.reasons.push(
-          `Missing required tables: ${report.schemaIntegrity.missingRequiredTables.join(", ")}`
-        );
+      if (!match) {
+        missingExpectedIncrementals.push(inc);
       }
-      if (!fksComplete) {
-        report.baselineAdoption.reasons.push(
-          `Missing or non-CASCADE foreign keys: ${report.schemaIntegrity.missingForeignKeys.join(", ")}`
-        );
-      }
-      if (!columnsComplete) {
-        report.baselineAdoption.reasons.push(
-          `Missing critical columns: ${report.schemaIntegrity.criticalColumnsMissing.join(", ")}`
-        );
-      }
-      if (!isZeroDrift) {
-        report.baselineAdoption.reasons.push(
-          `Schema drift detected: ${report.schemaDrift.summary.slice(0, 150)}...`
-        );
-      }
-      report.baselineAdoption.recommendedAction =
-        "BLOCKED: Baseline adoption CANNOT be performed automatically. Schema or migration discrepancies must be investigated and resolved first.";
     }
 
-    await prisma.$disconnect();
+    const criticalColumnsFound: string[] = [];
+    for (const col of REQUIRED_CRITICAL_COLUMNS) {
+      if (existingColumns.some((c) => c.table === col.table && c.column === col.column)) {
+        criticalColumnsFound.push(`${col.table}.${col.column}`);
+      }
+    }
 
-    // 10. Output Comprehensive Diagnostic Report
+    return {
+      databaseIdentity: {
+        targetUrlSanitized: sanitizedTargetUrl,
+        databaseName,
+        serverAddress,
+        serverPort,
+        serverVersion,
+        hostClassification
+      },
+      migrations: {
+        migrationsTableExists,
+        initialBaselineRecorded,
+        recordedMigrations,
+        missingExpectedIncrementals
+      },
+      schemaIntegrity: {
+        existingTables,
+        missingRequiredTables: assessment.details.missingTables,
+        existingEnums,
+        missingRequiredEnums: assessment.details.missingEnums,
+        verifiedForeignKeys,
+        missingForeignKeys: assessment.details.missingForeignKeys,
+        verifiedUniqueContracts,
+        missingUniqueContracts: assessment.details.missingUniqueContracts,
+        criticalColumnsFound,
+        criticalColumnsMissing: assessment.details.missingColumns
+      },
+      schemaDrift: {
+        status: driftStatus,
+        summary: driftSummary
+      },
+      assessment
+    };
+  } catch (err) {
+    try {
+      await prisma.$disconnect();
+    } catch {}
+    throw err;
+  }
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  let rawUrl = process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL || "";
+
+  const urlArgIndex = args.indexOf("--url");
+  if (urlArgIndex !== -1 && args[urlArgIndex + 1]) {
+    rawUrl = args[urlArgIndex + 1];
+  }
+
+  if (!rawUrl) {
+    console.error("================================================================");
+    console.error("  READ-ONLY EXISTING-DATABASE PREFLIGHT INSPECTOR");
+    console.error("================================================================");
+    console.error("ERROR: No database URL provided.");
+    console.error("Usage:");
+    console.error("  npx tsx scripts/preflight-existing-database.ts --url <DATABASE_URL>");
+    console.error("  or set TARGET_DATABASE_URL=<DATABASE_URL>");
+    process.exit(1);
+  }
+
+  try {
+    const report = await runPreflightInspection(rawUrl);
+
     console.log("\n================ PREFLIGHT DIAGNOSTIC REPORT ================");
     console.log(`Target Database:       ${report.databaseIdentity.databaseName}`);
     console.log(`Server Address:        ${report.databaseIdentity.serverAddress}:${report.databaseIdentity.serverPort}`);
@@ -445,17 +435,29 @@ async function main() {
     if (report.migrations.missingExpectedIncrementals.length > 0) {
       console.log(`Missing Incrementals:  ${report.migrations.missingExpectedIncrementals.join(", ")}`);
     }
+    if (report.assessment.details.failedOrUnfinishedMigrations.length > 0) {
+      console.log(`Failed/Unfinished:     ${report.assessment.details.failedOrUnfinishedMigrations.join("; ")}`);
+    }
     console.log("------------------------------------------------------------");
     console.log(`Existing Tables:       ${report.schemaIntegrity.existingTables.join(", ")}`);
     if (report.schemaIntegrity.missingRequiredTables.length > 0) {
       console.log(`Missing Tables:        ${report.schemaIntegrity.missingRequiredTables.join(", ")}`);
     }
     console.log(`Enums Verified:        ${report.schemaIntegrity.existingEnums.join(", ")}`);
+    if (report.schemaIntegrity.missingRequiredEnums.length > 0) {
+      console.log(`Missing Enums:         ${report.schemaIntegrity.missingRequiredEnums.join(", ")}`);
+    }
     console.log(
       `Foreign Keys:          ${report.schemaIntegrity.verifiedForeignKeys.length} verified [ON DELETE CASCADE]`
     );
     if (report.schemaIntegrity.missingForeignKeys.length > 0) {
       console.log(`Missing FKs:           ${report.schemaIntegrity.missingForeignKeys.join(", ")}`);
+    }
+    console.log(
+      `Unique Contracts:      ${report.schemaIntegrity.verifiedUniqueContracts.length} verified`
+    );
+    if (report.schemaIntegrity.missingUniqueContracts.length > 0) {
+      console.log(`Missing Unique:        ${report.schemaIntegrity.missingUniqueContracts.join(", ")}`);
     }
     console.log(`Critical Columns:      ${report.schemaIntegrity.criticalColumnsFound.length} verified`);
     if (report.schemaIntegrity.criticalColumnsMissing.length > 0) {
@@ -465,13 +467,18 @@ async function main() {
     console.log(`Schema Drift Status:   ${report.schemaDrift.status}`);
     console.log(`Schema Drift Summary:  ${report.schemaDrift.summary.slice(0, 120)}`);
     console.log("==================== ADOPTION ASSESSMENT ====================");
-    console.log(`Baseline Applicable:   ${report.baselineAdoption.applicable ? "YES" : "NO"}`);
-    console.log(`Adoption Status:       ${report.baselineAdoption.status}`);
+    console.log(`Classification:        ${report.assessment.classification}`);
+    console.log(`Adoption Status:       ${report.assessment.status}`);
+    console.log(`Baseline Applicable:   ${report.assessment.applicable ? "YES" : "NO"}`);
+    if (report.assessment.blockers.length > 0) {
+      console.log(`Blockers:`);
+      report.assessment.blockers.forEach((b) => console.log(`  ! ${b}`));
+    }
     console.log(`Reasons:`);
-    report.baselineAdoption.reasons.forEach((r) => console.log(`  - ${r}`));
-    console.log(`Recommended Action:    ${report.baselineAdoption.recommendedAction}`);
+    report.assessment.reasons.forEach((r) => console.log(`  - ${r}`));
+    console.log(`Recommended Action:    ${report.assessment.recommendedAction}`);
     console.log("------------------------------------------------------------");
-    console.log(`HUMAN REVIEW REQUIRED: ${report.humanReviewRequired ? "YES (Mandatory)" : "NO"}`);
+    console.log(`HUMAN REVIEW REQUIRED: ${report.assessment.humanReviewRequired ? "YES (Mandatory)" : "NO"}`);
     console.log(
       "Read-Only Guarantee:   No database changes, DDL, DML, or migrate-resolve were executed."
     );
@@ -480,14 +487,13 @@ async function main() {
     process.exit(0);
   } catch (err) {
     console.error(`\n[PREFLIGHT ERROR] Could not complete inspection: ${sanitizeText((err as Error).message)}`);
-    try {
-      await prisma.$disconnect();
-    } catch {}
     process.exit(1);
   }
 }
 
-main().catch((err) => {
-  console.error("Unhandled preflight error:", sanitizeText(err.message));
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].endsWith("preflight-existing-database.ts")) {
+  main().catch((err) => {
+    console.error("Unhandled preflight error:", sanitizeText(err.message));
+    process.exit(1);
+  });
+}

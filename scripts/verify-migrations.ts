@@ -278,24 +278,39 @@ async function main() {
     console.log(sanitizeText(deployRes.stdout.trim()));
     console.log(`✓ Migration history applied cleanly to fresh database.`);
 
-    // 5. Verify zero schema drift using read-only prisma migrate diff without credentials in args
+    // 5. Verify zero schema drift comparing actual database datasource against prisma/schema.prisma
     console.log(`[4/7] Checking for schema drift against prisma/schema.prisma...`);
-    const driftRes = runProcess(
+    const driftRes = spawnSync(
       "npx",
       [
         "prisma",
         "migrate",
         "diff",
-        "--from-schema-datamodel",
+        "--from-schema-datasource",
         "prisma/schema.prisma",
-        "--to-schema-datasource",
+        "--to-schema-datamodel",
         "prisma/schema.prisma",
         "--exit-code"
       ],
-      { DATABASE_URL: disposableDbUrl }
+      {
+        shell: false,
+        encoding: "utf8",
+        env: { ...process.env, DATABASE_URL: disposableDbUrl }
+      }
     );
-    if (driftRes.status !== 0) {
-      throw new Error(`Schema drift detected!\n${sanitizeText(driftRes.stdout || driftRes.stderr)}`);
+
+    if (driftRes.error) {
+      throw new Error(`Prisma migrate diff failed to execute: ${driftRes.error.message}`);
+    }
+
+    if (driftRes.status === 2) {
+      throw new Error(
+        `Schema drift detected between actual database and prisma/schema.prisma!\n${sanitizeText(driftRes.stdout || driftRes.stderr)}`
+      );
+    } else if (driftRes.status !== 0) {
+      throw new Error(
+        `Prisma migrate diff verification error (exit code ${driftRes.status}):\n${sanitizeText(driftRes.stderr || driftRes.stdout)}`
+      );
     }
     console.log(`✓ Zero schema drift confirmed: Migrations reproduce current schema exactly.`);
 
@@ -418,6 +433,45 @@ async function main() {
         );
       }
       console.log(`  ✓ FK Verified: ${exp.table}.${exp.column} -> ${exp.foreignTable}.${exp.foreignColumn} [ON DELETE ${match.delete_rule}]`);
+    }
+
+    // 6e. Structural Catalog Verification of ALL 5 critical uniqueness contracts
+    const uniqueIndexes: Array<{ table_name: string; column_names: string[] }> = await prisma.$queryRawUnsafe(`
+      SELECT
+        t.relname AS table_name,
+        i.relname AS index_name,
+        array_to_json(array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum))) AS column_names
+      FROM pg_index ix
+      JOIN pg_class t ON t.oid = ix.indrelid
+      JOIN pg_class i ON i.oid = ix.indexrelid
+      JOIN pg_namespace n ON n.oid = t.relnamespace
+      JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
+      WHERE n.nspname = 'public'
+        AND ix.indisunique = true
+        AND NOT ix.indisprimary
+      GROUP BY t.relname, i.relname;
+    `);
+
+    const expectedUniques = [
+      { table: "User", columns: ["email"] },
+      { table: "User", columns: ["phoneNumber"] },
+      { table: "DailyLog", columns: ["cycleId", "date"] },
+      { table: "DailyLog", columns: ["userId", "date"] },
+      { table: "Subscription", columns: ["authority"] }
+    ];
+
+    for (const expUq of expectedUniques) {
+      const match = uniqueIndexes.find(
+        (u) =>
+          u.table_name === expUq.table &&
+          JSON.stringify(u.column_names) === JSON.stringify(expUq.columns)
+      );
+      if (!match) {
+        throw new Error(
+          `Missing expected unique contract in database catalogs: ${expUq.table}(${expUq.columns.join(", ")})`
+        );
+      }
+      console.log(`  ✓ Unique Contract Verified: ${expUq.table}(${expUq.columns.join(", ")})`);
     }
 
     // 7. Behavioral verification of ALL 5 critical uniqueness constraints
