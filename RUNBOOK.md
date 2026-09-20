@@ -203,6 +203,123 @@ npm run db:migrations:verify
 
 ---
 
+### ۵.۹. فرآیند رسمی پشتیبان‌گیری و بازیابی داده‌ها (Documented Backup & Restore Procedure):
+
+این فرآیند تضمین می‌کند که داده‌های واقعی و کامل پایگاه داده بدون ریسک از دست رفتن داده (Zero Data Loss)، نشت اطلاعات یا خرابی روابط آبشاری، پشتیبان‌گیری و بازیابی شوند.
+
+#### ۱. پیش‌نیازهای امنیتی قبل از پشتیبان‌گیری (Pre-Backup Safety Preconditions):
+- **محیط امن و احراز هویت بدون درز:** دستورات نباید کلمه عبور را در لیست پروسه‌ها (`ps aux`) افشا کنند. پارامترهای دسترسی باید منحصراً از طریق متغیرهای سیستمی استاندارد پُستگرس (`PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`) تزریق شوند.
+- **تایید انسداد ریموت:** هرگز نباید اسکریپت‌های آزمایشی روی دیتابیس اصلی پروداکشن به صورت ناخواسته اجرا شوند.
+- **ثبت متادیتا و شمارش سطرها قبل از دامپ:** قبل از تهیه دامپ، تعداد سطرهای تمامی جداول (`User`, `Cycle`, `DailyLog`, `OtpCode`, `Subscription`, `_prisma_migrations`)، تعداد کلیدهای خارجی با قاعده `CASCADE` و قیدهای یکتایی ثبت می‌گردد.
+
+#### ۲. دستور استاندارد تهیه نسخه پشتیبان (Standard Backup Command):
+از فرمت استاندارد باینری فشرده سفارشی پُستگرس (`-Fc` یا `--format=custom`) استفاده می‌شود که قابلیت بازرسی فهرست محتوا (TOC) و بازیابی گزینشی را فراهم می‌سازد:
+```bash
+# تنظیم متغیرهای محیطی نشست:
+export PGHOST="127.0.0.1"
+export PGPORT="5432"
+export PGUSER="postgres"
+export PGPASSWORD="<SECURE_PASSWORD>"
+export PGDATABASE="<SOURCE_DATABASE_NAME>"
+
+# اجرای دامپ به صورت Safe و بدون انتساب مالکیت (No Owner / No Privileges):
+pg_dump \
+  --format=custom \
+  --no-owner \
+  --no-privileges \
+  --file="./backups/backup_bushido_$(date +%Y%m%d_%H%M%S).dump" \
+  "${PGDATABASE}"
+```
+
+#### ۳. راستی‌آزمایی اصالت آرشیو (Archive Verification):
+بلافاصله پس از ایجاد آرشیو:
+1. **محاسبه چک‌سام SHA-256:**
+   ```bash
+   sha256sum ./backups/backup_bushido_*.dump
+   ```
+2. **بازرسی فهرست محتوای آرشیو (Table of Contents / TOC):**
+   ```bash
+   pg_restore --list ./backups/backup_bushido_*.dump
+   ```
+   - اطمینان از وجود تمام ۶ جدول (`User`, `Cycle`, `DailyLog`, `OtpCode`, `Subscription`, `_prisma_migrations`).
+   - اطمینان از وجود ۴ نوع Enum (`UserRole`, `UserTier`, `DayStatus`, `SubscriptionStatus`).
+   - اطمینان از وجود کلیدهای اصلی و شاخص‌ها.
+
+#### ۴. دستور استاندارد بازیابی نسخه پشتیبان (Standard Restore Command):
+برای بازیابی بر روی دیتابیس هدف:
+```bash
+# ساخت دیتابیس تمیز هدف:
+psql -h 127.0.0.1 -p 5432 -U postgres -c 'CREATE DATABASE "bushido_target";'
+
+# اجرای بازیابی از آرشیو باینری:
+pg_restore \
+  --no-owner \
+  --no-privileges \
+  --dbname="bushido_target" \
+  ./backups/backup_bushido_*.dump
+```
+
+#### ۵. پروتکل اعتبارسنجی پس از بازیابی (Post-Restore Validation Checklist):
+1. **تطابق ۱۰۰٪ شمارش سطرها (Row Count Parity):** شمارش سطرهای تک‌تک جداول دیتابیس بازیابی‌شده باید بدون کوچک‌ترین اختلاف با مقادیر قبل از پشتیبان‌گیری برابر باشد.
+2. **تطابق تمام‌عیار رکوردها (Zero Data Loss Proof):** تمامی فیلدها، ساختارهای JSON (نظیر `Cycle.verdict`)، رکوردهای بازرسی و توکن‌های همزمانی عینا حفظ شده باشند.
+3. **اعتبارسنجی ۵ رابطه کلید خارجی با حذف آبشاری (ON DELETE CASCADE):**
+   - `Cycle.userId -> User.id [CASCADE]`
+   - `DailyLog.userId -> User.id [CASCADE]`
+   - `DailyLog.cycleId -> Cycle.id [CASCADE]`
+   - `OtpCode.userId -> User.id [CASCADE]`
+   - `Subscription.userId -> User.id [CASCADE]`
+4. **اعتبارسنجی ۵ قید یکتایی الزامی:**
+   - `User(email)`
+   - `User(phoneNumber)`
+   - `DailyLog(cycleId, date)`
+   - `DailyLog(userId, date)`
+   - `Subscription(authority)`
+5. **اجرای موفق بازرسی فقط‌خواندنی (Preflight Assessment Pass):**
+   ```bash
+   npm run db:migrations:preflight -- --url "postgresql://postgres:...@127.0.0.1:5432/bushido_target"
+   ```
+   باید وضعیت `ALREADY_BASELINED` و `ZERO_DRIFT` با ۰ مانع (0 Blockers) تایید گردد.
+6. **بررسی عدم انحراف شِما (Schema Drift Check):**
+   دستور `prisma migrate diff` باید با کد خروج ۰ بدون هیچ انحرافی خاتمه یابد.
+
+---
+
+### ۵.۱۰. اسکریپت‌های خودکار راستی‌آزمایی پشتیبان و بازیابی (Automated Backup & Restore Verification Scripts):
+
+برای خودکارسازی کامل فرآیند فوق و جلوگیری از خطای انسانی، دو اسکریپت مهندسی‌شده با گاردریل‌های سخت‌گیرانه تعبیه شده‌اند:
+
+#### ۱. اسکریپت راستی‌آزمایی پشتیبان (`scripts/backup-verify.ts`):
+```bash
+npm run db:backup:verify -- \
+  --url "postgresql://postgres@127.0.0.1:54332/postgres" \
+  --disposable-acknowledged \
+  --out "./backups/test_backup.dump"
+```
+- **اقدامات:** بازرسی متادیتای مبدا، اجرای امن `pg_dump` بدون اینترپولیشن شل، محاسبه چک‌سام SHA-256، بررسی TOC با `pg_restore --list`، اطمینان از وجود تمام جداول/Enumها، و صدور مانیفست متادیتا در فرمت JSON (`.manifest.json`).
+
+#### ۲. اسکریپت جامع راستی‌آزمایی بازیابی (`scripts/restore-verify.ts`):
+```bash
+npm run db:restore:verify -- \
+  --url "postgresql://postgres@127.0.0.1:54332/postgres" \
+  --disposable-acknowledged \
+  --e2e
+```
+- **اقدامات خودکار:**
+  1. راه‌اندازی دیتابیس یکبارمصرف آزمایشی منبع (`bushido_source_*`).
+  2. اعمال کامل مایگریشن‌ها با `prisma migrate deploy`.
+  3. تزریق دیتاست واقعی پروداکشن (کاربران با سطوح مختلف، دوره‌ها، لاگ‌های روزانه با اتوپسی و verdict، کدهای OTP، و اشتراک‌ها).
+  4. پشتیبان‌گیری استاندارد با `backup-verify.ts`.
+  5. راه‌اندازی دیتابیس یکبارمصرف آزمایشی مقصد (`bushido_restore_*`).
+  6. بازیابی کامل داده‌ها با `pg_restore`.
+  7. مقایسه مو‌به‌موی سطرها، جداول، Enumها، کلیدهای خارجی، قیدهای یکتایی و تاریخچه مایگریشن‌ها.
+  8. اثبات عدم از دست رفتن رکوردها (Zero Data Loss Proof).
+  9. راستی‌آزمایی وضعیت پرفلایت (`ALREADY_BASELINED`, `ZERO_DRIFT`).
+  10. بررسی انحراف شِما با `prisma migrate diff`.
+  11. آزمایش رفتاری خطاهای قید یکتایی (P2002) و حذف آبشاری در عمل.
+  12. تخریب و پاکسازی ۱۰۰٪ ایزوله دیتابیس‌ها و فایل‌های موقت بدون باقی‌ماندن هیچ ردپایی.
+
+---
+
 ## ۶. اهداف و بهینه‌سازی‌های آینده [هدف آینده]
 
 - [هدف آینده] اضافه کردن لایه Web Push Notifications برای یادآوری زمان کات‌آف شبانه.

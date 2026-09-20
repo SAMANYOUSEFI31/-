@@ -9,6 +9,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrations:verify": "tsx scripts/verify-migrations.ts",
     "db:migrations:preflight": "tsx scripts/preflight-existing-database.ts",
+    "db:backup:verify": "tsx scripts/backup-verify.ts",
+    "db:restore:verify": "tsx scripts/restore-verify.ts",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
