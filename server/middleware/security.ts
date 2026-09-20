@@ -255,8 +255,11 @@ export function errorHandler(err: any, req: Request, res: Response, next: NextFu
   const suppressStack = isProd || isStagingEnv || appEnv === 'production' || appEnv === 'staging' || appEnv === 'invalid';
 
   // Ensure X-Request-ID response header is preserved on error responses
-  if (!res.getHeader('X-Request-ID') && req.requestId) {
-    res.setHeader('X-Request-ID', req.requestId);
+  if (typeof res?.setHeader === 'function') {
+    const existingHeader = typeof res?.getHeader === 'function' ? res.getHeader('X-Request-ID') : undefined;
+    if (!existingHeader && (req?.requestId || req?.id)) {
+      res.setHeader('X-Request-ID', (req.requestId || req.id)!);
+    }
   }
 
   if (err.name === 'PreconditionRequiredError' || err.code === 'PRECONDITION_REQUIRED') {
@@ -329,7 +332,7 @@ export function errorHandler(err: any, req: Request, res: Response, next: NextFu
     const normalizedPath = rawPath.split('?')[0];
     const structuredLog = {
       event: 'server_error',
-      requestId: req.requestId || req.id || (res.getHeader('X-Request-ID') as string) || 'unknown',
+      requestId: req?.requestId || req?.id || (typeof res?.getHeader === 'function' ? (res.getHeader('X-Request-ID') as string) : undefined) || 'unknown',
       method: req.method || 'UNKNOWN',
       path: normalizedPath,
       statusCode,
