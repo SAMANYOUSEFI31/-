@@ -51,6 +51,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
         aria-describedby="reset-confirmation-description"
         tabIndex={-1}
         className="surface-z3 border border-debt-subtle/40 radius-modal w-full max-w-md shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast modal-dialog-resilient my-auto focus:outline-none flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-standard flex items-center gap-3 shrink-0">

@@ -38,7 +38,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
 }) => {
   useBodyScrollLock(isOpen);
 
-  const { containerRef } = useModalAccessibility<HTMLDivElement>({
+  const { containerRef, handleBackdropClick, stopDialogPropagation } = useModalAccessibility<HTMLDivElement>({
     isOpen,
     onClose
   });
@@ -93,6 +93,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
       <div 
         className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 pt-safe overscroll-contain overflow-y-auto modal-overlay-resilient"
         dir="rtl"
+        onClick={handleBackdropClick}
       >
         <div 
           ref={containerRef}
@@ -102,6 +103,7 @@ export const CreateCycleModal: React.FC<CreateCycleModalProps> = ({
           aria-describedby="create-cycle-description"
           tabIndex={-1}
           className="surface-z3 border-standard radius-modal w-full max-w-lg shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast relative my-auto focus:outline-none modal-dialog-resilient overflow-hidden flex flex-col"
+          onClick={stopDialogPropagation}
         >
           {/* Modal Header */}
           <div className="px-5 sm:px-7 py-4 border-b border-standard flex items-center justify-between surface-z3 shrink-0 relative">

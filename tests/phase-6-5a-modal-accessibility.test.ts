@@ -6,6 +6,9 @@ import { validateCycleDates, findOverlappingCycle } from '../src/utils/cycleVali
 import {
   shouldBlockEscape,
   handleEscapeKey,
+  shouldBlockBackdropDismiss,
+  handleBackdropClick,
+  stopDialogClickPropagation,
   isElementVisible,
   getFocusableElements,
   trapTabKey
@@ -158,6 +161,65 @@ describe('Phase 6.5A: Modal Accessibility & Cycle Overlap Invariant Verification
         assert.strictEqual(handled, true);
         assert.strictEqual(closed, true);
         assert.strictEqual(prevented, true);
+        assert.strictEqual(stopped, true);
+      });
+    });
+
+    describe('shouldBlockBackdropDismiss', () => {
+      it('blocks dismissal when isBusy is true', () => {
+        assert.strictEqual(shouldBlockBackdropDismiss(true), true);
+      });
+
+      it('allows dismissal when isBusy is false or undefined', () => {
+        assert.strictEqual(shouldBlockBackdropDismiss(false), false);
+        assert.strictEqual(shouldBlockBackdropDismiss(undefined), false);
+      });
+    });
+
+    describe('handleBackdropClick', () => {
+      it('returns false and does not call onClose when event default is prevented', () => {
+        let closed = false;
+        const target = {};
+        const event = { target, currentTarget: target, defaultPrevented: true };
+        const result = handleBackdropClick(event, () => { closed = true; }, false);
+        assert.strictEqual(result, false);
+        assert.strictEqual(closed, false);
+      });
+
+      it('returns false and does not call onClose when isBusy is true', () => {
+        let closed = false;
+        const target = {};
+        const event = { target, currentTarget: target, defaultPrevented: false };
+        const result = handleBackdropClick(event, () => { closed = true; }, true);
+        assert.strictEqual(result, false);
+        assert.strictEqual(closed, false);
+      });
+
+      it('returns false and does not call onClose when click target is inside dialog (target !== currentTarget)', () => {
+        let closed = false;
+        const backdropEl = {};
+        const dialogEl = {};
+        const event = { target: dialogEl, currentTarget: backdropEl, defaultPrevented: false };
+        const result = handleBackdropClick(event, () => { closed = true; }, false);
+        assert.strictEqual(result, false);
+        assert.strictEqual(closed, false);
+      });
+
+      it('calls onClose and returns true when click is directly on backdrop and not busy', () => {
+        let closed = false;
+        const backdropEl = {};
+        const event = { target: backdropEl, currentTarget: backdropEl, defaultPrevented: false };
+        const result = handleBackdropClick(event, () => { closed = true; }, false);
+        assert.strictEqual(result, true);
+        assert.strictEqual(closed, true);
+      });
+    });
+
+    describe('stopDialogClickPropagation', () => {
+      it('calls stopPropagation on event object', () => {
+        let stopped = false;
+        const event = { stopPropagation: () => { stopped = true; } };
+        stopDialogClickPropagation(event);
         assert.strictEqual(stopped, true);
       });
     });
@@ -408,6 +470,42 @@ describe('Phase 6.5A: Modal Accessibility & Cycle Overlap Invariant Verification
       assert.ok(content.includes("aria-invalid={errorField === 'otp'}"), 'AuthModal otp input must have field-specific aria-invalid');
       assert.ok(content.includes('aria-pressed={showPassword}'), 'AuthModal password visibility toggle must have aria-pressed');
       assert.ok(content.includes('role="alert"'), 'AuthModal must announce errors with role="alert"');
+    });
+
+    it('verifies all full-screen modals enforce backdrop click dismiss and stopDialogPropagation', () => {
+      // 1. CreateCycleModal
+      const createCycleContent = fs.readFileSync(path.resolve('src/features/cycles/CreateCycleModal.tsx'), 'utf-8');
+      assert.ok(createCycleContent.includes('onClick={handleBackdropClick}'), 'CreateCycleModal must have onClick={handleBackdropClick} on backdrop');
+      assert.ok(createCycleContent.includes('onClick={stopDialogPropagation}'), 'CreateCycleModal must stop propagation on dialog');
+
+      // 2. AutopsyModal
+      const autopsyContent = fs.readFileSync(path.resolve('src/features/autopsy/AutopsyModal.tsx'), 'utf-8');
+      assert.ok(autopsyContent.includes('onClick={handleBackdropClick}'), 'AutopsyModal must have onClick={handleBackdropClick} on backdrop');
+      assert.ok(autopsyContent.includes('onClick={stopDialogPropagation}'), 'AutopsyModal must stop propagation on dialog');
+
+      // 3. AuthModal
+      const authContent = fs.readFileSync(path.resolve('src/features/auth/AuthModal.tsx'), 'utf-8');
+      assert.ok(authContent.includes('onClick={handleBackdropClick}'), 'AuthModal must have onClick={handleBackdropClick} on backdrop');
+      assert.ok(authContent.includes('onClick={stopDialogPropagation}'), 'AuthModal must stop propagation on dialog');
+
+      // 4. DisciplineRulesModal
+      const rulesContent = fs.readFileSync(path.resolve('src/features/court/DisciplineRulesModal.tsx'), 'utf-8');
+      assert.ok(rulesContent.includes('onClick={handleBackdropClick}'), 'DisciplineRulesModal must have onClick={handleBackdropClick} on backdrop');
+      assert.ok(rulesContent.includes('onClick={stopDialogPropagation}'), 'DisciplineRulesModal must stop propagation on dialog');
+
+      // 5. PaymentModal
+      const paymentContent = fs.readFileSync(path.resolve('src/features/payment/PaymentModal.tsx'), 'utf-8');
+      assert.ok(paymentContent.includes('onClick={handleBackdropClick}'), 'PaymentModal must have onClick={handleBackdropClick} on backdrop');
+      assert.ok(paymentContent.includes('e.stopPropagation()'), 'PaymentModal must stop propagation on dialog');
+
+      // 6. ResetConfirmationModal (destructive confirmation protects outer backdrop, stops propagation on dialog)
+      const resetContent = fs.readFileSync(path.resolve('src/features/cycles/ResetConfirmationModal.tsx'), 'utf-8');
+      assert.ok(resetContent.includes('e.stopPropagation()'), 'ResetConfirmationModal must stop propagation on dialog panel');
+
+      // 7. Navbar Streak Info Modal
+      const navbarContent = fs.readFileSync(path.resolve('src/shared/components/layout/Navbar.tsx'), 'utf-8');
+      assert.ok(navbarContent.includes('setShowStreakInfo(false)'), 'Navbar must close streak info modal on backdrop click');
+      assert.ok(navbarContent.includes('onClick={(e) => e.stopPropagation()}'), 'Navbar streak info must stop propagation on dialog');
     });
   });
 });

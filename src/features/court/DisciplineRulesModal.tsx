@@ -49,7 +49,7 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
 }) => {
   useBodyScrollLock(isOpen);
 
-  const { containerRef } = useModalAccessibility<HTMLDivElement>({
+  const { containerRef, handleBackdropClick, stopDialogPropagation } = useModalAccessibility<HTMLDivElement>({
     isOpen,
     onClose
   });
@@ -62,6 +62,7 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
     <div 
       className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 pt-safe overscroll-contain overflow-y-auto modal-overlay-resilient"
       dir="rtl"
+      onClick={handleBackdropClick}
     >
       <div 
         ref={containerRef}
@@ -71,6 +72,7 @@ export const DisciplineRulesModal: React.FC<DisciplineRulesModalProps> = ({
         aria-describedby="discipline-rules-description"
         tabIndex={-1}
         className="my-auto modal-dialog-resilient w-full max-w-2xl surface-z3 border-standard radius-modal text-role-primary shadow-subtle flex flex-col overflow-hidden focus:outline-none animate-in zoom-in-95 duration-150"
+        onClick={stopDialogPropagation}
       >
         {/* Sticky Modal Header */}
         <div className="px-4 sm:px-6 py-3.5 sm:py-4 surface-z3 border-b border-standard flex items-center justify-between shrink-0 sticky top-0 z-20 backdrop-blur-md">

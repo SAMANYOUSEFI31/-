@@ -62,6 +62,46 @@ export function shouldBlockEscape(isBusy?: boolean): boolean {
 }
 
 /**
+ * Evaluates whether backdrop click dismissal should be prevented (e.g. during an in-flight operation)
+ */
+export function shouldBlockBackdropDismiss(isBusy?: boolean): boolean {
+  return Boolean(isBusy);
+}
+
+/**
+ * Pure handler for backdrop click dismissal.
+ * Enforces:
+ * 1. Only triggers if the click target is the backdrop container itself (e.target === e.currentTarget)
+ * 2. Does NOT trigger if isBusy / in-flight save is active
+ * 3. Does NOT trigger if event default was already prevented
+ * 4. Safe against accidental-close while scrolling (uses standard onClick)
+ * Returns true if dismissed, false otherwise.
+ */
+export function handleBackdropClick(
+  e: { target: any; currentTarget: any; defaultPrevented?: boolean },
+  onClose: () => void,
+  isBusy?: boolean
+): boolean {
+  if (e.defaultPrevented) return false;
+  if (shouldBlockBackdropDismiss(isBusy)) return false;
+  if (e.target !== e.currentTarget) return false;
+
+  onClose();
+  return true;
+}
+
+/**
+ * Stops click propagation on the dialog panel to ensure clicks inside do not bubble to backdrop
+ */
+export function stopDialogClickPropagation(
+  e: { stopPropagation?: () => void }
+): void {
+  if (e && typeof e.stopPropagation === 'function') {
+    e.stopPropagation();
+  }
+}
+
+/**
  * Pure Tab/Shift+Tab trapping logic
  * Returns true if the key event was trapped/handled, false otherwise.
  */
@@ -286,8 +326,20 @@ export function useModalAccessibility<T extends HTMLElement = HTMLDivElement>({
     };
   }, [isOpen]);
 
+  const onBackdropClick = useCallback((e: React.MouseEvent) => {
+    handleBackdropClick(e, () => onCloseRef.current(), isBusyRef.current);
+  }, []);
+
+  const onDialogClick = useCallback((e: React.MouseEvent) => {
+    stopDialogClickPropagation(e);
+  }, []);
+
   return {
     containerRef,
-    openerRef
+    openerRef,
+    handleBackdropClick: onBackdropClick,
+    stopDialogPropagation: onDialogClick,
+    onBackdropClick,
+    onDialogClick
   };
 }

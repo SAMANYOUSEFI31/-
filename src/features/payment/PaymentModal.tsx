@@ -54,8 +54,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
+  const handleBackdropClick = (e?: React.MouseEvent) => {
     if (isLoading) return;
+    if (e && e.target !== e.currentTarget) return;
     onClose();
   };
 
@@ -195,6 +196,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     <div 
       className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex items-center justify-center p-2.5 sm:p-4 pt-safe overscroll-contain overflow-y-auto modal-overlay-resilient" 
       dir="rtl"
+      onClick={handleBackdropClick}
     >
       <div 
         className="fixed inset-0" 

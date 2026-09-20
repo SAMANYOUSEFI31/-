@@ -577,6 +577,11 @@ const NavbarComponent: React.FC<NavbarProps> = ({
         <div 
           className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex items-center justify-center p-3 sm:p-4 pt-safe overscroll-contain overflow-y-auto modal-overlay-resilient"
           dir="rtl"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowStreakInfo(false);
+            }
+          }}
         >
           <div 
             role="dialog"
@@ -585,6 +590,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             aria-describedby="streak-info-modal-desc"
             tabIndex={-1}
             className="surface-z3 border-standard radius-modal w-full max-w-sm p-5 sm:p-6 space-y-4 shadow-subtle animate-in zoom-in-95 motion-reduce:animate-none motion-fast relative my-auto focus:outline-none modal-dialog-resilient flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
           >
             <button 
               type="button"

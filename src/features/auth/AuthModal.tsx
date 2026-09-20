@@ -107,7 +107,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   const shouldReduceMotion = useReducedMotion();
-  const { containerRef } = useModalAccessibility<HTMLDivElement>({
+  const { containerRef, handleBackdropClick, stopDialogPropagation } = useModalAccessibility<HTMLDivElement>({
     isOpen,
     onClose,
     isBusy: isLoading,
@@ -486,6 +486,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     <div 
       className="fixed inset-0 z-50 surface-backdrop-modal backdrop-blur-md flex flex-col items-start sm:items-center justify-start sm:justify-center p-3 sm:p-4 pt-safe overscroll-contain overflow-y-auto modal-overlay-resilient" 
       dir="rtl"
+      onClick={handleBackdropClick}
     >
       <motion.div 
         ref={containerRef}
@@ -500,6 +501,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 15 }}
         transition={{ duration: shouldReduceMotion ? 0.05 : 0.2, ease: 'easeOut' }}
         className="surface-z3 border-standard radius-modal w-full max-w-md shadow-subtle overflow-hidden flex flex-col modal-dialog-resilient my-auto focus:outline-none"
+        onClick={stopDialogPropagation}
       >
         {/* Header */}
         <div className="px-5 sm:px-6 py-4 border-b border-standard flex items-center justify-between surface-z3 shrink-0">
