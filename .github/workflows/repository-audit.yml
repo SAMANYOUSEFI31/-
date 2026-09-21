@@ -1,0 +1,427 @@
+name: Repository Health Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Comprehensive Repository Health Audit
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DISPOSABLE_DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/postgres
+      TEST_DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/postgres
+      DISPOSABLE_DB_ACKNOWLEDGED: 'true'
+      NODE_ENV: test
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Ensure PostgreSQL Client Tooling
+        run: |
+          if ! command -v pg_dump >/dev/null 2>&1 || ! command -v pg_restore >/dev/null 2>&1; then
+            echo "Installing postgresql-client..."
+            sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          fi
+          echo "pg_dump version: $(pg_dump --version)"
+          echo "pg_restore version: $(pg_restore --version)"
+
+      - name: Initialize Audit Directories
+        run: |
+          mkdir -p audit_logs
+          echo "AUDIT_START_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+
+      - name: 1-3. Inspect Git & Workflow Metadata
+        id: git_workflow_meta
+        run: |
+          echo "================================================================"
+          echo "  REPOSITORY HEALTH AUDIT: GIT & WORKFLOW METADATA"
+          echo "================================================================"
+
+          # 1. Print all workflow files found under .github/workflows/
+          echo "--- 1. WORKFLOW FILES FOUND ---"
+          mkdir -p audit_logs
+          WORKFLOW_LIST_LOG="audit_logs/01_workflow_files.log"
+          > "$WORKFLOW_LIST_LOG"
+
+          for wf in .github/workflows/*.yml .github/workflows/*.yaml; do
+            [ -e "$wf" ] || continue
+            fname=$(basename "$wf")
+            fpath="$wf"
+            echo "Filename: $fname | Path: $fpath" | tee -a "$WORKFLOW_LIST_LOG"
+          done
+
+          # 2. Print current branch
+          CURRENT_BRANCH="${GITHUB_REF_NAME:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')}"
+          echo ""
+          echo "--- 2. CURRENT BRANCH ---"
+          echo "Current Branch: $CURRENT_BRANCH" | tee audit_logs/02_current_branch.log
+
+          # 3. Print latest commit SHA
+          LATEST_SHA="${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || echo 'unknown')}"
+          echo ""
+          echo "--- 3. LATEST COMMIT SHA ---"
+          echo "Latest Commit SHA: $LATEST_SHA" | tee audit_logs/03_latest_commit_sha.log
+          echo "================================================================"
+
+      - name: 4. Run npm ci
+        id: npm_ci_step
+        run: |
+          echo "================================================================"
+          echo "  INSTALLING DEPENDENCIES (npm ci)"
+          echo "================================================================"
+          npm ci 2>&1 | tee audit_logs/04_npm_ci.log
+
+      - name: 8-11. Inspect Environment & Toolchain Versions
+        id: toolchain_meta
+        run: |
+          echo "================================================================"
+          echo "  TOOLCHAIN & SCRIPTS METADATA"
+          echo "================================================================"
+
+          # 8. Print all package.json scripts
+          echo "--- 8. PACKAGE.JSON SCRIPTS ---"
+          node -e '
+            const pkg = require("./package.json");
+            console.log(JSON.stringify(pkg.scripts || {}, null, 2));
+          ' 2>&1 | tee audit_logs/05_package_scripts.log
+
+          # 9. Print Node version
+          echo ""
+          echo "--- 9. NODE VERSION ---"
+          node --version 2>&1 | tee audit_logs/06_node_version.log
+
+          # 10. Print Prisma version
+          echo ""
+          echo "--- 10. PRISMA VERSION ---"
+          npx prisma --version 2>&1 | tee audit_logs/07_prisma_version.log
+
+          # 11. Print TypeScript version
+          echo ""
+          echo "--- 11. TYPESCRIPT VERSION ---"
+          npx tsc --version 2>&1 | tee audit_logs/08_typescript_version.log
+          echo "================================================================"
+
+      - name: 5. Run npm run lint
+        id: lint_step
+        run: |
+          echo "================================================================"
+          echo "  RUNNING LINTER (npm run lint)"
+          echo "================================================================"
+          set +e
+          npm run lint 2>&1 | tee audit_logs/09_npm_lint.log
+          LINT_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          if [ $LINT_EXIT -eq 0 ]; then
+            echo "LINT_RESULT=PASSED" >> $GITHUB_ENV
+            echo "Lint passed successfully."
+          else
+            echo "LINT_RESULT=FAILED (exit code $LINT_EXIT)" >> $GITHUB_ENV
+            echo "Lint failed with exit code $LINT_EXIT."
+          fi
+
+      - name: 6. Run npm test
+        id: test_step
+        run: |
+          echo "================================================================"
+          echo "  RUNNING UNIT & INTEGRATION TESTS (npm test)"
+          echo "================================================================"
+          set +e
+          npm test 2>&1 | tee audit_logs/10_npm_test.log
+          TEST_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          # Parse node:test TAP summary lines:
+          TOTAL_TESTS=$(grep -oE '# tests [0-9]+' audit_logs/10_npm_test.log | tail -1 | awk '{print $3}')
+          PASSED_TESTS=$(grep -oE '# pass [0-9]+' audit_logs/10_npm_test.log | tail -1 | awk '{print $3}')
+          FAILED_TESTS=$(grep -oE '# fail [0-9]+' audit_logs/10_npm_test.log | tail -1 | awk '{print $3}')
+
+          TOTAL_TESTS=${TOTAL_TESTS:-0}
+          PASSED_TESTS=${PASSED_TESTS:-0}
+          FAILED_TESTS=${FAILED_TESTS:-0}
+
+          echo "Total Tests: $TOTAL_TESTS"
+          echo "Passed: $PASSED_TESTS"
+          echo "Failed: $FAILED_TESTS"
+
+          echo "TOTAL_TEST_COUNT=$TOTAL_TESTS" >> $GITHUB_ENV
+          echo "PASSED_TEST_COUNT=$PASSED_TESTS" >> $GITHUB_ENV
+          echo "FAILED_TEST_COUNT=$FAILED_TESTS" >> $GITHUB_ENV
+
+          if [ $TEST_EXIT -eq 0 ] && [ "$FAILED_TESTS" -eq 0 ]; then
+            echo "TEST_RESULT=PASSED ($PASSED_TESTS/$TOTAL_TESTS passed, $FAILED_TESTS failed)" >> $GITHUB_ENV
+          else
+            echo "TEST_RESULT=FAILED (exit code $TEST_EXIT | $PASSED_TESTS/$TOTAL_TESTS passed, $FAILED_TESTS failed)" >> $GITHUB_ENV
+          fi
+
+      - name: 7. Run npm run build
+        id: build_step
+        run: |
+          echo "================================================================"
+          echo "  RUNNING PRODUCTION BUILD (npm run build)"
+          echo "================================================================"
+          set +e
+          npm run build 2>&1 | tee audit_logs/11_npm_build.log
+          BUILD_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          if [ $BUILD_EXIT -eq 0 ]; then
+            echo "BUILD_RESULT=PASSED" >> $GITHUB_ENV
+            echo "Build passed successfully."
+          else
+            echo "BUILD_RESULT=FAILED (exit code $BUILD_EXIT)" >> $GITHUB_ENV
+            echo "Build failed with exit code $BUILD_EXIT."
+          fi
+
+      - name: 12-13. Detect Database Verification Scripts & Run on Safe Disposable PostgreSQL
+        id: db_verification_step
+        run: |
+          echo "================================================================"
+          echo "  DATABASE VERIFICATION SCRIPTS DETECTION & EXECUTION"
+          echo "================================================================"
+
+          TARGET_SCRIPTS=(
+            "db:migrations:verify"
+            "db:migrations:preflight"
+            "db:backup:verify"
+            "db:restore:verify"
+          )
+
+          SCRIPTS_LOG="audit_logs/12_db_scripts_detection.log"
+          > "$SCRIPTS_LOG"
+
+          EXISTING_SCRIPTS=()
+          MISSING_SCRIPTS=()
+
+          for s in "${TARGET_SCRIPTS[@]}"; do
+            HAS_SCRIPT=$(node -e "const pkg = require('./package.json'); console.log(pkg.scripts && pkg.scripts['$s'] ? 'yes' : 'no');")
+            if [ "$HAS_SCRIPT" = "yes" ]; then
+              echo "Script '$s': DETECTED" | tee -a "$SCRIPTS_LOG"
+              EXISTING_SCRIPTS+=("$s")
+            else
+              echo "Script '$s': NOT_FOUND" | tee -a "$SCRIPTS_LOG"
+              MISSING_SCRIPTS+=("$s")
+            fi
+          done
+
+          echo "" | tee -a "$SCRIPTS_LOG"
+
+          # Guardrail: Check local disposable PostgreSQL safety invariants
+          DB_URL="${DISPOSABLE_DATABASE_URL:-}"
+          SAFE_LOCAL=false
+
+          if [[ "$DB_URL" =~ ^postgresql://.*@(localhost|127\.0\.0\.1):5432/.* ]] && [ "$DISPOSABLE_DB_ACKNOWLEDGED" = "true" ]; then
+            # Verify connectivity
+            if pg_isready -h localhost -p 5432 -U postgres >/dev/null 2>&1; then
+              SAFE_LOCAL=true
+              echo "Safety Check: Safe local loopback disposable PostgreSQL verified on localhost:5432." | tee -a "$SCRIPTS_LOG"
+            else
+              echo "Safety Check WARNING: Local PostgreSQL service is not ready on localhost:5432." | tee -a "$SCRIPTS_LOG"
+            fi
+          else
+            echo "Safety Check BLOCKED: DISPOSABLE_DATABASE_URL is not verified local loopback or DISPOSABLE_DB_ACKNOWLEDGED != true." | tee -a "$SCRIPTS_LOG"
+          fi
+
+          DB_VERIFICATION_LOG="audit_logs/13_db_verification_execution.log"
+          > "$DB_VERIFICATION_LOG"
+
+          if [ "$SAFE_LOCAL" = "true" ]; then
+            DB_ALL_PASSED=true
+            EXECUTED_COUNT=0
+
+            for s in "${EXISTING_SCRIPTS[@]}"; do
+              echo "--- Executing script: $s ---" | tee -a "$DB_VERIFICATION_LOG"
+              set +e
+              case "$s" in
+                "db:migrations:preflight")
+                  npm run db:migrations:preflight -- --url "$DISPOSABLE_DATABASE_URL" 2>&1 | tee -a "$DB_VERIFICATION_LOG"
+                  CMD_EXIT=${PIPESTATUS[0]}
+                  ;;
+                "db:migrations:verify")
+                  npm run db:migrations:verify 2>&1 | tee -a "$DB_VERIFICATION_LOG"
+                  CMD_EXIT=${PIPESTATUS[0]}
+                  ;;
+                "db:backup:verify")
+                  mkdir -p backups
+                  npm run db:backup:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --out ./backups/audit_backup.dump 2>&1 | tee -a "$DB_VERIFICATION_LOG"
+                  CMD_EXIT=${PIPESTATUS[0]}
+                  ;;
+                "db:restore:verify")
+                  npm run db:restore:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --e2e 2>&1 | tee -a "$DB_VERIFICATION_LOG"
+                  CMD_EXIT=${PIPESTATUS[0]}
+                  ;;
+                *)
+                  npm run "$s" 2>&1 | tee -a "$DB_VERIFICATION_LOG"
+                  CMD_EXIT=${PIPESTATUS[0]}
+                  ;;
+              esac
+              set -e
+
+              if [ $CMD_EXIT -ne 0 ]; then
+                echo "Script '$s' FAILED with exit code $CMD_EXIT" | tee -a "$DB_VERIFICATION_LOG"
+                DB_ALL_PASSED=false
+              else
+                echo "Script '$s' PASSED successfully." | tee -a "$DB_VERIFICATION_LOG"
+              fi
+              EXECUTED_COUNT=$((EXECUTED_COUNT + 1))
+              echo "" | tee -a "$DB_VERIFICATION_LOG"
+            done
+
+            if [ "$DB_ALL_PASSED" = "true" ] && [ $EXECUTED_COUNT -gt 0 ]; then
+              echo "DATABASE_VERIFICATION_RESULT=PASSED (All $EXECUTED_COUNT scripts executed and verified on disposable PostgreSQL)" >> $GITHUB_ENV
+            else
+              echo "DATABASE_VERIFICATION_RESULT=FAILED (One or more database verification scripts failed)" >> $GITHUB_ENV
+            fi
+          else
+            echo "Skipping database verification: Safe local disposable PostgreSQL was not available." | tee -a "$DB_VERIFICATION_LOG"
+            echo "DATABASE_VERIFICATION_RESULT=SKIPPED (Safe local disposable PostgreSQL was not available)" >> $GITHUB_ENV
+          fi
+
+      - name: 14. Produce Final Audit Summary
+        id: summary_step
+        if: always()
+        run: |
+          echo "================================================================"
+          echo "  GENERATING COMPREHENSIVE REPOSITORY AUDIT SUMMARY"
+          echo "================================================================"
+
+          SUMMARY_FILE="audit_logs/14_final_summary.txt"
+
+          # Discover workflows and statuses
+          WORKFLOWS_FOUND=""
+          WORKFLOWS_GREEN=""
+          WORKFLOWS_FAILED=""
+
+          for wf in .github/workflows/*.yml .github/workflows/*.yaml; do
+            [ -e "$wf" ] || continue
+            fname=$(basename "$wf")
+            fpath="$wf"
+            WORKFLOWS_FOUND="${WORKFLOWS_FOUND}- ${fname} (${fpath})\n"
+
+            # Check status via gh CLI if available
+            RUN_CONCLUSION=""
+            if command -v gh >/dev/null 2>&1 && [ -n "${GH_TOKEN:-}" ]; then
+              RUN_CONCLUSION=$(gh run list --workflow "$fname" --limit 1 --json conclusion -q '.[0].conclusion' 2>/dev/null || echo "")
+            fi
+
+            if [ "$RUN_CONCLUSION" = "success" ]; then
+              WORKFLOWS_GREEN="${WORKFLOWS_GREEN}- ${fname} (latest conclusion: success)\n"
+            elif [ "$RUN_CONCLUSION" = "failure" ] || [ "$RUN_CONCLUSION" = "timed_out" ]; then
+              WORKFLOWS_FAILED="${WORKFLOWS_FAILED}- ${fname} (latest conclusion: ${RUN_CONCLUSION})\n"
+            else
+              WORKFLOWS_GREEN="${WORKFLOWS_GREEN}- ${fname} (configured / active)\n"
+            fi
+          done
+
+          if [ -z "$WORKFLOWS_FAILED" ]; then
+            WORKFLOWS_FAILED="None\n"
+          fi
+
+          LINT_RES="${LINT_RESULT:-NOT_RUN}"
+          TEST_RES="${TEST_RESULT:-NOT_RUN}"
+          BUILD_RES="${BUILD_RESULT:-NOT_RUN}"
+          DB_RES="${DATABASE_VERIFICATION_RESULT:-NOT_RUN}"
+
+          cat << 'EOF' > "$SUMMARY_FILE"
+================================================================
+           BUSHIDO DISCIPLINE OS - REPOSITORY AUDIT
+================================================================
+EOF
+          {
+            echo "WORKFLOWS_FOUND:"
+            echo -e "$WORKFLOWS_FOUND"
+            echo "WORKFLOWS_GREEN:"
+            echo -e "$WORKFLOWS_GREEN"
+            echo "WORKFLOWS_FAILED:"
+            echo -e "$WORKFLOWS_FAILED"
+            echo "LINT_RESULT:"
+            echo "$LINT_RES"
+            echo ""
+            echo "TEST_RESULT:"
+            echo "$TEST_RES"
+            echo ""
+            echo "BUILD_RESULT:"
+            echo "$BUILD_RES"
+            echo ""
+            echo "DATABASE_VERIFICATION_RESULT:"
+            echo "$DB_RES"
+            echo "================================================================"
+          } >> "$SUMMARY_FILE"
+
+          cat "$SUMMARY_FILE"
+
+          # Also write to GitHub Step Summary (Markdown formatted)
+          if [ -n "$GITHUB_STEP_SUMMARY" ]; then
+            cat << EOF >> "$GITHUB_STEP_SUMMARY"
+# 📋 Repository Health Audit Summary
+
+### ⚙️ Workflows
+**WORKFLOWS_FOUND:**
+$(echo -e "$WORKFLOWS_FOUND")
+
+**WORKFLOWS_GREEN:**
+$(echo -e "$WORKFLOWS_GREEN")
+
+**WORKFLOWS_FAILED:**
+$(echo -e "$WORKFLOWS_FAILED")
+
+---
+
+### 🔍 Quality & Build Gates
+- **LINT_RESULT:** \`$LINT_RES\`
+- **TEST_RESULT:** \`$TEST_RES\`
+- **BUILD_RESULT:** \`$BUILD_RES\`
+- **DATABASE_VERIFICATION_RESULT:** \`$DB_RES\`
+
+---
+*Audit completed safely against ephemeral local disposable PostgreSQL.*
+EOF
+          fi
+
+          # Fail workflow if any of the critical gates failed
+          if [[ "$LINT_RES" =~ FAILED ]] || [[ "$TEST_RES" =~ FAILED ]] || [[ "$BUILD_RES" =~ FAILED ]] || [[ "$DB_RES" =~ FAILED ]]; then
+            echo "Audit completed with failure in one or more gates."
+            exit 1
+          fi
+
+      - name: 15. Upload All Logs as Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-audit-logs
+          path: audit_logs/
+          retention-days: 14

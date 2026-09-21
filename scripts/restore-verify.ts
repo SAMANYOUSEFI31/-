@@ -26,6 +26,7 @@ import { spawnSync } from "node:child_process";
 import { URL } from "node:url";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as crypto from "node:crypto";
 import { PrismaClient, Prisma } from "@prisma/client";
 import {
   runPreflightInspection,
@@ -44,16 +45,35 @@ import {
   BackupManifest,
   assertSafety,
   sanitizeText,
-  runBackupVerification
+  runBackupVerification,
+  computeDeterministicTableDigest,
+  canonicalizeRecordValue
 } from "./backup-verify";
+
+export type DataParityClassification =
+  | "VERIFIED_ZERO_DATA_LOSS"
+  | "STRUCTURAL_AND_COUNT_PARITY_ONLY"
+  | "DATA_DISCREPANCY_DETECTED"
+  | "VERIFICATION_INCOMPLETE";
 
 export interface RestoreComparisonReport {
   restoredDatabaseName: string;
   sourceDatabaseName: string;
+  pgRestoreExitCode: number;
   backupArtifact: {
     path: string;
     sizeBytes: number;
     sha256: string;
+  };
+  artifactVerification: {
+    checksumMatches: boolean;
+    sizeMatches: boolean;
+    tocVerified: boolean;
+    missingTocObjects: string[];
+    recalculatedSha256: string;
+    expectedSha256: string;
+    actualSizeBytes: number;
+    expectedSizeBytes: number;
   };
   tableParity: {
     expectedTables: string[];
@@ -81,6 +101,7 @@ export interface RestoreComparisonReport {
     expectedCount: number;
     restoredCount: number;
     migrations: string[];
+    discrepancies: string[];
     status: "MATCH" | "MISMATCH";
   };
   rowCountParity: {
@@ -94,7 +115,7 @@ export interface RestoreComparisonReport {
     totalActual: number;
     status: "MATCH" | "MISMATCH";
   };
-  dataLossStatus: "ZERO_DATA_LOSS" | "DATA_DISCREPANCY_DETECTED";
+  dataLossStatus: DataParityClassification;
   preflightReport: DetailedPreflightReport;
   schemaDriftStatus: "ZERO_DRIFT" | "DRIFT_DETECTED";
   behavioralVerification: {
@@ -102,6 +123,107 @@ export interface RestoreComparisonReport {
     dailyLogUniquenessEnforced: boolean;
     cascadeDeleteActive: boolean;
   };
+  acceptance: {
+    accepted: boolean;
+    blockers: string[];
+  };
+}
+
+export interface AcceptanceEvaluationResult {
+  accepted: boolean;
+  blockers: string[];
+}
+
+export function evaluateRestoreAcceptance(report: RestoreComparisonReport): AcceptanceEvaluationResult {
+  const blockers: string[] = [];
+
+  if (report.pgRestoreExitCode !== 0) {
+    blockers.push(`pg_restore non-zero exit code: ${report.pgRestoreExitCode}`);
+  }
+  if (!report.artifactVerification.checksumMatches) {
+    blockers.push("Backup artifact SHA-256 checksum does not match manifest");
+  }
+  if (!report.artifactVerification.sizeMatches) {
+    blockers.push("Backup artifact file size does not match manifest");
+  }
+  if (!report.artifactVerification.tocVerified) {
+    blockers.push(`Backup artifact TOC missing required objects: ${report.artifactVerification.missingTocObjects.join(", ")}`);
+  }
+  if (report.tableParity.status !== "MATCH") {
+    blockers.push(`Table parity mismatch: missing ${report.tableParity.missingTables.join(", ")}`);
+  }
+  if (report.enumParity.status !== "MATCH") {
+    blockers.push(`Enum parity mismatch: missing ${report.enumParity.missingEnums.join(", ")}`);
+  }
+  if (
+    report.foreignKeyParity.status !== "MATCH" ||
+    report.foreignKeyParity.verifiedCascadeFks !== 5 ||
+    report.foreignKeyParity.missingFks.length > 0
+  ) {
+    blockers.push(
+      `Foreign key parity mismatch: verified ${report.foreignKeyParity.verifiedCascadeFks}/5, missing ${report.foreignKeyParity.missingFks.join(", ")}`
+    );
+  }
+  if (
+    report.uniqueContractParity.status !== "MATCH" ||
+    report.uniqueContractParity.verifiedContracts !== 5 ||
+    report.uniqueContractParity.missingContracts.length > 0
+  ) {
+    blockers.push(
+      `Unique contract parity mismatch: verified ${report.uniqueContractParity.verifiedContracts}/5, missing ${report.uniqueContractParity.missingContracts.join(", ")}`
+    );
+  }
+  if (report.migrationParity.status !== "MATCH" || report.migrationParity.discrepancies.length > 0) {
+    blockers.push(
+      `Migration parity mismatch: expected ${report.migrationParity.expectedCount}, got ${report.migrationParity.restoredCount}. Details: ${report.migrationParity.discrepancies.join("; ")}`
+    );
+  }
+  if (report.rowCountParity.status !== "MATCH") {
+    const mismatches = report.rowCountParity.perTable
+      .filter((p) => !p.match)
+      .map((p) => `${p.table} (expected ${p.expected}, actual ${p.actual})`);
+    blockers.push(`Row count parity mismatch in tables: ${mismatches.join(", ")}`);
+  }
+  if (report.dataLossStatus !== "VERIFIED_ZERO_DATA_LOSS") {
+    blockers.push(`Data loss status is '${report.dataLossStatus}', required 'VERIFIED_ZERO_DATA_LOSS'`);
+  }
+  if (report.preflightReport.assessment.status !== "ALREADY_BASELINED") {
+    blockers.push(`Restored preflight status '${report.preflightReport.assessment.status}' is not ALREADY_BASELINED`);
+  }
+  if (report.preflightReport.assessment.classification !== "FULLY_MIGRATED") {
+    blockers.push(`Restored preflight classification '${report.preflightReport.assessment.classification}' is not FULLY_MIGRATED`);
+  }
+  if (report.preflightReport.assessment.blockers.length > 0) {
+    blockers.push(`Restored preflight reported blockers: ${report.preflightReport.assessment.blockers.join("; ")}`);
+  }
+  if (report.schemaDriftStatus !== "ZERO_DRIFT") {
+    blockers.push(`Schema drift detected: '${report.schemaDriftStatus}'`);
+  }
+  if (!report.behavioralVerification.emailUniquenessEnforced) {
+    blockers.push("Behavioral check failed: Email uniqueness (P2002) not enforced");
+  }
+  if (!report.behavioralVerification.dailyLogUniquenessEnforced) {
+    blockers.push("Behavioral check failed: DailyLog uniqueness (P2002) not enforced");
+  }
+  if (!report.behavioralVerification.cascadeDeleteActive) {
+    blockers.push("Behavioral check failed: Cascade deletion not active");
+  }
+
+  return {
+    accepted: blockers.length === 0,
+    blockers
+  };
+}
+
+export function assertRestoreAcceptance(report: RestoreComparisonReport): void {
+  const evaluation = evaluateRestoreAcceptance(report);
+  if (!evaluation.accepted) {
+    throw new Error(
+      `[RESTORE_ACCEPTANCE_FAILED] Acceptance gate blocked restore verification with ${evaluation.blockers.length} blocker(s):\n${evaluation.blockers
+        .map((b, i) => `  ${i + 1}. ${b}`)
+        .join("\n")}`
+    );
+  }
 }
 
 export interface RestoreVerificationOptions {
@@ -417,8 +539,12 @@ export async function runRestoreVerification(
     } else {
       if (manifestPath && fs.existsSync(manifestPath)) {
         manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-      } else if (fs.existsSync(`${backupPath}.manifest.json`)) {
+      } else if (backupPath && fs.existsSync(`${backupPath}.manifest.json`)) {
         manifest = JSON.parse(fs.readFileSync(`${backupPath}.manifest.json`, "utf8"));
+      } else {
+        throw new Error(
+          `[RESTORE_INTEGRITY_VIOLATION] Execution refused: Missing manifest for externally supplied backup artifact: ${backupPath}`
+        );
       }
     }
 
@@ -426,8 +552,82 @@ export async function runRestoreVerification(
       throw new Error(`[RESTORE_ERROR] Backup file not found at: ${backupPath}`);
     }
 
-    const backupStats = fs.statSync(backupPath);
-    const backupSha256 = manifest?.backupArtifact.sha256 || "unknown";
+    // Recalculate SHA-256 and size from actual dump file
+    const fileBytes = fs.readFileSync(backupPath);
+    const recalculatedSha256 = crypto.createHash("sha256").update(fileBytes).digest("hex");
+    const expectedSha256 = manifest?.backupArtifact?.sha256 || "";
+    const actualSizeBytes = fs.statSync(backupPath).size;
+    const expectedSizeBytes = manifest?.backupArtifact?.fileSizeBytes || -1;
+
+    const actualBuf = Buffer.from(recalculatedSha256, "utf8");
+    const expectedBuf = Buffer.from(expectedSha256, "utf8");
+    const checksumMatches =
+      actualBuf.length > 0 &&
+      expectedBuf.length > 0 &&
+      actualBuf.length === expectedBuf.length &&
+      crypto.timingSafeEqual(actualBuf, expectedBuf);
+
+    if (!checksumMatches) {
+      throw new Error(
+        `[RESTORE_INTEGRITY_VIOLATION] Backup checksum mismatch! Expected SHA-256 ${expectedSha256}, recalculated ${recalculatedSha256}`
+      );
+    }
+
+    const sizeMatches = actualSizeBytes === expectedSizeBytes;
+    if (!sizeMatches) {
+      throw new Error(
+        `[RESTORE_INTEGRITY_VIOLATION] Backup file size mismatch! Expected ${expectedSizeBytes} bytes, found ${actualSizeBytes} bytes`
+      );
+    }
+
+    // Run pg_restore --list to inspect TOC before creating restore database
+    const tocResult = spawnSync("pg_restore", ["--list", backupPath], {
+      shell: false,
+      encoding: "utf8"
+    });
+    if (tocResult.error) {
+      throw new Error(
+        `[RESTORE_INTEGRITY_VIOLATION] pg_restore --list failed: ${sanitizeText(tocResult.error.message)}`
+      );
+    }
+    if (tocResult.status !== 0) {
+      throw new Error(
+        `[RESTORE_INTEGRITY_VIOLATION] pg_restore --list failed with non-zero exit code ${tocResult.status}: ${sanitizeText(
+          tocResult.stderr || tocResult.stdout
+        )}`
+      );
+    }
+
+    const tocOutput = tocResult.stdout;
+    const missingTocObjects: string[] = [];
+    for (const t of [...REQUIRED_TABLES, "_prisma_migrations"]) {
+      const regex = new RegExp(`(TABLE|TABLE DATA)\\s+public\\s+${t}\\b`, "i");
+      if (!regex.test(tocOutput)) {
+        missingTocObjects.push(`table:${t}`);
+      }
+    }
+    for (const e of REQUIRED_ENUMS) {
+      const regex = new RegExp(`TYPE\\s+public\\s+${e}\\b`, "i");
+      if (!regex.test(tocOutput)) {
+        missingTocObjects.push(`enum:${e}`);
+      }
+    }
+    if (missingTocObjects.length > 0) {
+      throw new Error(
+        `[RESTORE_INTEGRITY_VIOLATION] Backup artifact TOC is missing required objects: ${missingTocObjects.join(", ")}`
+      );
+    }
+
+    const artifactVerification = {
+      checksumMatches,
+      sizeMatches,
+      tocVerified: missingTocObjects.length === 0,
+      missingTocObjects,
+      recalculatedSha256,
+      expectedSha256,
+      actualSizeBytes,
+      expectedSizeBytes
+    };
 
     // 4. Create ephemeral target restore database
     const restoreDbName = `bushido_restore_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -475,10 +675,12 @@ export async function runRestoreVerification(
       throw new Error(`[RESTORE_ERROR] pg_restore failed to spawn: ${sanitizeText(restoreRes.error.message)}`);
     }
 
-    // In pg_restore, exit code 0 is clean; if there are warnings (exit code 1), check output
-    if (restoreRes.status !== 0 && restoreRes.status !== 1) {
+    const pgRestoreExitCode = restoreRes.status ?? -1;
+
+    // Strict exit code 0 contract: accept ONLY code 0
+    if (pgRestoreExitCode !== 0) {
       throw new Error(
-        `[RESTORE_ERROR] pg_restore exited with code ${restoreRes.status}: ${sanitizeText(
+        `[RESTORE_ERROR] pg_restore exited with non-zero code ${pgRestoreExitCode}: ${sanitizeText(
           restoreRes.stderr || restoreRes.stdout
         )}`
       );
@@ -604,11 +806,29 @@ export async function runRestoreVerification(
 
     const expectedMigrationCount = manifest?.sourceMetadata.migrationRecords.length || 4;
     const restoredMigrationCount = restoredMigrations.length;
-    const migrationParityStatus =
-      expectedMigrationCount === restoredMigrationCount &&
-      restoredMigrations.every((m) => m.finished_at !== null)
-        ? "MATCH"
-        : "MISMATCH";
+    const migrationDiscrepancies: string[] = [];
+
+    if (expectedMigrationCount !== restoredMigrationCount) {
+      migrationDiscrepancies.push(`Count mismatch: expected ${expectedMigrationCount}, got ${restoredMigrationCount}`);
+    }
+    for (const rm of restoredMigrations) {
+      if (!rm.finished_at) {
+        migrationDiscrepancies.push(`Migration '${rm.migration_name}' finished_at is null`);
+      }
+    }
+    if (manifest?.sourceMetadata.migrationRecords) {
+      for (const sm of manifest.sourceMetadata.migrationRecords) {
+        const found = restoredMigrations.find((rm) => rm.migration_name === sm.migrationName);
+        if (!found) {
+          migrationDiscrepancies.push(`Migration '${sm.migrationName}' missing from restored history`);
+        } else if (found.checksum !== sm.checksum) {
+          migrationDiscrepancies.push(
+            `Migration '${sm.migrationName}' checksum mismatch: expected ${sm.checksum}, got ${found.checksum}`
+          );
+        }
+      }
+    }
+    const migrationParityStatus = migrationDiscrepancies.length === 0 ? "MATCH" : "MISMATCH";
 
     // 12. Row Counts Comparison
     const perTableCounts: Array<{ table: string; expected: number; actual: number; match: boolean }> = [];
@@ -619,7 +839,7 @@ export async function runRestoreVerification(
       const actualRes: Array<{ count: number }> = await restoredPrisma.$queryRawUnsafe(
         `SELECT count(*)::int as count FROM "${table}";`
       );
-      const actual = actualRes[0]?.count || 0;
+      const actual = actualRes[0]?.count ?? -1;
 
       let expected = 0;
       if (manifest) {
@@ -629,40 +849,73 @@ export async function runRestoreVerification(
         const srcRes: Array<{ count: number }> = await sourcePrisma.$queryRawUnsafe(
           `SELECT count(*)::int as count FROM "${table}";`
         );
-        expected = srcRes[0]?.count || 0;
+        expected = srcRes[0]?.count ?? -1;
       }
 
-      const match = expected === actual;
+      const match = expected === actual && actual >= 0;
       perTableCounts.push({ table, expected, actual, match });
 
       if (table !== "_prisma_migrations") {
-        totalExpectedRows += expected;
-        totalActualRows += actual;
+        totalExpectedRows += Math.max(0, expected);
+        totalActualRows += Math.max(0, actual);
       }
     }
 
     const rowCountParityStatus = perTableCounts.every((p) => p.match) ? "MATCH" : "MISMATCH";
 
-    // 13. Deep Record-Level Comparison (Zero Data Loss Proof)
-    let dataLossStatus: "ZERO_DATA_LOSS" | "DATA_DISCREPANCY_DETECTED" = "ZERO_DATA_LOSS";
+    // 13. Deep Record-Level Comparison & Honest Data Loss Status
+    let dataLossStatus: DataParityClassification = "VERIFICATION_INCOMPLETE";
 
-    if (sourcePrisma) {
+    if (rowCountParityStatus !== "MATCH" || perTableCounts.some((p) => !p.match || p.actual < 0 || p.expected < 0)) {
+      dataLossStatus = "DATA_DISCREPANCY_DETECTED";
+    } else if (sourcePrisma) {
+      let deepMismatch = false;
       for (const table of REQUIRED_TABLES) {
         const srcRecords: any[] = await sourcePrisma.$queryRawUnsafe(`SELECT * FROM "${table}" ORDER BY id ASC;`);
         const dstRecords: any[] = await restoredPrisma.$queryRawUnsafe(`SELECT * FROM "${table}" ORDER BY id ASC;`);
 
         if (srcRecords.length !== dstRecords.length) {
-          dataLossStatus = "DATA_DISCREPANCY_DETECTED";
+          deepMismatch = true;
           break;
         }
 
-        const srcJson = JSON.stringify(srcRecords);
-        const dstJson = JSON.stringify(dstRecords);
-        if (srcJson !== dstJson) {
-          dataLossStatus = "DATA_DISCREPANCY_DETECTED";
+        const srcDigest = computeDeterministicTableDigest(srcRecords);
+        const dstDigest = computeDeterministicTableDigest(dstRecords);
+        if (srcDigest !== dstDigest) {
+          deepMismatch = true;
           break;
         }
       }
+
+      dataLossStatus = deepMismatch ? "DATA_DISCREPANCY_DETECTED" : "VERIFIED_ZERO_DATA_LOSS";
+    } else if (manifest?.sourceMetadata.tableDigests) {
+      let digestMismatch = false;
+      let missingDigest = false;
+
+      for (const table of REQUIRED_TABLES) {
+        const expectedDigest = manifest.sourceMetadata.tableDigests[table];
+        if (!expectedDigest) {
+          missingDigest = true;
+          break;
+        }
+        const dstRecords: any[] = await restoredPrisma.$queryRawUnsafe(`SELECT * FROM "${table}" ORDER BY id ASC;`);
+        const dstDigest = computeDeterministicTableDigest(dstRecords);
+        if (dstDigest !== expectedDigest) {
+          digestMismatch = true;
+          break;
+        }
+      }
+
+      if (digestMismatch) {
+        dataLossStatus = "DATA_DISCREPANCY_DETECTED";
+      } else if (missingDigest) {
+        dataLossStatus = "STRUCTURAL_AND_COUNT_PARITY_ONLY";
+      } else {
+        dataLossStatus = "VERIFIED_ZERO_DATA_LOSS";
+      }
+    } else {
+      // Manifest only had counts/structural metadata, no live source and no record digests
+      dataLossStatus = "STRUCTURAL_AND_COUNT_PARITY_ONLY";
     }
 
     // 14. Preflight Inspection Integration
@@ -794,14 +1047,16 @@ export async function runRestoreVerification(
       await cleanupAll();
     }
 
-    return {
+    const report: RestoreComparisonReport = {
       restoredDatabaseName: restoreDbName,
       sourceDatabaseName: manifest?.sourceDatabase.databaseName || "source_db",
+      pgRestoreExitCode,
       backupArtifact: {
         path: backupPath,
-        sizeBytes: backupStats.size,
-        sha256: backupSha256
+        sizeBytes: actualSizeBytes,
+        sha256: recalculatedSha256
       },
+      artifactVerification,
       tableParity: {
         expectedTables,
         foundTables,
@@ -828,6 +1083,7 @@ export async function runRestoreVerification(
         expectedCount: expectedMigrationCount,
         restoredCount: restoredMigrationCount,
         migrations: restoredMigrations.map((m) => m.migration_name),
+        discrepancies: migrationDiscrepancies,
         status: migrationParityStatus
       },
       rowCountParity: {
@@ -843,8 +1099,15 @@ export async function runRestoreVerification(
         emailUniquenessEnforced,
         dailyLogUniquenessEnforced,
         cascadeDeleteActive
+      },
+      acceptance: {
+        accepted: false,
+        blockers: []
       }
     };
+
+    report.acceptance = evaluateRestoreAcceptance(report);
+    return report;
   } catch (err) {
     await cleanupAll();
     throw err;
@@ -927,6 +1190,9 @@ async function main() {
     console.log(`    - Email Uniqueness (P2002):      ${report.behavioralVerification.emailUniquenessEnforced ? "ENFORCED" : "FAILED"}`);
     console.log(`    - DailyLog Uniqueness (P2002):   ${report.behavioralVerification.dailyLogUniquenessEnforced ? "ENFORCED" : "FAILED"}`);
     console.log(`    - Cascade Deletion:              ${report.behavioralVerification.cascadeDeleteActive ? "ACTIVE" : "FAILED"}`);
+    // Enforce final pure acceptance gate
+    assertRestoreAcceptance(report);
+
     console.log("================================================================");
     console.log("  BACKUP & RESTORE VERIFICATION PROOF: 100% SUCCESSFUL!");
     console.log("  ZERO DATA LOSS CONFIRMED ACROSS ALL APPLICATION RECORDS.");

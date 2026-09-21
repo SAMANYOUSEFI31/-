@@ -34,6 +34,11 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    env:
+      DISPOSABLE_DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/postgres
+      TEST_DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/postgres
+      DISPOSABLE_DB_ACKNOWLEDGED: 'true'
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -57,7 +62,7 @@ jobs:
         run: npm run build
 
       - name: Verify Prisma Migrations on Disposable PostgreSQL
-        env:
-          DISPOSABLE_DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/postgres
-          DISPOSABLE_DB_ACKNOWLEDGED: 'true'
         run: npm run db:migrations:verify
+
+      - name: Verify Backup & Restore on Disposable PostgreSQL
+        run: npm run db:restore:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --e2e

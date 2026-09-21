@@ -7,3 +7,11 @@ coverage/
 .env*
 !.env.example
 bushido_local_db.json
+
+# Backup artifacts and database dumps
+backups/
+*.dump
+*.dump.manifest.json
+*.manifest.json
+*.tar
+*.sql.gz

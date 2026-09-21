@@ -29,6 +29,225 @@ import {
   EXPECTED_INCREMENTAL_MIGRATIONS,
   BASELINE_MIGRATION
 } from "./preflight-assessment";
+import { runPreflightInspection } from "./preflight-existing-database";
+
+export function canonicalizeRecordValue(val: any): any {
+  if (val === null || val === undefined) return null;
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === "bigint") return val.toString();
+  if (Array.isArray(val)) return val.map(canonicalizeRecordValue);
+  if (typeof val === "object") {
+    const sortedKeys = Object.keys(val).sort();
+    const result: Record<string, any> = {};
+    for (const k of sortedKeys) {
+      result[k] = canonicalizeRecordValue(val[k]);
+    }
+    return result;
+  }
+  return val;
+}
+
+export function computeDeterministicTableDigest(records: any[]): string {
+  const sorted = [...records].sort((a, b) => {
+    const idA = String(a.id ?? "");
+    const idB = String(b.id ?? "");
+    if (idA < idB) return -1;
+    if (idA > idB) return 1;
+    return 0;
+  });
+
+  const canonicalRows = sorted.map((row) => {
+    const keys = Object.keys(row).sort();
+    const canonicalRow: Record<string, any> = {};
+    for (const k of keys) {
+      canonicalRow[k] = canonicalizeRecordValue(row[k]);
+    }
+    return canonicalRow;
+  });
+
+  return crypto
+    .createHash("sha256")
+    .update(JSON.stringify(canonicalRows), "utf8")
+    .digest("hex");
+}
+
+export async function assertBackupPreflight(prisma: PrismaClient, databaseUrl: string): Promise<void> {
+  const blockers: string[] = [];
+
+  // 1. Check all required tables exist and no row count is -1
+  for (const table of [...REQUIRED_TABLES, "_prisma_migrations"]) {
+    try {
+      const countRes: Array<{ count: number }> = await prisma.$queryRawUnsafe(
+        `SELECT count(*)::int as count FROM "${table}";`
+      );
+      if (typeof countRes[0]?.count !== "number" || countRes[0].count < 0) {
+        blockers.push(`Table '${table}' returned invalid row count: ${countRes[0]?.count}`);
+      }
+    } catch (err) {
+      blockers.push(`Required table '${table}' does not exist: ${(err as Error).message}`);
+    }
+  }
+
+  // 2. Check all required enums exist
+  try {
+    const enumsRes: Array<{ typname: string }> = await prisma.$queryRawUnsafe(`
+      SELECT typname FROM pg_type
+      WHERE typname IN ('UserRole', 'UserTier', 'DayStatus', 'SubscriptionStatus');
+    `);
+    const foundEnums = enumsRes.map((e) => e.typname);
+    for (const reqEnum of REQUIRED_ENUMS) {
+      if (!foundEnums.includes(reqEnum)) {
+        blockers.push(`Missing required enum: ${reqEnum}`);
+      }
+    }
+  } catch (err) {
+    blockers.push(`Failed to query pg_type for enums: ${(err as Error).message}`);
+  }
+
+  // 3. Check all five exact foreign keys exist with CASCADE
+  try {
+    interface FkRow {
+      table_name: string;
+      column_name: string;
+      foreign_table_name: string;
+      foreign_column_name: string;
+      delete_rule: string;
+    }
+    const fksRes: FkRow[] = await prisma.$queryRawUnsafe(`
+      SELECT
+        tc.table_name,
+        kcu.column_name,
+        ccu.table_name AS foreign_table_name,
+        ccu.column_name AS foreign_column_name,
+        rc.delete_rule
+      FROM information_schema.table_constraints AS tc
+      JOIN information_schema.key_column_usage AS kcu
+        ON tc.constraint_name = kcu.constraint_name
+        AND tc.table_schema = kcu.table_schema
+      JOIN information_schema.referential_constraints AS rc
+        ON tc.constraint_name = rc.constraint_name
+        AND tc.table_schema = rc.constraint_schema
+      JOIN information_schema.constraint_column_usage AS ccu
+        ON ccu.constraint_name = tc.constraint_name
+        AND ccu.table_schema = tc.table_schema
+      WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public';
+    `);
+
+    for (const reqFk of REQUIRED_FOREIGN_KEYS) {
+      const match = fksRes.find(
+        (f) =>
+          f.table_name === reqFk.table &&
+          f.column_name === reqFk.column &&
+          f.foreign_table_name === reqFk.foreignTable &&
+          f.foreign_column_name === reqFk.foreignColumn &&
+          f.delete_rule === reqFk.deleteRule
+      );
+      if (!match) {
+        blockers.push(`Missing required foreign key: ${reqFk.table}.${reqFk.column} -> ${reqFk.foreignTable}.${reqFk.foreignColumn} [${reqFk.deleteRule}]`);
+      }
+    }
+  } catch (err) {
+    blockers.push(`Failed to verify foreign keys: ${(err as Error).message}`);
+  }
+
+  // 4. Check all five exact unique contracts exist
+  try {
+    const uniqueIndexesRows: Array<{ table_name: string; column_names: string[] }> =
+      await prisma.$queryRawUnsafe(`
+        SELECT
+          t.relname AS table_name,
+          i.relname AS index_name,
+          array_to_json(array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum))) AS column_names
+        FROM pg_index ix
+        JOIN pg_class t ON t.oid = ix.indrelid
+        JOIN pg_class i ON i.oid = ix.indexrelid
+        JOIN pg_namespace n ON n.oid = t.relnamespace
+        JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
+        WHERE n.nspname = 'public'
+          AND ix.indisunique = true
+          AND NOT ix.indisprimary
+        GROUP BY t.relname, i.relname;
+      `);
+
+    for (const reqUnique of REQUIRED_UNIQUE_CONTRACTS) {
+      const match = uniqueIndexesRows.find(
+        (u) =>
+          u.table_name === reqUnique.table &&
+          JSON.stringify(u.column_names) === JSON.stringify(reqUnique.columns)
+      );
+      if (!match) {
+        blockers.push(`Missing required unique contract: ${reqUnique.table}(${reqUnique.columns.join(", ")})`);
+      }
+    }
+  } catch (err) {
+    blockers.push(`Failed to verify unique contracts: ${(err as Error).message}`);
+  }
+
+  // 5. Check all expected migrations exist and are finished cleanly
+  const allExpectedMigrations = [BASELINE_MIGRATION, ...EXPECTED_INCREMENTAL_MIGRATIONS];
+  try {
+    const migRes: Array<{ migration_name: string; checksum: string; finished_at: Date | null }> =
+      await prisma.$queryRawUnsafe(
+        "SELECT migration_name, checksum, finished_at FROM _prisma_migrations ORDER BY started_at ASC;"
+      );
+    for (const expMig of allExpectedMigrations) {
+      const match = migRes.find((m) => m.migration_name === expMig);
+      if (!match) {
+        blockers.push(`Missing expected migration in history: ${expMig}`);
+      } else if (!match.finished_at) {
+        blockers.push(`Migration '${expMig}' is unfinished or failed in _prisma_migrations`);
+      }
+    }
+  } catch (err) {
+    blockers.push(`Failed to inspect _prisma_migrations: ${(err as Error).message}`);
+  }
+
+  // 6. Preflight status is ALREADY_BASELINED with 0 blockers
+  try {
+    const preflight = await runPreflightInspection(databaseUrl);
+    if (preflight.assessment.status !== "ALREADY_BASELINED") {
+      blockers.push(`Preflight assessment status is '${preflight.assessment.status}', expected 'ALREADY_BASELINED'`);
+    }
+    if (preflight.assessment.blockers.length > 0) {
+      blockers.push(`Preflight blockers detected: ${preflight.assessment.blockers.join("; ")}`);
+    }
+  } catch (err) {
+    blockers.push(`Preflight inspection failed: ${(err as Error).message}`);
+  }
+
+  // 7. Schema drift is ZERO_DRIFT
+  const driftRes = spawnSync(
+    "npx",
+    [
+      "prisma",
+      "migrate",
+      "diff",
+      "--from-schema-datasource",
+      "prisma/schema.prisma",
+      "--to-schema-datamodel",
+      "prisma/schema.prisma",
+      "--exit-code"
+    ],
+    {
+      shell: false,
+      encoding: "utf8",
+      env: { ...process.env, DATABASE_URL: databaseUrl }
+    }
+  );
+  if (driftRes.error) {
+    blockers.push(`Prisma migrate diff spawn failed: ${sanitizeText(driftRes.error.message)}`);
+  } else if (driftRes.status !== 0) {
+    blockers.push(`Schema drift detected (exit code ${driftRes.status}): ${sanitizeText(driftRes.stderr || driftRes.stdout)}`);
+  }
+
+  if (blockers.length > 0) {
+    throw new Error(
+      `[BACKUP_PREFLIGHT_FAILED] Backup preflight validation failed with ${blockers.length} blocker(s):\n${blockers
+        .map((b, i) => `  ${i + 1}. ${b}`)
+        .join("\n")}`
+    );
+  }
+}
 
 // --- Safety Configuration & Remote Guardrails ---
 const BANNED_KEYWORDS = [
@@ -149,6 +368,7 @@ export interface BackupManifest {
   };
   sourceMetadata: {
     tableRowCounts: TableRowCount[];
+    tableDigests?: Record<string, string>;
     totalRows: number;
     migrationRecords: Array<{
       migrationName: string;
@@ -247,6 +467,16 @@ export async function runBackupVerification(
       WHERE n.nspname = 'public' AND ix.indisunique = true AND NOT ix.indisprimary;
     `);
     uniqueIndexesCount = uiRes[0]?.count || 0;
+
+    // 1b. Compute deterministic record-level digests for all tables
+    var tableDigests: Record<string, string> = {};
+    for (const table of REQUIRED_TABLES) {
+      const records: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "${table}" ORDER BY id ASC;`);
+      tableDigests[table] = computeDeterministicTableDigest(records);
+    }
+
+    // 1c. Run strict backup preflight validation BEFORE pg_dump
+    await assertBackupPreflight(prisma, databaseUrl);
   } finally {
     await prisma.$disconnect();
   }
@@ -395,6 +625,7 @@ export async function runBackupVerification(
     },
     sourceMetadata: {
       tableRowCounts,
+      tableDigests,
       totalRows,
       migrationRecords,
       foreignKeysCount,
