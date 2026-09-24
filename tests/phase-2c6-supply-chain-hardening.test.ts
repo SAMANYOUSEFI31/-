@@ -38,6 +38,12 @@ describe('Phase 2C.6: Supply-Chain & Dependency Hardening Suite', () => {
         'engines.node must specify Node.js 20 compatibility'
       );
     });
+
+    test('bun.lock and alternative lockfiles remain removed', () => {
+      assert.strictEqual(fs.existsSync(path.join(rootDir, 'bun.lock')), false, 'bun.lock must remain removed');
+      assert.strictEqual(fs.existsSync(path.join(rootDir, 'yarn.lock')), false, 'yarn.lock must remain removed');
+      assert.strictEqual(fs.existsSync(path.join(rootDir, 'pnpm-lock.yaml')), false, 'pnpm-lock.yaml must remain removed');
+    });
   });
 
   describe('2. GitHub Workflows Supply-Chain Hardening', () => {
@@ -163,7 +169,7 @@ describe('Phase 2C.6: Supply-Chain & Dependency Hardening Suite', () => {
     });
   });
 
-  describe('4. Dependabot Governance', () => {
+  describe('4. Dependabot Governance & Noise Reduction', () => {
     test('.github/dependabot.yml exists and configures npm and github-actions', () => {
       const dependabotPath = path.join(rootDir, '.github', 'dependabot.yml');
       assert.ok(fs.existsSync(dependabotPath), '.github/dependabot.yml must exist');
@@ -171,16 +177,47 @@ describe('Phase 2C.6: Supply-Chain & Dependency Hardening Suite', () => {
 
       assert.ok(content.includes('package-ecosystem: "npm"') || content.includes("package-ecosystem: 'npm'"), 'Dependabot must cover npm');
       assert.ok(content.includes('package-ecosystem: "github-actions"') || content.includes("package-ecosystem: 'github-actions'"), 'Dependabot must cover github-actions');
-      assert.ok(content.includes('interval:'), 'Dependabot must configure an update schedule interval');
+      assert.ok(content.includes('interval: "weekly"') || content.includes("interval: 'weekly'") || content.includes('interval: weekly'), 'Dependabot must configure weekly interval');
       assert.strictEqual(
         content.includes('auto-merge') || content.includes('automerge'),
         false,
         'Dependabot must NOT enable automatic merging'
       );
     });
+
+    test('Dependabot enforces strict PR limits (3 for npm, 2 for github-actions)', () => {
+      const dependabotPath = path.join(rootDir, '.github', 'dependabot.yml');
+      const content = fs.readFileSync(dependabotPath, 'utf8');
+
+      assert.ok(content.includes('open-pull-requests-limit: 3'), 'Dependabot npm open-pull-requests-limit must be 3');
+      assert.ok(content.includes('open-pull-requests-limit: 2'), 'Dependabot github-actions open-pull-requests-limit must be 2');
+    });
+
+    test('Dependabot ignores npm semver-major updates to prevent major version noise', () => {
+      const dependabotPath = path.join(rootDir, '.github', 'dependabot.yml');
+      const content = fs.readFileSync(dependabotPath, 'utf8');
+
+      assert.ok(content.includes('version-update:semver-major'), 'Dependabot must ignore semver-major updates');
+      assert.ok(content.includes('groups:'), 'Dependabot must configure update grouping for minor/patch');
+    });
   });
 
-  describe('5. Android APK Workflow Blocker Integrity', () => {
+  describe('5. Android APK Workflow Blocker & Manual-Only Invariant', () => {
+    test('APK workflow is strictly manual-only (workflow_dispatch only, no push or pull_request)', () => {
+      const apkContent = fs.readFileSync(path.join(rootDir, '.github', 'workflows', 'build-apk.yml'), 'utf8');
+      assert.ok(apkContent.includes('workflow_dispatch:'), 'build-apk.yml must have workflow_dispatch trigger');
+      assert.strictEqual(
+        /\bon:\s*\n\s*push:/.test(apkContent) || /\bpush:\s*\n\s*branches:/.test(apkContent),
+        false,
+        'build-apk.yml must NOT trigger on push'
+      );
+      assert.strictEqual(
+        /\bpull_request:/.test(apkContent),
+        false,
+        'build-apk.yml must NOT trigger on pull_request'
+      );
+    });
+
     test('APK workflow does not dynamically add unpinned packages or skip validation silently', () => {
       const apkContent = fs.readFileSync(path.join(rootDir, '.github', 'workflows', 'build-apk.yml'), 'utf8');
       assert.strictEqual(
@@ -200,12 +237,38 @@ describe('Phase 2C.6: Supply-Chain & Dependency Hardening Suite', () => {
     });
   });
 
-  describe('6. Roadmap & Security Documentation Synchronization', () => {
-    test('RUNBOOK.md records Phase 2C.5 CLOSED, Phase 2C.6 IN PROGRESS, Phase 2D NOT STARTED', () => {
+  describe('6. Roadmap & Documentation Invariants', () => {
+    test('RUNBOOK.md records exact roadmap statuses across all phases', () => {
       const runbookContent = fs.readFileSync(path.join(rootDir, 'RUNBOOK.md'), 'utf8');
-      assert.ok(runbookContent.includes('Phase 2C.5'), 'RUNBOOK.md must mention Phase 2C.5');
-      assert.ok(runbookContent.includes('Phase 2C.6'), 'RUNBOOK.md must mention Phase 2C.6');
-      assert.ok(runbookContent.includes('Phase 2D'), 'RUNBOOK.md must mention Phase 2D');
+
+      assert.ok(
+        runbookContent.includes('CLOSED FOR CURRENT SCOPE'),
+        'RUNBOOK.md must mark Phase 2C.4 as CLOSED FOR CURRENT SCOPE'
+      );
+      assert.ok(
+        runbookContent.includes('OPEN DECISION'),
+        'RUNBOOK.md must mark financial retention policy as OPEN DECISION'
+      );
+      assert.ok(
+        runbookContent.includes('DEFERRED'),
+        'RUNBOOK.md must mark account deletion implementation as DEFERRED'
+      );
+      assert.ok(
+        /Phase 2C\.4.+?\|\s*\*\*CLOSED FOR CURRENT SCOPE\*\*/.test(runbookContent),
+        'RUNBOOK.md table must mark Phase 2C.4 as CLOSED FOR CURRENT SCOPE'
+      );
+      assert.ok(
+        /Phase 2C\.5.+?\|\s*\*\*CLOSED\*\*/.test(runbookContent),
+        'RUNBOOK.md table must mark Phase 2C.5 as CLOSED'
+      );
+      assert.ok(
+        /Phase 2C\.6.+?\|\s*\*\*IN PROGRESS\*\*/.test(runbookContent),
+        'RUNBOOK.md table must mark Phase 2C.6 as IN PROGRESS'
+      );
+      assert.ok(
+        /Phase 2D.+?\|\s*\*\*NOT STARTED\*\*/.test(runbookContent),
+        'RUNBOOK.md table must mark Phase 2D as NOT STARTED'
+      );
     });
 
     test('SECURITY.md contains supply chain and dependency security controls', () => {
@@ -213,6 +276,18 @@ describe('Phase 2C.6: Supply-Chain & Dependency Hardening Suite', () => {
       assert.ok(
         securityContent.includes('زنجیره تامین') || securityContent.includes('Supply-Chain') || securityContent.includes('وابستگی‌ها') || securityContent.includes('Dependabot'),
         'SECURITY.md must document supply-chain and dependency governance policies'
+      );
+    });
+
+    test('tests/backup-restore-proof.test.ts preserves fail-closed git assertions', () => {
+      const backupTestContent = fs.readFileSync(path.join(rootDir, 'tests', 'backup-restore-proof.test.ts'), 'utf8');
+      assert.ok(
+        backupTestContent.includes('assert.equal(checkRes.status, 0'),
+        'backup-restore-proof.test.ts must assert checkRes.status === 0 unconditionally'
+      );
+      assert.ok(
+        backupTestContent.includes('assert.equal(lsRes.status, 0'),
+        'backup-restore-proof.test.ts must assert lsRes.status === 0 unconditionally'
       );
     });
   });

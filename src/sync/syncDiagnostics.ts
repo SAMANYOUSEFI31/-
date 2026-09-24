@@ -222,14 +222,10 @@ export function classifySafeError(
     const message = typeof errObj.message === 'string' ? errObj.message : '';
     if (
       name === 'AbortError' ||
-      name === 'TimeoutError' ||
       message.includes('fetch') ||
       message.includes('network') ||
       message.includes('offline') ||
-      message.includes('Failed to fetch') ||
-      message.includes('timeout') ||
-      message.includes('timed out') ||
-      message.includes('ETIMEDOUT')
+      message.includes('Failed to fetch')
     ) {
       return 'NETWORK';
     }

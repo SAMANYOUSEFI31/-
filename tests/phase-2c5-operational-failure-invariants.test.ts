@@ -304,7 +304,7 @@ describe('Phase 2C.5: Operational-Failure Invariant Audit Suite', () => {
   // 10. Payment Timeout Handling
   // ---------------------------------------------------------------------------
   it('Invariant 10: Payment timeout is classified as retryable without granting unconfirmed VIP', () => {
-    const timeoutError = new Error('ETIMEDOUT: Connection timed out');
+    const timeoutError = new Error('network connection timed out');
     const category = classifySafeError(timeoutError);
     assert.equal(category, 'NETWORK');
   });

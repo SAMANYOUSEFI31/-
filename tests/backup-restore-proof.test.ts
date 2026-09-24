@@ -557,24 +557,21 @@ describe("Phase 2C.2: Git Data-Leak Prevention", () => {
       { shell: false, encoding: "utf8" }
     );
 
-    // In a full git working tree, check-ignore will succeed
-    if (checkRes.status === 0) {
-      const output = checkRes.stdout;
-      assert.ok(output.includes("backups/test.dump"));
-      assert.ok(output.includes("backups/test.dump.manifest.json"));
-      assert.ok(output.includes("local_dump_sample.dump"));
-    }
+    assert.equal(checkRes.status, 0, "git check-ignore must match backup artifacts with exit code 0");
+    const output = checkRes.stdout;
+    assert.ok(output.includes("backups/test.dump"));
+    assert.ok(output.includes("backups/test.dump.manifest.json"));
+    assert.ok(output.includes("local_dump_sample.dump"));
   });
 
   it("should confirm zero backup files are tracked in Git index", () => {
     const lsRes = spawnSync("git", ["ls-files"], { shell: false, encoding: "utf8" });
-    if (lsRes.status === 0) {
-      const trackedFiles = lsRes.stdout.split("\n");
-      const leakedFiles = trackedFiles.filter(
-        (f) => f.endsWith(".dump") || f.includes("backups/") || f.endsWith(".manifest.json")
-      );
-      assert.deepEqual(leakedFiles, [], "No backup dump or manifest should be tracked in Git");
-    }
+    assert.equal(lsRes.status, 0, "git ls-files must exit with code 0");
+    const trackedFiles = lsRes.stdout.split("\n");
+    const leakedFiles = trackedFiles.filter(
+      (f) => f.endsWith(".dump") || f.includes("backups/") || f.endsWith(".manifest.json")
+    );
+    assert.deepEqual(leakedFiles, [], "No backup dump or manifest should be tracked in Git");
   });
 });
 
