@@ -188,22 +188,53 @@ jobs:
           PASSED_TESTS=$(grep -oE '# pass [0-9]+' audit_logs/10_npm_test.log | tail -1 | awk '{print $3}')
           FAILED_TESTS=$(grep -oE '# fail [0-9]+' audit_logs/10_npm_test.log | tail -1 | awk '{print $3}')
 
-          TOTAL_TESTS=${TOTAL_TESTS:-0}
-          PASSED_TESTS=${PASSED_TESTS:-0}
-          FAILED_TESTS=${FAILED_TESTS:-0}
+          # Generate concise failure excerpt
+          EXCERPT_FILE="audit_logs/10_npm_test_failure_excerpt.log"
+          > "$EXCERPT_FILE"
 
-          echo "Total Tests: $TOTAL_TESTS"
-          echo "Passed: $PASSED_TESTS"
-          echo "Failed: $FAILED_TESTS"
+          if [ $TEST_EXIT -ne 0 ] || [ -n "$FAILED_TESTS" -a "${FAILED_TESTS:-0}" -gt 0 ]; then
+            {
+              echo "=== FIRST RELEVANT FAILURE EXCERPT ==="
+              grep -B 2 -A 8 -E '(FAIL|ReferenceError|TypeError|SyntaxError|Error:|AssertionError|# fail)' audit_logs/10_npm_test.log | head -30
+              echo ""
+              echo "=== FINAL RELEVANT FAILURE EXCERPT ==="
+              tail -n 35 audit_logs/10_npm_test.log
+            } > "$EXCERPT_FILE"
+          fi
 
-          echo "TOTAL_TEST_COUNT=$TOTAL_TESTS" >> $GITHUB_ENV
-          echo "PASSED_TEST_COUNT=$PASSED_TESTS" >> $GITHUB_ENV
-          echo "FAILED_TEST_COUNT=$FAILED_TESTS" >> $GITHUB_ENV
+          if [ -z "$TOTAL_TESTS" ]; then
+            # Test runner exited before a valid final TAP summary was produced
+            echo "Total Tests: UNAVAILABLE"
+            echo "Passed: UNAVAILABLE"
+            echo "Failed: UNAVAILABLE"
 
-          if [ $TEST_EXIT -eq 0 ] && [ "$FAILED_TESTS" -eq 0 ]; then
-            echo "TEST_RESULT=PASSED ($PASSED_TESTS/$TOTAL_TESTS passed, $FAILED_TESTS failed)" >> $GITHUB_ENV
+            echo "TOTAL_TEST_COUNT=UNAVAILABLE" >> $GITHUB_ENV
+            echo "PASSED_TEST_COUNT=UNAVAILABLE" >> $GITHUB_ENV
+            echo "FAILED_TEST_COUNT=UNAVAILABLE" >> $GITHUB_ENV
+
+            if [ $TEST_EXIT -eq 0 ]; then
+              echo "TEST_RESULT=FAILED (exit code 0 but TAP summary was UNAVAILABLE)" >> $GITHUB_ENV
+            else
+              echo "TEST_RESULT=FAILED (exit code $TEST_EXIT | TEST_COUNTS=UNAVAILABLE)" >> $GITHUB_ENV
+            fi
           else
-            echo "TEST_RESULT=FAILED (exit code $TEST_EXIT | $PASSED_TESTS/$TOTAL_TESTS passed, $FAILED_TESTS failed)" >> $GITHUB_ENV
+            TOTAL_TESTS=${TOTAL_TESTS:-0}
+            PASSED_TESTS=${PASSED_TESTS:-0}
+            FAILED_TESTS=${FAILED_TESTS:-0}
+
+            echo "Total Tests: $TOTAL_TESTS"
+            echo "Passed: $PASSED_TESTS"
+            echo "Failed: $FAILED_TESTS"
+
+            echo "TOTAL_TEST_COUNT=$TOTAL_TESTS" >> $GITHUB_ENV
+            echo "PASSED_TEST_COUNT=$PASSED_TESTS" >> $GITHUB_ENV
+            echo "FAILED_TEST_COUNT=$FAILED_TESTS" >> $GITHUB_ENV
+
+            if [ $TEST_EXIT -eq 0 ] && [ "$FAILED_TESTS" -eq 0 ]; then
+              echo "TEST_RESULT=PASSED ($PASSED_TESTS/$TOTAL_TESTS passed, $FAILED_TESTS failed)" >> $GITHUB_ENV
+            else
+              echo "TEST_RESULT=FAILED (exit code $TEST_EXIT | $PASSED_TESTS/$TOTAL_TESTS passed, $FAILED_TESTS failed)" >> $GITHUB_ENV
+            fi
           fi
 
       - name: 7. Run npm run build
