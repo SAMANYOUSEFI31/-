@@ -15,7 +15,7 @@
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "vercel-build": "npm run build",
-    "test": "NODE_ENV=test tsx --test \"tests/**/*.test.ts\""
+    "test": "node scripts/run-tests.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.4.0",
