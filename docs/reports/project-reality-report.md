@@ -622,7 +622,7 @@ Extracted from `server/auth.ts` and `server/security.ts` [Verified from code]:
 - **Phase 2C.3 (CI Quality Gates & Protected Main)**: `IN PROGRESS`
   - *Completed & Verified*: Authoritative CI is green; full test suite passes with zero failures and zero skipped tests; lint and build pass; migration and backup/restore verification pass; zero schema drift; disposable database parity proven; `ci-diagnostics` artifact uploaded with safe secret redaction; temporary audit workflow removed; authoritative CI retained; runner pinned to `ubuntu-24.04`; Node.js 24-compatible JavaScript Actions upgraded; project runtime preserved on Node.js 20.
   - *Remaining Open Requirement*: `Protected Main: NEEDS EXTERNAL VERIFICATION` (Branch protection rulesets cannot be inspected from inside the container without GitHub API access).
-- **Phase 2C.4 (Staging Deployment & Environment Health Verification)**: `NOT STARTED`
-- **Phase 2C.5 (Production Database Cutover & Fail-Closed Runtime Verification)**: `NOT STARTED`
-- **Phase 2C.6 (Advanced Security Hardening & Ubuntu 26.04 Runner Compatibility Validation)**: `NOT STARTED` (Ubuntu 26.04 runner compatibility testing deferred here).
-- **Phase 2D (Live SMS & Payment Provider Gateway Activation)**: `NOT STARTED`
+- **Phase 2C.4 (Data Retention, Account Deletion & Cascade Safety)**: `NOT STARTED`
+- **Phase 2C.5 (Operational Failure Injection)**: `NOT STARTED`
+- **Phase 2C.6 (Dependency and Supply-Chain Hardening)**: `NOT STARTED`
+- **Phase 2D (Architecture Decomposition & Maintainability)**: `NOT STARTED`

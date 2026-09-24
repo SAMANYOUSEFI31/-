@@ -383,10 +383,10 @@ npm run db:restore:verify -- \
 | **Phase 2C.1** | Migration Integrity & Fresh Database Bootstrap | **CLOSED** | ارزیابی پیش‌پرواز و راستی‌آزمایی مایگریشن‌های دیتابیس یکبارمصرف تکمیل و با تست‌های ایزوله تثبیت شد. |
 | **Phase 2C.2** | Backup, Restore & Recovery Proof | **CLOSED** | اعتبارسنجی قطعی پشتیبان‌گیری و بازیابی با اثبات عدم اتلاف داده (`VERIFIED_ZERO_DATA_LOSS`) با موفقیت بسته شد. |
 | **Phase 2C.3** | CI Quality Gates & Protected Main | **IN PROGRESS** | **آیتم‌های تکمیل و تایید شده:** خط لوله معتبر CI سبز است، آزمون‌های کامل با صفر پرش و شکست پاس شدند، بیلد و لینت تایید شدند، مایگریشن و بازیابی دیتابیس موفق بودند، خط لوله موقت حذف شد، رانر روی `ubuntu-24.04` پین گردید، اکشن‌های نود ۲۴ ارتقا یافتند، ران‌تایم پروژه روی Node.js 20 حفظ شد، آرتیفکت‌های `ci-diagnostics` فعال و سانسور اسرار اعمال شد.<br>**شرط بازمانده جهت بسته شدن:** وضعیت شاخه محافظت‌شده نیازمند تایید بیرونی (`Protected Main: NEEDS EXTERNAL VERIFICATION`) است. |
-| **Phase 2C.4** | Staging Deployment & Environment Health Verification | **NOT STARTED** | آغاز نشده است. |
-| **Phase 2C.5** | Production Database Cutover & Fail-Closed Runtime Verification | **NOT STARTED** | آغاز نشده است. |
-| **Phase 2C.6** | Advanced Security Hardening & Ubuntu 26.04 Runner Compatibility Validation | **NOT STARTED** | اعتبارسنجی سازگاری رانر اوبونتو ۲۶.۰۴ در این فاز انجام خواهد شد. |
-| **Phase 2D** | Live SMS & Payment Provider Gateway Activation | **NOT STARTED** | آغاز نشده است. |
+| **Phase 2C.4** | Data Retention, Account Deletion & Cascade Safety | **NOT STARTED** | آغاز نشده است. |
+| **Phase 2C.5** | Operational Failure Injection | **NOT STARTED** | آغاز نشده است. |
+| **Phase 2C.6** | Dependency and Supply-Chain Hardening | **NOT STARTED** | سخت‌سازی وابستگی‌ها، زنجیره تامین و اعتبارسنجی سازگاری رانر در این فاز انجام خواهد شد. |
+| **Phase 2D** | Architecture Decomposition & Maintainability | **NOT STARTED** | آغاز نشده است. |
 
 ---
 
