@@ -1,67 +1,37 @@
 name: Build Android APK
 
+# STATUS: DISABLED (BLOCKER: Tracked Native Android Architecture Missing)
+#
+# Blocker Assessment:
+# The repository contains capacitor.config.json but lacks an authoritative, tracked
+# `android/` native project tree (including Gradle wrapper, build.gradle, and AndroidManifest.xml).
+# Generating Android architecture dynamically at CI runtime via `cap add android` with unpinned
+# runtime package installation and skipped validation violates Phase 2C.6 supply-chain and
+# deterministic build invariants.
+#
+# Resolution Requirement:
+# This workflow is explicitly disabled from automated CI execution until native Android project
+# assets are baselined, tracked, validated, and declared in package.json/package-lock.json.
+
 on:
-  push:
-    branches:
-      - main
-      - master
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build-android:
-    runs-on: ubuntu-latest
+    name: Build Android APK (Disabled - Missing Tracked Android Project)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install Dependencies & Build Web App
+      - name: Report Blocker Status
         run: |
-          npm install --legacy-peer-deps
-          npm run build
-
-      - name: Setup Java JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '21'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Initialize & Sync Capacitor Android
-        run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init "بوشیدو" "app.bushido.discipline" --web-dir "dist" || true
-          if [ ! -d "android" ]; then
-            npx cap add android
-          fi
-          npx cap copy android
-          npx cap sync android
-
-      - name: Patch Kotlin Duplicate Classes
-        run: |
-          echo "
-          configurations.all {
-              exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
-              exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
-          }
-          " >> android/app/build.gradle
-
-      - name: Build APK via Gradle
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug -x test -x lint --stacktrace
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Bushido-Discipline-OS-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 14
+          echo "===================================================================================="
+          echo "Android APK build is disabled due to missing tracked native Android architecture."
+          echo "Tracked 'android/' directory and declared Capacitor runtime packages are required."
+          echo "See RUNBOOK.md and SECURITY.md for details."
+          echo "===================================================================================="
+          exit 1

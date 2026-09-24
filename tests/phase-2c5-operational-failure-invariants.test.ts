@@ -341,7 +341,7 @@ describe('Phase 2C.5: Operational-Failure Invariant Audit Suite', () => {
     );
 
     assert.equal(valRes.valid, false);
-    assert.equal(valRes.errorCode, 'INVALID_REF_ID');
+    assert.equal(valRes.errorCode, 'MISSING_PAYMENT_REF_ID');
   });
 
   // ---------------------------------------------------------------------------

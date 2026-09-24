@@ -350,29 +350,35 @@ npm run db:restore:verify -- \
 
 ### ۵.۱۴. معماری و گیت‌های خط لوله معتبر CI (Authoritative CI Architecture & Hardened Gates):
 
-خط لوله معتبر GitHub Actions (`.github/workflows/ci.yml`) به عنوان تنها مرجع پذیرش تغییرات و اعتبارسنجی یکپارچگی کد و پایگاه داده پیکربندی شده است:
+خط لوله معتبر GitHub Actions (`.github/workflows/ci.yml`) به همراه تنظیمات Dependabot (`.github/dependabot.yml`) به عنوان تنها مرجع پذیرش تغییرات، اعتبارسنجی یکپارچگی کد و امنیت زنجیره تامین پیکربندی شده است:
 
 1. **رانر ایزوله و قطعی (Deterministic Runner Image):**
    - به منظور جلوگیری از نوسانات ناشی از مهاجرت خودکار `ubuntu-latest` به اوبونتو ۲۶.۰۴، رانر مستقیماً بر روی نسخه پایدار `ubuntu-24.04` پین شده است.
-   - راستی‌آزمایی سازگاری با Ubuntu 26.04 به عنوان یک تسک معوق به **فاز 2C.6** موکول شده است.
-2. **نسخه‌های اکشن‌های جاوااسکریپت (Maintained Node.js 24 Action Runtime):**
-   - اکشن‌های گیت‌هاب به نسخه‌های رسمی و سازگار با ران‌تایم Node.js 24 ارتقا یافته‌اند (`actions/checkout@v5`، `actions/setup-node@v5`، `actions/upload-artifact@v6`).
-   - ران‌تایم اجرایی پروژه و تست‌ها همچنان به صورت صریح بر روی Node.js 20 حفظ گردیده است.
-3. **گیت‌های شش‌گانه اجباری پذیرش (Authoritative Acceptance Gates):**
-   - هر ۶ گیت زیر بدون هیچ‌گونه دور زدن شرطی یا `continue-on-error` اجرا می‌شوند:
+   - راستی‌آزمایی سازگاری با Ubuntu 26.04 به عنوان یک تسک معوق ثبت گردیده است.
+2. **پین‌کردن تغییرناپذیر اکشن‌ها (Full Immutable Commit SHA Pinning):**
+   - تمامی اکشن‌های گیت‌هاب با هش کامل ۴۰ کاراکتری کامیت و کامنت خوانای نسخه پین شده‌اند (`actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2`، `actions/setup-node@1e60f620b9541d16bce96c5465dc8ee9832be0b2 # v4.2.0`، `actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb99ba841c # v4.6.1`، `actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019 # v4.5.0`).
+   - ران‌تایم اجرایی پروژه و تست‌ها به صورت صریح بر روی Node.js 20 با قرارداد `engines` در `package.json` قفل گردیده است.
+3. **حداقل دسترسی‌های امنیتی (Least-Privilege Permissions):**
+   - تمامی ورک‌فلوها دارای `permissions: contents: read` هستند و دسترسی `pull-requests: write` منحصراً به گیت بررسی وابستگی‌ها در PRها تخصیص یافته است.
+4. **گیت‌های هفت‌گانه اجباری پذیرش (Authoritative Acceptance Gates):**
+   - هر ۷ گیت زیر بدون هیچ‌گونه دور زدن شرطی یا `continue-on-error` اجرا می‌شوند:
      ۱. `npm ci`
-     ۲. `npm run lint`
-     ۳. `npm test`
-     ۴. `npm run build`
-     ۵. `npm run db:migrations:verify`
-     ۶. `npm run db:restore:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --e2e`
-4. **ثبت آرتیفکت‌های تشخیصی (`ci-diagnostics`):**
+     ۲. `npm audit --audit-level=high` (مسدودکننده آسیب‌پذیری‌های High و Critical)
+     ۳. `npm run lint`
+     ۴. `npm test`
+     ۵. `npm run build`
+     ۶. `npm run db:migrations:verify`
+     ۷. `npm run db:restore:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --e2e`
+5. **حاکمیت وابستگی‌ها و بازبینی Pull Request:**
+   - فرآیند بررسی وابستگی‌ها (`dependency-review-action`) روی کلیه PRها برای ممانعت از ورود پکیج‌های ناامن فعال است.
+   - مانیتورینگ هفتگی وابستگی‌ها از طریق Dependabot برای اکوسیستم‌های `npm` و `github-actions` بدون قابلیت Auto-Merge تنظیم شده است.
+6. **ثبت آرتیفکت‌های تشخیصی (`ci-diagnostics`):**
    - خط لوله در پوشه `ci-diagnostics` تمامی لاگ‌ها و متادیتا را به همراه سانسور خودکار رمزهای عبور و توکن‌ها ذخیره و آپلود می‌نماید:
      - `metadata.txt`, `environment.txt`, `changed-files.txt`
-     - `npm-ci.log`, `lint.log`, `test-full.log`, `test-failures.log`, `test-summary.txt`
+     - `npm-ci.log`, `audit.log`, `lint.log`, `test-full.log`, `test-failures.log`, `test-summary.txt`
      - `build.log`, `migration.log`, `restore.log`
-5. **سیاست حذف ورک‌فلوهای موقت:**
-   - ورک‌فلو موقت قبلی (`repository-audit.yml`) به طور کامل حذف شده و نباید مجدداً ایجاد گردد.
+7. **وضعیت ورک‌فلو ساخت اندروید (Android APK Workflow Blocker):**
+   - ورک‌فلو `build-apk.yml` به دلیل عدم وجود درخت پروژه رهگیری‌شده نیتیو اندروید (`android/`) به صورت صریح غیرفعال و بلاک شده است تا از اجرای دستورات ناامن در زمان اجرا جلوگیری شود.
 
 ---
 
@@ -385,7 +391,7 @@ npm run db:restore:verify -- \
 | **Phase 2C.3** | CI Quality Gates & Protected Main | **IN PROGRESS** | **آیتم‌های تکمیل و تایید شده:** خط لوله معتبر CI سبز است، آزمون‌های کامل با صفر پرش و شکست پاس شدند، بیلد و لینت تایید شدند، مایگریشن و بازیابی دیتابیس موفق بودند، خط لوله موقت حذف شد، رانر روی `ubuntu-24.04` پین گردید، اکشن‌های نود ۲۴ ارتقا یافتند، ران‌تایم پروژه روی Node.js 20 حفظ شد، آرتیفکت‌های `ci-diagnostics` فعال و سانسور اسرار اعمال شد.<br>**شرط بازمانده جهت بسته شدن:** وضعیت شاخه محافظت‌شده نیازمند تایید بیرونی (`Protected Main: NEEDS EXTERNAL VERIFICATION`) است. |
 | **Phase 2C.4** | Data Retention, Account Deletion & Cascade Safety | **IN PROGRESS** | **قرارداد فاز 2C.4A بسته شد:** سند جامع سیاست نگهداری داده‌ها، حذف حساب کاربری و مصونیت آبشاری تدوین شد (`docs/DATA_RETENTION_AND_ACCOUNT_DELETION.md`). قراردادهای امنیتی، عدم امکان حذف ادمین ارشد، مصونیت سشن‌های شبیه‌سازی‌شده، پاکسازی کامل کلاینت و جلوگیری از احیای داده‌های آفلاین قفل شدند.<br>**بلاک قانونی/مالی:** پیاده‌سازی ترنزکشن سرور (2C.4B) و تست‌های انتها‌به‌انتها (2C.4D) منوط به تصمیم‌گیری حقوقی/حسابداری در خصوص دوره نگهداری لاگ‌های پرداخت اشتراک است؛ کسکید فعلی `Subscription` تا زمان اتخاذ تصمیم دست‌نخورده باقی می‌ماند. |
 | **Phase 2C.5** | Operational-Failure Invariant Audit | **CLOSED** | ممیزی کامل پوشش خطاهای عملیاتی و ماتریس ۱۵ گانه شکست با موفقیت انجام شد: تمام ۱۵ قاعده قطعی عدم شکست (صداقت در خطای شبکه، پایداری صف آفلاین، هرزروی و تکرارناپذیری، رفتار Fail-Closed دیتابیس، بازگشت خطای ذخیره‌سازی، ایزولاسیون فساد صف، توقف امن احراز هویت، ایمنی تغییر اکانت، ایمنی از دست رفتن قفل، کنترل تایم‌اوت پرداخت، مدیریت پرداخت مبهم، اثبات سروری فعال‌سازی VIP، ایمنی در خطای پیامک، رد خرابی بازیابی و سانسور اسرار دیاگنوستیک) مستند و در تست‌های ایزوله تایید گردیدند. |
-| **Phase 2C.6** | Dependency and Supply-Chain Hardening | **NOT STARTED** | سخت‌سازی وابستگی‌ها، زنجیره تامین و اعتبارسنجی سازگاری رانر در این فاز انجام خواهد شد. |
+| **Phase 2C.6** | Dependency and Supply-Chain Hardening | **IN PROGRESS** | **اقدامات تکمیل‌شده:** الزام قطعی `npm ci` به همراه پایداری `package-lock.json`، قرارداد `engines` برای Node.js 20، پین کردن کامل هش ۴۰ کاراکتری اکشن‌های گیت‌هاب به همراه کامنت نسخه، اعمال مجوزهای کمینه‌گرا (`permissions: contents: read`)، راه‌اندازی Dependabot برای `npm` و `github-actions` بدون Auto-Merge، ایجاد گیت مسدودکننده آسیب‌پذیری‌های High/Critical با `npm audit`، ایجاد گیت بررسی وابستگی‌ها در PRها، مستندسازی صریح بلاکر ورک‌فلو APK اندروید، و استقرار تست‌های رگرسیون زنجیره تامین.<br>**نیازمند تایید بیرونی:** اعتبارسنجی ران‌تایم گیت‌هاب و بازبینی مستقل کوپایلوت.<br>**موارد معوق:** امضا و تولید SBOM / Artifact Attestation و ارزیابی سازگاری آینده با Ubuntu 26.04 و Node.js 24. |
 | **Phase 2D** | Architecture Decomposition & Maintainability | **NOT STARTED** | آغاز نشده است. |
 
 ---

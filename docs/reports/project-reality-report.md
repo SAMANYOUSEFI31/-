@@ -600,18 +600,21 @@ Extracted from `server/auth.ts` and `server/security.ts` [Verified from code]:
 ### Authoritative CI Architecture (`.github/workflows/ci.yml`) [Verified from committed configuration]
 - **Authoritative Workflow**: `.github/workflows/ci.yml` (Name: `CI & Migration Integrity`).
 - **Runner Image**: Pinned to `ubuntu-24.04` to avoid unreviewed automated operating system shifts from `ubuntu-latest` to Ubuntu 26.04.
-- **Action Runtime**: Upgraded to maintained Node.js 24-compatible first-party releases (`actions/checkout@v5`, `actions/setup-node@v5`, `actions/upload-artifact@v6`).
-- **Project Runtime**: Explicitly pinned to Node.js 20 (`node-version: 20`).
+- **Action Pinning**: Pinned to full 40-character commit SHAs with human-readable version comments (`actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2`, `actions/setup-node@1e60f620b9541d16bce96c5465dc8ee9832be0b2 # v4.2.0`, `actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb99ba841c # v4.6.1`, `actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019 # v4.5.0`).
+- **Permissions**: Explicit least-privilege workflow permissions configured (`permissions: contents: read`).
+- **Project Runtime**: Explicitly pinned to Node.js 20 (`node-version: 20`) backed by `engines` in `package.json`.
 - **Mandatory Acceptance Gates** (Fail-Closed, zero `continue-on-error`, exact exit code preservation):
   1. `npm ci`
-  2. `npm run lint`
-  3. `npm test`
-  4. `npm run build`
-  5. `npm run db:migrations:verify`
-  6. `npm run db:restore:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --e2e`
+  2. `npm audit --audit-level=high` (High & Critical vulnerability block)
+  3. `npm run lint`
+  4. `npm test`
+  5. `npm run build`
+  6. `npm run db:migrations:verify`
+  7. `npm run db:restore:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --e2e`
+- **Supply-Chain Controls**: Dependabot (`.github/dependabot.yml`) for `npm` and `github-actions` with scheduled updates and no auto-merge; PR dependency-review gate; Android APK workflow explicitly disabled due to missing tracked native Android architecture.
 - **Diagnostic Artifacts (`ci-diagnostics`)**:
   - Captured on every run (`if: always()`) with automatic secret and credential redaction (`[REDACTED]` / `***`).
-  - Files included: `metadata.txt`, `environment.txt`, `changed-files.txt`, `npm-ci.log`, `lint.log`, `test-full.log`, `test-failures.log`, `test-summary.txt`, `build.log`, `migration.log`, `restore.log`.
+  - Files included: `metadata.txt`, `environment.txt`, `changed-files.txt`, `npm-ci.log`, `audit.log`, `lint.log`, `test-full.log`, `test-failures.log`, `test-summary.txt`, `build.log`, `migration.log`, `restore.log`.
 - **Diagnostic Helper**: `scripts/ci-diagnostics.mjs` handles safe live streaming, secret sanitization, test log parsing, and exact exit-code propagation.
 - **Workflow Cleanup**: The temporary diagnostic workflow (`.github/workflows/repository-audit.yml`) is removed and must not be recreated.
 - **Protected Main Status**: `NEEDS EXTERNAL VERIFICATION` (Branch protection rulesets cannot be inspected from inside the container without GitHub API access).
@@ -625,6 +628,9 @@ Extracted from `server/auth.ts` and `server/security.ts` [Verified from code]:
 - **Phase 2C.4 (Data Retention, Account Deletion & Cascade Safety)**: `IN PROGRESS`
   - *Completed & Verified (Phase 2C.4A)*: Comprehensive Data Retention, Account Deletion & Cascade Safety Specification locked (`docs/DATA_RETENTION_AND_ACCOUNT_DELETION.md`). Baseline verified: no public deletion endpoint exists, cascade verification is structural only, local reset is distinct from server deletion, full data inventory classified (DELETE, ANONYMIZE, RETAIN, NEEDS LEGAL DECISION), and 11 non-negotiable security/concurrency contracts locked.
   - *Blocked on External Decision*: Subscription and financial record retention period requires a formal human legal/accounting decision. Prisma `Subscription` cascade relations remain intentionally untouched until this decision is made. Phases 2C.4B (Server Deletion Transaction), 2C.4C (Client Purge & Replay Prevention), and 2C.4D (E2E Cascade Proof) scheduled upon resolution.
-- **Phase 2C.5 (Operational Failure Injection)**: `NOT STARTED`
-- **Phase 2C.6 (Dependency and Supply-Chain Hardening)**: `NOT STARTED`
+- **Phase 2C.5 (Operational-Failure Invariant Audit)**: `CLOSED` (15 core failure invariants audited, verified, and locked with isolated tests).
+- **Phase 2C.6 (Dependency and Supply-Chain Hardening)**: `IN PROGRESS`
+  - *Completed & Verified*: Authoritative `npm ci` lockfile enforcement; `engines` contract in `package.json`; full 40-character commit SHA pinning on GitHub Actions; least-privilege workflow permissions; Dependabot for `npm` and `github-actions`; `npm audit --audit-level=high` gate; pull-request `dependency-review-action` gate; Android APK workflow blocker documented and disabled; supply-chain contract tests added and verified.
+  - *Remaining External Verification*: GitHub Actions runtime execution and independent Copilot audit.
+  - *Deferred*: Software Bill of Materials (SBOM), artifact attestation, future Ubuntu 26.04 and Node.js 24 compatibility.
 - **Phase 2D (Architecture Decomposition & Maintainability)**: `NOT STARTED`
