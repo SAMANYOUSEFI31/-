@@ -52,7 +52,7 @@ export function runTests(testFiles = findTestFiles()) {
   console.log(`Discovered ${testFiles.length} test files for execution.`);
 
   // Node 20 native test runner with tsx loader
-  const childArgs = ['--import', 'tsx', '--test', ...testFiles];
+  const childArgs = ['--import', 'tsx', '--test', '--test-concurrency=1', ...testFiles];
 
   const result = spawnSync(process.execPath, childArgs, {
     cwd: rootDir,

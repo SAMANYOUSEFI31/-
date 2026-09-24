@@ -110,5 +110,46 @@ describe('Test Runner Cross-Platform Portability Contract', () => {
       scriptContent.includes("NODE_ENV: 'test'"),
       'Runner must explicitly configure NODE_ENV: test in environment'
     );
+    assert.ok(
+      scriptContent.includes("'--test-concurrency=1'"),
+      'Runner must explicitly enforce --test-concurrency=1 for serialized deterministic execution'
+    );
+  });
+
+  test('backup-restore-proof test file strictly isolates DISPOSABLE_DB_ACKNOWLEDGED with try/finally restoration', () => {
+    const backupProofContent = fs.readFileSync(
+      path.join(rootDir, 'tests', 'backup-restore-proof.test.ts'),
+      'utf8'
+    );
+
+    assert.ok(
+      backupProofContent.includes('delete process.env.DISPOSABLE_DB_ACKNOWLEDGED'),
+      'Safety test must delete DISPOSABLE_DB_ACKNOWLEDGED before assertSafety assertion'
+    );
+    assert.ok(
+      backupProofContent.includes('finally'),
+      'Safety test must wrap in try/finally to guarantee environment restoration'
+    );
+  });
+
+  test('offline and mutation test suites strictly restore global navigator, window, and localStorage mocks', () => {
+    const filesToAudit = [
+      'tests/offline-queue-ownership.test.ts',
+      'tests/phase-6-1a-dailylog-write-ahead.test.ts',
+      'tests/phase-6-1b-cycle-mutation-reliability.test.ts',
+      'tests/phase-6-1a-corrective-pass.test.ts'
+    ];
+
+    for (const relPath of filesToAudit) {
+      const content = fs.readFileSync(path.join(rootDir, relPath), 'utf8');
+      assert.ok(
+        content.includes('after') || content.includes('afterEach'),
+        `${relPath} must implement teardown lifecycle hook`
+      );
+      assert.ok(
+        content.includes('delete (globalThis as any).window') || content.includes('delete (globalThis as any).localStorage') || content.includes('origWindow'),
+        `${relPath} must cleanly delete or restore global mocks`
+      );
+    }
   });
 });

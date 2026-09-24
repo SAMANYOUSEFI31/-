@@ -184,14 +184,25 @@ describe("Phase 2C.2: Safety Invariants & Remote Guardrails", () => {
   });
 
   it("should fail-closed if explicit acknowledgment flag is missing", () => {
-    assert.throws(
-      () => {
-        assertSafety("postgresql://postgres@127.0.0.1:5432/db", []);
-      },
-      (err: Error) => {
-        return err.message.includes("[SAFETY_VIOLATION]") && err.message.includes("acknowledgment");
+    const hasOriginalAck = "DISPOSABLE_DB_ACKNOWLEDGED" in process.env;
+    const originalAckVal = process.env.DISPOSABLE_DB_ACKNOWLEDGED;
+    delete process.env.DISPOSABLE_DB_ACKNOWLEDGED;
+    try {
+      assert.throws(
+        () => {
+          assertSafety("postgresql://postgres@127.0.0.1:5432/db", []);
+        },
+        (err: Error) => {
+          return err.message.includes("[SAFETY_VIOLATION]") && err.message.includes("acknowledgment");
+        }
+      );
+    } finally {
+      if (hasOriginalAck) {
+        process.env.DISPOSABLE_DB_ACKNOWLEDGED = originalAckVal;
+      } else {
+        delete process.env.DISPOSABLE_DB_ACKNOWLEDGED;
       }
-    );
+    }
   });
 
   it("should fail-closed if banned keywords detected in database URL", () => {

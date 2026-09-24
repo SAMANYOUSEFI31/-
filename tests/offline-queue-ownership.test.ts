@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   getScopedOfflineQueueKey,
@@ -25,6 +25,10 @@ import { OfflineQueueItem } from '../src/types.js';
 
 describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => {
   const storageMock: Record<string, string> = {};
+  const hadWindow = 'window' in globalThis;
+  const origWindow = (globalThis as any).window;
+  const hadLocalStorage = 'localStorage' in globalThis;
+  const origLocalStorage = (globalThis as any).localStorage;
 
   beforeEach(() => {
     // Clear in-memory mock storage
@@ -38,6 +42,20 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
         removeItem: (key: string) => { delete storageMock[key]; }
       }
     };
+    (globalThis as any).localStorage = (globalThis as any).window.localStorage;
+  });
+
+  after(() => {
+    if (hadWindow) {
+      (globalThis as any).window = origWindow;
+    } else {
+      delete (globalThis as any).window;
+    }
+    if (hadLocalStorage) {
+      (globalThis as any).localStorage = origLocalStorage;
+    } else {
+      delete (globalThis as any).localStorage;
+    }
   });
 
   // ===========================================================================
@@ -665,17 +683,28 @@ describe('Phase 3B: Account-Scoped Offline Queue & Safe Replay Contract', () => 
       assert.equal(shouldQueueOfflineMutation('admin-001', 'admin-token'), false);
 
       // Offline network status always forces queueing
-      const originalOnLine = globalThis.navigator?.onLine;
-      Object.defineProperty(globalThis.navigator, 'onLine', { value: false, configurable: true, writable: true });
-      assert.equal(shouldQueueOfflineMutation('user-alpha', 'valid-token'), true);
+      const hadNavigator = 'navigator' in globalThis && typeof (globalThis as any).navigator === 'object' && (globalThis as any).navigator !== null;
+      const hadOnLine = hadNavigator && 'onLine' in (globalThis.navigator as any);
+      const origOnLineDesc = hadNavigator && hadOnLine ? Object.getOwnPropertyDescriptor(globalThis.navigator, 'onLine') : undefined;
 
-      // Restore online
-      Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true, writable: true });
-      assert.equal(shouldQueueOfflineMutation('user-alpha', 'valid-token'), false);
+      try {
+        if (!hadNavigator) {
+          (globalThis as any).navigator = {};
+        }
+        Object.defineProperty(globalThis.navigator, 'onLine', { value: false, configurable: true, writable: true });
+        assert.equal(shouldQueueOfflineMutation('user-alpha', 'valid-token'), true);
 
-      // Reset to original if needed
-      if (originalOnLine !== undefined) {
-        Object.defineProperty(globalThis.navigator, 'onLine', { value: originalOnLine, configurable: true, writable: true });
+        // Restore online
+        Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true, writable: true });
+        assert.equal(shouldQueueOfflineMutation('user-alpha', 'valid-token'), false);
+      } finally {
+        if (!hadNavigator) {
+          delete (globalThis as any).navigator;
+        } else if (hadOnLine && origOnLineDesc) {
+          Object.defineProperty(globalThis.navigator, 'onLine', origOnLineDesc);
+        } else if (!hadOnLine && 'onLine' in (globalThis.navigator as any)) {
+          delete (globalThis.navigator as any).onLine;
+        }
       }
     });
 

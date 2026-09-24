@@ -21,8 +21,25 @@ test('Phase 6.1A DailyLog Write-Ahead Durability & Lifecycle Contracts', async (
   const userId = 'user_phase6_1a_durability';
   const storageMock: Record<string, string> = {};
 
+  const hadWindow = 'window' in globalThis;
   const origWindow = (globalThis as any).window;
+  const hadLocalStorage = 'localStorage' in globalThis;
   const origLocalStorage = (globalThis as any).localStorage;
+
+  const hadNavigator = 'navigator' in globalThis && typeof (globalThis as any).navigator === 'object' && (globalThis as any).navigator !== null;
+  const hadOnLine = hadNavigator && 'onLine' in (globalThis.navigator as any);
+  const origOnLineDesc = hadNavigator && hadOnLine ? Object.getOwnPropertyDescriptor(globalThis.navigator, 'onLine') : undefined;
+
+  const setMockNavigatorOnLine = (online: boolean) => {
+    if (!('navigator' in globalThis) || typeof (globalThis as any).navigator !== 'object' || (globalThis as any).navigator === null) {
+      (globalThis as any).navigator = {};
+    }
+    Object.defineProperty(globalThis.navigator, 'onLine', {
+      value: online,
+      configurable: true,
+      writable: true
+    });
+  };
 
   t.beforeEach(() => {
     for (const k in storageMock) delete storageMock[k];
@@ -36,15 +53,7 @@ test('Phase 6.1A DailyLog Write-Ahead Durability & Lifecycle Contracts', async (
       }
     };
     (globalThis as any).localStorage = (globalThis as any).window.localStorage;
-    try {
-      Object.defineProperty(globalThis.navigator, 'onLine', {
-        value: true,
-        configurable: true,
-        writable: true
-      });
-    } catch {
-      // ignore
-    }
+    setMockNavigatorOnLine(true);
 
     clearOfflineQueue(userId);
     clearClientConflicts(userId);
@@ -53,13 +62,7 @@ test('Phase 6.1A DailyLog Write-Ahead Durability & Lifecycle Contracts', async (
   });
 
   t.afterEach(() => {
-    try {
-      Object.defineProperty(globalThis.navigator, 'onLine', {
-        value: true,
-        configurable: true,
-        writable: true
-      });
-    } catch {}
+    setMockNavigatorOnLine(true);
     clearOfflineQueue(userId);
     clearClientConflicts(userId);
     clearAllReplayLocks();
@@ -67,8 +70,23 @@ test('Phase 6.1A DailyLog Write-Ahead Durability & Lifecycle Contracts', async (
   });
 
   t.after(() => {
-    (globalThis as any).window = origWindow;
-    (globalThis as any).localStorage = origLocalStorage;
+    if (hadWindow) {
+      (globalThis as any).window = origWindow;
+    } else {
+      delete (globalThis as any).window;
+    }
+    if (hadLocalStorage) {
+      (globalThis as any).localStorage = origLocalStorage;
+    } else {
+      delete (globalThis as any).localStorage;
+    }
+    if (!hadNavigator) {
+      delete (globalThis as any).navigator;
+    } else if (hadOnLine && origOnLineDesc) {
+      Object.defineProperty(globalThis.navigator, 'onLine', origOnLineDesc);
+    } else if (!hadOnLine && 'onLine' in (globalThis.navigator as any)) {
+      delete (globalThis.navigator as any).onLine;
+    }
   });
 
   const baseLog: DailyLog = {
