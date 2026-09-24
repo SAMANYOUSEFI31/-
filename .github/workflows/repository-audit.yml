@@ -1,5 +1,8 @@
 name: Repository Health Audit
 
+# TEMPORARY & DIAGNOSTIC WORKFLOW
+# Authoritative CI Acceptance Workflow is .github/workflows/ci.yml
+
 on:
   workflow_dispatch:
   push:
@@ -103,7 +106,18 @@ jobs:
           echo "================================================================"
           echo "  INSTALLING DEPENDENCIES (npm ci)"
           echo "================================================================"
+          set +e
           npm ci 2>&1 | tee audit_logs/04_npm_ci.log
+          NPM_CI_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          if [ $NPM_CI_EXIT -eq 0 ]; then
+            echo "NPM_CI_RESULT=PASSED" >> $GITHUB_ENV
+            echo "npm ci completed successfully."
+          else
+            echo "NPM_CI_RESULT=FAILED (exit code $NPM_CI_EXIT)" >> $GITHUB_ENV
+            echo "npm ci failed with exit code $NPM_CI_EXIT."
+          fi
 
       - name: 8-11. Inspect Environment & Toolchain Versions
         id: toolchain_meta
@@ -160,6 +174,10 @@ jobs:
           echo "================================================================"
           echo "  RUNNING UNIT & INTEGRATION TESTS (npm test)"
           echo "================================================================"
+          # Strategy Note:
+          # npm test runs the comprehensive test suite including tests/backup-restore-proof.test.ts (test integration gate).
+          # One explicit db:restore:verify command is executed subsequently as the operational CLI proof.
+          # This intentional pairing validates both the test integration and CLI entry point without redundant runs.
           set +e
           npm test 2>&1 | tee audit_logs/10_npm_test.log
           TEST_EXIT=${PIPESTATUS[0]}
@@ -207,108 +225,73 @@ jobs:
             echo "Build failed with exit code $BUILD_EXIT."
           fi
 
-      - name: 12-13. Detect Database Verification Scripts & Run on Safe Disposable PostgreSQL
+      - name: 12-13. Run Database Verification on Safe Disposable PostgreSQL
         id: db_verification_step
         run: |
           echo "================================================================"
-          echo "  DATABASE VERIFICATION SCRIPTS DETECTION & EXECUTION"
+          echo "  DATABASE VERIFICATION (SAFE DISPOSABLE POSTGRESQL)"
           echo "================================================================"
 
-          TARGET_SCRIPTS=(
-            "db:migrations:verify"
-            "db:migrations:preflight"
-            "db:backup:verify"
-            "db:restore:verify"
-          )
+          # Diagnostic Strategy Note:
+          # db:backup:verify is intentionally fail-closed and rejects an empty or incomplete database.
+          # db:migrations:preflight is designed for existing production baseline inspection.
+          # Neither script is run standalone against the initially empty maintenance database.
+          # The audit database execution runs only:
+          # 1. npm run db:migrations:verify
+          # 2. npm run db:restore:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --e2e
 
-          SCRIPTS_LOG="audit_logs/12_db_scripts_detection.log"
-          > "$SCRIPTS_LOG"
-
-          EXISTING_SCRIPTS=()
-          MISSING_SCRIPTS=()
-
-          for s in "${TARGET_SCRIPTS[@]}"; do
-            HAS_SCRIPT=$(node -e "const pkg = require('./package.json'); console.log(pkg.scripts && pkg.scripts['$s'] ? 'yes' : 'no');")
-            if [ "$HAS_SCRIPT" = "yes" ]; then
-              echo "Script '$s': DETECTED" | tee -a "$SCRIPTS_LOG"
-              EXISTING_SCRIPTS+=("$s")
-            else
-              echo "Script '$s': NOT_FOUND" | tee -a "$SCRIPTS_LOG"
-              MISSING_SCRIPTS+=("$s")
-            fi
-          done
-
-          echo "" | tee -a "$SCRIPTS_LOG"
+          DB_LOG="audit_logs/13_db_verification_execution.log"
+          > "$DB_LOG"
 
           # Guardrail: Check local disposable PostgreSQL safety invariants
           DB_URL="${DISPOSABLE_DATABASE_URL:-}"
           SAFE_LOCAL=false
 
           if [[ "$DB_URL" =~ ^postgresql://.*@(localhost|127\.0\.0\.1):5432/.* ]] && [ "$DISPOSABLE_DB_ACKNOWLEDGED" = "true" ]; then
-            # Verify connectivity
             if pg_isready -h localhost -p 5432 -U postgres >/dev/null 2>&1; then
               SAFE_LOCAL=true
-              echo "Safety Check: Safe local loopback disposable PostgreSQL verified on localhost:5432." | tee -a "$SCRIPTS_LOG"
+              echo "Safety Check: Safe local loopback disposable PostgreSQL verified on localhost:5432." | tee -a "$DB_LOG"
             else
-              echo "Safety Check WARNING: Local PostgreSQL service is not ready on localhost:5432." | tee -a "$SCRIPTS_LOG"
+              echo "Safety Check WARNING: Local PostgreSQL service is not ready on localhost:5432." | tee -a "$DB_LOG"
             fi
           else
-            echo "Safety Check BLOCKED: DISPOSABLE_DATABASE_URL is not verified local loopback or DISPOSABLE_DB_ACKNOWLEDGED != true." | tee -a "$SCRIPTS_LOG"
+            echo "Safety Check BLOCKED: DISPOSABLE_DATABASE_URL is not verified local loopback or DISPOSABLE_DB_ACKNOWLEDGED != true." | tee -a "$DB_LOG"
           fi
 
-          DB_VERIFICATION_LOG="audit_logs/13_db_verification_execution.log"
-          > "$DB_VERIFICATION_LOG"
-
           if [ "$SAFE_LOCAL" = "true" ]; then
-            DB_ALL_PASSED=true
-            EXECUTED_COUNT=0
+            echo "" | tee -a "$DB_LOG"
+            echo "--- 1. Executing db:migrations:verify ---" | tee -a "$DB_LOG"
+            set +e
+            npm run db:migrations:verify 2>&1 | tee -a "$DB_LOG"
+            MIG_EXIT=${PIPESTATUS[0]}
+            set -e
 
-            for s in "${EXISTING_SCRIPTS[@]}"; do
-              echo "--- Executing script: $s ---" | tee -a "$DB_VERIFICATION_LOG"
-              set +e
-              case "$s" in
-                "db:migrations:preflight")
-                  npm run db:migrations:preflight -- --url "$DISPOSABLE_DATABASE_URL" 2>&1 | tee -a "$DB_VERIFICATION_LOG"
-                  CMD_EXIT=${PIPESTATUS[0]}
-                  ;;
-                "db:migrations:verify")
-                  npm run db:migrations:verify 2>&1 | tee -a "$DB_VERIFICATION_LOG"
-                  CMD_EXIT=${PIPESTATUS[0]}
-                  ;;
-                "db:backup:verify")
-                  mkdir -p backups
-                  npm run db:backup:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --out ./backups/audit_backup.dump 2>&1 | tee -a "$DB_VERIFICATION_LOG"
-                  CMD_EXIT=${PIPESTATUS[0]}
-                  ;;
-                "db:restore:verify")
-                  npm run db:restore:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --e2e 2>&1 | tee -a "$DB_VERIFICATION_LOG"
-                  CMD_EXIT=${PIPESTATUS[0]}
-                  ;;
-                *)
-                  npm run "$s" 2>&1 | tee -a "$DB_VERIFICATION_LOG"
-                  CMD_EXIT=${PIPESTATUS[0]}
-                  ;;
-              esac
-              set -e
-
-              if [ $CMD_EXIT -ne 0 ]; then
-                echo "Script '$s' FAILED with exit code $CMD_EXIT" | tee -a "$DB_VERIFICATION_LOG"
-                DB_ALL_PASSED=false
-              else
-                echo "Script '$s' PASSED successfully." | tee -a "$DB_VERIFICATION_LOG"
-              fi
-              EXECUTED_COUNT=$((EXECUTED_COUNT + 1))
-              echo "" | tee -a "$DB_VERIFICATION_LOG"
-            done
-
-            if [ "$DB_ALL_PASSED" = "true" ] && [ $EXECUTED_COUNT -gt 0 ]; then
-              echo "DATABASE_VERIFICATION_RESULT=PASSED (All $EXECUTED_COUNT scripts executed and verified on disposable PostgreSQL)" >> $GITHUB_ENV
+            if [ $MIG_EXIT -eq 0 ]; then
+              echo "MIGRATION_VERIFICATION_RESULT=PASSED" >> $GITHUB_ENV
+              echo "db:migrations:verify PASSED successfully." | tee -a "$DB_LOG"
             else
-              echo "DATABASE_VERIFICATION_RESULT=FAILED (One or more database verification scripts failed)" >> $GITHUB_ENV
+              echo "MIGRATION_VERIFICATION_RESULT=FAILED (exit code $MIG_EXIT)" >> $GITHUB_ENV
+              echo "db:migrations:verify FAILED with exit code $MIG_EXIT." | tee -a "$DB_LOG"
+            fi
+
+            echo "" | tee -a "$DB_LOG"
+            echo "--- 2. Executing db:restore:verify (CLI E2E Proof) ---" | tee -a "$DB_LOG"
+            set +e
+            npm run db:restore:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --e2e 2>&1 | tee -a "$DB_LOG"
+            RESTORE_EXIT=${PIPESTATUS[0]}
+            set -e
+
+            if [ $RESTORE_EXIT -eq 0 ]; then
+              echo "RESTORE_VERIFICATION_RESULT=PASSED" >> $GITHUB_ENV
+              echo "db:restore:verify PASSED successfully." | tee -a "$DB_LOG"
+            else
+              echo "RESTORE_VERIFICATION_RESULT=FAILED (exit code $RESTORE_EXIT)" >> $GITHUB_ENV
+              echo "db:restore:verify FAILED with exit code $RESTORE_EXIT." | tee -a "$DB_LOG"
             fi
           else
-            echo "Skipping database verification: Safe local disposable PostgreSQL was not available." | tee -a "$DB_VERIFICATION_LOG"
-            echo "DATABASE_VERIFICATION_RESULT=SKIPPED (Safe local disposable PostgreSQL was not available)" >> $GITHUB_ENV
+            echo "Skipping database verification: Safe local disposable PostgreSQL was not available." | tee -a "$DB_LOG"
+            echo "MIGRATION_VERIFICATION_RESULT=SKIPPED (Safe local disposable PostgreSQL was not available)" >> $GITHUB_ENV
+            echo "RESTORE_VERIFICATION_RESULT=SKIPPED (Safe local disposable PostgreSQL was not available)" >> $GITHUB_ENV
           fi
 
       - name: 14. Produce Final Audit Summary
@@ -325,6 +308,7 @@ jobs:
           WORKFLOWS_FOUND=""
           WORKFLOWS_GREEN=""
           WORKFLOWS_FAILED=""
+          WORKFLOWS_UNKNOWN=""
 
           for wf in .github/workflows/*.yml .github/workflows/*.yaml; do
             [ -e "$wf" ] || continue
@@ -343,78 +327,97 @@ jobs:
             elif [ "$RUN_CONCLUSION" = "failure" ] || [ "$RUN_CONCLUSION" = "timed_out" ]; then
               WORKFLOWS_FAILED="${WORKFLOWS_FAILED}- ${fname} (latest conclusion: ${RUN_CONCLUSION})\n"
             else
-              WORKFLOWS_GREEN="${WORKFLOWS_GREEN}- ${fname} (configured / active)\n"
+              WORKFLOWS_UNKNOWN="${WORKFLOWS_UNKNOWN}- ${fname} (latest conclusion: UNKNOWN)\n"
             fi
           done
 
+          if [ -z "$WORKFLOWS_GREEN" ]; then
+            WORKFLOWS_GREEN="None\n"
+          fi
           if [ -z "$WORKFLOWS_FAILED" ]; then
             WORKFLOWS_FAILED="None\n"
           fi
+          if [ -z "$WORKFLOWS_UNKNOWN" ]; then
+            WORKFLOWS_UNKNOWN="None\n"
+          fi
 
+          NPM_CI_RES="${NPM_CI_RESULT:-NOT_RUN}"
           LINT_RES="${LINT_RESULT:-NOT_RUN}"
           TEST_RES="${TEST_RESULT:-NOT_RUN}"
           BUILD_RES="${BUILD_RESULT:-NOT_RUN}"
-          DB_RES="${DATABASE_VERIFICATION_RESULT:-NOT_RUN}"
+          MIG_RES="${MIGRATION_VERIFICATION_RESULT:-NOT_RUN}"
+          RESTORE_RES="${RESTORE_VERIFICATION_RESULT:-NOT_RUN}"
 
-          cat << 'EOF' > "$SUMMARY_FILE"
-================================================================
-           BUSHIDO DISCIPLINE OS - REPOSITORY AUDIT
-================================================================
-EOF
+          # Determine OVERALL_RESULT based strictly on current-run evidence
+          if [ "$NPM_CI_RES" = "PASSED" ] && \
+             [ "$LINT_RES" = "PASSED" ] && \
+             [[ "$TEST_RES" =~ ^PASSED ]] && \
+             [ "$BUILD_RES" = "PASSED" ] && \
+             [ "$MIG_RES" = "PASSED" ] && \
+             [ "$RESTORE_RES" = "PASSED" ]; then
+            OVERALL_RESULT="PASSED"
+          else
+            OVERALL_RESULT="FAILED"
+          fi
+
           {
+            echo "================================================================"
+            echo "           BUSHIDO DISCIPLINE OS - REPOSITORY AUDIT"
+            echo "================================================================"
             echo "WORKFLOWS_FOUND:"
             echo -e "$WORKFLOWS_FOUND"
             echo "WORKFLOWS_GREEN:"
             echo -e "$WORKFLOWS_GREEN"
             echo "WORKFLOWS_FAILED:"
             echo -e "$WORKFLOWS_FAILED"
-            echo "LINT_RESULT:"
-            echo "$LINT_RES"
-            echo ""
-            echo "TEST_RESULT:"
-            echo "$TEST_RES"
-            echo ""
-            echo "BUILD_RESULT:"
-            echo "$BUILD_RES"
-            echo ""
-            echo "DATABASE_VERIFICATION_RESULT:"
-            echo "$DB_RES"
+            echo "WORKFLOWS_UNKNOWN:"
+            echo -e "$WORKFLOWS_UNKNOWN"
+            echo "NPM_CI_RESULT: $NPM_CI_RES"
+            echo "LINT_RESULT: $LINT_RES"
+            echo "TEST_RESULT: $TEST_RES"
+            echo "BUILD_RESULT: $BUILD_RES"
+            echo "MIGRATION_VERIFICATION_RESULT: $MIG_RES"
+            echo "RESTORE_VERIFICATION_RESULT: $RESTORE_RES"
+            echo "OVERALL_RESULT: $OVERALL_RESULT"
             echo "================================================================"
-          } >> "$SUMMARY_FILE"
+          } > "$SUMMARY_FILE"
 
           cat "$SUMMARY_FILE"
 
           # Also write to GitHub Step Summary (Markdown formatted)
           if [ -n "$GITHUB_STEP_SUMMARY" ]; then
-            cat << EOF >> "$GITHUB_STEP_SUMMARY"
-# 📋 Repository Health Audit Summary
-
-### ⚙️ Workflows
-**WORKFLOWS_FOUND:**
-$(echo -e "$WORKFLOWS_FOUND")
-
-**WORKFLOWS_GREEN:**
-$(echo -e "$WORKFLOWS_GREEN")
-
-**WORKFLOWS_FAILED:**
-$(echo -e "$WORKFLOWS_FAILED")
-
----
-
-### 🔍 Quality & Build Gates
-- **LINT_RESULT:** \`$LINT_RES\`
-- **TEST_RESULT:** \`$TEST_RES\`
-- **BUILD_RESULT:** \`$BUILD_RES\`
-- **DATABASE_VERIFICATION_RESULT:** \`$DB_RES\`
-
----
-*Audit completed safely against ephemeral local disposable PostgreSQL.*
-EOF
+            {
+              echo "# 📋 Repository Health Audit Summary (Current-Run Evidence)"
+              echo ""
+              echo "### ⚙️ Workflows"
+              echo "**WORKFLOWS_FOUND:**"
+              echo -e "$WORKFLOWS_FOUND"
+              echo "**WORKFLOWS_GREEN:**"
+              echo -e "$WORKFLOWS_GREEN"
+              echo "**WORKFLOWS_FAILED:**"
+              echo -e "$WORKFLOWS_FAILED"
+              echo "**WORKFLOWS_UNKNOWN:**"
+              echo -e "$WORKFLOWS_UNKNOWN"
+              echo ""
+              echo "---"
+              echo ""
+              echo "### 🔍 Quality & Build Gates (Current-Run Evidence)"
+              echo "- **NPM_CI_RESULT:** \`$NPM_CI_RES\`"
+              echo "- **LINT_RESULT:** \`$LINT_RES\`"
+              echo "- **TEST_RESULT:** \`$TEST_RES\`"
+              echo "- **BUILD_RESULT:** \`$BUILD_RES\`"
+              echo "- **MIGRATION_VERIFICATION_RESULT:** \`$MIG_RES\`"
+              echo "- **RESTORE_VERIFICATION_RESULT:** \`$RESTORE_RES\`"
+              echo "- **OVERALL_RESULT:** \`$OVERALL_RESULT\`"
+              echo ""
+              echo "---"
+              echo "*Audit executed against ephemeral local disposable PostgreSQL.*"
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
           # Fail workflow if any of the critical gates failed
-          if [[ "$LINT_RES" =~ FAILED ]] || [[ "$TEST_RES" =~ FAILED ]] || [[ "$BUILD_RES" =~ FAILED ]] || [[ "$DB_RES" =~ FAILED ]]; then
-            echo "Audit completed with failure in one or more gates."
+          if [ "$OVERALL_RESULT" != "PASSED" ]; then
+            echo "Audit completed with failure in one or more gates: OVERALL_RESULT=$OVERALL_RESULT"
             exit 1
           fi
 

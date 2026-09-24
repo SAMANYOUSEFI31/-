@@ -64,5 +64,9 @@ jobs:
       - name: Verify Prisma Migrations on Disposable PostgreSQL
         run: npm run db:migrations:verify
 
+      # Strategy Note:
+      # npm test executes the comprehensive test suite including tests/backup-restore-proof.test.ts (test integration gate).
+      # The explicit db:restore:verify command below provides the authentic CLI operational proof.
+      # This intentional pairing validates both the test integration and CLI entry point without redundant runs.
       - name: Verify Backup & Restore on Disposable PostgreSQL
         run: npm run db:restore:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --e2e
