@@ -60,7 +60,8 @@ Extracted from the repository filesystem [Verified from code]:
 ├── .env.example
 ├── .github/
 │   └── workflows/
-│       └── build-apk.yml
+│       ├── build-apk.yml
+│       └── ci.yml
 ├── .gitignore
 ├── ADMIN_METRICS_AND_LOGIC.md
 ├── AGENTS.md
@@ -104,6 +105,14 @@ Extracted from the repository filesystem [Verified from code]:
 │   ├── icon-maskable.svg
 │   ├── manifest.json
 │   └── sw.js
+├── scripts/
+│   ├── backup-verify.ts
+│   ├── ci-diagnostics.mjs
+│   ├── preflight-assessment.ts
+│   ├── preflight-existing-database.ts
+│   ├── restore-verify.ts
+│   ├── run-tests.mjs
+│   └── verify-migrations.ts
 ├── server/
 │   ├── audit.ts
 │   ├── auth.ts
@@ -583,3 +592,35 @@ Extracted from `server/auth.ts` and `server/security.ts` [Verified from code]:
 4. **Transitional Compatibility Forwarding Files**:
    - Description: Re-exporting bridge files exist across `/src/components/*` (mirroring `/src/features/*`) and `/src/utils/*` (mirroring `/src/sync/*` and `/src/shared/utils/*`) [Verified from code].
    - Classification: Transitional architecture debt retained to preserve import compatibility without breaking active references.
+
+---
+
+## 18. CI & Migration Integrity Workflow & Roadmap Status
+
+### Authoritative CI Architecture (`.github/workflows/ci.yml`) [Verified from committed configuration]
+- **Authoritative Workflow**: `.github/workflows/ci.yml` (Name: `CI & Migration Integrity`).
+- **Runner Image**: Pinned to `ubuntu-24.04` to avoid unreviewed automated operating system shifts from `ubuntu-latest` to Ubuntu 26.04.
+- **Action Runtime**: Upgraded to maintained Node.js 24-compatible first-party releases (`actions/checkout@v5`, `actions/setup-node@v5`, `actions/upload-artifact@v6`).
+- **Project Runtime**: Explicitly pinned to Node.js 20 (`node-version: 20`).
+- **Mandatory Acceptance Gates** (Fail-Closed, zero `continue-on-error`, exact exit code preservation):
+  1. `npm ci`
+  2. `npm run lint`
+  3. `npm test`
+  4. `npm run build`
+  5. `npm run db:migrations:verify`
+  6. `npm run db:restore:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --e2e`
+- **Diagnostic Artifacts (`ci-diagnostics`)**:
+  - Captured on every run (`if: always()`) with automatic secret and credential redaction (`[REDACTED]` / `***`).
+  - Files included: `metadata.txt`, `environment.txt`, `changed-files.txt`, `npm-ci.log`, `lint.log`, `test-full.log`, `test-failures.log`, `test-summary.txt`, `build.log`, `migration.log`, `restore.log`.
+- **Diagnostic Helper**: `scripts/ci-diagnostics.mjs` handles safe live streaming, secret sanitization, test log parsing, and exact exit-code propagation.
+- **Workflow Cleanup**: The temporary diagnostic workflow (`.github/workflows/repository-audit.yml`) is removed and must not be recreated.
+- **Protected Main Status**: `NEEDS EXTERNAL VERIFICATION` (Branch protection rulesets cannot be inspected from inside the container without GitHub API access).
+
+### Engineering Roadmap Status Matrix [Reported deployment context]
+- **Phase 2C.1**: `CLOSED` (Preflight assessment and disposable database migration verification).
+- **Phase 2C.2**: `CLOSED` (Fail-closed backup and restore verification with deterministic digests).
+- **Phase 2C.3**: `CI acceptance gates passed. Diagnostic workflow removed. Authoritative CI retained. Protected Main remains open unless branch-protection evidence is available.`
+- **Phase 2C.4**: `NOT STARTED` (Staging deployment & environment health verification).
+- **Phase 2C.5**: `NOT STARTED` (Production database connection & fail-closed runtime verification).
+- **Phase 2C.6**: `NOT STARTED` (Ubuntu 26.04 compatibility testing deferred here).
+- **Phase 2D**: `NOT STARTED` (Live SMS and payment provider gateway activation).

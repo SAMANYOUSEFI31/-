@@ -17,7 +17,7 @@ concurrency:
 jobs:
   verify:
     name: Lint, Test, Build & Disposable Database Verification
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     services:
       postgres:
@@ -41,32 +41,50 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: 'npm'
 
+      - name: Initialize CI Diagnostics
+        run: |
+          node scripts/ci-diagnostics.mjs init
+          (git diff --name-status HEAD~1 HEAD > ci-diagnostics/changed-files.txt 2>&1 || git status --porcelain > ci-diagnostics/changed-files.txt 2>&1 || true)
+
       - name: Install Dependencies
-        run: npm ci
+        run: node scripts/ci-diagnostics.mjs exec npm-ci.log "npm ci"
 
       - name: Run Linter
-        run: npm run lint
+        run: node scripts/ci-diagnostics.mjs exec lint.log "npm run lint"
 
       - name: Run Unit & Integration Tests
-        run: npm test
+        run: node scripts/ci-diagnostics.mjs exec test-full.log "npm test"
 
       - name: Run Build
-        run: npm run build
+        run: node scripts/ci-diagnostics.mjs exec build.log "npm run build"
 
       - name: Verify Prisma Migrations on Disposable PostgreSQL
-        run: npm run db:migrations:verify
+        run: node scripts/ci-diagnostics.mjs exec migration.log "npm run db:migrations:verify"
 
       # Strategy Note:
       # npm test executes the comprehensive test suite including tests/backup-restore-proof.test.ts (test integration gate).
       # The explicit db:restore:verify command below provides the authentic CLI operational proof.
       # This intentional pairing validates both the test integration and CLI entry point without redundant runs.
       - name: Verify Backup & Restore on Disposable PostgreSQL
-        run: npm run db:restore:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --e2e
+        run: node scripts/ci-diagnostics.mjs exec restore.log "npm run db:restore:verify -- --url \"$DISPOSABLE_DATABASE_URL\" --disposable-acknowledged --e2e"
+
+      - name: Finalize CI Diagnostics
+        if: always()
+        run: node scripts/ci-diagnostics.mjs finalize
+
+      - name: Upload Diagnostic Artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-diagnostics
+          path: ci-diagnostics
+          retention-days: 14
+          if-no-files-found: warn
