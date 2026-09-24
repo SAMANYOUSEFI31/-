@@ -119,5 +119,6 @@ npm start
 - **منشور اصول مهندسی، بنچ‌مارک‌های تعاملی و ارگونومی لمسی (Benchmarks & A11y Contract)**: [`BENCHMARKS.md`](./BENCHMARKS.md)
 - **موتور محاسبات، فرمول‌ها و تحلیل‌های ادمین**: [`ADMIN_METRICS_AND_LOGIC.md`](./ADMIN_METRICS_AND_LOGIC.md)
 - **مسیریابی API و قوانین سرور**: [`docs/API_ROUTING.md`](./docs/API_ROUTING.md)
+- **قرارداد نگهداری داده‌ها و امنیت حذف حساب (Data Retention & Deletion Contract)**: [`docs/DATA_RETENTION_AND_ACCOUNT_DELETION.md`](./docs/DATA_RETENTION_AND_ACCOUNT_DELETION.md)
 
 

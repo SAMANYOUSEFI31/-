@@ -622,7 +622,9 @@ Extracted from `server/auth.ts` and `server/security.ts` [Verified from code]:
 - **Phase 2C.3 (CI Quality Gates & Protected Main)**: `IN PROGRESS`
   - *Completed & Verified*: Authoritative CI is green; full test suite passes with zero failures and zero skipped tests; lint and build pass; migration and backup/restore verification pass; zero schema drift; disposable database parity proven; `ci-diagnostics` artifact uploaded with safe secret redaction; temporary audit workflow removed; authoritative CI retained; runner pinned to `ubuntu-24.04`; Node.js 24-compatible JavaScript Actions upgraded; project runtime preserved on Node.js 20.
   - *Remaining Open Requirement*: `Protected Main: NEEDS EXTERNAL VERIFICATION` (Branch protection rulesets cannot be inspected from inside the container without GitHub API access).
-- **Phase 2C.4 (Data Retention, Account Deletion & Cascade Safety)**: `NOT STARTED`
+- **Phase 2C.4 (Data Retention, Account Deletion & Cascade Safety)**: `IN PROGRESS`
+  - *Completed & Verified (Phase 2C.4A)*: Comprehensive Data Retention, Account Deletion & Cascade Safety Specification locked (`docs/DATA_RETENTION_AND_ACCOUNT_DELETION.md`). Baseline verified: no public deletion endpoint exists, cascade verification is structural only, local reset is distinct from server deletion, full data inventory classified (DELETE, ANONYMIZE, RETAIN, NEEDS LEGAL DECISION), and 11 non-negotiable security/concurrency contracts locked.
+  - *Blocked on External Decision*: Subscription and financial record retention period requires a formal human legal/accounting decision. Prisma `Subscription` cascade relations remain intentionally untouched until this decision is made. Phases 2C.4B (Server Deletion Transaction), 2C.4C (Client Purge & Replay Prevention), and 2C.4D (E2E Cascade Proof) scheduled upon resolution.
 - **Phase 2C.5 (Operational Failure Injection)**: `NOT STARTED`
 - **Phase 2C.6 (Dependency and Supply-Chain Hardening)**: `NOT STARTED`
 - **Phase 2D (Architecture Decomposition & Maintainability)**: `NOT STARTED`

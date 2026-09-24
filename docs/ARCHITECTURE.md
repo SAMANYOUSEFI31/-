@@ -87,6 +87,8 @@ bushido-discipline-os/
 │   └── .gitkeep
 ├── docs/                                  # Architectural specifications & audits
 │   ├── ARCHITECTURE.md                    # This master map
+│   ├── API_ROUTING.md                     # Vercel serverless routing & Express normalizer
+│   ├── DATA_RETENTION_AND_ACCOUNT_DELETION.md # Phase 2C.4 Retention & deletion contract
 │   ├── MASTER_TOKENIZATION_AND_STATE_AUDIT.md
 │   ├── TOKEN_INVENTORY_BATTLEFIELD.md
 │   └── TOKEN_RESIDUAL.md
