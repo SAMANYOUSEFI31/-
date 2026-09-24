@@ -617,10 +617,12 @@ Extracted from `server/auth.ts` and `server/security.ts` [Verified from code]:
 - **Protected Main Status**: `NEEDS EXTERNAL VERIFICATION` (Branch protection rulesets cannot be inspected from inside the container without GitHub API access).
 
 ### Engineering Roadmap Status Matrix [Reported deployment context]
-- **Phase 2C.1**: `CLOSED` (Preflight assessment and disposable database migration verification).
-- **Phase 2C.2**: `CLOSED` (Fail-closed backup and restore verification with deterministic digests).
-- **Phase 2C.3**: `CI acceptance gates passed. Diagnostic workflow removed. Authoritative CI retained. Protected Main remains open unless branch-protection evidence is available.`
-- **Phase 2C.4**: `NOT STARTED` (Staging deployment & environment health verification).
-- **Phase 2C.5**: `NOT STARTED` (Production database connection & fail-closed runtime verification).
-- **Phase 2C.6**: `NOT STARTED` (Ubuntu 26.04 compatibility testing deferred here).
-- **Phase 2D**: `NOT STARTED` (Live SMS and payment provider gateway activation).
+- **Phase 2C.1 (Migration Integrity & Fresh Database Bootstrap)**: `CLOSED` (Preflight assessment and disposable database migration verification with isolated tests).
+- **Phase 2C.2 (Backup, Restore & Recovery Proof)**: `CLOSED` (Fail-closed backup and restore verification with deterministic digests and VERIFIED_ZERO_DATA_LOSS).
+- **Phase 2C.3 (CI Quality Gates & Protected Main)**: `IN PROGRESS`
+  - *Completed & Verified*: Authoritative CI is green; full test suite passes with zero failures and zero skipped tests; lint and build pass; migration and backup/restore verification pass; zero schema drift; disposable database parity proven; `ci-diagnostics` artifact uploaded with safe secret redaction; temporary audit workflow removed; authoritative CI retained; runner pinned to `ubuntu-24.04`; Node.js 24-compatible JavaScript Actions upgraded; project runtime preserved on Node.js 20.
+  - *Remaining Open Requirement*: `Protected Main: NEEDS EXTERNAL VERIFICATION` (Branch protection rulesets cannot be inspected from inside the container without GitHub API access).
+- **Phase 2C.4 (Staging Deployment & Environment Health Verification)**: `NOT STARTED`
+- **Phase 2C.5 (Production Database Cutover & Fail-Closed Runtime Verification)**: `NOT STARTED`
+- **Phase 2C.6 (Advanced Security Hardening & Ubuntu 26.04 Runner Compatibility Validation)**: `NOT STARTED` (Ubuntu 26.04 runner compatibility testing deferred here).
+- **Phase 2D (Live SMS & Payment Provider Gateway Activation)**: `NOT STARTED`

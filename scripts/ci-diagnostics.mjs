@@ -36,9 +36,15 @@ export function redactSecrets(text) {
 
   let sanitized = text;
 
-  // Redact PostgreSQL / database connection credentials
+  // Redact PostgreSQL / database connection credentials: postgresql://user:password@host
   sanitized = sanitized.replace(
-    /(postgres(?:ql)?:\/\/[^:]+:)([^@]+)(@)/gi,
+    /(postgres(?:ql)?:\/\/[^\s\/?#:]+:)(?:[^\s\/?#@]+|[^@\s\/?#]*@[^@\s\/?#]*)+(@[^\s\/?#:]+)/gi,
+    '$1***$2'
+  );
+
+  // Fallback for standard postgresql://user:pass@host
+  sanitized = sanitized.replace(
+    /(postgres(?:ql)?:\/\/[^\s\/?#:]+:)([^@\s\/?#]+)(@)/gi,
     '$1***$3'
   );
 
@@ -106,18 +112,19 @@ export function initDiagnostics() {
  * Parses test execution output and extracts counts, TAP summary, and failure excerpts.
  * @param {string} logContent
  * @param {number} exitCode
- * @returns {{ summaryText: string, failuresText: string }}
+ * @returns {{ summaryText: string, failuresText: string, diagnosticsText: string }}
  */
 export function parseTestLog(logContent, exitCode) {
-  const lines = logContent.split('\n');
+  const rawContent = typeof logContent === 'string' ? logContent : '';
+  const lines = rawContent.split('\n');
 
-  const testMatch = logContent.match(/#\s+tests\s+(\d+)/);
-  const suitesMatch = logContent.match(/#\s+suites\s+(\d+)/);
-  const passMatch = logContent.match(/#\s+pass\s+(\d+)/);
-  const failMatch = logContent.match(/#\s+fail\s+(\d+)/);
-  const cancelledMatch = logContent.match(/#\s+cancelled\s+(\d+)/);
-  const skippedMatch = logContent.match(/#\s+skipped\s+(\d+)/);
-  const durationMatch = logContent.match(/#\s+duration_ms\s+([\d.]+)/);
+  const testMatch = rawContent.match(/#\s+tests\s+(\d+)/);
+  const suitesMatch = rawContent.match(/#\s+suites\s+(\d+)/);
+  const passMatch = rawContent.match(/#\s+pass\s+(\d+)/);
+  const failMatch = rawContent.match(/#\s+fail\s+(\d+)/);
+  const cancelledMatch = rawContent.match(/#\s+cancelled\s+(\d+)/);
+  const skippedMatch = rawContent.match(/#\s+skipped\s+(\d+)/);
+  const durationMatch = rawContent.match(/#\s+duration_ms\s+([\d.]+)/);
 
   const totalTests = testMatch ? testMatch[1] : null;
   const suites = suitesMatch ? suitesMatch[1] : null;
@@ -127,47 +134,59 @@ export function parseTestLog(logContent, exitCode) {
   const skippedTests = skippedMatch ? skippedMatch[1] : null;
   const durationMs = durationMatch ? durationMatch[1] : null;
 
+  const failCountNum = failTests !== null ? parseInt(failTests, 10) : null;
+  const hasTapSummary = testMatch !== null && failMatch !== null;
+
   // Extract final TAP summary block
-  const tapSummaryStart = logContent.lastIndexOf('# tests ');
+  const tapSummaryStart = rawContent.lastIndexOf('# tests ');
   let tapSummary = '';
   if (tapSummaryStart !== -1) {
-    tapSummary = logContent.slice(tapSummaryStart).trim();
+    tapSummary = rawContent.slice(tapSummaryStart).trim();
   }
 
-  // Extract failure excerpts if any
-  const failures = [];
-  let isCapturingFailure = false;
-  let currentFailure = [];
+  // Extract ONLY actual TAP failure blocks (starting with 'not ok')
+  const tapFailures = [];
+  let isCapturingTapFailure = false;
+  let currentFailureBlock = [];
 
   for (const line of lines) {
-    if (line.startsWith('not ok ') || line.includes('AssertionError') || line.includes('Error:')) {
-      if (currentFailure.length > 0 && isCapturingFailure) {
-        failures.push(currentFailure.join('\n'));
-        currentFailure = [];
+    const isNotOkLine = /^\s*not ok\b/.test(line);
+    if (isNotOkLine) {
+      if (currentFailureBlock.length > 0) {
+        tapFailures.push(currentFailureBlock.join('\n'));
+        currentFailureBlock = [];
       }
-      isCapturingFailure = true;
-      currentFailure.push(line);
-    } else if (isCapturingFailure) {
-      if (line.startsWith('# Subtest:') || line.startsWith('ok ') || (line.startsWith('not ok ') && currentFailure.length > 0)) {
-        if (currentFailure.length > 0) {
-          failures.push(currentFailure.join('\n'));
-          currentFailure = [];
+      isCapturingTapFailure = true;
+      currentFailureBlock.push(line);
+    } else if (isCapturingTapFailure) {
+      // Check if we reached the end of YAML block '...' or another TAP marker
+      if (/^\s*(\.\.\.|ok\b|#\s*Subtest:|1\.\.\d+)/.test(line)) {
+        if (line.trim() === '...') {
+          currentFailureBlock.push(line);
         }
-        if (line.startsWith('not ok ')) {
-          currentFailure.push(line);
-        } else {
-          isCapturingFailure = false;
-        }
+        tapFailures.push(currentFailureBlock.join('\n'));
+        currentFailureBlock = [];
+        isCapturingTapFailure = false;
       } else {
-        currentFailure.push(line);
+        currentFailureBlock.push(line);
       }
     }
   }
-  if (currentFailure.length > 0) {
-    failures.push(currentFailure.join('\n'));
+  if (currentFailureBlock.length > 0) {
+    tapFailures.push(currentFailureBlock.join('\n'));
   }
 
-  const isSuccess = exitCode === 0 && (failTests === '0' || failTests === null);
+  // Extract non-TAP diagnostic output (console logs, fault-injection traces, error logs from negative tests)
+  const diagnosticLines = [];
+  for (const line of lines) {
+    // Exclude standard TAP structural lines
+    const isStandardTap = /^\s*(ok\s+\d+|1\.\.\d+|#\s+Subtest:|#\s+tests|#\s+suites|#\s+pass|#\s+fail|#\s+cancelled|#\s+skipped|#\s+todo|#\s+duration_ms|TAP version)/.test(line);
+    if (!isStandardTap && line.trim().length > 0) {
+      diagnosticLines.push(line);
+    }
+  }
+
+  const isSuccess = exitCode === 0 && hasTapSummary && failCountNum === 0;
 
   const summary = [
     `status: ${isSuccess ? 'PASSED' : 'FAILED'}`,
@@ -184,13 +203,38 @@ export function parseTestLog(logContent, exitCode) {
     tapSummary || 'No TAP summary block found',
   ];
 
-  if (!isSuccess && failures.length > 0) {
-    summary.push('', '--- First Relevant Failure Excerpt ---', failures[0]);
+  if (!isSuccess && tapFailures.length > 0) {
+    summary.push('', '--- First Relevant Failure Excerpt ---', tapFailures[0]);
   }
+
+  let failuresText = '';
+  if (isSuccess) {
+    failuresText = 'No failing tests detected.\n';
+  } else {
+    if (tapFailures.length > 0) {
+      failuresText = tapFailures.join('\n\n') + '\n';
+    } else {
+      // Non-zero exit with no TAP failure blocks (e.g. runner crash or syntax error)
+      failuresText = `Test execution failed with exit code ${exitCode}.\n` +
+        (diagnosticLines.length > 0 ? '\n--- Output Excerpt ---\n' + diagnosticLines.slice(-30).join('\n') + '\n' : '');
+    }
+  }
+
+  const diagnosticsHeader = [
+    '# Bushido CI - Test Diagnostics Log',
+    '# Notice: This file captures diagnostic output, warnings, and expected error-path logs emitted',
+    '# during fault-injection and negative-path tests. These entries represent tested error-handling',
+    '# scenarios and do not constitute test failures when the authoritative TAP suite passes.',
+    '',
+  ].join('\n');
+
+  const diagnosticsText = diagnosticsHeader +
+    (diagnosticLines.length > 0 ? diagnosticLines.join('\n') + '\n' : 'No diagnostic error-path logs captured.\n');
 
   return {
     summaryText: summary.join('\n') + '\n',
-    failuresText: failures.length > 0 ? failures.join('\n\n') + '\n' : 'No test failures detected.\n',
+    failuresText,
+    diagnosticsText,
   };
 }
 
@@ -222,9 +266,10 @@ export function finalizeDiagnostics() {
     if (fs.existsSync(testExitCodePath)) {
       exitCode = parseInt(fs.readFileSync(testExitCodePath, 'utf8').trim(), 10) || 0;
     }
-    const { summaryText, failuresText } = parseTestLog(testLog, exitCode);
-    fs.writeFileSync(path.join(diagnosticsDir, 'test-summary.txt'), summaryText, 'utf8');
-    fs.writeFileSync(path.join(diagnosticsDir, 'test-failures.log'), failuresText, 'utf8');
+    const { summaryText, failuresText, diagnosticsText } = parseTestLog(testLog, exitCode);
+    fs.writeFileSync(path.join(diagnosticsDir, 'test-summary.txt'), redactSecrets(summaryText), 'utf8');
+    fs.writeFileSync(path.join(diagnosticsDir, 'test-failures.log'), redactSecrets(failuresText), 'utf8');
+    fs.writeFileSync(path.join(diagnosticsDir, 'test-diagnostics.log'), redactSecrets(diagnosticsText), 'utf8');
   } else {
     const placeholderSummary = [
       'status: SKIPPED_OR_NOT_REACHED',
@@ -236,6 +281,7 @@ export function finalizeDiagnostics() {
     ].join('\n') + '\n';
     fs.writeFileSync(path.join(diagnosticsDir, 'test-summary.txt'), placeholderSummary, 'utf8');
     fs.writeFileSync(path.join(diagnosticsDir, 'test-failures.log'), 'No test log produced.\n', 'utf8');
+    fs.writeFileSync(path.join(diagnosticsDir, 'test-diagnostics.log'), 'No test log produced.\n', 'utf8');
   }
 
   // Remove internal marker files
