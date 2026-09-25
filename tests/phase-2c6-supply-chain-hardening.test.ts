@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
+const workflowsDir = path.join(rootDir, '.github', 'workflows');
 
 describe('Phase 2C.6: Supply-Chain & Dependency Hardening Suite', () => {
   describe('1. Authoritative Lockfile & Engines Contract', () => {
@@ -47,7 +48,6 @@ describe('Phase 2C.6: Supply-Chain & Dependency Hardening Suite', () => {
   });
 
   describe('2. GitHub Workflows Supply-Chain Hardening', () => {
-    const workflowsDir = path.join(rootDir, '.github', 'workflows');
     const getWorkflowFiles = () => fs.readdirSync(workflowsDir).filter(f => f.endsWith('.yml') || f.endsWith('.yaml'));
 
     test('workflows directory contains authoritative CI workflow and build-apk.yml is absent', () => {
