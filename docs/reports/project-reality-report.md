@@ -45,7 +45,7 @@ The assertions and statements in this report use the following evidence classifi
 - **Environment Configuration**: dotenv (`dotenv@^17.2.3`) [Verified from committed configuration]
 - **Client Routing**: Custom zero-dependency HTML5 History API router (`src/app/routing/routerUtils.ts`) [Verified from code]
 - **PWA Capabilities**: Service Worker (`public/sw.js`), Web App Manifest (`public/manifest.json`), install banner components [Verified from code]
-- **Hybrid Mobile Configuration**: Capacitor (`capacitor.config.json`), GitHub Actions Android APK pipeline (`.github/workflows/build-apk.yml`) [Verified from committed configuration]
+- **Hybrid Mobile Configuration**: Capacitor (`capacitor.config.json`); native Android APK workflow automation is DEFERRED until the authoritative `android/` project is added [Verified from committed configuration]
 - **Serverless Hosting Adapter**: Vercel serverless entry point (`api/index.js`, `vercel.json`) [Verified from committed configuration]
 - **Test Runner**: Node.js built-in test runner executed via `tsx --test "tests/**/*.test.ts"` [Verified from committed configuration]
 
@@ -60,7 +60,6 @@ Extracted from the repository filesystem [Verified from code]:
 ├── .env.example
 ├── .github/
 │   └── workflows/
-│       ├── build-apk.yml
 │       └── ci.yml
 ├── .gitignore
 ├── ADMIN_METRICS_AND_LOGIC.md
@@ -600,7 +599,7 @@ Extracted from `server/auth.ts` and `server/security.ts` [Verified from code]:
 ### Authoritative CI Architecture (`.github/workflows/ci.yml`) [Verified from committed configuration]
 - **Authoritative Workflow**: `.github/workflows/ci.yml` (Name: `CI & Migration Integrity`).
 - **Runner Image**: Pinned to `ubuntu-24.04` to avoid unreviewed automated operating system shifts from `ubuntu-latest` to Ubuntu 26.04.
-- **Action Pinning**: Pinned to full 40-character commit SHAs with human-readable version comments (`actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2`, `actions/setup-node@1e60f620b9541d16bce96c5465dc8ee9832be0b2 # v4.2.0`, `actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb99ba841c # v4.6.1`, `actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019 # v4.5.0`).
+- **Action Pinning**: Pinned to full 40-character commit SHAs with human-readable version comments (`actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2`, `actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2`, `actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1`, `actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019 # v4.5.0`).
 - **Permissions**: Explicit least-privilege workflow permissions configured (`permissions: contents: read`).
 - **Project Runtime**: Explicitly pinned to Node.js 20 (`node-version: 20`) backed by `engines` in `package.json`.
 - **Mandatory Acceptance Gates** (Fail-Closed, zero `continue-on-error`, exact exit code preservation):
@@ -611,27 +610,27 @@ Extracted from `server/auth.ts` and `server/security.ts` [Verified from code]:
   5. `npm run build`
   6. `npm run db:migrations:verify`
   7. `npm run db:restore:verify -- --url "$DISPOSABLE_DATABASE_URL" --disposable-acknowledged --e2e`
-- **Supply-Chain Controls**: Dependabot (`.github/dependabot.yml`) for `npm` and `github-actions` with scheduled updates and no auto-merge; PR dependency-review gate; Android APK workflow explicitly disabled due to missing tracked native Android architecture.
+- **Supply-Chain Controls**: Dependabot (`.github/dependabot.yml`) for `npm` and `github-actions` with scheduled updates and no auto-merge; PR dependency-review gate; Android APK workflow automation DEFERRED (workflow removed because tracked native Android architecture `android/` is absent; must be recreated only when `android/` and deterministic native dependencies exist).
 - **Diagnostic Artifacts (`ci-diagnostics`)**:
   - Captured on every run (`if: always()`) with automatic secret and credential redaction (`[REDACTED]` / `***`).
   - Files included: `metadata.txt`, `environment.txt`, `changed-files.txt`, `npm-ci.log`, `audit.log`, `lint.log`, `test-full.log`, `test-failures.log`, `test-summary.txt`, `build.log`, `migration.log`, `restore.log`.
 - **Diagnostic Helper**: `scripts/ci-diagnostics.mjs` handles safe live streaming, secret sanitization, test log parsing, and exact exit-code propagation.
 - **Workflow Cleanup**: The temporary diagnostic workflow (`.github/workflows/repository-audit.yml`) is removed and must not be recreated.
-- **Protected Main Status**: `NEEDS EXTERNAL VERIFICATION` (Branch protection rulesets cannot be inspected from inside the container without GitHub API access).
+- **Protected Main Status**: `DEFERRED` for direct-push compatibility.
 
 ### Engineering Roadmap Status Matrix [Reported deployment context]
 - **Phase 2C.1 (Migration Integrity & Fresh Database Bootstrap)**: `CLOSED` (Preflight assessment and disposable database migration verification with isolated tests).
 - **Phase 2C.2 (Backup, Restore & Recovery Proof)**: `CLOSED` (Fail-closed backup and restore verification with deterministic digests and VERIFIED_ZERO_DATA_LOSS).
-- **Phase 2C.3 (CI Quality Gates & Protected Main)**: `IN PROGRESS`
-  - *Completed & Verified*: Authoritative CI is green; full test suite passes with zero failures and zero skipped tests; lint and build pass; migration and backup/restore verification pass; zero schema drift; disposable database parity proven; `ci-diagnostics` artifact uploaded with safe secret redaction; temporary audit workflow removed; authoritative CI retained; runner pinned to `ubuntu-24.04`; Node.js 24-compatible JavaScript Actions upgraded; project runtime preserved on Node.js 20.
-  - *Remaining Open Requirement*: `Protected Main: NEEDS EXTERNAL VERIFICATION` (Branch protection rulesets cannot be inspected from inside the container without GitHub API access).
+- **Phase 2C.3 (CI Quality Gates & Protected Main)**: `CLOSED`
+  - *Completed & Verified*: Authoritative CI is green; full test suite passes with zero failures and zero skipped tests; lint and build pass; migration and backup/restore verification pass; zero schema drift; disposable database parity proven; `ci-diagnostics` artifact uploaded with safe secret redaction; temporary audit workflow removed; authoritative CI retained; runner pinned to `ubuntu-24.04`; actions pinned to immutable commit SHAs in `ci.yml`; project runtime preserved on Node.js 20.
+  - *Protected Main*: `DEFERRED` for direct-push compatibility.
 - **Phase 2C.4 (Data Retention, Account Deletion & Cascade Safety)**: `CLOSED FOR CURRENT SCOPE`
   - *Completed & Verified (Phase 2C.4A)*: Comprehensive Data Retention, Account Deletion & Cascade Safety Specification locked (`docs/DATA_RETENTION_AND_ACCOUNT_DELETION.md`). Baseline verified: no public deletion endpoint exists, cascade verification is structural only, local reset is distinct from server deletion, full data inventory classified (DELETE, ANONYMIZE, RETAIN, NEEDS LEGAL DECISION), and 11 non-negotiable security/concurrency contracts locked.
   - *Financial-retention policy*: `OPEN DECISION` (Subscription and financial record retention period requires a formal human legal/accounting decision; Prisma `Subscription` cascade relations remain intentionally untouched).
   - *Account-deletion implementation*: `DEFERRED` (Phases 2C.4B server deletion transaction and 2C.4D E2E cascade proof scheduled upon resolution of open financial decision).
 - **Phase 2C.5 (Operational-Failure Invariant Audit)**: `CLOSED` (15 core failure invariants audited, verified, and locked with isolated tests).
 - **Phase 2C.6 (Dependency and Supply-Chain Hardening)**: `IN PROGRESS`
-  - *Completed & Verified*: Authoritative `npm ci` lockfile enforcement; `engines` contract in `package.json`; full 40-character commit SHA pinning on GitHub Actions; least-privilege workflow permissions; Dependabot for `npm` and `github-actions`; `npm audit --audit-level=high` gate; pull-request `dependency-review-action` gate; Android APK workflow blocker documented and disabled; supply-chain contract tests added and verified.
+  - *Completed & Verified*: Authoritative `npm ci` lockfile enforcement; `engines` contract in `package.json`; full 40-character commit SHA pinning on GitHub Actions in `ci.yml`; least-privilege workflow permissions; Dependabot for `npm` and `github-actions`; `npm audit --audit-level=high` gate; pull-request `dependency-review-action` gate; Android APK automation deferred and invalid workflow removed; supply-chain contract tests added and verified.
   - *Remaining External Verification*: GitHub Actions runtime execution and independent Copilot audit.
   - *Deferred*: Software Bill of Materials (SBOM), artifact attestation, future Ubuntu 26.04 and Node.js 24 compatibility.
 - **Phase 2D (Architecture Decomposition & Maintainability)**: `NOT STARTED`

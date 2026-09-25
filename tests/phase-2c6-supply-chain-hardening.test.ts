@@ -48,14 +48,17 @@ describe('Phase 2C.6: Supply-Chain & Dependency Hardening Suite', () => {
 
   describe('2. GitHub Workflows Supply-Chain Hardening', () => {
     const workflowsDir = path.join(rootDir, '.github', 'workflows');
-    const workflowFiles = fs.readdirSync(workflowsDir).filter(f => f.endsWith('.yml') || f.endsWith('.yaml'));
+    const getWorkflowFiles = () => fs.readdirSync(workflowsDir).filter(f => f.endsWith('.yml') || f.endsWith('.yaml'));
 
-    test('workflows directory contains authoritative CI and APK workflows', () => {
+    test('workflows directory contains authoritative CI workflow and build-apk.yml is absent', () => {
+      const workflowFiles = getWorkflowFiles();
       assert.ok(workflowFiles.includes('ci.yml'), 'ci.yml must exist');
-      assert.ok(workflowFiles.includes('build-apk.yml'), 'build-apk.yml must exist');
+      assert.strictEqual(workflowFiles.includes('build-apk.yml'), false, 'build-apk.yml must be absent while Android architecture is deferred');
+      assert.deepStrictEqual(workflowFiles, ['ci.yml'], 'ci.yml must remain the only authoritative workflow');
     });
 
     test('no workflow uses mutable ubuntu-latest runner image', () => {
+      const workflowFiles = getWorkflowFiles();
       for (const file of workflowFiles) {
         const content = fs.readFileSync(path.join(workflowsDir, file), 'utf8');
         assert.strictEqual(
@@ -79,6 +82,7 @@ describe('Phase 2C.6: Supply-Chain & Dependency Hardening Suite', () => {
     test('all external GitHub Actions are pinned to full 40-character commit SHAs with version comments', () => {
       const shaRegex = /uses:\s*([a-zA-Z0-9_\-\.\/]+)@([a-f0-9]{40})\s*(?:#\s*(v[0-9\.]+.*))?/;
       const unpinnedRegex = /uses:\s*([a-zA-Z0-9_\-\.\/]+)@(?!([a-f0-9]{40}))([^\s]+)/g;
+      const workflowFiles = getWorkflowFiles();
 
       for (const file of workflowFiles) {
         const content = fs.readFileSync(path.join(workflowsDir, file), 'utf8');
@@ -113,6 +117,7 @@ describe('Phase 2C.6: Supply-Chain & Dependency Hardening Suite', () => {
     });
 
     test('all workflows declare explicit least-privilege permissions', () => {
+      const workflowFiles = getWorkflowFiles();
       for (const file of workflowFiles) {
         const content = fs.readFileSync(path.join(workflowsDir, file), 'utf8');
         assert.ok(
@@ -127,6 +132,7 @@ describe('Phase 2C.6: Supply-Chain & Dependency Hardening Suite', () => {
     });
 
     test('no workflow uses npm audit fix --force', () => {
+      const workflowFiles = getWorkflowFiles();
       for (const file of workflowFiles) {
         const content = fs.readFileSync(path.join(workflowsDir, file), 'utf8');
         assert.strictEqual(
@@ -202,38 +208,27 @@ describe('Phase 2C.6: Supply-Chain & Dependency Hardening Suite', () => {
     });
   });
 
-  describe('5. Android APK Workflow Blocker & Manual-Only Invariant', () => {
-    test('APK workflow is strictly manual-only (workflow_dispatch only, no push or pull_request)', () => {
-      const apkContent = fs.readFileSync(path.join(rootDir, '.github', 'workflows', 'build-apk.yml'), 'utf8');
-      assert.ok(apkContent.includes('workflow_dispatch:'), 'build-apk.yml must have workflow_dispatch trigger');
-      assert.strictEqual(
-        /\bon:\s*\n\s*push:/.test(apkContent) || /\bpush:\s*\n\s*branches:/.test(apkContent),
-        false,
-        'build-apk.yml must NOT trigger on push'
-      );
-      assert.strictEqual(
-        /\bpull_request:/.test(apkContent),
-        false,
-        'build-apk.yml must NOT trigger on pull_request'
-      );
+  describe('5. Android APK Automation Governance & Deferred Architecture', () => {
+    test('build-apk.yml is absent while Android architecture is deferred', () => {
+      const apkPath = path.join(rootDir, '.github', 'workflows', 'build-apk.yml');
+      assert.strictEqual(fs.existsSync(apkPath), false, 'build-apk.yml must be absent while Android architecture is deferred');
     });
 
-    test('APK workflow does not dynamically add unpinned packages or skip validation silently', () => {
-      const apkContent = fs.readFileSync(path.join(rootDir, '.github', 'workflows', 'build-apk.yml'), 'utf8');
-      assert.strictEqual(
-        apkContent.includes('npm install --legacy-peer-deps'),
-        false,
-        'build-apk.yml must not use npm install --legacy-peer-deps'
-      );
-      assert.strictEqual(
-        apkContent.includes('-x test -x lint'),
-        false,
-        'build-apk.yml must not silently skip android tests and linting'
-      );
-      assert.ok(
-        apkContent.includes('DISABLED') || apkContent.includes('Blocker'),
-        'build-apk.yml must document its disabled/blocked status explicitly'
-      );
+    test('ci.yml remains the only authoritative workflow in .github/workflows', () => {
+      const workflows = fs.readdirSync(workflowsDir).filter(f => f.endsWith('.yml') || f.endsWith('.yaml'));
+      assert.deepStrictEqual(workflows, ['ci.yml'], 'ci.yml must remain the only authoritative workflow');
+    });
+
+    test('no normal push or pull-request Android workflow exists', () => {
+      const workflows = fs.readdirSync(workflowsDir).filter(f => f.endsWith('.yml') || f.endsWith('.yaml'));
+      for (const wf of workflows) {
+        const content = fs.readFileSync(path.join(workflowsDir, wf), 'utf8');
+        assert.strictEqual(
+          content.toLowerCase().includes('build apk') || content.toLowerCase().includes('android build'),
+          false,
+          `Workflow ${wf} must not contain push/PR Android build pipelines while android/ is absent`
+        );
+      }
     });
   });
 
@@ -252,6 +247,10 @@ describe('Phase 2C.6: Supply-Chain & Dependency Hardening Suite', () => {
       assert.ok(
         runbookContent.includes('DEFERRED'),
         'RUNBOOK.md must mark account deletion implementation as DEFERRED'
+      );
+      assert.ok(
+        /Phase 2C\.3.+?\|\s*\*\*CLOSED\*\*/.test(runbookContent),
+        'RUNBOOK.md table must mark Phase 2C.3 as CLOSED'
       );
       assert.ok(
         /Phase 2C\.4.+?\|\s*\*\*CLOSED FOR CURRENT SCOPE\*\*/.test(runbookContent),
