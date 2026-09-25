@@ -266,5 +266,5 @@ This specification preserves the canonical engineering roadmap established in `R
 | **Phase 2C.3** | CI Quality Gates & Protected Main | **CLOSED** | Authoritative CI pipeline hardened; Protected Main DEFERRED for direct-push compatibility. |
 | **Phase 2C.4** | Data Retention, Account Deletion & Cascade Safety | **CLOSED FOR CURRENT SCOPE** | **Phase 2C.4A CLOSED** (Specification locked in this document). Phases 2C.4B-D pending financial retention decision. |
 | **Phase 2C.5** | Operational Failure Injection | **CLOSED** | 15 core operational failure invariants audited, verified, and locked. |
-| **Phase 2C.6** | Dependency and Supply-Chain Hardening | **IN PROGRESS** | Supply-chain and dependency hardening in progress pending GitHub Actions and Copilot acceptance. |
-| **Phase 2D** | Architecture Decomposition & Maintainability | **NOT STARTED** | God-file decomposition (`src/App.tsx`, `server.ts`, `BattlefieldView.tsx`). |
+| **Phase 2C.6** | Dependency and Supply-Chain Hardening | **CLOSED** | Hardened deterministic install, immutable Action pins, audit gates; deferred items tracked. |
+| **Phase 2D** | Architecture Decomposition & Maintainability | **READY TO START** | God-file decomposition (`src/App.tsx`, `server.ts`, `BattlefieldView.tsx`). |

@@ -164,9 +164,14 @@
 6. **وضعیت اتوماسیون ساخت اندروید (Android APK Automation Status = DEFERRED):**
    - به دلیل عدم وجود درخت پروژه رهگیری‌شده نیتیو اندروید (`android/`) در مخزن، ورک‌فلو ساخت اندروید حذف و اتوماسیون آن به حالت DEFERRED منتقل شد. این ورک‌فلو تنها زمانی باید مجدداً ایجاد گردد که ساختار نیتیو `android/` و وابستگی‌های قطعی آن در مخزن مستقر شوند.
 
-7. **موارد معوق در زنجیره تامین (Deferred Supply-Chain Controls):**
-   - تولید و امضای مانیفست‌های نرم‌افزاری (SBOM) و گواهی‌های تصدیق آرتیفکت (Artifact Attestation) به فازهای آتی موکول شده است.
-   - مهاجرت و بررسی سازگاری با رانر Ubuntu 26.04 و ران‌تایم Node.js 24 به صورت معوق ثبت گردیده است.
+7. **موارد معوق غیرمسدودکننده در زنجیره تامین (Non-blocking Deferred Hardening Items):**
+   - موارد زیر به عنوان اقلام معوق و غیرمسدودکننده مستند شده‌اند (هیچ ادعایی مبنی بر پیاده‌سازی آن‌ها در فاز فعلی وجود ندارد):
+     - SBOM (Software Bill of Materials)
+     - Artifact Attestation
+     - سازگاری آینده با Ubuntu 26.04 (Ubuntu 26.04 compatibility)
+     - مهاجرت ران‌تایم پروژه به Node.js 24 (Node.js 24 project-runtime migration)
+     - اتوماسیون ساخت APK اندروید پس از ایجاد درخت معتبر `android/` (Android APK automation after the tracked android/ project exists)
+     - ارتقاهای کنترل‌شده آینده برای اکشن‌های گیت‌هاب (Controlled future GitHub Actions upgrades)
 
 
 

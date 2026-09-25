@@ -629,8 +629,13 @@ Extracted from `server/auth.ts` and `server/security.ts` [Verified from code]:
   - *Financial-retention policy*: `OPEN DECISION` (Subscription and financial record retention period requires a formal human legal/accounting decision; Prisma `Subscription` cascade relations remain intentionally untouched).
   - *Account-deletion implementation*: `DEFERRED` (Phases 2C.4B server deletion transaction and 2C.4D E2E cascade proof scheduled upon resolution of open financial decision).
 - **Phase 2C.5 (Operational-Failure Invariant Audit)**: `CLOSED` (15 core failure invariants audited, verified, and locked with isolated tests).
-- **Phase 2C.6 (Dependency and Supply-Chain Hardening)**: `IN PROGRESS`
-  - *Completed & Verified*: Authoritative `npm ci` lockfile enforcement; `engines` contract in `package.json`; full 40-character commit SHA pinning on GitHub Actions in `ci.yml`; least-privilege workflow permissions; Dependabot for `npm` and `github-actions`; `npm audit --audit-level=high` gate; pull-request `dependency-review-action` gate; Android APK automation deferred and invalid workflow removed; supply-chain contract tests added and verified.
-  - *Remaining External Verification*: GitHub Actions runtime execution and independent Copilot audit.
-  - *Deferred*: Software Bill of Materials (SBOM), artifact attestation, future Ubuntu 26.04 and Node.js 24 compatibility.
-- **Phase 2D (Architecture Decomposition & Maintainability)**: `NOT STARTED`
+- **Phase 2C.6 (Dependency and Supply-Chain Hardening)**: `CLOSED`
+  - *Completed & Verified*: Authoritative `npm ci` lockfile enforcement; `engines` contract in `package.json` for Node.js 20; full 40-character commit SHA pinning on GitHub Actions in `ci.yml`; least-privilege workflow permissions; Dependabot for `npm` and `github-actions`; `npm audit --audit-level=high` gate; pull-request `dependency-review-action` gate; Android APK automation deferred and invalid workflow removed; supply-chain contract tests added and verified.
+  - *Non-Blocking Deferred Hardening Items* (Recorded as technical backlog; not claimed as implemented):
+    - SBOM (Software Bill of Materials)
+    - Artifact Attestation
+    - Ubuntu 26.04 compatibility
+    - Node.js 24 project-runtime migration
+    - Android APK automation after the tracked `android/` project exists
+    - Controlled future GitHub Actions upgrades
+- **Phase 2D (Architecture Decomposition & Maintainability)**: `READY TO START`
